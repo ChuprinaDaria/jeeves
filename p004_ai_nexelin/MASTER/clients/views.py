@@ -1522,7 +1522,7 @@ def list_clients_extended(request):
             'company_name': client.company_name,
             'client_type': client.client_type,
             'is_active': client.is_active,
-            'username': client.user.username if client.user else None,
+            'username': client.user if client.user else None,  # client.user is CharField
             'specialization': {
                 'id': client.specialization.id,
                 'name': client.specialization.name,

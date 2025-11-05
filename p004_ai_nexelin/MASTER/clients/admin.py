@@ -139,7 +139,7 @@ class ClientAdmin(admin.ModelAdmin):
                 if not config.enabled:
                     self.message_user(
                         request,
-                        f'Zero service is disabled for {client.user.username}. Enable it first.',
+                        f'Zero service is disabled for {client.user}. Enable it first.',  # client.user is CharField
                         level=messages.WARNING
                     )
                     continue
@@ -151,7 +151,7 @@ class ClientAdmin(admin.ModelAdmin):
             except ClientZeroConfig.DoesNotExist:
                 self.message_user(
                     request,
-                    f'No Zero configuration found for {client.user.username}',
+                    f'No Zero configuration found for {client.user}',  # client.user is CharField
                     level=messages.WARNING
                 )
         

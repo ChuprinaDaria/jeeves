@@ -30,7 +30,7 @@ class UsageStatsAdmin(admin.ModelAdmin):
     @admin.display(description='Entity')
     def entity_display(self, obj):
         if obj.client:
-            return f"CLIENT: {obj.client.user.username}"
+            return f"CLIENT: {obj.client.user}"  # client.user is CharField
         elif obj.branch:
             return f"BRANCH: {obj.branch.name}"
         elif obj.specialization:
