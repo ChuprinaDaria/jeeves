@@ -101,12 +101,11 @@ INSTALLED_APPS = [
     "MASTER.accounts",
     "MASTER.branches",
     "MASTER.specializations",
-    "MASTER.clients.apps.ClientsConfig",
+    "MASTER.clients",
     "MASTER.api",
     "MASTER.processing",
     "MASTER.rag",
     "MASTER.restaurant",
-    "MASTER.clients",
 ]
 
 MIDDLEWARE = [
