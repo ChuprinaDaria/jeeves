@@ -30,17 +30,29 @@ import json
 def get_client_from_request(request):
     """
     Helper function to get client from request.
-    Supports both:
+    Supports:
     - request.user.client_profile (for regular users)
-    - request.user.username = 'client_{id}' (for JWT tokens from TokenByClientTokenView)
+    - request.user.username = Client.user (for JWT tokens from TokenByClientTokenView)
+    - request.user.username = 'client_{id}' (fallback)
     """
     # Спочатку пробуємо через client_profile
     client = getattr(request.user, 'client_profile', None)
     if client:
         return client
     
-    # Якщо немає client_profile, перевіряємо username
+    # Якщо немає client_profile, шукаємо клієнта за username
     username = getattr(request.user, 'username', '')
+    if not username:
+        return None
+    
+    # Спочатку шукаємо за Client.user (основний випадок для JWT токенів)
+    try:
+        client = Client.objects.get(user=username, is_active=True)
+        return client
+    except Client.DoesNotExist:
+        pass
+    
+    # Fallback: перевіряємо чи username має формат 'client_{id}'
     if username.startswith('client_'):
         try:
             client_id = int(username.replace('client_', ''))
