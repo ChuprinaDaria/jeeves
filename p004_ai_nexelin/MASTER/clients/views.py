@@ -96,6 +96,25 @@ class ClientDocumentViewSet(viewsets.ModelViewSet):
     queryset = ClientDocument.objects.all()
     serializer_class = ClientDocumentSerializer
     permission_classes = [IsClientOwner | IsAdminOrReadOnly]
+    
+    def get_queryset(self):
+        """Filter documents by authenticated client"""
+        client = get_client_from_request(self.request)
+        if client:
+            return ClientDocument.objects.filter(client=client).order_by('-uploaded_at')
+        # Admin/staff can see all
+        user = self.request.user
+        if user and user.is_authenticated and (user.is_superuser or getattr(user, 'is_staff', False)):
+            return ClientDocument.objects.all().order_by('-uploaded_at')
+        return ClientDocument.objects.none()
+    
+    def perform_create(self, serializer):
+        """Automatically set client from request"""
+        client = get_client_from_request(self.request)
+        if not client:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Client authentication required')
+        serializer.save(client=client)
 
 
 class APIKeyViewSet(viewsets.ModelViewSet):

@@ -1,8 +1,8 @@
-import { Upload } from 'lucide-react';
+import { Upload, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-const FileUpload = ({ onUpload }) => {
+const FileUpload = ({ onUpload, uploading }) => {
   const { t } = useTranslation();
   const [dragging, setDragging] = useState(false);
 
@@ -14,12 +14,14 @@ const FileUpload = ({ onUpload }) => {
   };
 
   const handleFiles = (fileList) => {
+    // Передаємо File об'єкти з метаданими для відображення прогресу
     const newFiles = fileList.map((file) => ({
       id: Date.now() + Math.random(),
       name: file.name,
       size: file.size,
       type: file.type,
       uploadedAt: new Date().toISOString(),
+      file: file, // Зберігаємо сам File об'єкт для завантаження
     }));
     onUpload(newFiles);
   };
@@ -44,11 +46,15 @@ const FileUpload = ({ onUpload }) => {
           dragging
             ? 'border-primary-500 bg-primary-50'
             : 'border-gray-300 hover:border-primary-400'
-        }`}
+        } ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
       >
-        <Upload className="mx-auto mb-4 text-gray-400" size={48} />
+        {uploading ? (
+          <Loader2 className="mx-auto mb-4 text-primary-500 animate-spin" size={48} />
+        ) : (
+          <Upload className="mx-auto mb-4 text-gray-400" size={48} />
+        )}
         <p className="text-gray-700 font-medium mb-2">
-          {t('training.dragDrop')}
+          {uploading ? t('training.uploading') || 'Uploading...' : t('training.dragDrop')}
         </p>
         <p className="text-sm text-gray-500 mb-4">
           {t('training.supportedFormats')}
@@ -60,8 +66,12 @@ const FileUpload = ({ onUpload }) => {
           className="hidden"
           id="file-input"
           accept=".pdf,.doc,.docx,.txt,.xls,.xlsx"
+          disabled={uploading}
         />
-        <label htmlFor="file-input" className="btn-primary cursor-pointer">
+        <label 
+          htmlFor="file-input" 
+          className={`btn-primary cursor-pointer ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
           {t('training.chooseFiles')}
         </label>
       </div>

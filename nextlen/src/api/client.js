@@ -35,6 +35,9 @@ export const clientAPI = {
     });
   },
 
+  // Видалити документ клієнта
+  deleteDocument: (documentId) => api.delete(`/clients/documents/${documentId}/`),
+
   // Knowledge Blocks API
   getKnowledgeBlocks: () => api.get('/clients/knowledge-blocks/'),
   createKnowledgeBlock: (data) => api.post('/clients/knowledge-blocks/', data),

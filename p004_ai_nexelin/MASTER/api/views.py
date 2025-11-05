@@ -636,7 +636,6 @@ class ClientEmbeddingModelSetView(APIView):
     Request JSON: { model_id: int, model_type: 'embedding'|'ai' } or { model_slug: str, model_type: 'embedding'|'ai' }
     Response: { success: bool, model: {...}, reindex_required: bool }
     """
-    permission_classes = [permissions.IsAuthenticated]
     
     def post(self, request):
         # Import helper from clients.views
@@ -644,7 +643,7 @@ class ClientEmbeddingModelSetView(APIView):
         
         client = get_client_from_request(request)
         if client is None:
-            return Response({'error': 'Client not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'Client not found or unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
         
         data = request.data or {}
         model_id = data.get('model_id')
@@ -794,11 +793,11 @@ class ClientIndexNewDocumentsView(APIView):
     It does NOT reindex existing documents or delete old embeddings.
     """
     def post(self, request):
-        client = getattr(request, 'client', None)
-        if client is None and getattr(request, 'user', None) is not None and request.user.is_authenticated:
-            client = getattr(request.user, 'client_profile', None)
+        from MASTER.clients.views import get_client_from_request
+        
+        client = get_client_from_request(request)
         if client is None:
-            return Response({'error': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({'error': 'Client not found or unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
         
         # Перевіряємо, чи є обрана модель
         if not client.embedding_model:
@@ -835,11 +834,11 @@ class ClientReindexDocumentsView(APIView):
     Use this when switching models or when you need to completely rebuild embeddings.
     """
     def post(self, request):
-        client = getattr(request, 'client', None)
-        if client is None and getattr(request, 'user', None) is not None and request.user.is_authenticated:
-            client = getattr(request.user, 'client_profile', None)
+        from MASTER.clients.views import get_client_from_request
+        
+        client = get_client_from_request(request)
         if client is None:
-            return Response({'error': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({'error': 'Client not found or unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
         
         # Перевіряємо, чи є обрана модель
         if not client.embedding_model:
