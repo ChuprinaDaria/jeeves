@@ -178,8 +178,8 @@ class MenuItemEmbedding(models.Model):
         related_name='menu_embeddings'
     )
     
-    # Same technical debt as other embeddings - fixed 3072 dimensions
-    vector = VectorField(dimensions=3072, null=True, blank=True)
+    # Fixed at 1536 dimensions (pgvector limit <= 2000; matches text-embedding-3-small)
+    vector = VectorField(dimensions=1536, null=True, blank=True)
     content = models.TextField(help_text='Combined searchable content from menu item')
     language = models.CharField(max_length=10, default='uk', help_text='Language of the content')
     
@@ -195,13 +195,13 @@ class MenuItemEmbedding(models.Model):
         ]
     
     def save(self, *args, **kwargs):
-        # Pad vector to 3072 dimensions if needed
+        # Pad vector to 1536 dimensions if needed
         if self.vector is not None and self.embedding_model:
             actual_dim = len(self.vector)
-            if actual_dim > 3072:
-                raise ValidationError(f"Vector dimensions exceed maximum: {actual_dim} > 3072")
-            if actual_dim < 3072:
-                self.vector = list(self.vector) + [0.0] * (3072 - actual_dim)
+            if actual_dim > 1536:
+                raise ValidationError(f"Vector dimensions exceed maximum: {actual_dim} > 1536")
+            if actual_dim < 1536:
+                self.vector = list(self.vector) + [0.0] * (1536 - actual_dim)
         super().save(*args, **kwargs)
 
 

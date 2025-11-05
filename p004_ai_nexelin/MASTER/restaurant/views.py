@@ -620,8 +620,12 @@ class RestaurantChatViewSet(viewsets.GenericViewSet):
             embedding_model = getattr(client, 'embedding_model', None)
             if not embedding_model and client and client.specialization:
                 embedding_model = client.specialization.get_embedding_model()
-            model_name = embedding_model.model_name if embedding_model else getattr(settings, 'EMBEDDINGS_MODEL_NAME', 'text-embedding-3-small')
-            q = EmbeddingService.embed_text(query, model_name)
+            # Генеруємо запитний вектор через create_embedding для коректної розмірності
+            if embedding_model:
+                q = EmbeddingService.create_embedding(query, embedding_model)
+            else:
+                model_name = getattr(settings, 'EMBEDDINGS_MODEL_NAME', 'text-embedding-3-small')
+                q = EmbeddingService.embed_text(query, model_name)
             qvec = q.get('vector') or []
             if qvec:
                 emb_qs = (

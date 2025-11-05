@@ -25,7 +25,7 @@ class EmbeddingService:
         """
         try:
             from openai import OpenAI
-            import tiktoken
+            import tiktoken  # type: ignore[reportMissingImports]
 
             client = OpenAI(api_key=settings.OPENAI_API_KEY)
             encoding = tiktoken.encoding_for_model(model_name)
@@ -53,13 +53,33 @@ class EmbeddingService:
         
         try:
             if provider == 'openai':
-                return EmbeddingService._openai_embed(text, model_name)
+                result = EmbeddingService._openai_embed(text, model_name)
             elif provider == 'huggingface':
-                return EmbeddingService._huggingface_embed(text, model_name)
+                result = EmbeddingService._huggingface_embed(text, model_name)
             elif provider == 'cohere':
-                return EmbeddingService._cohere_embed(text, model_name)
+                result = EmbeddingService._cohere_embed(text, model_name)
             else:
                 raise ValueError(f"Unknown provider: {provider}")
+
+            # Normalize vector dimensions to match configured model dimensions
+            try:
+                target_dim = int(embedding_model.dimensions)
+                vec = result.get('vector')
+                if isinstance(vec, list):
+                    current_dim = len(vec)
+                    if current_dim != target_dim:
+                        # Truncate or pad with zeros to exactly target_dim
+                        if current_dim > target_dim:
+                            vec = vec[:target_dim]
+                        else:
+                            vec = vec + [0.0] * (target_dim - current_dim)
+                        result['vector'] = vec
+                        result['dimensions'] = target_dim
+            except Exception:
+                # In case of any unexpected issue, return original result
+                pass
+
+            return result
         except Exception:  # noqa: BLE001
             if getattr(settings, "EMBEDDINGS_FALLBACK_LOCAL", True):
                 return EmbeddingService._local_tfidf_embed(text)
@@ -68,7 +88,7 @@ class EmbeddingService:
     @staticmethod
     def _openai_embed(text: str, model_name: str):
         from openai import OpenAI
-        import tiktoken
+        import tiktoken  # type: ignore[reportMissingImports]
         
         client = OpenAI(api_key=settings.OPENAI_API_KEY)
         
@@ -104,7 +124,7 @@ class EmbeddingService:
         except Exception:  # noqa: BLE001
             vec_arr = np.asarray(X)[0]
         
-        # Доповнюємо або обрізаємо вектор до 3072 розмірностей
+        # Доповнюємо або обрізаємо вектор до 1536 розмірностей
         target_dim = 1536
         if len(vec_arr) < target_dim:
             # Доповнюємо нулями
@@ -138,7 +158,7 @@ class EmbeddingService:
         except Exception:  # noqa: BLE001
             arr = np.asarray(X)
         
-        # Доповнюємо або обрізаємо вектори до 3072 розмірностей
+        # Доповнюємо або обрізаємо вектори до 1536 розмірностей
         target_dim = 1536
         if arr.shape[1] < target_dim:
             # Доповнюємо нулями

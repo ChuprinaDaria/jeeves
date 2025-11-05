@@ -145,11 +145,9 @@ class BranchEmbedding(models.Model):
         related_name='branch_embeddings'
     )
     
-    # TECHNICAL DEBT: Fixed at 3072 dimensions (max for text-embedding-3-large)
-    # Most models use 1536 (text-embedding-3-small), wasting 50% storage
-    # TODO: Consider dynamic dimensions or separate tables per model dimension
-    # Current approach: pad smaller vectors with zeros (see save() method)
-    vector = VectorField(dimensions=3072, null=True, blank=True)
+    # Fixed at 1536 dimensions (pgvector limit <= 2000; matches text-embedding-3-small)
+    # For larger provider vectors, we truncate; for smaller, we pad to 1536
+    vector = VectorField(dimensions=1536, null=True, blank=True)
     content = models.TextField()
     metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -169,10 +167,10 @@ class BranchEmbedding(models.Model):
         if self.vector is not None and self.embedding_model:
             expected_dim = self.embedding_model.dimensions
             actual_dim = len(self.vector)
-            if actual_dim > 3072:
-                raise ValidationError(f"Vector dimensions exceed maximum: {actual_dim} > 3072")
-            if actual_dim < 3072:
-                self.vector = list(self.vector) + [0.0] * (3072 - actual_dim)
+            if actual_dim > 1536:
+                raise ValidationError(f"Vector dimensions exceed maximum: {actual_dim} > 1536")
+            if actual_dim < 1536:
+                self.vector = list(self.vector) + [0.0] * (1536 - actual_dim)
         super().save(*args, **kwargs)
 
 
