@@ -163,7 +163,7 @@ class LLMClient:
         if client:
             client_prompt = self._get_client_custom_prompt(client)
             if client_prompt:
-                logger.info(f"Using custom prompt for client: {client.user.username}")
+                logger.info(f"Using custom prompt for client: {client.user}")
                 return client_prompt
         
         # Priority 2: Specialization custom prompt

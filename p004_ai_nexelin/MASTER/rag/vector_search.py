@@ -258,7 +258,7 @@ class VectorSearchService:
                 chunk_index=emb.metadata.get('chunk_index', 0) if emb.metadata else 0,
             ))
         
-        logger.info(f"Client search: found {len(results)} results for client '{client.user.username}'")
+        logger.info(f"Client search: found {len(results)} results for client '{client.user}'")
         return results
     
     def _search_menu_level(
@@ -311,7 +311,7 @@ class VectorSearchService:
                 chunk_index=0,  # Menu items are single chunks
             ))
         
-        logger.info(f"Menu search: found {len(results)} results for client '{client.user.username}'")
+        logger.info(f"Menu search: found {len(results)} results for client '{client.user}'")
         return results
     
     def _set_pgvector_parameters(self) -> None:

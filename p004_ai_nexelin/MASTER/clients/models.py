@@ -328,7 +328,8 @@ class ClientEmbedding(models.Model):
         ]
 
     def __str__(self):
-        return f"Client {self.client.user.username} - {self.content[:50]}"
+        # client.user is CharField (username string), not ForeignKey
+        return f"Client {self.client.user} - {self.content[:50]}"
     
     def save(self, *args, **kwargs):
         if self.vector is not None and self.embedding_model:
