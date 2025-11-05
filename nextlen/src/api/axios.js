@@ -2,8 +2,24 @@ import axios from 'axios';
 
 const MOCK_MODE = import.meta.env.VITE_MOCK_MODE === 'true' || !import.meta.env.VITE_API_URL;
 
+// Використовуємо production URL якщо VITE_API_URL не встановлений
+// Це захищає від використання localhost в production
+const getApiUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl) {
+    return envUrl;
+  }
+  // В production режимі не використовуємо localhost fallback
+  if (import.meta.env.PROD) {
+    console.error('VITE_API_URL не встановлений в production!');
+    return 'https://api.nexelin.com/api'; // Production fallback
+  }
+  // Тільки в development використовуємо localhost
+  return 'http://localhost:8000/api';
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
+  baseURL: getApiUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
