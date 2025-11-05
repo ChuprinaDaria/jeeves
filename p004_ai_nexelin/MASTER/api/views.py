@@ -576,6 +576,8 @@ class EmbeddingModelsListView(APIView):
     Auth: JWT (client user) or X-API-Key (sets request.client).
     Response: List of active embedding models with their details.
     Now also includes AI models from mg.nexelin.com
+    
+    NOTE: pgvector has a maximum of 2000 dimensions, so we filter models accordingly.
     """
     def get(self, request):
         client = getattr(request, 'client', None)
@@ -585,7 +587,8 @@ class EmbeddingModelsListView(APIView):
         # For unauthenticated requests, return public list
         # For authenticated clients, include their selected model
         
-        models_list = EmbeddingModel.objects.filter(is_active=True).order_by('provider', 'name')
+        # IMPORTANT: pgvector максимум 2000 вимірів! Фільтруємо моделі
+        models_list = EmbeddingModel.objects.filter(is_active=True, dimensions__lte=2000).order_by('provider', 'name')
         
         selected_model_id = None
         if client:
@@ -708,6 +711,15 @@ class ClientEmbeddingModelSetView(APIView):
                 model = EmbeddingModel.objects.get(slug=model_slug, is_active=True)
         except EmbeddingModel.DoesNotExist:
             return Response({'error': 'Embedding model not found or inactive'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Валідація: pgvector підтримує максимум 2000 вимірів
+        if model.dimensions > 2000:
+            return Response({
+                'error': f'Model dimensions ({model.dimensions}) exceed pgvector maximum (2000). Please select a different model.',
+                'model_name': model.name,
+                'model_dimensions': model.dimensions,
+                'max_supported': 2000
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         # Check if client is changing model
         previous_model_id = getattr(client, 'embedding_model_id', None)

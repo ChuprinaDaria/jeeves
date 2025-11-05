@@ -240,12 +240,17 @@ const ModelStatusCard = () => {
               <p className="text-sm text-gray-500">Switching...</p>
             ) : (
               <div className="space-y-1 max-h-60 overflow-y-auto">
-                {models.map((m) => (
+                {models.map((m) => {
+                  const isUnsupported = m.type === 'embedding' && m.dimensions > 2000;
+                  return (
                   <button
                     key={m.id}
-                    onClick={() => handleSwitchModel(m.id)}
+                    onClick={() => !isUnsupported && handleSwitchModel(m.id)}
+                    disabled={isUnsupported}
                     className={`w-full text-left px-2 py-1.5 rounded text-sm transition ${
-                      m.id === selectedModel?.id
+                      isUnsupported
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"
+                        : m.id === selectedModel?.id
                         ? "bg-primary-100 text-primary-700 font-medium"
                         : "hover:bg-gray-100 text-gray-700"
                     }`}
@@ -269,12 +274,16 @@ const ModelStatusCard = () => {
                       </div>
                     )}
                     {m.type === 'embedding' && m.dimensions && (
-                      <span className="text-xs text-gray-500">
-                        {m.dimensions} dimensions
-                      </span>
+                      <div className="text-xs mt-1">
+                        <span className="text-gray-500">{m.dimensions} dimensions</span>
+                        {m.dimensions > 2000 && (
+                          <span className="ml-2 text-red-500 font-medium">⚠ Unsupported (max 2000)</span>
+                        )}
+                      </div>
                     )}
                   </button>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
