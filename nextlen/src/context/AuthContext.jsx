@@ -112,6 +112,7 @@ export const AuthProvider = ({ children }) => {
     }
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    localStorage.removeItem('client_tag');
     localStorage.removeItem('mock_user');
     setUser(null);
   };
@@ -120,14 +121,18 @@ export const AuthProvider = ({ children }) => {
     try {
       // Отримуємо JWT токен через client_token
       const { data } = await authAPI.getTokenByClientToken(clientToken);
-      
+
       if (data && data.access) {
         // Зберігаємо токени
         localStorage.setItem('access_token', data.access);
         if (data.refresh) {
           localStorage.setItem('refresh_token', data.refresh);
         }
-        
+
+        // ВАЖЛИВО: Зберігаємо client_tag для можливості повторної авторизації
+        // при експірації токенів або перезавантаженні сторінки
+        localStorage.setItem('client_tag', clientToken);
+
         // Отримуємо профіль користувача
         try {
           const profileResponse = await authAPI.getProfile();
@@ -143,7 +148,7 @@ export const AuthProvider = ({ children }) => {
             });
           }
         }
-        
+
         return data;
       }
       throw new Error('Invalid response from server');
@@ -154,6 +159,7 @@ export const AuthProvider = ({ children }) => {
         const mockToken = 'mock_token_' + Date.now();
         localStorage.setItem('access_token', mockToken);
         localStorage.setItem('refresh_token', mockToken);
+        localStorage.setItem('client_tag', clientToken);
         localStorage.setItem('mock_user', JSON.stringify(mockUser));
         setUser(mockUser);
         return { access: mockToken, refresh: mockToken, user: mockUser };
