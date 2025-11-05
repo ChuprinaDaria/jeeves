@@ -46,11 +46,12 @@ const TrainingPage = () => {
     setUploading(true);
     
     for (const fileObj of newFiles) {
+      // Визначаємо fileName ДО try/catch щоб мати доступ в обох блоках
+      const actualFile = fileObj.file || fileObj;
+      const fileName = actualFile.name || fileObj.name || 'Untitled';
+      
       try {
         // Відправляємо файл на бекенд
-        const actualFile = fileObj.file || fileObj;
-        const fileName = actualFile.name || fileObj.name || 'Untitled';
-        
         const response = await clientAPI.uploadDocument(
           actualFile,
           fileName,
