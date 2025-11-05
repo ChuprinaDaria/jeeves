@@ -60,6 +60,7 @@ class ClientSerializer(serializers.ModelSerializer):
 class ClientDocumentSerializer(serializers.ModelSerializer):
     file_url = serializers.SerializerMethodField()
     knowledge_block_name = serializers.SerializerMethodField()
+    file_type = serializers.ChoiceField(choices=ClientDocument.FILE_TYPES, required=False)
 
     class Meta:
         model = ClientDocument
@@ -79,7 +80,7 @@ class ClientDocumentSerializer(serializers.ModelSerializer):
             'chunks_count',
             'uploaded_at',
         ]
-        read_only_fields = ['uploaded_at', 'is_processed', 'processing_error', 'chunks_count']
+        read_only_fields = ['client', 'file_size', 'uploaded_at', 'is_processed', 'processing_error', 'chunks_count']
 
     def get_file_url(self, obj):
         """Get absolute URL for file"""
@@ -93,6 +94,33 @@ class ClientDocumentSerializer(serializers.ModelSerializer):
     def get_knowledge_block_name(self, obj):
         """Get knowledge block name"""
         return obj.knowledge_block.name if obj.knowledge_block else None
+    
+    def validate(self, data):
+        """Auto-detect file_type if not provided"""
+        if 'file' in data and not data.get('file_type'):
+            file = data['file']
+            file_name = file.name.lower()
+            
+            # Map file extensions to file types
+            extension_map = {
+                '.pdf': 'pdf',
+                '.txt': 'txt',
+                '.csv': 'csv',
+                '.json': 'json',
+                '.docx': 'docx',
+                '.doc': 'docx',
+            }
+            
+            for ext, file_type in extension_map.items():
+                if file_name.endswith(ext):
+                    data['file_type'] = file_type
+                    break
+            
+            # Default to txt if unknown
+            if not data.get('file_type'):
+                data['file_type'] = 'txt'
+        
+        return data
 
 
 class ClientAPIKeySerializer(serializers.ModelSerializer):
