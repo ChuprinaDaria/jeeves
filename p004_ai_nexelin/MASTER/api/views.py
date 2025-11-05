@@ -823,10 +823,18 @@ class ClientIndexNewDocumentsView(APIView):
         if client_pk is None:
             return Response({'error': 'Invalid client ID'}, status=status.HTTP_400_BAD_REQUEST)
         
-        task_result = index_new_client_documents_task.delay(int(client_pk))
-        
         # Підраховуємо необроблені документи для інформації
         documents_count = ClientDocument.objects.filter(client=client, is_processed=False).count()
+        
+        if documents_count == 0:
+            return Response({
+                'success': True,
+                'message': 'No new documents to index. All documents are already processed.',
+                'documents_count': 0,
+                'task_id': None,
+            })
+        
+        task_result = index_new_client_documents_task.delay(int(client_pk))
         
         return Response({
             'success': True,
