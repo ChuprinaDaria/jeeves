@@ -48,16 +48,24 @@ const TrainingPage = () => {
     for (const fileObj of newFiles) {
       try {
         // Відправляємо файл на бекенд
+        const actualFile = fileObj.file || fileObj;
+        const fileName = actualFile.name || fileObj.name || 'Untitled';
+        
         const response = await clientAPI.uploadDocument(
-          fileObj.file || fileObj, // fileObj може мати властивість file або бути самим File об'єктом
-          fileObj.name || fileObj.name,
+          actualFile,
+          fileName,
           null // clientId не потрібен, backend визначить з JWT
         );
         
         console.log('File uploaded:', response.data);
       } catch (error) {
-        console.error('Failed to upload file:', fileObj.name, error);
-        alert(`Failed to upload ${fileObj.name}: ${error.response?.data?.error || error.message}`);
+        const errorMsg = error.response?.data?.error 
+          || error.response?.data?.message 
+          || error.response?.data?.detail
+          || error.message 
+          || 'Unknown error';
+        console.error('Failed to upload file:', fileName, error);
+        alert(`Failed to upload ${fileName}: ${errorMsg}`);
       }
     }
     
