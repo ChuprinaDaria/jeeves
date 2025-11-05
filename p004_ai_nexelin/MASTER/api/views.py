@@ -635,12 +635,15 @@ class ClientEmbeddingModelSetView(APIView):
     Request JSON: { model_id: int, model_type: 'embedding'|'ai' } or { model_slug: str, model_type: 'embedding'|'ai' }
     Response: { success: bool, model: {...}, reindex_required: bool }
     """
+    permission_classes = [permissions.IsAuthenticated]
+    
     def post(self, request):
-        client = getattr(request, 'client', None)
-        if client is None and getattr(request, 'user', None) is not None and request.user.is_authenticated:
-            client = getattr(request.user, 'client_profile', None)
+        # Import helper from clients.views
+        from MASTER.clients.views import get_client_from_request
+        
+        client = get_client_from_request(request)
         if client is None:
-            return Response({'error': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({'error': 'Client not found'}, status=status.HTTP_404_NOT_FOUND)
         
         data = request.data or {}
         model_id = data.get('model_id')
