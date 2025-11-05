@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Loader2 } from 'lucide-react';
+import Sidebar from '../components/layout/Sidebar';
+import Header from '../components/layout/Header';
+import DashboardPage from './DashboardPage';
 
 const ClientLoginPage = () => {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const { isAuthenticated, loginByClientToken, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [loginAttempted, setLoginAttempted] = useState(false);
 
   useEffect(() => {
     const tag = searchParams.get('tag');
@@ -19,9 +22,9 @@ const ClientLoginPage = () => {
       return;
     }
 
-    // Якщо вже авторизований, просто перенаправляємо на dashboard
+    // Якщо вже авторизований, просто показуємо dashboard
     if (isAuthenticated && !authLoading) {
-      navigate('/dashboard', { replace: true });
+      setLoading(false);
       return;
     }
 
@@ -30,22 +33,24 @@ const ClientLoginPage = () => {
       return;
     }
 
-    // Автоматичний вхід через client_token (tag)
-    handleAutoLogin(tag);
-  }, [searchParams, navigate, isAuthenticated, authLoading, loginByClientToken]);
+    // Якщо ще не намагалися увійти, робимо автоматичний вхід
+    if (!loginAttempted) {
+      handleAutoLogin(tag);
+    }
+  }, [searchParams, isAuthenticated, authLoading, loginByClientToken, loginAttempted]);
 
   const handleAutoLogin = async (clientToken) => {
     try {
       setLoading(true);
+      setLoginAttempted(true);
       
       // Використовуємо метод з AuthContext для входу
       await loginByClientToken(clientToken);
       
       // Чекаємо трохи, щоб AuthContext оновився
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 300));
       
-      // Перенаправляємо на dashboard
-      navigate('/dashboard', { replace: true });
+      setLoading(false);
     } catch (err) {
       console.error('Auto login error:', err);
       setError(err.response?.data?.error || err.message || 'Failed to login. Please try again.');
@@ -53,7 +58,8 @@ const ClientLoginPage = () => {
     }
   };
 
-  if (loading) {
+  // Показуємо loading поки вхід не завершено
+  if (loading || authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-accent-50">
         <div className="text-center">
@@ -64,18 +70,34 @@ const ClientLoginPage = () => {
     );
   }
 
+  // Показуємо помилку якщо вхід не вдався
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-accent-50">
         <div className="text-center max-w-md mx-auto p-6 bg-white rounded-lg shadow-lg">
           <h2 className="text-2xl font-bold text-red-600 mb-4">Помилка входу</h2>
           <p className="text-gray-700 mb-4">{error}</p>
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="btn-primary"
-          >
-            Перейти на головну
-          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Якщо авторизований, показуємо dashboard з Layout (але без редиректу, URL залишається /l?tag=xxx)
+  if (isAuthenticated) {
+    const { user } = useAuth();
+    return (
+      <div className="flex min-h-screen bg-gray-50">
+        <Sidebar />
+        <div className="flex-1 flex flex-col w-full md:w-auto">
+          {user?.subscription_status === 'trial' && (
+            <div className="bg-yellow-100 border-b border-yellow-200 px-4 py-2 text-sm text-yellow-800">
+              Trial period active
+            </div>
+          )}
+          <Header />
+          <main className="flex-1 p-3 md:p-6 pt-16 md:pt-6 overflow-x-hidden">
+            <DashboardPage />
+          </main>
         </div>
       </div>
     );
