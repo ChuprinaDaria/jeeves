@@ -134,34 +134,63 @@ class APIDocsView(APIView):
 
 class PublicRAGChatView(APIView):
     """Public RAG chat endpoint - доступний для всіх клієнтів.
-    
-    Headers: X-API-Key (валідний API ключ будь-якого клієнта)
+
+    Підтримує 2 типи авторизації:
+    - JWT Bearer token (для клієнтського фронтенду)
+    - X-API-Key header (для зовнішніх API)
+
     Body JSON: { "message": "..." }
     Response: { "response": "...", "sources": [...], "num_chunks": N, "total_tokens": N }
     """
+    permission_classes = [AllowAny]
+
     def post(self, request):
-        # Валідація API ключа (для rate limiting та безпеки), але не прив'язка до конкретного клієнта
-        api_key = request.headers.get('X-API-Key')
-        if not api_key:
-            return Response({'error': 'API key required'}, status=status.HTTP_401_UNAUTHORIZED)
-        
-        try:
-            key_obj = ClientAPIKey.objects.get(key=api_key, is_active=True)
-            if not key_obj.is_valid():
+        # Перевіряємо чи є JWT авторизація
+        client = None
+        if request.user and request.user.is_authenticated:
+            # Якщо користувач авторизований через JWT, отримуємо його клієнта
+            try:
+                from MASTER.clients.views import get_client_from_request
+                client = get_client_from_request(request)
+            except Exception:
+                pass
+
+        # Якщо немає JWT, перевіряємо X-API-Key
+        if not client:
+            api_key = request.headers.get('X-API-Key')
+            if not api_key:
+                return Response({'error': 'Authentication required (JWT or API key)'}, status=status.HTTP_401_UNAUTHORIZED)
+
+            try:
+                key_obj = ClientAPIKey.objects.get(key=api_key, is_active=True)
+                if not key_obj.is_valid():
+                    return Response({'error': 'Invalid API key'}, status=status.HTTP_401_UNAUTHORIZED)
+                client = key_obj.client
+            except ClientAPIKey.DoesNotExist:
                 return Response({'error': 'Invalid API key'}, status=status.HTTP_401_UNAUTHORIZED)
-            # Отримуємо клієнта для контексту, але не обмежуємо доступ
-            client = key_obj.client
-        except ClientAPIKey.DoesNotExist:
-            return Response({'error': 'Invalid API key'}, status=status.HTTP_401_UNAUTHORIZED)
 
         message = request.data.get('message', '')
         if not message:
             return Response({'error': 'message is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Використовуємо клієнта для пошуку ТІЛЬКИ в його даних (приватні дані)
+        # Використовуємо клієнта для пошуку в його даних + даних бранча та спеціалізації
         generator = ResponseGenerator()
-        # Передаємо client для пошуку ТІЛЬКИ в даних цього клієнта (ізольований пошук)
-        rag_response = generator.generate(query=message, client=client, stream=False)
+
+        # Отримуємо branch та specialization клієнта для багаторівневого пошуку
+        specialization = getattr(client, 'specialization', None)
+        branch = getattr(specialization, 'branch', None) if specialization else None
+
+        # Передаємо client, specialization та branch для багаторівневого пошуку:
+        # - Client embeddings (приватні дані клієнта)
+        # - Specialization embeddings (спільні дані для всіх клієнтів цієї спеціалізації)
+        # - Branch embeddings (спільні дані для всіх клієнтів цього бранча)
+        rag_response = generator.generate(
+            query=message,
+            client=client,
+            specialization=specialization,
+            branch=branch,
+            stream=False
+        )
         return Response({
             'response': getattr(rag_response, 'answer', ''),
             'sources': getattr(rag_response, 'sources', []),
@@ -213,19 +242,26 @@ class TokenByClientTokenView(APIView):
         if not client:
             return Response({'error': 'Client not found'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        # Створюємо фейковий user object для JWT
+        # Отримуємо існуючий user object для JWT (використовуємо того ж користувача, що був створений при bootstrap)
         from MASTER.accounts.models import User as AppUser
-        fake_user, _ = AppUser.objects.get_or_create(
-            username=f"client_{client.id}",
+
+        # Client.user - це CharField з username, тому шукаємо User об'єкт за username
+        client_username = getattr(client, 'user', None)
+        if not client_username:
+            # Fallback: якщо немає username, створюємо generic user
+            client_username = f"client_{client.id}"
+
+        user_obj, created = AppUser.objects.get_or_create(
+            username=client_username,
             defaults={
-                'email': f"client_{client.id}@system.local",
-                'first_name': getattr(client, 'user', 'Client'),
+                'email': f"{client_username[:40]}@system.local",
+                'first_name': getattr(client, 'company_name', 'Client')[:30] or 'Client',
                 'last_name': '',
                 'role': 'client'
             }
         )
-        
-        refresh = RefreshToken.for_user(fake_user)
+
+        refresh = RefreshToken.for_user(user_obj)
         return Response({
             'access': str(refresh.access_token),  # type: ignore
             'refresh': str(refresh),
@@ -276,10 +312,14 @@ class BootstrapProvisionView(APIView):
         )
 
         # 3) Client user (role=client), identified by client_token
-        # FIRST: Check if API key with this token already exists
-        client_api = ClientAPIKey.objects.select_related('client').filter(key=client_token).first()
-        client = getattr(client_api, 'client', None)
-        
+        # FIRST: Check if client with this tag already exists (prevents duplicates)
+        client = Client.objects.filter(tag=client_token).first()
+
+        if client is None:
+            # SECOND: Check if API key with this token already exists
+            client_api = ClientAPIKey.objects.select_related('client').filter(key=client_token).first()
+            client = getattr(client_api, 'client', None)
+
         if client is None:
             # Build a safe, deterministic base username within DB limits
             max_username_len = getattr(User._meta.get_field('username'), 'max_length', 150)  # type: ignore
@@ -291,9 +331,9 @@ class BootstrapProvisionView(APIView):
             safe_base = (token_slug[:max_base_len] if max_base_len > 0 else '')
             username = f"{base_prefix}{safe_base}_{token_hash}"
 
-            # Prefer existing client by username if still none
+            # THIRD: Prefer existing client by username if still none
             client = Client.objects.filter(user=username).first()
-            
+
             if client is None:
                 # Create user with minimal required fields (without relying on manager-specific methods)
                 email = f"{username[:40]}@example.local"

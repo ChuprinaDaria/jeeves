@@ -4,9 +4,10 @@ from MASTER.clients.models import Client, ClientDocument, ClientAPIKey, Knowledg
 
 class ClientSerializer(serializers.ModelSerializer):
     logo_url = serializers.SerializerMethodField()
-    branch_name = serializers.CharField(source='branch.name', read_only=True)
-    specialization_name = serializers.CharField(source='specialization.name', read_only=True)
-    
+    branch_name = serializers.SerializerMethodField()
+    specialization_name = serializers.SerializerMethodField()
+    embedding_model_name = serializers.SerializerMethodField()
+
     class Meta:
         model = Client
         fields = [
@@ -26,12 +27,14 @@ class ClientSerializer(serializers.ModelSerializer):
             'client_type',
             'features',
             'custom_system_prompt',
+            'embedding_model',
+            'embedding_model_name',
             'created_by',
             'created_at',
             'updated_at',
         ]
         read_only_fields = ['api_key', 'created_by', 'created_at', 'updated_at']
-    
+
     def get_logo_url(self, obj):
         if obj.logo:
             request = self.context.get('request')
@@ -39,13 +42,57 @@ class ClientSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.logo.url)
             return obj.logo.url
         return None
+
+    def get_branch_name(self, obj):
+        """Safely get branch name"""
+        return obj.branch.name if obj.branch else None
+
+    def get_specialization_name(self, obj):
+        """Safely get specialization name"""
+        return obj.specialization.name if obj.specialization else None
+
+    def get_embedding_model_name(self, obj):
+        """Get embedding model name"""
+        return obj.embedding_model.name if obj.embedding_model else None
     
 
 
 class ClientDocumentSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
+    knowledge_block_name = serializers.SerializerMethodField()
+
     class Meta:
         model = ClientDocument
-        fields = '__all__'
+        fields = [
+            'id',
+            'client',
+            'knowledge_block',
+            'knowledge_block_name',
+            'title',
+            'file',
+            'file_url',
+            'file_type',
+            'file_size',
+            'metadata',
+            'is_processed',
+            'processing_error',
+            'chunks_count',
+            'uploaded_at',
+        ]
+        read_only_fields = ['uploaded_at', 'is_processed', 'processing_error', 'chunks_count']
+
+    def get_file_url(self, obj):
+        """Get absolute URL for file"""
+        if obj.file:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.file.url)
+            return obj.file.url
+        return None
+
+    def get_knowledge_block_name(self, obj):
+        """Get knowledge block name"""
+        return obj.knowledge_block.name if obj.knowledge_block else None
 
 
 class ClientAPIKeySerializer(serializers.ModelSerializer):

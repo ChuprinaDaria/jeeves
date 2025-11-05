@@ -1195,13 +1195,76 @@ class ClientStatsView(APIView):
         })
 
 
+class ClientEmbeddingsStatsView(APIView):
+    """Get embeddings statistics for the authenticated client.
+
+    Shows:
+    - Selected embedding model
+    - Count of embeddings per model
+    - Total embeddings count
+    - Models with existing embeddings
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        client = get_client_from_request(request)
+        if not client:
+            return Response({'error': 'Client not found'}, status=404)
+
+        from django.db.models import Count
+        from MASTER.clients.models import ClientEmbedding
+        from MASTER.EmbeddingModel.models import EmbeddingModel
+
+        # Отримуємо статистику embeddings по моделям
+        embeddings_by_model = ClientEmbedding.objects.filter(
+            client=client
+        ).values(
+            'embedding_model__id',
+            'embedding_model__name',
+            'embedding_model__slug',
+            'embedding_model__provider'
+        ).annotate(
+            count=Count('id')
+        ).order_by('-count')
+
+        # Поточна модель клієнта
+        current_model = client.embedding_model
+        current_model_data = None
+        if current_model:
+            current_model_data = {
+                'id': current_model.id,
+                'name': current_model.name,
+                'slug': current_model.slug,
+                'provider': current_model.provider,
+                'dimensions': current_model.dimensions,
+            }
+
+        # Загальна кількість embeddings
+        total_embeddings = ClientEmbedding.objects.filter(client=client).count()
+
+        # Кількість необроблених документів
+        from MASTER.clients.models import ClientDocument
+        unprocessed_docs = ClientDocument.objects.filter(
+            client=client,
+            is_processed=False
+        ).count()
+
+        return Response({
+            'current_model': current_model_data,
+            'total_embeddings': total_embeddings,
+            'embeddings_by_model': list(embeddings_by_model),
+            'unprocessed_documents': unprocessed_docs,
+            'has_multiple_models': len(embeddings_by_model) > 1,
+        })
+
+
 class ClientModelStatusView(APIView):
     """
     API endpoint для перевірки статусу моделі (health check)
     GET /api/clients/model-status/
     """
     permission_classes = [IsAuthenticated]
-    
+
     def get(self, request):
         """Перевірити статус моделі через тестовий запит"""
         client = get_client_from_request(request)

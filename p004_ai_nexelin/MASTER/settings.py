@@ -77,8 +77,14 @@ if CSRF_EXTRA_ORIGINS:
 
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Session та CSRF cookies для роботи в iframe
 SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_SAMESITE = 'None'  # Дозволяє cookies в iframe (cross-site)
+SESSION_COOKIE_HTTPONLY = True
+
 CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_SAMESITE = 'None'  # Дозволяє CSRF token в iframe (cross-site)
 CSRF_COOKIE_HTTPONLY = True
 
 # === APPLICATIONS ===
@@ -113,7 +119,9 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # XFrameOptionsMiddleware замінений на кастомний для підтримки iframe
+    # "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "MASTER.iframe_middleware.AllowIframeMiddleware",
     "MASTER.clients.middleware.ClientAPIKeyMiddleware",
 ]
 

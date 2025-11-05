@@ -22,6 +22,7 @@ urlpatterns = [
     path('top-questions/', views.ClientTopQuestionsView.as_view(), name='client-top-questions'),
     path('recent-activity/', views.ClientRecentActivityView.as_view(), name='client-recent-activity'),
     path('stats/', views.ClientStatsView.as_view(), name='client-stats'),
+    path('embeddings-stats/', views.ClientEmbeddingsStatsView.as_view(), name='client-embeddings-stats'),
     path('model-status/', views.ClientModelStatusView.as_view(), name='client-model-status'),
     path('whatsapp/webhook/', TwilioWhatsAppWebhookView.as_view(), name='twilio_whatsapp_webhook'),
     path('whatsapp/status/', TwilioWhatsAppWebhookView.as_view(), name='twilio_whatsapp_status'),

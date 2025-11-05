@@ -68,8 +68,8 @@ class MenuSerializer(serializers.ModelSerializer[Menu]):
 
 
 class MenuItemSerializer(serializers.ModelSerializer[MenuItem]):
-    category_name = serializers.CharField(source='category.name', read_only=True)
-    menu_name = serializers.CharField(source='menu.name', read_only=True)
+    category_name = serializers.SerializerMethodField()
+    menu_name = serializers.SerializerMethodField()
     document_file = serializers.FileField(write_only=True, required=False)
     document_title = serializers.CharField(write_only=True, required=False, allow_blank=True)
     file_type = serializers.ChoiceField(write_only=True, required=False, choices=[('pdf','pdf'),('txt','txt'),('csv','csv'),('json','json'),('docx','docx')])
@@ -79,6 +79,14 @@ class MenuItemSerializer(serializers.ModelSerializer[MenuItem]):
         decimal_places=2,
         read_only=True
     )
+
+    def get_category_name(self, obj):
+        """Safely get category name"""
+        return obj.category.name if obj.category else None
+
+    def get_menu_name(self, obj):
+        """Safely get menu name"""
+        return obj.menu.name if obj.menu else None
     
     class Meta:  # type: ignore[override]
         model = MenuItem  # type: ignore[assignment]

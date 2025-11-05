@@ -20,6 +20,7 @@ from MASTER.branches.models import BranchEmbedding
 from MASTER.specializations.models import SpecializationEmbedding
 from MASTER.clients.models import ClientEmbedding
 from MASTER.restaurant.models import MenuItemEmbedding
+from MASTER.EmbeddingModel.models import EmbeddingModel
 
 if TYPE_CHECKING:
     from MASTER.branches.models import Branch
@@ -71,57 +72,75 @@ class VectorSearchService:
         branch: Branch | None = None,
         specialization: Specialization | None = None,
         client: Client | None = None,
+        embedding_model: EmbeddingModel | None = None,
     ) -> list[SearchResult]:
         """
         Multi-level vector similarity search.
-        
+
         Searches across Branch, Specialization, and Client embeddings with configured weights.
         Automatically sets pgvector ANN parameters for better performance.
-        
+
         Args:
             query_vector: Embedding vector of the search query
             branch: Optional Branch to filter results
-            specialization: Optional Specialization to filter results  
+            specialization: Optional Specialization to filter results
             client: Optional Client to filter results
-            
+            embedding_model: Embedding model to filter results by (ensures consistency)
+
         Returns:
             List of SearchResult objects sorted by weighted similarity
         """
         self._set_pgvector_parameters()
-        
+
         results: list[SearchResult] = []
-        
+
+        # Визначаємо модель для фільтрації (щоб використовувати тільки сумісні embeddings)
+        filter_model = embedding_model
+        if not filter_model and client:
+            filter_model = getattr(client, 'embedding_model', None)
+        if not filter_model and specialization:
+            filter_model = specialization.get_embedding_model()
+        if not filter_model and branch:
+            filter_model = branch.get_embedding_model()
+
         # Пошук завжди з фільтрами - дані клієнта ізольовані та приватні
         # Якщо client переданий - шукаємо ТІЛЬКИ в його даних
         if branch:
-            results.extend(self._search_branch_level(query_vector, branch))
-        
+            results.extend(self._search_branch_level(query_vector, branch, filter_model))
+
         if specialization:
-            results.extend(self._search_specialization_level(query_vector, specialization))
-        
+            results.extend(self._search_specialization_level(query_vector, specialization, filter_model))
+
         if client:
             # Пошук ТІЛЬКИ в даних цього клієнта (ізольований, приватний)
             results.extend(self._search_client_level(query_vector, client))
             # Також шукаємо в меню ресторану для клієнтів ресторанного типу
             if client.client_type == 'restaurant':
                 results.extend(self._search_menu_level(query_vector, client))
-        
+
         # Sort by weighted similarity and limit results
         results.sort(key=lambda r: r.similarity, reverse=True)
-        
+
         return results
     
     def _search_branch_level(
         self,
         query_vector: list[float],
         branch: Branch,
+        embedding_model: EmbeddingModel | None = None,
     ) -> list[SearchResult]:
-        """Search Branch embeddings."""
+        """Search Branch embeddings using specified embedding model."""
         weight = self.weights['branch']
-        
+
         queryset = BranchEmbedding.objects.filter(
             branch=branch
-        ).annotate(
+        )
+
+        # Фільтруємо по моделі embedding, якщо вона передана
+        if embedding_model:
+            queryset = queryset.filter(embedding_model=embedding_model)
+
+        queryset = queryset.annotate(
             similarity=1 - Cast(
                 CosineDistance(F('vector'), query_vector),
                 output_field=FloatField()
@@ -153,13 +172,20 @@ class VectorSearchService:
         self,
         query_vector: list[float],
         specialization: Specialization,
+        embedding_model: EmbeddingModel | None = None,
     ) -> list[SearchResult]:
-        """Search Specialization embeddings."""
+        """Search Specialization embeddings using specified embedding model."""
         weight = self.weights['specialization']
-        
+
         queryset = SpecializationEmbedding.objects.filter(
             specialization=specialization
-        ).annotate(
+        )
+
+        # Фільтруємо по моделі embedding, якщо вона передана
+        if embedding_model:
+            queryset = queryset.filter(embedding_model=embedding_model)
+
+        queryset = queryset.annotate(
             similarity=1 - Cast(
                 CosineDistance(F('vector'), query_vector),
                 output_field=FloatField()

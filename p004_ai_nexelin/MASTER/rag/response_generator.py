@@ -77,13 +77,14 @@ class ResponseGenerator:
         embedding_model = self._get_embedding_model(client, specialization, branch)
         query_embedding_result = EmbeddingService.create_embedding(query, embedding_model)
         query_vector = query_embedding_result['vector']
-        
-        # Step 2: Vector search
+
+        # Step 2: Vector search (передаємо embedding_model для фільтрації)
         search_results = self.vector_search.search(
             query_vector=query_vector,
             branch=branch,
             specialization=specialization,
             client=client,
+            embedding_model=embedding_model,
         )
         
         if not search_results:

@@ -39,9 +39,11 @@ def reindex_client_documents_task(self, client_id: int):
             }
         
         embeddings_deleted = 0
-        
+
         # Видаляємо тільки embeddings, створені з поточною моделлю клієнта
-        # Старі embeddings для інших моделей зберігаються (для історії або можливого повернення)
+        # ВАЖЛИВО: Embeddings для інших моделей НЕ видаляються!
+        # Це дозволяє при поверненні до старої моделі використовувати існуючі embeddings
+        # без повторної індексації
         deleted, _ = ClientEmbedding.objects.filter(
             client=client,
             embedding_model=embedding_model

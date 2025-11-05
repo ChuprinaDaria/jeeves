@@ -793,21 +793,35 @@ def public_table_access(request, client_slug: str, token: str):
 def tts_demo(request):
     """Text-to-speech demo endpoint - доступний для всіх клієнтів.
 
-    Headers: X-API-Key (валідний API ключ будь-якого клієнта для валідації)
+    Підтримує 2 типи авторизації:
+    - JWT Bearer token (для клієнтського фронтенду)
+    - X-API-Key header (для зовнішніх API)
+
     Body JSON: { "text": "...", "voice": "alloy" }
     Returns: audio/mpeg
     """
-    # Валідація API ключа (для rate limiting), але не прив'язка до конкретного клієнта
-    api_key = request.headers.get('X-API-Key')
-    if not api_key:
-        return Response({'error': 'API key required'}, status=status.HTTP_401_UNAUTHORIZED)
-    try:
-        key_obj = ClientAPIKey.objects.get(key=api_key, is_active=True)
-        if not key_obj.is_valid():
+    # Перевіряємо чи є JWT авторизація
+    client = None
+    if request.user and request.user.is_authenticated:
+        # Якщо користувач авторизований через JWT, отримуємо його клієнта
+        try:
+            from MASTER.clients.views import get_client_from_request
+            client = get_client_from_request(request)
+        except Exception:
+            pass
+
+    # Якщо немає JWT, перевіряємо X-API-Key
+    if not client:
+        api_key = request.headers.get('X-API-Key')
+        if not api_key:
+            return Response({'error': 'Authentication required (JWT or API key)'}, status=status.HTTP_401_UNAUTHORIZED)
+        try:
+            key_obj = ClientAPIKey.objects.get(key=api_key, is_active=True)
+            if not key_obj.is_valid():
+                return Response({'error': 'Invalid API key'}, status=status.HTTP_401_UNAUTHORIZED)
+            client = key_obj.client
+        except ClientAPIKey.DoesNotExist:
             return Response({'error': 'Invalid API key'}, status=status.HTTP_401_UNAUTHORIZED)
-        # API ключ валідний - продовжуємо без прив'язки до конкретного клієнта
-    except ClientAPIKey.DoesNotExist:
-        return Response({'error': 'Invalid API key'}, status=status.HTTP_401_UNAUTHORIZED)
 
     data = request.data if isinstance(request.data, dict) else {}
     text = data.get('text', '')
@@ -839,21 +853,35 @@ def tts_demo(request):
 def stt_demo(request):
     """Speech-to-text demo endpoint - доступний для всіх клієнтів.
 
-    Headers: X-API-Key (валідний API ключ будь-якого клієнта для валідації)
+    Підтримує 2 типи авторизації:
+    - JWT Bearer token (для клієнтського фронтенду)
+    - X-API-Key header (для зовнішніх API)
+
     Multipart form: file=<audio>
     Returns: { text }
     """
-    # Валідація API ключа (для rate limiting), але не прив'язка до конкретного клієнта
-    api_key = request.headers.get('X-API-Key')
-    if not api_key:
-        return Response({'error': 'API key required'}, status=status.HTTP_401_UNAUTHORIZED)
-    try:
-        key_obj = ClientAPIKey.objects.get(key=api_key, is_active=True)
-        if not key_obj.is_valid():
+    # Перевіряємо чи є JWT авторизація
+    client = None
+    if request.user and request.user.is_authenticated:
+        # Якщо користувач авторизований через JWT, отримуємо його клієнта
+        try:
+            from MASTER.clients.views import get_client_from_request
+            client = get_client_from_request(request)
+        except Exception:
+            pass
+
+    # Якщо немає JWT, перевіряємо X-API-Key
+    if not client:
+        api_key = request.headers.get('X-API-Key')
+        if not api_key:
+            return Response({'error': 'Authentication required (JWT or API key)'}, status=status.HTTP_401_UNAUTHORIZED)
+        try:
+            key_obj = ClientAPIKey.objects.get(key=api_key, is_active=True)
+            if not key_obj.is_valid():
+                return Response({'error': 'Invalid API key'}, status=status.HTTP_401_UNAUTHORIZED)
+            client = key_obj.client
+        except ClientAPIKey.DoesNotExist:
             return Response({'error': 'Invalid API key'}, status=status.HTTP_401_UNAUTHORIZED)
-        # API ключ валідний - продовжуємо без прив'язки до конкретного клієнта
-    except ClientAPIKey.DoesNotExist:
-        return Response({'error': 'Invalid API key'}, status=status.HTTP_401_UNAUTHORIZED)
 
     audio = request.FILES.get('file')
     if not audio:

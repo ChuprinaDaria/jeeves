@@ -62,8 +62,15 @@ class Client(models.Model):
     
     user = models.CharField(max_length=255)
     company_name = models.CharField(max_length=200, blank=True)
-    
-    tag = models.CharField(max_length=255)
+
+    tag = models.CharField(
+        max_length=255,
+        unique=True,
+        db_index=True,
+        blank=True,
+        null=True,
+        help_text="Unique client token/tag for bootstrap authentication and portal access"
+    )
     description = models.TextField()
     
     api_key = models.CharField(max_length=64, unique=True, editable=False)
