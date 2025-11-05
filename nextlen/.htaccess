@@ -3,11 +3,16 @@
   RewriteEngine On
   RewriteBase /
   
-  # Якщо файл або директорія існують, використовуємо їх
+  # Якщо запитується конкретний файл або директорія - використовуємо їх
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   
-  # Інакше перенаправляємо на index.html
+  # Якщо це не статичний файл (assets, images, тощо), перенаправляємо на index.html
+  RewriteCond %{REQUEST_URI} !^/assets/
+  RewriteCond %{REQUEST_URI} !^/logo/
+  RewriteCond %{REQUEST_URI} !\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$
+  
+  # Перенаправляємо на index.html для всіх React Router маршрутів
   RewriteRule . /index.html [L]
 </IfModule>
 

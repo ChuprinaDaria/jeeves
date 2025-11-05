@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthContext';
 import StatsCard from '../components/dashboard/StatsCard';
 import ActivityFeed from '../components/dashboard/ActivityFeed';
 import { MessageSquare, Users, TrendingUp, Percent, Upload, X, Loader2 } from 'lucide-react';
@@ -7,6 +8,7 @@ import { clientAPI } from '../api/client';
 
 const DashboardPage = () => {
   const { t } = useTranslation();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [logo, setLogo] = useState(null);
   const [logoUrl, setLogoUrl] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -21,13 +23,33 @@ const DashboardPage = () => {
     { label: t('dashboard.conversion'), value: '0%', icon: Percent, change: '+0%', color: 'blue' },
   ]);
   const [loadingStats, setLoadingStats] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   // Завантажити поточний логотип клієнта, топ питання та статистику
+  // Тільки після того як автентифікація завершена
   useEffect(() => {
-    loadClientLogo();
-    loadTopQuestions();
-    loadStats();
-  }, []);
+    // Чекаємо поки AuthContext завантажиться
+    if (authLoading) {
+      return;
+    }
+
+    // Якщо не авторизований, не робимо запити
+    if (!isAuthenticated) {
+      return;
+    }
+
+    // Невелика затримка для гарантії що токен встановлений
+    const timer = setTimeout(() => {
+      if (!dataLoaded) {
+        loadClientLogo();
+        loadTopQuestions();
+        loadStats();
+        setDataLoaded(true);
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [authLoading, isAuthenticated, dataLoaded]);
 
   const loadClientLogo = async () => {
     try {
@@ -196,6 +218,18 @@ const DashboardPage = () => {
       setLoadingStats(false);
     }
   };
+
+  // Показуємо loading поки автентифікація не завершена
+  if (authLoading || !isAuthenticated) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-primary-500 mx-auto mb-4" />
+          <p className="text-gray-600">Завантаження...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
