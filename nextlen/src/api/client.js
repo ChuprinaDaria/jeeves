@@ -23,13 +23,24 @@ export const clientAPI = {
   getDocuments: () => api.get('/clients/documents/'),
 
   // Завантажити документ клієнта
-  uploadDocument: (file, title, clientId) => {
+  uploadDocument: (file, title) => {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('title', title);
-    if (clientId) {
-      formData.append('client', clientId);
-    }
+    formData.append('title', title || file.name);
+    
+    // Визначаємо тип файлу
+    const fileExtension = file.name.split('.').pop().toLowerCase();
+    const fileTypeMap = {
+      'pdf': 'pdf',
+      'txt': 'txt',
+      'csv': 'csv',
+      'json': 'json',
+      'docx': 'docx',
+      'doc': 'docx'
+    };
+    const fileType = fileTypeMap[fileExtension] || 'txt';
+    formData.append('file_type', fileType);
+    
     return api.post('/clients/documents/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });

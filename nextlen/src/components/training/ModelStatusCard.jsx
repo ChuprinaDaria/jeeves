@@ -89,6 +89,18 @@ const ModelStatusCard = () => {
         return;
       }
       
+      // Якщо немає вибраної моделі, встановлюємо першу доступну embedding модель як fallback
+      const firstEmbedding = embeddingModels[0];
+      if (firstEmbedding) {
+        setSelectedModel({
+          id: firstEmbedding.id,
+          name: firstEmbedding.name || firstEmbedding.model_name,
+          type: 'embedding',
+          dimensions: firstEmbedding.dimensions
+        });
+        return;
+      }
+      
       const activeAIModel = aiModels.find(m => m.active);
       if (activeAIModel) {
         setSelectedModel({
@@ -102,11 +114,9 @@ const ModelStatusCard = () => {
       }
     } catch (error) {
       console.error("Failed to load models:", error);
-      // Мок дані для розробки
-      setModels([
-        { id: 1, name: "lyme", description: "best model for global processes", pl: 1.0, pc: 1.0, ph: 2.0, active: true, type: 'ai' },
-      ]);
-      setSelectedModel({ id: 1, name: "lyme", type: 'ai', pl: 1.0, pc: 1.0, ph: 2.0 });
+      // Якщо помилка завантаження, залишаємо порожній список
+      setModels([]);
+      setSelectedModel(null);
     }
   };
 
@@ -125,7 +135,12 @@ const ModelStatusCard = () => {
       
       setSelectedModel(modelToSwitch);
       setShowModelSelect(false);
+      
+      // Перезавантажуємо статус моделі після зміни
+      loadModelStatus();
+      
       // Можна додати повідомлення про успіх
+      console.log(`Successfully switched to model: ${modelToSwitch.name}`);
     } catch (error) {
       console.error("Failed to switch model:", error);
       // Можна додати повідомлення про помилку
