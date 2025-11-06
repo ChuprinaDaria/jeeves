@@ -110,9 +110,9 @@ class LLMClient:
                     messages=messages,
                     temperature=self.temperature,
                     max_tokens=self.max_tokens,
-                    top_p=self.config['top_p'],
-                    frequency_penalty=self.config['frequency_penalty'],
-                    presence_penalty=self.config['presence_penalty'],
+                    top_p=self.config.get('top_p', 1.0),
+                    frequency_penalty=self.config.get('frequency_penalty', 0.0),
+                    presence_penalty=self.config.get('presence_penalty', 0.0),
                     stream=stream,
                     timeout=self.timeout,
                 )

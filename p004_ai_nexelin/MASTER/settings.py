@@ -257,6 +257,9 @@ LLM_CONFIG = {
     'model': 'gpt-4o-mini',
     'temperature': 0.7,
     'max_tokens': 1500,
+    'top_p': 1.0,
+    'frequency_penalty': 0.0,
+    'presence_penalty': 0.0,
     'timeout_seconds': 30,
     'max_retries': 3,
     'retry_delay_seconds': 2
