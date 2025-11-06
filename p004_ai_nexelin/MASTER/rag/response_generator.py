@@ -211,7 +211,12 @@ class ResponseGenerator:
         branch: Branch | None,
     ) -> EmbeddingModel:
         """Get appropriate embedding model ensuring non-None return."""
-        # Try client specialization model
+        # Priority 1: client's explicitly selected model
+        if client:
+            model = getattr(client, 'embedding_model', None)
+            if model is not None:
+                return model
+        # Priority 2: client specialization model
         if client and client.specialization:
             model = client.specialization.get_embedding_model()
             if model is not None:
