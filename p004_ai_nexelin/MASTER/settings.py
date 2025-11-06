@@ -226,7 +226,7 @@ CELERY_WORKER_CONCURRENCY = env.int("CELERY_WORKER_CONCURRENCY", default=1)
 VECTOR_SEARCH_CONFIG = { 'ivfflat_probes': 10 }
 RAG_CONFIG = {
     'chunk_context_window': 1,
-    'similarity_threshold': 0.5,  # Знижуємо для RAG також
+    'similarity_threshold': 0.1,  # Значно знижуємо для RAG також
     'min_chunks_for_answer': 0,  # Відповідаємо навіть без контексту
     'max_results': 5,
     'max_context_chunks': 5,
@@ -234,7 +234,7 @@ RAG_CONFIG = {
 }
 
 VECTOR_SEARCH_CONFIG = {
-    'similarity_threshold': 0.5,  # Знижуємо поріг для більшої кількості збігів
+    'similarity_threshold': 0.1,  # Значно знижуємо поріг для широкого пошуку
     'max_results_per_level': 5,
     'weights': {
         'branch': 0.3,

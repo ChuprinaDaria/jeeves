@@ -87,7 +87,10 @@ def process_client_document(self, document_id: int):
         for idx, chunk in enumerate(chunks):
             chunk_str = chunk.get("text", "")
             chunk_info = chunk.get("metadata", {})
-            result = EmbeddingService.create_embedding(chunk_str, embedding_model)
+            
+            # Додаємо назву документа до контенту для кращого пошуку
+            enhanced_content = f"Document: {document.title}\n\n{chunk_str}"
+            result = EmbeddingService.create_embedding(enhanced_content, embedding_model)
 
             metadata = {
                 "chunk_index": idx,
@@ -106,7 +109,7 @@ def process_client_document(self, document_id: int):
                 document=document,
                 embedding_model=embedding_model,
                 vector=result["vector"],
-                content=chunk_str,
+                content=enhanced_content,  # Зберігаємо enhanced content
                 metadata=metadata,
             )
 
