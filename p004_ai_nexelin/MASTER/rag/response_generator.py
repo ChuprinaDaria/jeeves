@@ -57,6 +57,7 @@ class ResponseGenerator:
         specialization: Specialization | None = None,
         branch: Branch | None = None,
         stream: bool = False,
+        language: str | None = None,
     ) -> RAGResponse | Generator[str, None, None]:
         """
         Generate response using full RAG pipeline.
@@ -89,11 +90,11 @@ class ResponseGenerator:
         
         if not search_results:
             logger.warning("No relevant context found for query")
-            return self._no_context_response(query)
+            return self._no_context_response(query, language)
         
         if len(search_results) < self.config['min_chunks_for_answer']:
             logger.warning(f"Insufficient context: {len(search_results)} chunks")
-            return self._insufficient_context_response(query, search_results)
+            return self._insufficient_context_response(query, search_results, language)
         
         # Step 3: Build context
         context_string, context_chunks = self.context_builder.build_context(
@@ -236,10 +237,19 @@ class ResponseGenerator:
         # If no models exist, fail fast with a clear error
         raise ValueError("No EmbeddingModel configured. Create a default active embedding model in admin.")
     
-    def _no_context_response(self, query: str) -> RAGResponse:
+    def _no_context_response(self, query: str, language: str | None) -> RAGResponse:
         """Response when no relevant context found."""
+        lang = (language or '').lower()
+        if lang not in {'uk','en','de','ru'}:
+            lang = 'en'
+        localized = {
+            'uk': "Не знайшов достатньо релевантної інформації для точної відповіді. Спробуйте інакше сформулювати питання або уточніть деталі.",
+            'en': "I couldn't find enough relevant information to answer precisely. Please rephrase your question or add more details.",
+            'de': "Ich konnte nicht genügend relevante Informationen finden. Bitte formulieren Sie die Frage um oder fügen Sie Details hinzu.",
+            'ru': "Не удалось найти достаточно релевантной информации. Пожалуйста, переформулируйте вопрос или уточните детали.",
+        }
         return RAGResponse(
-            answer="I couldn't find any relevant information to answer your question. Please try rephrasing or ask about a different topic.",
+            answer=localized[lang],
             sources=[],
             query=query,
             context_used="",
@@ -247,10 +257,19 @@ class ResponseGenerator:
             total_tokens=0,
         )
     
-    def _insufficient_context_response(self, query: str, search_results) -> RAGResponse:
+    def _insufficient_context_response(self, query: str, search_results, language: str | None) -> RAGResponse:
         """Response when insufficient context found."""
+        lang = (language or '').lower()
+        if lang not in {'uk','en','de','ru'}:
+            lang = 'en'
+        base = {
+            'uk': "Знайшов частково дотичну інформацію, але вона може бути недостатньою для повної відповіді.",
+            'en': "I found some related information, but it may be insufficient for a complete answer.",
+            'de': "Ich habe einige relevante Informationen gefunden, die jedoch möglicherweise nicht ausreichen.",
+            'ru': "Нашёл некоторую связанную информацию, но её может быть недостаточно для полного ответа.",
+        }
         return RAGResponse(
-            answer=f"I found some related information but it may not fully answer your question. I have {len(search_results)} relevant chunks which might be below the confidence threshold.",
+            answer=f"{base[lang]} ({len(search_results)} chunks)",
             sources=[],
             query=query,
             context_used="",

@@ -14,6 +14,8 @@ urlpatterns = [
     path('client/features/overview/', views.ClientFeaturesOverviewView.as_view(), name='client-features-overview'),
     # AI Models endpoint (from mg.nexelin.com)
     path('ai-models/', views.AIModelsListView.as_view(), name='ai-models-list'),
+    # Sync our embedding models to MG
+    path('embedding-models/sync-to-mg/', views.EmbeddingModelsSyncToMGView.as_view(), name='embedding-models-sync-to-mg'),
     # Embedding models endpoints
     path('embedding-models/', views.EmbeddingModelsListView.as_view(), name='embedding-models-list'),
     path('client/embedding-model/', views.ClientEmbeddingModelSetView.as_view(), name='client-embedding-model-set'),

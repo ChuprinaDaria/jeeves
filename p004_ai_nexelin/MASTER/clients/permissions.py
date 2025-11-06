@@ -16,7 +16,13 @@ class IsClientOwner(BasePermission):
             return False
         if user.is_superuser or getattr(user, 'is_staff_user', False):
             return True
-        # Client can access own objects
-        owner = getattr(obj, 'user', None) or getattr(getattr(obj, 'client', None), 'user', None)
-        return owner == user
+        # Client can access own objects (support CharField username and User object)
+        owner = getattr(obj, 'user', None)
+        if owner is None and hasattr(obj, 'client'):
+            owner = getattr(obj.client, 'user', None)
+        if owner is None:
+            return False
+        # owner may be a User instance or a username string
+        owner_username = getattr(owner, 'username', None) or owner
+        return str(owner_username) == str(getattr(user, 'username', ''))
 

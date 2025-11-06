@@ -835,10 +835,10 @@ def tts_demo(request):
 
     try:
         from openai import OpenAI
-        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
         # Model names may vary; use a safe default
         tts_model = getattr(settings, 'TTS_MODEL', 'gpt-4o-mini-tts')
-        result = client.audio.speech.create(
+        result = openai_client.audio.speech.create(
             model=tts_model,
             voice=voice,
             input=text,
@@ -893,12 +893,39 @@ def stt_demo(request):
 
     try:
         from openai import OpenAI
-        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        import os
+        from tempfile import NamedTemporaryFile
+        openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
         stt_model = getattr(settings, 'STT_MODEL', 'gpt-4o-transcribe')
-        result = client.audio.transcriptions.create(
-            model=stt_model,
-            file=audio,
-        )
+
+        # Деякі формати (webm/opus) краще подавати як файловий дескриптор
+        suffix = ''
+        name_lower = (getattr(audio, 'name', '') or '').lower()
+        if name_lower.endswith('.webm'):
+            suffix = '.webm'
+        elif name_lower.endswith('.mp3'):
+            suffix = '.mp3'
+        elif name_lower.endswith('.wav'):
+            suffix = '.wav'
+        else:
+            suffix = '.bin'
+
+        with NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            for chunk in audio.chunks():
+                tmp.write(chunk)
+            tmp_path = tmp.name
+
+        try:
+            with open(tmp_path, 'rb') as f:
+                result = openai_client.audio.transcriptions.create(
+                    model=stt_model,
+                    file=f,
+                )
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
         text = getattr(result, 'text', None) or result
         return Response({'text': text})
     except Exception as e:

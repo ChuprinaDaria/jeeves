@@ -174,6 +174,13 @@ class PublicRAGChatView(APIView):
         if not message:
             return Response({'error': 'message is required'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Мова: беремо з тіла або з Accept-Language
+        language = (request.data.get('language') or '').lower() if isinstance(request.data, dict) else ''
+        if not language:
+            language = (request.headers.get('Accept-Language') or 'en').split(',')[0].split('-')[0].lower()
+        if language not in {'uk','en','de','ru'}:
+            language = 'en'
+
         # Використовуємо клієнта для пошуку в його даних + даних бранча та спеціалізації
         generator = ResponseGenerator()
 
@@ -190,13 +197,15 @@ class PublicRAGChatView(APIView):
             client=client,
             specialization=specialization,
             branch=branch,
-            stream=False
+            stream=False,
+            language=language,
         )
         return Response({
             'response': getattr(rag_response, 'answer', ''),
             'sources': getattr(rag_response, 'sources', []),
             'num_chunks': getattr(rag_response, 'num_chunks', 0),
             'total_tokens': getattr(rag_response, 'total_tokens', 0),
+            'language': language,
         })
 
 
@@ -546,28 +555,8 @@ class AIModelsListView(APIView):
     Response: List of AI models with pricing (pl, pc, ph)
     """
     def get(self, request):
-        try:
-            # Отримуємо моделі з зовнішнього API
-            external_url = 'https://mg.nexelin.com/api/ai-models'
-            response = requests.get(external_url, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-            
-            if data.get('status') == 'ok':
-                return Response({
-                    'status': 'ok',
-                    'models': data.get('models', [])
-                })
-            else:
-                return Response({
-                    'status': 'error',
-                    'message': 'Failed to fetch models from external API'
-                }, status=status.HTTP_502_BAD_GATEWAY)
-        except requests.RequestException as e:
-            return Response({
-                'status': 'error',
-                'message': f'Error fetching models: {str(e)}'
-            }, status=status.HTTP_502_BAD_GATEWAY)
+        # Вимкнено: більше не отримуємо AI моделі з mg
+        return Response({'status': 'ok', 'models': []})
 
 
 class EmbeddingModelsListView(APIView):
@@ -612,21 +601,8 @@ class EmbeddingModelsListView(APIView):
                 'is_selected': (model_pk == selected_model_id) if selected_model_id else False,
             })
         
-        # Також додаємо AI моделі з mg.nexelin.com
-        ai_models = []
-        try:
-            external_url = 'https://mg.nexelin.com/api/ai-models'
-            response = requests.get(external_url, timeout=5)
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('status') == 'ok':
-                    ai_models = data.get('models', [])
-        except:
-            pass  # Ігноруємо помилки, якщо зовнішнє API недоступне
-        
         return Response({
             'models': result,
-            'ai_models': ai_models,  # Моделі з mg.nexelin.com
             'selected_model_id': selected_model_id,
             'default_model_id': default_model_id,
         })
@@ -656,52 +632,11 @@ class ClientEmbeddingModelSetView(APIView):
         if not model_id and not model_slug:
             return Response({'error': 'model_id or model_slug is required'}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Обробка AI моделей з mg.nexelin.com
+        # Підтримка AI моделей вимкнена
         if model_type == 'ai':
-            try:
-                # Отримуємо список AI моделей
-                external_url = 'https://mg.nexelin.com/api/ai-models'
-                response = requests.get(external_url, timeout=10)
-                response.raise_for_status()
-                ai_data = response.json()
-                
-                if ai_data.get('status') != 'ok':
-                    return Response({'error': 'Failed to fetch AI models'}, status=status.HTTP_502_BAD_GATEWAY)
-                
-                # Знаходимо обрану модель
-                ai_models = ai_data.get('models', [])
-                selected_model = None
-                if model_id:
-                    selected_model = next((m for m in ai_models if m.get('id') == model_id), None)
-                elif model_slug:
-                    selected_model = next((m for m in ai_models if m.get('name') == model_slug), None)
-                
-                if not selected_model:
-                    return Response({'error': 'AI model not found'}, status=status.HTTP_404_NOT_FOUND)
-                
-                # Зберігаємо AI модель в features
-                if not client.features:
-                    client.features = {}
-                client.features['ai_model'] = {
-                    'id': selected_model.get('id'),
-                    'name': selected_model.get('name'),
-                    'description': selected_model.get('description'),
-                    'pl': selected_model.get('pl'),
-                    'pc': selected_model.get('pc'),
-                    'ph': selected_model.get('ph'),
-                }
-                client.save(update_fields=['features'])
-                
-                return Response({
-                    'success': True,
-                    'model': selected_model,
-                    'model_type': 'ai',
-                    'message': 'AI model updated successfully.'
-                })
-            except requests.RequestException as e:
-                return Response({
-                    'error': f'Error fetching AI models: {str(e)}'
-                }, status=status.HTTP_502_BAD_GATEWAY)
+            return Response({'error': 'AI models are disabled'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Обробка лише embedding моделей
         
         # Обробка embedding моделей (оригінальна логіка)
         try:
@@ -745,6 +680,49 @@ class ClientEmbeddingModelSetView(APIView):
             'reindex_required': reindex_required,
             'message': 'Embedding model updated. Please reindex your documents.' if reindex_required else 'Embedding model updated successfully.'
         })
+
+
+class EmbeddingModelsSyncToMGView(APIView):
+    """POST: Синхронізувати наші embedding-моделі на MG (вихідний запит).
+
+    Очікує, що в settings задано MG_EMBEDDINGS_SYNC_URL і (опційно) MG_SYNC_API_KEY.
+    Повертає статус синку.
+    """
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request):
+        sync_url = getattr(settings, 'MG_EMBEDDINGS_SYNC_URL', '').strip()
+        if not sync_url:
+            return Response({'error': 'MG_EMBEDDINGS_SYNC_URL is not configured'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Готуємо список наших моделей
+        models_list = EmbeddingModel.objects.filter(is_active=True).order_by('provider', 'name')
+        payload = {
+            'models': [
+                {
+                    'id': getattr(m, 'pk', None) or getattr(m, 'id', None),
+                    'name': m.name,
+                    'slug': m.slug,
+                    'provider': m.provider,
+                    'model_name': m.model_name,
+                    'dimensions': m.dimensions,
+                    'cost_per_1k_tokens': float(m.cost_per_1k_tokens),
+                    'is_default': m.is_default,
+                }
+                for m in models_list
+            ]
+        }
+
+        headers = {'Content-Type': 'application/json'}
+        api_key = getattr(settings, 'MG_SYNC_API_KEY', '').strip()
+        if api_key:
+            headers['Authorization'] = f'Bearer {api_key}'
+
+        try:
+            resp = requests.post(sync_url, json=payload, headers=headers, timeout=10)
+            return Response({'status': 'ok', 'mg_status': resp.status_code, 'mg_response': resp.text[:500]})
+        except requests.RequestException as e:
+            return Response({'error': f'Sync failed: {e}'}, status=status.HTTP_502_BAD_GATEWAY)
 
 
 class EmbeddingModelReindexView(APIView):
