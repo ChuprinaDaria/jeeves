@@ -226,19 +226,20 @@ CELERY_WORKER_CONCURRENCY = env.int("CELERY_WORKER_CONCURRENCY", default=1)
 VECTOR_SEARCH_CONFIG = { 'ivfflat_probes': 10 }
 RAG_CONFIG = {
     'chunk_context_window': 1,
-    'similarity_threshold': 0.7,
+    'similarity_threshold': 0.5,  # Знижуємо для RAG також
+    'min_chunks_for_answer': 0,  # Відповідаємо навіть без контексту
     'max_results': 5,
     'max_context_chunks': 5,
     'max_context_tokens': 1500
 }
 
 VECTOR_SEARCH_CONFIG = {
-    'similarity_threshold': 0.7,
+    'similarity_threshold': 0.5,  # Знижуємо поріг для більшої кількості збігів
     'max_results_per_level': 5,
     'weights': {
         'branch': 0.3,
         'specialization': 0.5,
-        'client': 0.2
+        'client': 0.8  # Збільшуємо вагу клієнтських документів
     },
     'explain_queries': False,
     'ivfflat_probes': 10,

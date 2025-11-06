@@ -89,12 +89,14 @@ class ResponseGenerator:
         )
         
         if not search_results:
-            logger.warning("No relevant context found for query")
-            return self._no_context_response(query, language)
+            logger.warning("No relevant context found for query - using LLM without context")
+            # Продовжуємо без контексту - LLM відповість на основі своїх знань
+            search_results = []
         
-        if len(search_results) < self.config['min_chunks_for_answer']:
+        if len(search_results) < self.config.get('min_chunks_for_answer', 1):
             logger.warning(f"Insufficient context: {len(search_results)} chunks")
-            return self._insufficient_context_response(query, search_results, language)
+            # Не повертаємо фолбек, а продовжуємо з тим контекстом що є
+            # return self._insufficient_context_response(query, search_results, language)
         
         # Step 3: Build context
         context_string, context_chunks = self.context_builder.build_context(
