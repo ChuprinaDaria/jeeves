@@ -14,7 +14,11 @@ class ClientAPIKeyMiddleware:
             auth_header = request.headers.get('Authorization', '')
             if auth_header.startswith('Bearer '):
                 return self.get_response(request)
-            if '/api/rag/auth/' in path or '/api/rag/bootstrap/' in path:
+            # Дозволяємо публічний доступ до деяких endpoints
+            if ('/api/rag/auth/' in path or 
+                '/api/rag/bootstrap/' in path or 
+                '/api/rag/embedding-models/' in path or
+                '/api/rag/ai-models/' in path):
                 return self.get_response(request)
 
             api_key = request.headers.get('X-API-Key')
