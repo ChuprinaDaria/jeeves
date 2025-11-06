@@ -568,6 +568,8 @@ class EmbeddingModelsListView(APIView):
     
     NOTE: pgvector has a maximum of 2000 dimensions, so we filter models accordingly.
     """
+    permission_classes = [AllowAny]  # Дозволяємо публічний доступ до списку моделей
+    
     def get(self, request):
         client = getattr(request, 'client', None)
         if client is None and getattr(request, 'user', None) is not None and request.user.is_authenticated:
