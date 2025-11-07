@@ -22,6 +22,14 @@ urlpatterns = [
     path('whatsapp/status/', TwilioWhatsAppWebhookView.as_view(), name='twilio_whatsapp_status'),
     path('whatsapp/meta/webhook/', MetaWhatsAppWebhookView.as_view(), name='meta_whatsapp_webhook'),
     
+    # Явні маршрути для viewsets з POST підтримкою
+    path('documents/', views.ClientDocumentViewSet.as_view({'get': 'list', 'post': 'create'}), name='document-list'),
+    path('documents/<int:pk>/', views.ClientDocumentViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='document-detail'),
+    path('knowledge-blocks/', views.KnowledgeBlockViewSet.as_view({'get': 'list', 'post': 'create'}), name='knowledge-block-list'),
+    path('knowledge-blocks/<int:pk>/', views.KnowledgeBlockViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='knowledge-block-detail'),
+    path('qr-codes/', views.ClientQRCodeViewSet.as_view({'get': 'list', 'post': 'create'}), name='qr-code-list'),
+    path('qr-codes/<int:pk>/', views.ClientQRCodeViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='qr-code-detail'),
+    
     # Router URLs (viewsets) - після explicit routes
     path('', include(views.router.urls)),
     
