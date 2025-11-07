@@ -323,19 +323,48 @@ def rag_test_query(request):
 
 
 class ClientMeView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = []  # Дозволяємо доступ без автентифікації, перевірка буде в методі
 
     def get(self, request):
         client = get_client_from_request(request)
+        
+        # Якщо немає клієнта через JWT, пробуємо через API ключ
+        if not client and 'HTTP_X_API_KEY' in request.META:
+            api_key = request.META['HTTP_X_API_KEY']
+            try:
+                key_obj = ClientAPIKey.objects.select_related('client').get(
+                    key=api_key,
+                    is_active=True
+                )
+                if key_obj.is_valid():
+                    client = key_obj.client
+            except ClientAPIKey.DoesNotExist:
+                pass
+                
         if not client:
-            return Response({'error': 'Client not found'}, status=404)
+            return Response({'error': 'Client not found or invalid API key'}, status=401)
+            
         data = ClientSerializer(client, context={'request': request}).data
         return Response(data)
 
     def patch(self, request):
         client = get_client_from_request(request)
+        
+        # Якщо немає клієнта через JWT, пробуємо через API ключ
+        if not client and 'HTTP_X_API_KEY' in request.META:
+            api_key = request.META['HTTP_X_API_KEY']
+            try:
+                key_obj = ClientAPIKey.objects.select_related('client').get(
+                    key=api_key,
+                    is_active=True
+                )
+                if key_obj.is_valid():
+                    client = key_obj.client
+            except ClientAPIKey.DoesNotExist:
+                pass
+                
         if not client:
-            return Response({'error': 'Client not found'}, status=404)
+            return Response({'error': 'Client not found or invalid API key'}, status=401)
         # Allow updating only specific fields from client cabinet
         allowed_fields = ['custom_system_prompt', 'features', 'company_name']
         payload = {k: v for k, v in (request.data or {}).items() if k in allowed_fields}
@@ -349,13 +378,27 @@ class ClientMeView(APIView):
 
 class KnowledgeBlockDocumentsView(APIView):
     """API для додавання документів до Knowledge Block."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = []  # Дозволяємо доступ без автентифікації, перевірка буде в методі
     
     def post(self, request, block_id):
         """Додати документ до knowledge block."""
         client = get_client_from_request(request)
+        
+        # Якщо немає клієнта через JWT, пробуємо через API ключ
+        if not client and 'HTTP_X_API_KEY' in request.META:
+            api_key = request.META['HTTP_X_API_KEY']
+            try:
+                key_obj = ClientAPIKey.objects.select_related('client').get(
+                    key=api_key,
+                    is_active=True
+                )
+                if key_obj.is_valid():
+                    client = key_obj.client
+            except ClientAPIKey.DoesNotExist:
+                pass
+                
         if not client:
-            return Response({'error': 'Client not found'}, status=404)
+            return Response({'error': 'Client not found or invalid API key'}, status=401)
         
         try:
             block = KnowledgeBlock.objects.get(id=block_id, client=client)
@@ -401,21 +444,35 @@ class KnowledgeBlockDocumentsView(APIView):
             'json': 'json',
             'doc': 'docx',
             'docx': 'docx',
+            # Додаємо підтримку JSON файлів (вже є в списку)
         }
         return file_types.get(ext, 'txt')
 
 
 class ClientLogoUploadView(APIView):
     """API endpoint для завантаження логотипу клієнта"""
-    permission_classes = [IsAuthenticated]
+    permission_classes = []  # Дозволяємо доступ без автентифікації, перевірка буде в методі
     
     def post(self, request):
         try:
-            # Отримуємо клієнта з токену
+            # Отримуємо клієнта з токену або API ключа
             client = get_client_from_request(request)
             
+            # Якщо немає клієнта через JWT, пробуємо через API ключ
+            if not client and 'HTTP_X_API_KEY' in request.META:
+                api_key = request.META['HTTP_X_API_KEY']
+                try:
+                    key_obj = ClientAPIKey.objects.select_related('client').get(
+                        key=api_key,
+                        is_active=True
+                    )
+                    if key_obj.is_valid():
+                        client = key_obj.client
+                except ClientAPIKey.DoesNotExist:
+                    pass
+            
             if not client:
-                return Response({'error': 'Client not found'}, status=status.HTTP_404_NOT_FOUND)
+                return Response({'error': 'Client not found or invalid API key'}, status=status.HTTP_401_UNAUTHORIZED)
             
             # Перевіряємо чи є файл
             if 'logo' not in request.FILES:
@@ -476,10 +533,24 @@ class ClientLogoUploadView(APIView):
     def delete(self, request):
         """Видалити логотип клієнта"""
         try:
+            # Отримуємо клієнта з токену або API ключа
             client = get_client_from_request(request)
             
+            # Якщо немає клієнта через JWT, пробуємо через API ключ
+            if not client and 'HTTP_X_API_KEY' in request.META:
+                api_key = request.META['HTTP_X_API_KEY']
+                try:
+                    key_obj = ClientAPIKey.objects.select_related('client').get(
+                        key=api_key,
+                        is_active=True
+                    )
+                    if key_obj.is_valid():
+                        client = key_obj.client
+                except ClientAPIKey.DoesNotExist:
+                    pass
+            
             if not client:
-                return Response({'error': 'Client not found'}, status=status.HTTP_404_NOT_FOUND)
+                return Response({'error': 'Client not found or invalid API key'}, status=status.HTTP_401_UNAUTHORIZED)
             
             if client.logo:
                 client.logo.delete()
@@ -1046,15 +1117,29 @@ class ClientStatsView(APIView):
     API endpoint для отримання статистики клієнта
     GET /api/clients/stats/
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = []  # Дозволяємо доступ без автентифікації, перевірка буде в методі
     
     def get(self, request):
         """Отримати статистику клієнта з WhatsApp розмов"""
         client = get_client_from_request(request)
+        
+        # Якщо немає клієнта через JWT, пробуємо через API ключ
+        if not client and 'HTTP_X_API_KEY' in request.META:
+            api_key = request.META['HTTP_X_API_KEY']
+            try:
+                key_obj = ClientAPIKey.objects.select_related('client').get(
+                    key=api_key,
+                    is_active=True
+                )
+                if key_obj.is_valid():
+                    client = key_obj.client
+            except ClientAPIKey.DoesNotExist:
+                pass
+                
         if not client:
             return Response(
-                {'error': 'Client not found'},
-                status=status.HTTP_404_NOT_FOUND
+                {'error': 'Client not found or invalid API key'},
+                status=status.HTTP_401_UNAUTHORIZED
             )
         
         from django.utils import timezone
@@ -1235,12 +1320,26 @@ class ClientEmbeddingsStatsView(APIView):
     - Total embeddings count
     - Models with existing embeddings
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = []  # Дозволяємо доступ без автентифікації, перевірка буде в методі
 
     def get(self, request):
         client = get_client_from_request(request)
+        
+        # Якщо немає клієнта через JWT, пробуємо через API ключ
+        if not client and 'HTTP_X_API_KEY' in request.META:
+            api_key = request.META['HTTP_X_API_KEY']
+            try:
+                key_obj = ClientAPIKey.objects.select_related('client').get(
+                    key=api_key,
+                    is_active=True
+                )
+                if key_obj.is_valid():
+                    client = key_obj.client
+            except ClientAPIKey.DoesNotExist:
+                pass
+                
         if not client:
-            return Response({'error': 'Client not found'}, status=404)
+            return Response({'error': 'Client not found or invalid API key'}, status=401)
 
         from django.db.models import Count
         from MASTER.clients.models import ClientEmbedding
@@ -1294,15 +1393,29 @@ class ClientModelStatusView(APIView):
     API endpoint для перевірки статусу моделі (health check)
     GET /api/clients/model-status/
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = []  # Дозволяємо доступ без автентифікації, перевірка буде в методі
 
     def get(self, request):
         """Перевірити статус моделі через тестовий запит"""
         client = get_client_from_request(request)
+        
+        # Якщо немає клієнта через JWT, пробуємо через API ключ
+        if not client and 'HTTP_X_API_KEY' in request.META:
+            api_key = request.META['HTTP_X_API_KEY']
+            try:
+                key_obj = ClientAPIKey.objects.select_related('client').get(
+                    key=api_key,
+                    is_active=True
+                )
+                if key_obj.is_valid():
+                    client = key_obj.client
+            except ClientAPIKey.DoesNotExist:
+                pass
+                
         if not client:
             return Response(
-                {'error': 'Client not found'},
-                status=status.HTTP_404_NOT_FOUND
+                {'error': 'Client not found or invalid API key'},
+                status=status.HTTP_401_UNAUTHORIZED
             )
         
         try:
