@@ -38,6 +38,19 @@ api.interceptors.request.use((config) => {
   if (apiKey) {
     config.headers['X-API-Key'] = apiKey;
   }
+
+  // Зчитуємо tag з URL, зберігаємо як client_tag і додаємо заголовок X-Client-Token
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tagFromUrl = urlParams.get('tag');
+    if (tagFromUrl) {
+      localStorage.setItem('client_tag', tagFromUrl);
+    }
+  } catch (_) {}
+  const clientTag = localStorage.getItem('client_tag');
+  if (clientTag) {
+    config.headers['X-Client-Token'] = clientTag;
+  }
   
   return config;
 });
@@ -62,6 +75,12 @@ api.interceptors.response.use(
       const apiKey = localStorage.getItem('api_key');
       if (apiKey) {
         // Просто повторюємо запит з API ключем (він вже в headers через interceptor)
+        return api(originalRequest);
+      }
+
+      // Якщо є client_tag, також не робимо refresh і не редиректимо
+      const clientTagRetry = localStorage.getItem('client_tag');
+      if (clientTagRetry) {
         return api(originalRequest);
       }
 
@@ -126,11 +145,13 @@ api.interceptors.response.use(
       // 2. Немає tag параметра (не bootstrap процес)
       // 3. Не в iframe (щоб не ламати вбудовування в mg.nexelin.com)
       // 4. Немає API ключа (якщо є API ключ, не редиректимо)
+      // 5. Немає client_tag (якщо є client_tag, не редиректимо)
       const isAuthRequest = originalRequest.url?.includes('/auth/') ||
                            originalRequest.url?.includes('/rag/auth/');
       const hasApiKey = localStorage.getItem('api_key');
+      const hasClientTag = localStorage.getItem('client_tag');
 
-      if (!isAuthRequest && !hasTag && !isInIframe && !hasApiKey) {
+      if (!isAuthRequest && !hasTag && !isInIframe && !hasApiKey && !hasClientTag) {
         // Затримка перед редиректом, щоб дати час на обробку
         setTimeout(() => {
           window.location.href = '/login';
