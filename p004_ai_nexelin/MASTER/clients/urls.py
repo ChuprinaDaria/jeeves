@@ -26,7 +26,7 @@ urlpatterns = [
     path('', include(views.router.urls)),
     
     # Routes з параметрами після router
-    path('create/', views.ClientViewSet.as_view({'post': 'create'}), name='client-create'),
+    # Видалено дублюючий path('create/'), тому що роутер вже обробляє POST на базовий URL
     path('<int:client_id>/stats/', views.client_stats, name='client-stats'),
     path('<int:client_id>/create-api-key/', views.create_api_key_for_client, name='client-create-api-key'),
     path('api-docs/<int:client_id>/', views.generate_api_docs, name='generate_api_docs'),

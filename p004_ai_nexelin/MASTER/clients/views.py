@@ -213,7 +213,7 @@ class ClientQRCodeViewSet(viewsets.ModelViewSet):
 
 
 router = DefaultRouter()
-router.register(r'clients', ClientViewSet, basename='client')
+router.register(r'', ClientViewSet, basename='client')  # Видаляємо префікс 'clients', бо він вже є в основному urls.py
 router.register(r'documents', ClientDocumentViewSet, basename='document')
 router.register(r'api-keys', APIKeyViewSet, basename='api-key')
 router.register(r'knowledge-blocks', KnowledgeBlockViewSet, basename='knowledge-block')
