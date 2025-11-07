@@ -50,6 +50,7 @@ class ClientAdmin(admin.ModelAdmin):
                 'meta_app_secret',
                 'meta_access_token',
                 'meta_phone_number_id',
+                'meta_phone_number',
                 'meta_verify_token',
             ),
             'classes': ('collapse',),

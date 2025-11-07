@@ -20,9 +20,23 @@ def build_start2_prefill(branch: str, spec: str, client_token: str, table_number
     return f"START2 ref={ref_b64} tbl={table_number} sig={sig}"
 
 
-def build_wa_me_link(prefill_text: str) -> str:
-    """Створює WhatsApp wa.me посилання з prefill текстом"""
-    number = getattr(settings, 'TWILIO_WHATSAPP_NUMBER', '14155238886')
+def build_wa_me_link(prefill_text: str, *, client=None) -> str:
+    """Створює WhatsApp wa.me посилання з prefill текстом
+
+    Пріоритет: client.meta_phone_number -> settings.META_PHONE_NUMBER -> fallback (error)
+    """
+    number = None
+    if client is not None:
+        num = getattr(client, 'meta_phone_number', '')
+        if num:
+            number = num
+    if not number:
+        number = getattr(settings, 'META_PHONE_NUMBER', '')
+    if not number:
+        # Fallback для сумісності, але краще налаштувати meta_phone_number
+        number = getattr(settings, 'TWILIO_WHATSAPP_NUMBER', '')
+    if not number:
+        raise ValueError('Meta phone number is not configured')
     if number.startswith('whatsapp:'):
         number = number.replace('whatsapp:', '')
     if number.startswith('+'):
@@ -121,7 +135,7 @@ def generate_whatsapp_qr_for_client_qr(qr_code, branch_slug: str, specialization
     prefill_text = build_start2_prefill(branch_slug, specialization_slug, client_token, qr_code.qr_token)
     
     # Створюємо WhatsApp посилання
-    whatsapp_link = build_wa_me_link(prefill_text)
+    whatsapp_link = build_wa_me_link(prefill_text, client=qr_code.client)
     
     # Отримуємо шлях до логотипу клієнта
     logo_path = None

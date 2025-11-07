@@ -134,6 +134,7 @@ class Client(models.Model):
     meta_access_token = models.TextField(blank=True, help_text="Meta Graph API Access Token")
     meta_phone_number_id = models.CharField(max_length=64, blank=True, help_text="Meta Business Phone Number ID")
     meta_verify_token = models.CharField(max_length=128, blank=True, help_text="Webhook verify token for Meta")
+    meta_phone_number = models.CharField(max_length=20, blank=True, help_text="Business phone number in E.164 format, e.g. +14155552671")
 
     class Meta:
         verbose_name = 'Client'
@@ -676,7 +677,7 @@ class ClientQRCode(models.Model):
     def get_whatsapp_link(self) -> str:
         """Returns WhatsApp deep link for this QR code"""
         from MASTER.clients.qr_utils import build_wa_me_link
-        return build_wa_me_link(self.get_whatsapp_prefill())
+        return build_wa_me_link(self.get_whatsapp_prefill(), client=self.client)
     
     def generate_qr_code(self):
         """Generate QR code with WhatsApp deep link and client logo"""
