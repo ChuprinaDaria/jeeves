@@ -67,7 +67,7 @@ def get_client_from_request(request):
         token = request.headers.get('X-Client-Token') or request.META.get('HTTP_X_CLIENT_TOKEN')
         if token:
             try:
-                client = Client.objects.get(access_token=token, is_active=True)
+                client = Client.objects.get(tag=token, is_active=True)
                 return client
             except Client.DoesNotExist:
                 pass
@@ -84,7 +84,7 @@ def get_client_from_request(request):
                 tag = None
         if tag:
             try:
-                client = Client.objects.get(access_token=tag, is_active=True)
+                client = Client.objects.get(tag=tag, is_active=True)
                 return client
             except Client.DoesNotExist:
                 pass
