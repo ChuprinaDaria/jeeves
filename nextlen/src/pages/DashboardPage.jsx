@@ -132,9 +132,8 @@ const DashboardPage = () => {
     setError(null);
 
     try {
-      // Видалення логотипу через API (потрібно перевірити чи є endpoint)
-      // Поки що використовуємо updateMe з logo = null
-      await clientAPI.updateMe({ logo: null });
+      // Видалення логотипу через окремий endpoint
+      await clientAPI.deleteLogo();
       setLogoUrl(null);
       setLogo(null);
       setSuccess(true);

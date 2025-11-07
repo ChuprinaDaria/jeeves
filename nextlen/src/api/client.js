@@ -15,6 +15,9 @@ export const clientAPI = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
+  
+  // Видалити логотип клієнта
+  deleteLogo: () => api.delete('/clients/logo/'),
 
   // Отримати статистику клієнта
   getStats: (clientId) => api.get(`/clients/${clientId}/stats/`),
