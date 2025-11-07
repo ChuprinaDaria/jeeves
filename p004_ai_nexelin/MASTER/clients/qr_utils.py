@@ -33,10 +33,8 @@ def build_wa_me_link(prefill_text: str, *, client=None) -> str:
     if not number:
         number = getattr(settings, 'META_PHONE_NUMBER', '')
     if not number:
-        # Fallback для сумісності, але краще налаштувати meta_phone_number
-        number = getattr(settings, 'TWILIO_WHATSAPP_NUMBER', '')
-    if not number:
-        raise ValueError('Meta phone number is not configured')
+        # Якщо номер не налаштовано, повертаємо wa.me без номера, щоб не ламати створення QR
+        return f"https://wa.me/?text={urllib.parse.quote(prefill_text, safe='')}"
     if number.startswith('whatsapp:'):
         number = number.replace('whatsapp:', '')
     if number.startswith('+'):
