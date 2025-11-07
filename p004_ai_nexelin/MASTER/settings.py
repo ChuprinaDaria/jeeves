@@ -320,6 +320,7 @@ CORS_ALLOW_HEADERS = [
     "content-type",
     "authorization",
     "x-api-key",
+    "x-client-token",
     "accept-encoding",
     "dnt",
     "origin",

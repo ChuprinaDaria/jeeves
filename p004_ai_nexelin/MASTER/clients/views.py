@@ -43,7 +43,7 @@ def get_client_from_request(request):
     # Якщо немає client_profile, шукаємо клієнта за username
     username = getattr(request.user, 'username', '')
     if not username:
-        return None
+        username = ''
     
     # Спочатку шукаємо за Client.user (основний випадок для JWT токенів)
     try:
@@ -61,6 +61,37 @@ def get_client_from_request(request):
         except (ValueError, Client.DoesNotExist):
             pass
     
+    # Додаткова підтримка без JWT: X-Client-Token / ?tag=
+    # 1) Заголовок X-Client-Token
+    try:
+        token = request.headers.get('X-Client-Token') or request.META.get('HTTP_X_CLIENT_TOKEN')
+        if token:
+            try:
+                client = Client.objects.get(access_token=token, is_active=True)
+                return client
+            except Client.DoesNotExist:
+                pass
+        # 2) Параметри запиту ?tag= або ?client_token=
+        params = getattr(request, 'query_params', None) or getattr(request, 'GET', None)
+        tag = None
+        if params:
+            tag = params.get('tag') or params.get('client_token')
+        # 3) Тіло запиту (multipart/form / json)
+        if not tag and hasattr(request, 'data'):
+            try:
+                tag = request.data.get('tag') or request.data.get('client_token')
+            except Exception:
+                tag = None
+        if tag:
+            try:
+                client = Client.objects.get(access_token=tag, is_active=True)
+                return client
+            except Client.DoesNotExist:
+                pass
+    except Exception:
+        # Не ламаємо потік при будь-яких помилках
+        pass
+
     return None
 
 
