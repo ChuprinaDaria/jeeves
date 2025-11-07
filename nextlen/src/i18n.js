@@ -4,10 +4,20 @@ import { initReactI18next } from 'react-i18next';
 // Import translations
 import enTranslation from './locales/en/translation.json';
 import deTranslation from './locales/de/translation.json';
+import frTranslation from './locales/fr/translation.json';
+import esTranslation from './locales/es/translation.json';
+import itTranslation from './locales/it/translation.json';
+import nlTranslation from './locales/nl/translation.json';
+import daTranslation from './locales/da/translation.json';
 
 const resources = {
   en: { translation: enTranslation },
   de: { translation: deTranslation },
+  fr: { translation: frTranslation },
+  es: { translation: esTranslation },
+  it: { translation: itTranslation },
+  nl: { translation: nlTranslation },
+  da: { translation: daTranslation },
 };
 
 // Get saved language or use browser language
