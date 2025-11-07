@@ -127,6 +127,14 @@ class ClientDocumentViewSet(viewsets.ModelViewSet):
             return ClientDocument.objects.all().order_by('-uploaded_at')
         return ClientDocument.objects.none()
     
+    def list(self, request, *args, **kwargs):
+        """Override list to ensure it's available"""
+        return super().list(request, *args, **kwargs)
+    
+    def create(self, request, *args, **kwargs):
+        """Override create to ensure it's available"""
+        return super().create(request, *args, **kwargs)
+    
     def perform_create(self, serializer):
         """Automatically set client from request"""
         client = self.get_client_from_request_or_api_key()
@@ -172,6 +180,14 @@ class KnowledgeBlockViewSet(viewsets.ModelViewSet):
         if not client:
             return KnowledgeBlock.objects.none()
         return KnowledgeBlock.objects.filter(client=client)
+    
+    def create(self, request, *args, **kwargs):
+        """Override create to ensure it's available"""
+        return super().create(request, *args, **kwargs)
+    
+    def list(self, request, *args, **kwargs):
+        """Override list to ensure it's available"""
+        return super().list(request, *args, **kwargs)
     
     def perform_create(self, serializer):
         """Автоматично встановлює клієнта при створенні."""
@@ -228,6 +244,14 @@ class ClientQRCodeViewSet(viewsets.ModelViewSet):
         if not client:
             return ClientQRCode.objects.none()
         return ClientQRCode.objects.filter(client=client)
+    
+    def list(self, request, *args, **kwargs):
+        """Override list to ensure it's available"""
+        return super().list(request, *args, **kwargs)
+    
+    def create(self, request, *args, **kwargs):
+        """Override create to ensure it's available"""
+        return super().create(request, *args, **kwargs)
     
     def perform_create(self, serializer):
         """Автоматично встановлює клієнта при створенні та перевіряє ліміт."""
