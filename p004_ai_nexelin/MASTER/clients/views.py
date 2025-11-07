@@ -286,27 +286,36 @@ class ClientQRCodeViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         """Автоматично встановлює клієнта при створенні та перевіряє ліміт."""
+        import logging
+        logger = logging.getLogger(__name__)
+        
         client = self.get_client_from_request_or_api_key()
         if not client:
+            logger.error("Client not found in request")
             raise serializers.ValidationError("Client not found")
+        
+        logger.info(f"Creating QR code for client {client.id}")
         
         # Перевіряємо ліміт 10 QR кодів
         existing_count = ClientQRCode.objects.filter(client=client).count()
         if existing_count >= 10:
+            logger.warning(f"Client {client.id} reached QR code limit (10)")
             raise serializers.ValidationError("Maximum 10 QR codes allowed per client")
         
         qr_code = serializer.save(client=client)
+        logger.info(f"QR code created with id {qr_code.id}")
         
         # Генеруємо QR код якщо не згенеровано
         if not qr_code.qr_code and not qr_code.qr_code_url:
             try:
+                logger.info(f"Generating QR code image for QRCode {qr_code.id}")
                 qr_code.generate_qr_code()
                 qr_code.save(update_fields=['qr_code', 'qr_code_url'])
+                logger.info(f"QR code image generated successfully for QRCode {qr_code.id}")
             except Exception as e:
-                # Логуємо помилку, але не блокуємо створення
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.warning(f"Failed to generate QR code for {qr_code}: {e}")
+                # Логуємо помилку з повним traceback
+                logger.error(f"Failed to generate QR code for QRCode {qr_code.id}: {str(e)}", exc_info=True)
+                # Не блокуємо створення, але повідомляємо про помилку
     
     def perform_update(self, serializer):
         """Оновлює QR код та регенерує його якщо потрібно."""

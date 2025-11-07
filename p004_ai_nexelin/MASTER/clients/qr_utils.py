@@ -23,23 +23,37 @@ def build_start2_prefill(branch: str, spec: str, client_token: str, table_number
 def build_wa_me_link(prefill_text: str, *, client=None) -> str:
     """Створює WhatsApp wa.me посилання з prefill текстом
 
-    Пріоритет: client.meta_phone_number -> settings.META_PHONE_NUMBER -> fallback (error)
+    Пріоритет: client.meta_phone_number -> settings.META_PHONE_NUMBER -> fallback (без номера)
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     number = None
     if client is not None:
         num = getattr(client, 'meta_phone_number', '')
         if num:
             number = num
+            logger.debug(f"Using client's meta_phone_number: {number}")
+    
     if not number:
         number = getattr(settings, 'META_PHONE_NUMBER', '')
+        if number:
+            logger.debug(f"Using settings META_PHONE_NUMBER: {number}")
+    
     if not number:
         # Якщо номер не налаштовано, повертаємо wa.me без номера, щоб не ламати створення QR
+        logger.warning("No WhatsApp phone number configured (neither client.meta_phone_number nor settings.META_PHONE_NUMBER)")
         return f"https://wa.me/?text={urllib.parse.quote(prefill_text, safe='')}"
+    
+    # Очищаємо номер від префіксів
     if number.startswith('whatsapp:'):
         number = number.replace('whatsapp:', '')
     if number.startswith('+'):
         number = number[1:]
-    return f"https://wa.me/{number}?text={urllib.parse.quote(prefill_text, safe='')}"
+    
+    link = f"https://wa.me/{number}?text={urllib.parse.quote(prefill_text, safe='')}"
+    logger.debug(f"Generated WhatsApp link: {link[:50]}...")
+    return link
 
 
 def make_qr_image(link: str, box_size: int = 10, border: int = 4) -> Image.Image:
@@ -92,17 +106,31 @@ def paste_center_logo(qr_img: Image.Image, logo_img: Image.Image, scale: float =
 
 def render_qr_with_logo(link: str, logo_path: Optional[str]) -> bytes:
     """Рендерить QR-код з логотипом (якщо є) та повертає PNG bytes"""
-    qr = make_qr_image(link)
-    if logo_path:
-        try:
-            with Image.open(logo_path) as li:
-                qr = paste_center_logo(qr, li)
-        except Exception:
-            # Якщо з логотипом щось не так – зробимо звичайний QR
-            pass
-    out = BytesIO()
-    qr.save(out, format="PNG")
-    return out.getvalue()
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        logger.debug(f"Creating QR code for link: {link[:50]}...")
+        qr = make_qr_image(link)
+        
+        if logo_path:
+            try:
+                logger.debug(f"Adding logo from: {logo_path}")
+                with Image.open(logo_path) as li:
+                    qr = paste_center_logo(qr, li)
+                logger.debug("Logo added successfully")
+            except Exception as e:
+                # Якщо з логотипом щось не так – зробимо звичайний QR
+                logger.warning(f"Failed to add logo: {e}")
+        
+        out = BytesIO()
+        qr.save(out, format="PNG")
+        png_bytes = out.getvalue()
+        logger.debug(f"QR code PNG generated, size: {len(png_bytes)} bytes")
+        return png_bytes
+    except Exception as e:
+        logger.error(f"Failed to render QR code: {e}", exc_info=True)
+        raise
 
 
 def save_qr_png_to_field(model_instance, field_name: str, png_bytes: bytes, filename: str):

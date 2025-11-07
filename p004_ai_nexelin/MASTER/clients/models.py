@@ -655,20 +655,35 @@ class ClientQRCode(models.Model):
     def get_whatsapp_prefill(self) -> str:
         """Returns prefill text for WhatsApp"""
         c = self.client
+        if not c:
+            return "START2"
         
-        # Get parameters from client
+        # Get parameters from client with better error handling
         branch_slug = 'demo'
         specialization_slug = 'generic'
         client_token = f"client-{c.id}"
         
-        if hasattr(c, 'specialization') and c.specialization:
-            branch_slug = getattr(c.specialization.branch, 'slug', 'demo')
-            specialization_slug = getattr(c.specialization, 'slug', 'generic')
+        try:
+            if hasattr(c, 'specialization') and c.specialization:
+                # Safely get branch slug
+                if hasattr(c.specialization, 'branch') and c.specialization.branch:
+                    branch_slug = getattr(c.specialization.branch, 'slug', 'demo')
+                # Get specialization slug
+                specialization_slug = getattr(c.specialization, 'slug', 'generic')
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Error getting specialization for client {c.id}: {e}")
         
-        # Get client_token from API key
-        api_key = c.api_keys.filter(is_active=True).first()
-        if api_key:
-            client_token = api_key.key
+        # Get client_token from API key with error handling
+        try:
+            api_key = c.api_keys.filter(is_active=True).first()
+            if api_key:
+                client_token = api_key.key
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Error getting API key for client {c.id}: {e}")
         
         # Use qr_token instead of table_number
         from MASTER.clients.qr_utils import build_start2_prefill
@@ -684,14 +699,35 @@ class ClientQRCode(models.Model):
         if not self.client:
             raise ValidationError("Cannot generate QR code without client")
         
-        link = self.get_whatsapp_link()
-        logo_path = self.client.logo.path if getattr(self.client, "logo", None) and self.client.logo else None
+        import logging
+        logger = logging.getLogger(__name__)
         
-        from MASTER.clients.qr_utils import render_qr_with_logo, save_qr_png_to_field
-        png = render_qr_with_logo(link, logo_path)
-        fname = f"qr_{self.pk}.png" if self.pk else f"qr_tmp_{self.client.id}_{self.name}.png"
-        save_qr_png_to_field(self, "qr_code", png, fname)
-        self.qr_code_url = link
+        try:
+            # Get WhatsApp link with error logging
+            logger.info(f"Generating QR code for ClientQRCode {self.pk}, client {self.client.id}")
+            link = self.get_whatsapp_link()
+            logger.info(f"WhatsApp link generated: {link[:50]}...")
+            
+            # Safely get logo path
+            logo_path = None
+            try:
+                if getattr(self.client, "logo", None) and self.client.logo:
+                    logo_path = self.client.logo.path
+                    logger.info(f"Using logo: {logo_path}")
+            except Exception as e:
+                logger.warning(f"Could not get logo path: {e}")
+            
+            # Generate QR code image
+            from MASTER.clients.qr_utils import render_qr_with_logo, save_qr_png_to_field
+            png = render_qr_with_logo(link, logo_path)
+            fname = f"qr_{self.pk}.png" if self.pk else f"qr_tmp_{self.client.id}_{self.name}.png"
+            save_qr_png_to_field(self, "qr_code", png, fname)
+            self.qr_code_url = link
+            logger.info(f"QR code generated successfully for ClientQRCode {self.pk}")
+            
+        except Exception as e:
+            logger.error(f"Failed to generate QR code for ClientQRCode {self.pk}: {str(e)}", exc_info=True)
+            raise
     
     def save(self, *args, **kwargs):
         # Generate QR token if not exists
