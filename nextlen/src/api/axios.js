@@ -58,6 +58,13 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
+      // Якщо є API ключ, не робимо refresh - використовуємо API ключ
+      const apiKey = localStorage.getItem('api_key');
+      if (apiKey) {
+        // Просто повторюємо запит з API ключем (він вже в headers через interceptor)
+        return api(originalRequest);
+      }
+
       const refreshToken = localStorage.getItem('refresh_token');
 
       // Якщо є refresh token, намагаємося оновити access token
@@ -118,10 +125,12 @@ api.interceptors.response.use(
       // 1. Це не запит на auth endpoints
       // 2. Немає tag параметра (не bootstrap процес)
       // 3. Не в iframe (щоб не ламати вбудовування в mg.nexelin.com)
+      // 4. Немає API ключа (якщо є API ключ, не редиректимо)
       const isAuthRequest = originalRequest.url?.includes('/auth/') ||
                            originalRequest.url?.includes('/rag/auth/');
+      const hasApiKey = localStorage.getItem('api_key');
 
-      if (!isAuthRequest && !hasTag && !isInIframe) {
+      if (!isAuthRequest && !hasTag && !isInIframe && !hasApiKey) {
         // Затримка перед редиректом, щоб дати час на обробку
         setTimeout(() => {
           window.location.href = '/login';
