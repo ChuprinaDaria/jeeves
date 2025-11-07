@@ -595,6 +595,7 @@ class ClientQRCode(models.Model):
     qr_code_url = models.URLField(
         blank=True,
         editable=False,
+        max_length=500,
         verbose_name='QR Code URL'
     )
     
