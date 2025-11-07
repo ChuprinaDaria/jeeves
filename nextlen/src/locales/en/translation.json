@@ -99,7 +99,7 @@
     "uploadedFiles": "Uploaded Files",
     "noFiles": "No files uploaded yet",
     "dragDrop": "Drag & drop files here or click to browse",
-    "supportedFormats": "Supported: PDF, DOC, TXT, XLS (Max 10MB)",
+    "supportedFormats": "Supported: PDF, DOC, TXT, XLS, JSON (Max 10MB)",
     "chooseFiles": "Choose Files",
     "uploadPhotos": "Upload Photos",
     "uploadedPhotos": "Uploaded Photos",
@@ -257,7 +257,14 @@
     "title": "Knowledge Blocks",
     "add": "+ Add Block",
     "entries": "{{count}} entries",
-    "edit": "Edit Block"
+    "edit": "Edit Block",
+    "addBlock": "Add Knowledge Block",
+    "blockName": "Block Name",
+    "blockNamePlaceholder": "Enter block name",
+    "description": "Description",
+    "descriptionPlaceholder": "Enter block description",
+    "create": "Create Block",
+    "nameRequired": "Block name is required"
   },
   "modelStatus": {
     "title": "Model Status",

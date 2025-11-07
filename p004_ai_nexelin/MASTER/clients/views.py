@@ -95,11 +95,30 @@ class ClientViewSet(viewsets.ModelViewSet):
 class ClientDocumentViewSet(viewsets.ModelViewSet):
     queryset = ClientDocument.objects.all()
     serializer_class = ClientDocumentSerializer
-    permission_classes = [IsClientOwner | IsAdminOrReadOnly]
+    permission_classes = []  # Дозволяємо доступ без автентифікації, перевірка буде в методах
+    
+    def get_client_from_request_or_api_key(self):
+        """Отримати клієнта з JWT або API ключа."""
+        client = get_client_from_request(self.request)
+        
+        # Якщо немає клієнта через JWT, пробуємо через API ключ
+        if not client and 'HTTP_X_API_KEY' in self.request.META:
+            api_key = self.request.META['HTTP_X_API_KEY']
+            try:
+                key_obj = ClientAPIKey.objects.select_related('client').get(
+                    key=api_key,
+                    is_active=True
+                )
+                if key_obj.is_valid():
+                    client = key_obj.client
+            except ClientAPIKey.DoesNotExist:
+                pass
+        
+        return client
     
     def get_queryset(self):
         """Filter documents by authenticated client"""
-        client = get_client_from_request(self.request)
+        client = self.get_client_from_request_or_api_key()
         if client:
             return ClientDocument.objects.filter(client=client).order_by('-uploaded_at')
         # Admin/staff can see all
@@ -110,7 +129,7 @@ class ClientDocumentViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         """Automatically set client from request"""
-        client = get_client_from_request(self.request)
+        client = self.get_client_from_request_or_api_key()
         if not client:
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied('Client authentication required')
@@ -126,18 +145,37 @@ class APIKeyViewSet(viewsets.ModelViewSet):
 class KnowledgeBlockViewSet(viewsets.ModelViewSet):
     """API для роботи з Knowledge Blocks."""
     serializer_class = KnowledgeBlockSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = []  # Дозволяємо доступ без автентифікації, перевірка буде в методах
+    
+    def get_client_from_request_or_api_key(self):
+        """Отримати клієнта з JWT або API ключа."""
+        client = get_client_from_request(self.request)
+        
+        # Якщо немає клієнта через JWT, пробуємо через API ключ
+        if not client and 'HTTP_X_API_KEY' in self.request.META:
+            api_key = self.request.META['HTTP_X_API_KEY']
+            try:
+                key_obj = ClientAPIKey.objects.select_related('client').get(
+                    key=api_key,
+                    is_active=True
+                )
+                if key_obj.is_valid():
+                    client = key_obj.client
+            except ClientAPIKey.DoesNotExist:
+                pass
+        
+        return client
     
     def get_queryset(self):
         """Повертає тільки блоки поточного клієнта."""
-        client = get_client_from_request(self.request)
+        client = self.get_client_from_request_or_api_key()
         if not client:
             return KnowledgeBlock.objects.none()
         return KnowledgeBlock.objects.filter(client=client)
     
     def perform_create(self, serializer):
         """Автоматично встановлює клієнта при створенні."""
-        client = get_client_from_request(self.request)
+        client = self.get_client_from_request_or_api_key()
         if not client:
             raise serializers.ValidationError("Client not found")
         serializer.save(client=client)
@@ -163,18 +201,37 @@ class KnowledgeBlockViewSet(viewsets.ModelViewSet):
 class ClientQRCodeViewSet(viewsets.ModelViewSet):
     """API для роботи з QR кодами клієнтів (до 10 на клієнта)."""
     serializer_class = ClientQRCodeSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = []  # Дозволяємо доступ без автентифікації, перевірка буде в методах
+    
+    def get_client_from_request_or_api_key(self):
+        """Отримати клієнта з JWT або API ключа."""
+        client = get_client_from_request(self.request)
+        
+        # Якщо немає клієнта через JWT, пробуємо через API ключ
+        if not client and 'HTTP_X_API_KEY' in self.request.META:
+            api_key = self.request.META['HTTP_X_API_KEY']
+            try:
+                key_obj = ClientAPIKey.objects.select_related('client').get(
+                    key=api_key,
+                    is_active=True
+                )
+                if key_obj.is_valid():
+                    client = key_obj.client
+            except ClientAPIKey.DoesNotExist:
+                pass
+        
+        return client
     
     def get_queryset(self):
         """Повертає тільки QR коди поточного клієнта."""
-        client = get_client_from_request(self.request)
+        client = self.get_client_from_request_or_api_key()
         if not client:
             return ClientQRCode.objects.none()
         return ClientQRCode.objects.filter(client=client)
     
     def perform_create(self, serializer):
         """Автоматично встановлює клієнта при створенні та перевіряє ліміт."""
-        client = get_client_from_request(self.request)
+        client = self.get_client_from_request_or_api_key()
         if not client:
             raise serializers.ValidationError("Client not found")
         

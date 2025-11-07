@@ -65,7 +65,7 @@ const FileUpload = ({ onUpload, uploading }) => {
           onChange={handleFileInput}
           className="hidden"
           id="file-input"
-          accept=".pdf,.doc,.docx,.txt,.xls,.xlsx"
+          accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.json"
           disabled={uploading}
         />
         <label 

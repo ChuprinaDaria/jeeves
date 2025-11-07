@@ -99,7 +99,7 @@
     "uploadedFiles": "Hochgeladene Dateien",
     "noFiles": "Noch keine Dateien hochgeladen",
     "dragDrop": "Dateien hier ablegen oder klicken zum Auswählen",
-    "supportedFormats": "Unterstützt: PDF, DOC, TXT, XLS (Max 10MB)",
+    "supportedFormats": "Unterstützt: PDF, DOC, TXT, XLS, JSON (Max 10MB)",
     "chooseFiles": "Dateien auswählen",
     "uploadPhotos": "Fotos hochladen",
     "uploadedPhotos": "Hochgeladene Fotos",
@@ -257,7 +257,14 @@
     "title": "Wissensblöcke",
     "add": "+ Block hinzufügen",
     "entries": "{{count}} Einträge",
-    "edit": "Block bearbeiten"
+    "edit": "Block bearbeiten",
+    "addBlock": "Wissensblock hinzufügen",
+    "blockName": "Block-Name",
+    "blockNamePlaceholder": "Block-Namen eingeben",
+    "description": "Beschreibung",
+    "descriptionPlaceholder": "Block-Beschreibung eingeben",
+    "create": "Block erstellen",
+    "nameRequired": "Block-Name ist erforderlich"
   },
   "modelStatus": {
     "title": "Modell-Status",
