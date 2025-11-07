@@ -7,6 +7,9 @@ class ClientSerializer(serializers.ModelSerializer):
     branch_name = serializers.SerializerMethodField()
     specialization_name = serializers.SerializerMethodField()
     embedding_model_name = serializers.SerializerMethodField()
+    # Sensitive Meta fields as write-only
+    meta_app_secret = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    meta_access_token = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
     class Meta:
         model = Client
@@ -29,6 +32,15 @@ class ClientSerializer(serializers.ModelSerializer):
             'custom_system_prompt',
             'embedding_model',
             'embedding_model_name',
+            # Meta WhatsApp config (non-sensitive read)
+            'whatsapp_meta_enabled',
+            'meta_waba_id',
+            'meta_app_id',
+            'meta_phone_number_id',
+            'meta_verify_token',
+            # Sensitive write-only
+            'meta_app_secret',
+            'meta_access_token',
             'created_by',
             'created_at',
             'updated_at',

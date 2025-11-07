@@ -1,6 +1,5 @@
 from django.urls import path, include
 from . import views
-from .views_whatsapp import TwilioWhatsAppWebhookView
 from .views_meta_whatsapp import MetaWhatsAppWebhookView
 
 
@@ -18,8 +17,6 @@ urlpatterns = [
     path('model-status/', views.ClientModelStatusView.as_view(), name='client-model-status'),
     path('list-extended/', views.list_clients_extended, name='clients-list-extended'),
     path('rag-test/', views.rag_test_query, name='rag-test-query'),
-    path('whatsapp/webhook/', TwilioWhatsAppWebhookView.as_view(), name='twilio_whatsapp_webhook'),
-    path('whatsapp/status/', TwilioWhatsAppWebhookView.as_view(), name='twilio_whatsapp_status'),
     path('whatsapp/meta/webhook/', MetaWhatsAppWebhookView.as_view(), name='meta_whatsapp_webhook'),
     
     # Явні маршрути для viewsets з POST підтримкою
@@ -42,8 +39,4 @@ urlpatterns = [
     path('knowledge-blocks/<int:block_id>/documents/', views.KnowledgeBlockDocumentsView.as_view(), name='knowledge-block-documents'),
 ]
 
-# Додаємо URL для Twilio статусу без префіксу clients
-from django.urls import path as django_path
-urlpatterns += [
-    django_path('whatsapp/status/', TwilioWhatsAppWebhookView.as_view(), name='twilio_whatsapp_status_direct'),
-]
+# Twilio маршрути видалено — використовуємо лише Meta WhatsApp Business API

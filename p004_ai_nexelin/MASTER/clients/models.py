@@ -126,6 +126,15 @@ class Client(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Meta WhatsApp Business per-client configuration
+    whatsapp_meta_enabled = models.BooleanField(default=False, help_text="Enable Meta WhatsApp for this client")
+    meta_waba_id = models.CharField(max_length=64, blank=True, help_text="Meta WhatsApp Business Account ID")
+    meta_app_id = models.CharField(max_length=64, blank=True, help_text="Meta App ID")
+    meta_app_secret = models.CharField(max_length=200, blank=True, help_text="Meta App Secret")
+    meta_access_token = models.TextField(blank=True, help_text="Meta Graph API Access Token")
+    meta_phone_number_id = models.CharField(max_length=64, blank=True, help_text="Meta Business Phone Number ID")
+    meta_verify_token = models.CharField(max_length=128, blank=True, help_text="Webhook verify token for Meta")
+
     class Meta:
         verbose_name = 'Client'
         verbose_name_plural = 'Clients'

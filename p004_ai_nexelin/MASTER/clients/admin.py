@@ -42,6 +42,19 @@ class ClientAdmin(admin.ModelAdmin):
             'fields': ('logo', 'logo_preview'),
             'classes': ('collapse',)
         }),
+        ('WhatsApp (Meta)', {
+            'fields': (
+                'whatsapp_meta_enabled',
+                'meta_waba_id',
+                'meta_app_id',
+                'meta_app_secret',
+                'meta_access_token',
+                'meta_phone_number_id',
+                'meta_verify_token',
+            ),
+            'classes': ('collapse',),
+            'description': 'Per-client Meta WhatsApp Business configuration. Use verify token for webhook validation.'
+        }),
         ('Features Configuration', {
             'fields': ('features',),
             'classes': ('collapse',),

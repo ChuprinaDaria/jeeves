@@ -27,12 +27,29 @@ def verify_xhub_signature(raw_body: bytes, x_hub_signature_256: str, app_secret:
         logger.error("Signature verification error: %s", e, exc_info=True)
         return False
 
-def send_whatsapp_text(to_number: str, body: str) -> bool:
-    """Відправляє повідомлення через Meta WhatsApp API"""
+def send_whatsapp_text(to_number: str, body: str, *, client=None) -> bool:
+    """Відправляє повідомлення через Meta WhatsApp API (пер-клієнтно)"""
     try:
-        url = f"{GRAPH_URL}/{settings.META_PHONE_NUMBER_ID}/messages"
+        phone_number_id = None
+        access_token = None
+
+        if client is not None:
+            phone_number_id = getattr(client, 'meta_phone_number_id', '') or None
+            access_token = getattr(client, 'meta_access_token', '') or None
+
+        # Backward fallback до глобальних налаштувань, якщо не задані у клієнта
+        if not phone_number_id:
+            phone_number_id = getattr(settings, 'META_PHONE_NUMBER_ID', '')
+        if not access_token:
+            access_token = getattr(settings, 'META_ACCESS_TOKEN', '')
+
+        if not phone_number_id or not access_token:
+            logger.warning("Meta WhatsApp credentials are not configured")
+            return False
+
+        url = f"{GRAPH_URL}/{phone_number_id}/messages"
         headers = {
-            "Authorization": f"Bearer {settings.META_ACCESS_TOKEN}",
+            "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json"
         }
         payload = {
@@ -60,7 +77,11 @@ class MetaWhatsAppWebhookView(View):
         mode = request.GET.get("hub.mode")
         token = request.GET.get("hub.verify_token")
         challenge = request.GET.get("hub.challenge")
-        if mode == "subscribe" and token == settings.META_VERIFY_TOKEN:
+        # Спроба знайти клієнта за verify_token (пер-клієнтна перевірка)
+        from MASTER.clients.models import Client
+        client = Client.objects.filter(meta_verify_token=token, whatsapp_meta_enabled=True).first()
+
+        if mode == "subscribe" and client is not None:
             logger.info("Meta WhatsApp webhook verified successfully")
             return HttpResponse(challenge)
         logger.warning(f"Meta WhatsApp webhook verification failed: mode={mode}, token_match={token == settings.META_VERIFY_TOKEN}")
@@ -73,12 +94,38 @@ class MetaWhatsAppWebhookView(View):
             raw_body = request.body
             x_hub_signature = request.headers.get('X-Hub-Signature-256', '')
             
-            if x_hub_signature and settings.META_APP_SECRET:
-                if not verify_xhub_signature(raw_body, x_hub_signature, settings.META_APP_SECRET):
+            from MASTER.clients.models import Client
+            meta_app_secret = getattr(settings, 'META_APP_SECRET', '')
+
+            # Перевірка підпису: пріоритет пер-клієнтного секрету, якщо можемо ідентифікувати
+            # На POST подіях Meta надсилає phone_number_id у body->entry->changes->value->metadata
+            body_preview = json.loads(raw_body.decode("utf-8"))
+            phone_number_id = None
+            try:
+                for entry in body_preview.get('entry', []):
+                    for change in entry.get('changes', []):
+                        value = change.get('value', {})
+                        md = value.get('metadata', {})
+                        if 'phone_number_id' in md:
+                            phone_number_id = md.get('phone_number_id')
+                            break
+                    if phone_number_id:
+                        break
+            except Exception:
+                pass
+
+            client_for_secret = None
+            if phone_number_id:
+                client_for_secret = Client.objects.filter(meta_phone_number_id=phone_number_id, whatsapp_meta_enabled=True).first()
+            if client_for_secret and getattr(client_for_secret, 'meta_app_secret', ''):
+                meta_app_secret = client_for_secret.meta_app_secret
+
+            if x_hub_signature and meta_app_secret:
+                if not verify_xhub_signature(raw_body, x_hub_signature, meta_app_secret):
                     logger.warning("Invalid Meta webhook signature")
                     return HttpResponse(status=403)
             
-            body = json.loads(raw_body.decode("utf-8"))
+            body = body_preview
             logger.info(f"Meta WhatsApp Webhook POST: {json.dumps(body, indent=2)}")
             
             # Meta відправляє події в полі 'entry'
@@ -105,6 +152,13 @@ class MetaWhatsAppWebhookView(View):
     def handle_message(self, message, metadata):
         """Обробляє одне повідомлення від Meta"""
         try:
+            # Визначаємо клієнта за phone_number_id (пер-клієнтна конфігурація)
+            from MASTER.clients.models import Client, ClientWhatsAppConversation, ClientQRCode
+            client = None
+            phone_number_id = (metadata or {}).get('phone_number_id')
+            if phone_number_id:
+                client = Client.objects.filter(meta_phone_number_id=phone_number_id, whatsapp_meta_enabled=True).first()
+
             from_number = message.get('from', '')
             message_type = message.get('type', '')
             message_id = message.get('id', '')
@@ -134,7 +188,7 @@ class MetaWhatsAppWebhookView(View):
             if message_body.strip().upper().startswith('START2'):
                 self.handle_start2_command(from_number, message_body)
             else:
-                self.handle_regular_message(from_number, message_body)
+                self.handle_regular_message(from_number, message_body, client)
                 
         except Exception as e:
             logger.error(f"Error handling Meta message: {str(e)}", exc_info=True)
@@ -264,17 +318,17 @@ class MetaWhatsAppWebhookView(View):
             
             logger.info(f"START2 processed successfully: client={client.id}, phone={from_number}")
             
-            # Відправляємо повідомлення
-            send_whatsapp_text(from_number, response_text)
+            # Відправляємо повідомлення (пер-клієнтно)
+            send_whatsapp_text(from_number, response_text, client=client)
             
         except Exception as e:
             logger.error(f"Error processing START2 command: {str(e)}", exc_info=True)
             send_whatsapp_text(from_number, "Вибачте, виникла помилка. Спробуйте пізніше.")
     
-    def handle_regular_message(self, from_number, message_body):
+    def handle_regular_message(self, from_number, message_body, client):
         """Обробляє звичайні повідомлення з RAG логікою"""
         try:
-            # Шукаємо активну розмову
+            # Якщо клієнт не визначений метаданими, спробуємо знайти за активною розмовою
             conversation = ClientWhatsAppConversation.objects.filter(
                 customer_phone=from_number,
                 is_active=True
@@ -306,8 +360,8 @@ class MetaWhatsAppWebhookView(View):
             
             logger.info(f"Regular message processed: phone={from_number}")
             
-            # Відправляємо повідомлення
-            send_whatsapp_text(from_number, response_text)
+            # Відправляємо повідомлення (пер-клієнтно, якщо відомо)
+            send_whatsapp_text(from_number, response_text, client=conversation.client if conversation else client)
             
         except Exception as e:
             logger.error(f"Error processing regular message: {str(e)}", exc_info=True)

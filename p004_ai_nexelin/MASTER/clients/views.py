@@ -766,7 +766,7 @@ class ClientConversationsView(APIView):
     API endpoint для отримання всіх розмов WhatsApp клієнта
     GET /api/clients/conversations/
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = []
     
     def get(self, request):
         """Отримати список всіх розмов WhatsApp клієнта"""
@@ -879,7 +879,7 @@ class ClientConversationDetailView(APIView):
     API endpoint для отримання деталей конкретної розмови
     GET /api/clients/conversations/{id}/
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = []
     
     def get(self, request, conversation_id):
         """Отримати деталі розмови"""
