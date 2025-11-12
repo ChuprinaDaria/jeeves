@@ -15,6 +15,12 @@ import time
 from typing import TYPE_CHECKING, Generator, Any, cast, Iterable
 
 from django.conf import settings
+from MASTER.rag.providers.llm import (
+    OpenAILLMProvider,
+    OllamaLLMProvider,
+    KimiLLMProvider,
+    BaseLLMProvider,
+)
 
 from MASTER.clients.models import Client
 from MASTER.branches.models import Branch
@@ -43,26 +49,40 @@ except ImportError:
 
 
 class LLMClient:
-    """OpenAI ChatGPT client with dynamic prompt support."""
+    """LLM client with pluggable providers and dynamic prompts."""
     
     def __init__(self):
-        if not OpenAI:
-            raise ImportError("openai package required for LLMClient")
-        
         self.config = settings.LLM_CONFIG
+        self.temperature = self.config.get('temperature', 0.7)
+        self.max_tokens = self.config.get('max_tokens', 1500)
+        self.timeout = self.config.get('timeout_seconds', 30)
+        self.max_retries = self.config.get('max_retries', 3)
+        self.retry_delay = self.config.get('retry_delay_seconds', 2)
+    
+    def _get_provider(self, client: Client | None) -> BaseLLMProvider:
+        # Default to OpenAI if no client provided
+        provider_name = (getattr(client, 'llm_provider', None) or 'openai').lower()
+        model_name = getattr(client, 'llm_model_name', None) or self.config.get('model', 'gpt-4o-mini')
         
-        # Очищаємо API ключ від зайвих пробілів та символів
-        api_key = settings.OPENAI_API_KEY.strip()
-        if not api_key:
-            raise ValueError("OPENAI_API_KEY is not set or empty")
+        if 'ollama' in provider_name:
+            endpoint = getattr(settings, 'OLLAMA_MAIN_ENDPOINT', '')
+            if provider_name == 'ollama_light':
+                endpoint = getattr(settings, 'OLLAMA_LIGHT_ENDPOINT', endpoint)
+            return OllamaLLMProvider(api_endpoint=endpoint, model_name=model_name)
         
-        self.client = OpenAI(api_key=api_key)
-        self.model = self.config['model']
-        self.temperature = self.config['temperature']
-        self.max_tokens = self.config['max_tokens']
-        self.timeout = self.config['timeout_seconds']
-        self.max_retries = self.config['max_retries']
-        self.retry_delay = self.config['retry_delay_seconds']
+        if provider_name == 'kimi':
+            api_key = getattr(settings, 'KIMI_API_KEY', '').strip()
+            if not api_key:
+                raise ValueError("KIMI_API_KEY is not configured")
+            return KimiLLMProvider(api_key=api_key, model_name=model_name)
+        
+        if provider_name == 'openai':
+            api_key = getattr(settings, 'OPENAI_API_KEY', '').strip()
+            if not api_key:
+                raise ValueError("OPENAI_API_KEY is not configured")
+            return OpenAILLMProvider(model_name=model_name, api_key=api_key)
+        
+        raise ValueError(f"Unsupported LLM provider: {provider_name}")
     
     def generate_response(
         self,
@@ -100,49 +120,27 @@ class LLMClient:
             ],
         )
         
-        logger.info(f"LLM request: model={self.model}, stream={stream}")
+        logger.info(f"LLM request: provider={getattr(client, 'llm_provider', 'openai')}, model={getattr(client, 'llm_model_name', self.config.get('model'))}, stream={stream}")
         logger.debug(f"System prompt: {system_prompt[:200]}...")
         
-        for attempt in range(self.max_retries):
-            try:
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    temperature=self.temperature,
-                    max_tokens=self.max_tokens,
-                    top_p=self.config.get('top_p', 1.0),
-                    frequency_penalty=self.config.get('frequency_penalty', 0.0),
-                    presence_penalty=self.config.get('presence_penalty', 0.0),
-                    stream=stream,
-                    timeout=self.timeout,
-                )
-                
-                if stream:
-                    response_stream = cast(Iterable[Any], response)
-                    return self._stream_response(response_stream)
-                else:
-                    completion = cast(Any, response)
-                    return completion.choices[0].message.content or ""
-            
-            except RateLimitError as e:
-                logger.warning(f"Rate limit hit (attempt {attempt + 1}/{self.max_retries}): {e}")
-                if attempt < self.max_retries - 1:
-                    time.sleep(self.retry_delay * (attempt + 1))  # Exponential backoff
-                else:
-                    raise
-            
-            except APITimeoutError as e:
-                logger.warning(f"API timeout (attempt {attempt + 1}/{self.max_retries}): {e}")
-                if attempt < self.max_retries - 1:
-                    time.sleep(self.retry_delay)
-                else:
-                    raise
-            
-            except OpenAIError as e:
-                logger.error(f"OpenAI API error: {e}")
-                raise
-        
-        raise Exception("Max retries exceeded")
+        # Call provider (non-streaming unified path)
+        provider = self._get_provider(client)
+        msg_list = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"{context}\n\n=== USER QUESTION ===\n{user_query}"},
+        ]
+        result = provider.generate(
+            messages=msg_list,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+        )
+        content = cast(str, result.get('content', ''))
+        if not stream:
+            return content
+        # Streaming emulation: yield once
+        def _one_shot() -> Generator[str, None, None]:
+            yield content
+        return _one_shot()
     
     def _get_system_prompt(
         self,

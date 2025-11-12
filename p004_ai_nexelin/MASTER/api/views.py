@@ -2,6 +2,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from rest_framework.permissions import AllowAny
+from django.db.models import Count, Sum
+from django.utils.timezone import now, timedelta
 from .serializers import RAGQuerySerializer, DocumentUploadSerializer
 from MASTER.rag.response_generator import ResponseGenerator
 from MASTER.clients.models import ClientAPIKey, Client, ClientDocument
@@ -774,6 +776,113 @@ class EmbeddingModelReindexView(APIView):
             'task_id': task_result.id,
         })
 
+
+class ClientAIUsageView(APIView):
+    """Return AI usage statistics and pricing for the authenticated client."""
+    def get(self, request):
+        from MASTER.clients.views import get_client_from_request
+        from MASTER.processing.models import UsageStats
+        from MASTER.EmbeddingModel.models import EmbeddingModel
+        
+        client = get_client_from_request(request)
+        if client is None:
+            return Response({'error': 'Client not found or unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        qs = UsageStats.objects.filter(client=client).select_related('embedding_model')
+        
+        totals = qs.aggregate(
+            tokens_used=Sum('tokens_used'),
+            cost=Sum('cost'),
+            operations_count=Count('id'),
+        )
+        totals = {
+            'tokens_used': int(totals['tokens_used'] or 0),
+            'cost': float(totals['cost'] or 0.0),
+            'operations_count': int(totals['operations_count'] or 0),
+        }
+        
+        by_operation = list(
+            qs.values('operation_type')
+              .annotate(tokens_used=Sum('tokens_used'), cost=Sum('cost'), operations_count=Count('id'))
+              .order_by('operation_type')
+        )
+        for row in by_operation:
+            row['tokens_used'] = int(row['tokens_used'] or 0)
+            row['cost'] = float(row['cost'] or 0.0)
+            row['operations_count'] = int(row['operations_count'] or 0)
+        
+        by_model_rows = (
+            qs.values('embedding_model')
+              .annotate(tokens_used=Sum('tokens_used'), cost=Sum('cost'), operations_count=Count('id'))
+              .order_by('embedding_model')
+        )
+        model_ids = [r['embedding_model'] for r in by_model_rows if r['embedding_model']]
+        models = EmbeddingModel.objects.filter(id__in=model_ids)
+        model_map = {
+            int(getattr(m, 'id')): {
+                'id': int(getattr(m, 'id')),
+                'name': m.name,
+                'provider': m.provider,
+                'model_name': m.model_name,
+                'dimensions': m.dimensions,
+                'is_local': getattr(m, 'is_local', False),
+                'server_type': getattr(m, 'server_type', ''),
+                'cost_per_1k_tokens': float(m.cost_per_1k_tokens),
+            } for m in models
+        }
+        by_model = []
+        for r in by_model_rows:
+            mid = r['embedding_model']
+            by_model.append({
+                'embedding_model': model_map.get(int(mid)) if mid else None,
+                'tokens_used': int(r['tokens_used'] or 0),
+                'cost': float(r['cost'] or 0.0),
+                'operations_count': int(r['operations_count'] or 0),
+            })
+        
+        since = now().date() - timedelta(days=30)
+        daily = (
+            qs.filter(date__gte=since)
+              .values('date')
+              .annotate(tokens_used=Sum('tokens_used'), cost=Sum('cost'), operations_count=Count('id'))
+              .order_by('date')
+        )
+        daily_last_30d = [{
+            'date': str(r['date']),
+            'tokens_used': int(r['tokens_used'] or 0),
+            'cost': float(r['cost'] or 0.0),
+            'operations_count': int(r['operations_count'] or 0),
+        } for r in daily]
+        
+        embedding_model_data = None
+        if getattr(client, 'embedding_model_id', None):
+            em = client.embedding_model
+            embedding_model_data = {
+                'id': int(getattr(em, 'id')),
+                'name': em.name,
+                'provider': em.provider,
+                'model_name': em.model_name,
+                'dimensions': em.dimensions,
+                'is_local': getattr(em, 'is_local', False),
+                'server_type': getattr(em, 'server_type', ''),
+                'cost_per_1k_tokens': float(em.cost_per_1k_tokens),
+            }
+        
+        payload = {
+            'client': {
+                'id': int(getattr(client, 'id')),
+                'user': getattr(client, 'user'),
+                'company_name': getattr(client, 'company_name', ''),
+                'llm_provider': getattr(client, 'llm_provider', 'openai'),
+                'llm_model_name': getattr(client, 'llm_model_name', ''),
+                'embedding_model': embedding_model_data,
+            },
+            'totals': totals,
+            'by_operation': by_operation,
+            'by_model': by_model,
+            'daily_last_30d': daily_last_30d,
+        }
+        return Response(payload)
 
 class ClientIndexNewDocumentsView(APIView):
     """Index only new (unprocessed) documents of authenticated client.

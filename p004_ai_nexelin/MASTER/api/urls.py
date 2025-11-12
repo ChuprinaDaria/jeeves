@@ -22,5 +22,7 @@ urlpatterns = [
     path('client/index-new/', views.ClientIndexNewDocumentsView.as_view(), name='client-index-new-documents'),
     path('client/reindex/', views.ClientReindexDocumentsView.as_view(), name='client-reindex-documents'),
     path('embedding-models/<int:model_id>/reindex/', views.EmbeddingModelReindexView.as_view(), name='embedding-model-reindex'),
+    # Client AI usage statistics
+    path('client/ai-usage/', views.ClientAIUsageView.as_view(), name='client-ai-usage'),
 ]
 

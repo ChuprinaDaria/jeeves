@@ -60,6 +60,23 @@ class Client(models.Model):
         help_text="Selected embedding model for this client. If not set, default model will be used."
     )
     
+    # LLM configuration (generation model) per client
+    llm_provider = models.CharField(
+        max_length=50,
+        default='openai',
+        choices=[
+            ('openai', 'OpenAI'),
+            ('ollama_main', 'Ollama Main (qwen2.5:7b)'),
+            ('ollama_light', 'Ollama Light (qwen2.5:1.5b)'),
+            ('kimi', 'Kimi (Moonshot AI)'),
+        ]
+    )
+    llm_model_name = models.CharField(
+        max_length=100,
+        default='gpt-4o-mini',
+        help_text='Model name: gpt-4o-mini, qwen2.5, llama3, etc.'
+    )
+    
     user = models.CharField(max_length=255)
     company_name = models.CharField(max_length=200, blank=True)
 

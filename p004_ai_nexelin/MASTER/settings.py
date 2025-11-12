@@ -277,6 +277,27 @@ TWILIO_AUTH_TOKEN = env("TWILIO_AUTH_TOKEN", default="")
 TWILIO_WHATSAPP_NUMBER = env("TWILIO_WHATSAPP_NUMBER", default="whatsapp:+14155238886")
 CLIENT_PORTAL_BASE_URL = env("CLIENT_PORTAL_BASE_URL", default="https://app.nexelin.com")
 
+# Ollama Local LLM Configuration
+OLLAMA_ENABLED = os.getenv('OLLAMA_ENABLED', 'false').lower() == 'true'
+
+# Main server (large models)
+OLLAMA_MAIN_ENDPOINT = os.getenv('OLLAMA_MAIN_ENDPOINT', 'http://192.168.0.51:11434')
+OLLAMA_MAIN_LLM_MODEL = 'qwen2.5:7b'
+OLLAMA_MAIN_EMBED_MODEL = 'bge-m3'
+
+# Light server (small models)
+OLLAMA_LIGHT_ENDPOINT = os.getenv('OLLAMA_LIGHT_ENDPOINT', 'http://192.168.0.53:11434')
+OLLAMA_LIGHT_LLM_MODEL = 'qwen2.5:1.5b'
+OLLAMA_LIGHT_EMBED_MODEL = 'nomic-embed-text'
+
+# Backwards compatibility
+OLLAMA_ENDPOINT = OLLAMA_MAIN_ENDPOINT
+OLLAMA_DEFAULT_LLM_MODEL = os.getenv('OLLAMA_DEFAULT_LLM_MODEL', OLLAMA_MAIN_LLM_MODEL)
+OLLAMA_DEFAULT_EMBED_MODEL = os.getenv('OLLAMA_DEFAULT_EMBED_MODEL', OLLAMA_MAIN_EMBED_MODEL)
+
+# Kimi API (Moonshot)
+KIMI_API_KEY = os.getenv('KIMI_API_KEY', '')
+
 META_WABA_ID = os.environ.get("META_WABA_ID", "")
 META_APP_ID = os.environ.get("META_APP_ID", "")
 META_APP_SECRET = os.environ.get("META_APP_SECRET", "")

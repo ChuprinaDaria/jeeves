@@ -1,9 +1,37 @@
 from django.conf import settings
 # pyright: reportMissingTypeStubs=false
 from MASTER.EmbeddingModel.models import EmbeddingModel
+from MASTER.rag.providers.embeddings import (
+    OpenAIEmbeddingProvider,
+    OllamaEmbeddingProvider,
+    BaseEmbeddingProvider,
+)
 
 
 class EmbeddingService:
+    @staticmethod
+    def _get_provider(embedding_model: EmbeddingModel) -> BaseEmbeddingProvider:
+        from django.conf import settings
+        provider_name = (embedding_model.provider or "").lower()
+        # Local (Ollama) providers
+        if getattr(embedding_model, "is_local", False) and 'ollama' in provider_name:
+            endpoint = getattr(embedding_model, "api_endpoint", "") or ""
+            if not endpoint:
+                if getattr(embedding_model, "server_type", "") == 'light':
+                    endpoint = getattr(settings, 'OLLAMA_LIGHT_ENDPOINT', '')
+                else:
+                    endpoint = getattr(settings, 'OLLAMA_MAIN_ENDPOINT', '')
+            return OllamaEmbeddingProvider(
+                api_endpoint=endpoint,
+                model_name=embedding_model.model_name,
+            )
+        # Default to OpenAI
+        if provider_name == "openai" or not provider_name:
+            return OpenAIEmbeddingProvider(
+                model_name=embedding_model.model_name,
+                api_key=settings.OPENAI_API_KEY,
+            )
+        raise ValueError(f"Unsupported provider: {embedding_model.provider}")
     @staticmethod
     def embed_text(text: str, model_name: str):
         """Створює embedding для одиничного тексту через OpenAI з обробкою помилок і локальним fallback.
@@ -48,23 +76,23 @@ class EmbeddingService:
             raise
     @staticmethod
     def create_embedding(text, embedding_model: EmbeddingModel):
-        provider = embedding_model.provider
-        model_name = embedding_model.model_name
-        
         try:
-            if provider == 'openai':
-                result = EmbeddingService._openai_embed(text, model_name)
-            elif provider == 'huggingface':
-                result = EmbeddingService._huggingface_embed(text, model_name)
-            elif provider == 'cohere':
-                result = EmbeddingService._cohere_embed(text, model_name)
-            else:
-                raise ValueError(f"Unknown provider: {provider}")
+            provider_obj = EmbeddingService._get_provider(embedding_model)
+            result = provider_obj.embed(text)
+            vectors = result.get('vectors') or []
+            vector = vectors[0] if vectors else []
+            token_count = int(result.get('token_count') or 0)
+            dimensions = int(result.get('dimensions') or len(vector))
+            result = {
+                'vector': vector,
+                'token_count': token_count,
+                'dimensions': dimensions,
+            }
 
             # Normalize vector dimensions to match configured model dimensions
             try:
                 target_dim = int(embedding_model.dimensions)
-                vec = result.get('vector')
+                vec = result.get('vector')  # type: ignore[assignment]
                 if isinstance(vec, list):
                     current_dim = len(vec)
                     if current_dim != target_dim:
@@ -73,8 +101,8 @@ class EmbeddingService:
                             vec = vec[:target_dim]
                         else:
                             vec = vec + [0.0] * (target_dim - current_dim)
-                        result['vector'] = vec
-                        result['dimensions'] = target_dim
+                        result['vector'] = vec  # type: ignore[index]
+                        result['dimensions'] = target_dim  # type: ignore[index]
             except Exception:
                 # In case of any unexpected issue, return original result
                 pass

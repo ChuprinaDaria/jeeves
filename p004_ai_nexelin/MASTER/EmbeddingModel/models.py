@@ -14,6 +14,31 @@ class EmbeddingModel(models.Model):
     provider = models.CharField(max_length=20, choices=PROVIDERS)
     model_name = models.CharField(max_length=100)
     dimensions = models.IntegerField()
+    api_endpoint = models.URLField(
+        blank=True,
+        null=True,
+        help_text='API endpoint for local models'
+    )
+    is_local = models.BooleanField(
+        default=False,
+        help_text='Is this a locally hosted model?'
+    )
+    server_type = models.CharField(
+        max_length=20,
+        default='',
+        choices=[
+            ('', 'Cloud/API'),
+            ('main', 'Main Server (192.168.0.51)'),
+            ('light', 'Light Server (192.168.0.53)'),
+        ],
+        blank=True
+    )
+    api_key = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text='API key for third-party services (Kimi, etc.)'
+    )
     cost_per_1k_tokens = models.DecimalField(max_digits=10, decimal_places=6, default=0)
     is_active = models.BooleanField(default=True)
     is_default = models.BooleanField(default=False)

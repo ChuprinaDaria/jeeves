@@ -14,9 +14,9 @@ from MASTER.accounts.models import Roles, User
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
-    list_display = ['user', 'tag', 'specialization', 'company_name', 'client_type', 'is_active', 'logo_preview', 'api_keys_count', 'zero_status', 'api_docs_link', 'created_by_display', 'created_at']
+    list_display = ['user', 'tag', 'specialization', 'company_name', 'client_type', 'llm_provider', 'llm_model_name', 'is_active', 'logo_preview', 'api_keys_count', 'zero_status', 'api_docs_link', 'created_by_display', 'created_at']
     list_display_links = ['user', 'tag']  # Поля, які будуть посиланнями на детальну сторінку
-    list_filter = ['client_type', 'specialization__branch', 'specialization', 'is_active', 'created_by', 'created_at']
+    list_filter = ['client_type', 'llm_provider', 'specialization__branch', 'specialization', 'is_active', 'created_by', 'created_at']
     search_fields = ['user', 'tag', 'company_name', 'description']
     ordering = ['-created_at']
     readonly_fields = ['created_by', 'created_at', 'updated_at', 'api_keys_count', 'zero_status', 'api_docs_link', 'client_portal_link', 'logo_preview']
@@ -62,7 +62,7 @@ class ClientAdmin(admin.ModelAdmin):
             'description': 'Enable specific features for this client (e.g., restaurant menu, chat, ordering)'
         }),
         ('AI Configuration', {
-            'fields': ('custom_system_prompt',),
+            'fields': ('embedding_model', 'llm_provider', 'llm_model_name', 'custom_system_prompt',),
             'classes': ('collapse',),
             'description': 'Custom system prompt for AI assistant. Higher priority than specialization/branch prompts.'
         }),
