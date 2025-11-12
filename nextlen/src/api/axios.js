@@ -27,12 +27,6 @@ const api = axios.create({
 
 // Interceptor для додавання токена та API ключа
 api.interceptors.request.use((config) => {
-  // Додаємо Bearer token якщо є
-  const token = localStorage.getItem('access_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  
   // Додаємо X-API-Key якщо є (працює разом з Bearer token)
   const apiKey = localStorage.getItem('api_key');
   if (apiKey) {
@@ -67,70 +61,20 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Якщо 401 і це не був спроб refresh token
+    // Якщо 401 і це не був повтор
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      // Якщо є API ключ, не робимо refresh - використовуємо API ключ
+      // Якщо є API ключ — просто повторюємо запит (ключ уже в headers)
       const apiKey = localStorage.getItem('api_key');
       if (apiKey) {
-        // Просто повторюємо запит з API ключем (він вже в headers через interceptor)
         return api(originalRequest);
       }
 
-      // Якщо є client_tag, також не робимо refresh і не редиректимо
+      // Якщо є client_tag — теж повторюємо запит
       const clientTagRetry = localStorage.getItem('client_tag');
       if (clientTagRetry) {
         return api(originalRequest);
-      }
-
-      const refreshToken = localStorage.getItem('refresh_token');
-
-      // Якщо є refresh token, намагаємося оновити access token
-      if (refreshToken) {
-        try {
-          const { authAPI } = await import('./auth');
-          const response = await authAPI.refreshToken(refreshToken);
-
-          if (response.data?.access) {
-            localStorage.setItem('access_token', response.data.access);
-            if (response.data.refresh) {
-              localStorage.setItem('refresh_token', response.data.refresh);
-            }
-
-            // Повторюємо оригінальний запит з новим токеном
-            originalRequest.headers.Authorization = `Bearer ${response.data.access}`;
-            return api(originalRequest);
-          }
-        } catch (refreshError) {
-          console.error('Token refresh failed:', refreshError);
-
-          // Якщо refresh не вдався, спробуємо використати збережений client_tag
-          const clientTag = localStorage.getItem('client_tag');
-          if (clientTag) {
-            try {
-              const { authAPI } = await import('./auth');
-              const tagResponse = await authAPI.getTokenByClientToken(clientTag);
-
-              if (tagResponse.data?.access) {
-                localStorage.setItem('access_token', tagResponse.data.access);
-                if (tagResponse.data.refresh) {
-                  localStorage.setItem('refresh_token', tagResponse.data.refresh);
-                }
-
-                // Повторюємо оригінальний запит з новим токеном
-                originalRequest.headers.Authorization = `Bearer ${tagResponse.data.access}`;
-                return api(originalRequest);
-              }
-            } catch (tagError) {
-              console.error('Client tag re-authentication failed:', tagError);
-            }
-          }
-
-          // Якщо все не вдалося, очищаємо токени
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-        }
       }
 
       // Перевіряємо чи є tag параметр в URL (bootstrap авторизація)

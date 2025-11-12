@@ -29,39 +29,18 @@ import json
 
 def get_client_from_request(request):
     """
-    Helper function to get client from request.
-    Supports:
-    - request.user.client_profile (for regular users)
-    - request.user.username = Client.user (for JWT tokens from TokenByClientTokenView)
-    - request.user.username = 'client_{id}' (fallback)
+    Helper function to get client from request without JWT.
+    Priority:
+    - request.client (set by ClientAPIKeyMiddleware via X-API-Key)
+    - X-Client-Token header (client tag)
+    - ?tag= or ?client_token= query params
+    - tag/client_token in request body
     """
-    # Спочатку пробуємо через client_profile
-    client = getattr(request.user, 'client_profile', None)
+    # 0) Клієнт, встановлений middleware через X-API-Key
+    client = getattr(request, 'client', None)
     if client:
         return client
     
-    # Якщо немає client_profile, шукаємо клієнта за username
-    username = getattr(request.user, 'username', '')
-    if not username:
-        username = ''
-    
-    # Спочатку шукаємо за Client.user (основний випадок для JWT токенів)
-    try:
-        client = Client.objects.get(user=username, is_active=True)
-        return client
-    except Client.DoesNotExist:
-        pass
-    
-    # Fallback: перевіряємо чи username має формат 'client_{id}'
-    if username.startswith('client_'):
-        try:
-            client_id = int(username.replace('client_', ''))
-            client = Client.objects.get(id=client_id, is_active=True)
-            return client
-        except (ValueError, Client.DoesNotExist):
-            pass
-    
-    # Додаткова підтримка без JWT: X-Client-Token / ?tag=
     # 1) Заголовок X-Client-Token
     try:
         token = request.headers.get('X-Client-Token') or request.META.get('HTTP_X_CLIENT_TOKEN')

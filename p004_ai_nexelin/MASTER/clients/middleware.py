@@ -10,10 +10,6 @@ class ClientAPIKeyMiddleware:
     def __call__(self, request):
         path = request.path
         if path.startswith('/api/rag/') or path.startswith('/api/query') or path.startswith('/api/upload') or path.startswith('/api/docs'):
-            # Allow JWT-auth flows and public bootstrap/auth endpoints
-            auth_header = request.headers.get('Authorization', '')
-            if auth_header.startswith('Bearer '):
-                return self.get_response(request)
             # Дозволяємо публічний доступ до деяких endpoints
             if ('/api/rag/auth/' in path or 
                 '/api/rag/bootstrap/' in path or 
