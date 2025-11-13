@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     """
 
     dependencies = [
-        ('clients', '0020_client_embedding_model_client_llm_model_name_and_more'),
+        ('clients', '0020_client_embedding_model_alter_client_id_and_more'),
         ('clients', '0022_client_llm_fields'),
     ]
 
