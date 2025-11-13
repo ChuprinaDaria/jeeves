@@ -299,8 +299,8 @@ OLLAMA_DEFAULT_EMBED_MODEL = os.getenv('OLLAMA_DEFAULT_EMBED_MODEL', OLLAMA_MAIN
 KIMI_API_KEY = os.getenv('KIMI_API_KEY', '')
 
 # === MG (Main Front) Integration ===
-# Endpoint to send AI token usage events
-MG_AI_USAGE_URL = os.getenv('MG_AI_USAGE_URL', 'https://mg.nexelin.com/api/ai-token-usage')
+# Endpoint to send AI token usage events (hardcoded per request)
+MG_AI_USAGE_URL = 'https://mg.nexelin.com/api/ai-token-usage'
 # Access token to authenticate our requests to MG
 MG_SYNC_API_KEY = os.getenv('MG_SYNC_API_KEY', os.getenv('MG_ACCESS_TOKEN', ''))
 
