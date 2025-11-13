@@ -21,6 +21,7 @@ urlpatterns = [
     path('client/embedding-model/', views.ClientEmbeddingModelSetView.as_view(), name='client-embedding-model-set'),
     path('client/index-new/', views.ClientIndexNewDocumentsView.as_view(), name='client-index-new-documents'),
     path('client/reindex/', views.ClientReindexDocumentsView.as_view(), name='client-reindex-documents'),
+    path('client/llm/', views.ClientLLMSetView.as_view(), name='client-llm-set'),
     path('embedding-models/<int:model_id>/reindex/', views.EmbeddingModelReindexView.as_view(), name='embedding-model-reindex'),
     # Client AI usage statistics
     path('client/ai-usage/', views.ClientAIUsageView.as_view(), name='client-ai-usage'),

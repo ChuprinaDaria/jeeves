@@ -557,8 +557,15 @@ class AIModelsListView(APIView):
     Response: List of AI models with pricing (pl, pc, ph)
     """
     def get(self, request):
-        # Вимкнено: більше не отримуємо AI моделі з mg
-        return Response({'status': 'ok', 'models': []})
+        # Локальний список підтримуваних LLM-провайдерів і моделей
+        return Response({
+            'models': [
+                {'provider': 'openai', 'label': 'OpenAI', 'models': ['gpt-4o-mini']},
+                {'provider': 'ollama_main', 'label': 'Ollama Main', 'models': ['qwen2.5:7b']},
+                {'provider': 'ollama_light', 'label': 'Ollama Light', 'models': ['qwen2.5:1.5b']},
+                {'provider': 'kimi', 'label': 'Kimi (Moonshot AI)', 'models': ['moonshot-v1-8k']},
+            ]
+        })
 
 
 class EmbeddingModelsListView(APIView):
@@ -685,6 +692,42 @@ class ClientEmbeddingModelSetView(APIView):
             'message': 'Embedding model updated. Please reindex your documents.' if reindex_required else 'Embedding model updated successfully.'
         })
 
+
+class ClientLLMSetView(APIView):
+    """Set LLM provider/model for authenticated client.
+    
+    Auth: JWT (client user) or X-API-Key (sets request.client).
+    Request JSON: { provider: str, model_name: str }
+    Response: { success: bool, provider: str, model_name: str }
+    """
+    def post(self, request):
+        from MASTER.clients.views import get_client_from_request
+        client = get_client_from_request(request)
+        if client is None:
+            return Response({'error': 'Client not found or unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        data = request.data or {}
+        provider = (data.get('provider') or '').strip().lower()
+        model_name = (data.get('model_name') or '').strip()
+        
+        if not provider or not model_name:
+            return Response({'error': 'provider and model_name are required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate supported providers
+        supported_providers = {'openai', 'ollama_main', 'ollama_light', 'kimi'}
+        if provider not in supported_providers:
+            return Response({'error': f'Unsupported provider: {provider}'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Save settings
+        client.llm_provider = provider
+        client.llm_model_name = model_name
+        client.save(update_fields=['llm_provider', 'llm_model_name'])
+        
+        return Response({
+            'success': True,
+            'provider': client.llm_provider,
+            'model_name': client.llm_model_name,
+        })
 
 class EmbeddingModelsSyncToMGView(APIView):
     """POST: Синхронізувати наші embedding-моделі на MG (вихідний запит).
