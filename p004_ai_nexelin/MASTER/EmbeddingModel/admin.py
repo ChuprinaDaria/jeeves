@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib import messages
-from .models import EmbeddingModel
+from .models import EmbeddingModel, LLMProvider
 import requests
 from django.conf import settings
 
@@ -112,3 +112,36 @@ class EmbeddingModelAdmin(admin.ModelAdmin):
                 level=messages.ERROR
             )
     sync_from_nexelin.short_description = "Синхронізувати моделі з mg.nexelin.com"
+
+
+@admin.register(LLMProvider)
+class LLMProviderAdmin(admin.ModelAdmin):
+    list_display = ['name', 'provider_type', 'model_name', 'api_endpoint', 'is_active', 'is_default', 'created_at']
+    list_filter = ['provider_type', 'is_active', 'is_default', 'created_at']
+    search_fields = ['name', 'model_name', 'slug']
+    ordering = ['provider_type', 'name']
+    list_editable = ['is_active', 'is_default']
+    readonly_fields = ('slug', 'created_at', 'updated_at')
+    
+    fieldsets = (
+        ('Basic Info', {
+            'fields': ('name', 'slug', 'provider_type', 'model_name', 'description')
+        }),
+        ('Connection', {
+            'fields': ('api_endpoint', 'api_key')
+        }),
+        ('Model Parameters', {
+            'fields': ('max_tokens', 'temperature')
+        }),
+        ('Pricing', {
+            'fields': ('cost_per_1k_input_tokens', 'cost_per_1k_output_tokens'),
+            'classes': ('collapse',)
+        }),
+        ('Status', {
+            'fields': ('is_active', 'is_default')
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )

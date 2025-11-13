@@ -59,15 +59,95 @@ class EmbeddingModel(models.Model):
         # Генеруємо slug з name, якщо він не встановлений
         if not self.slug:
             self.slug = slugify(self.name)
-            # Перевіряємо унікальність
-            original_slug = self.slug
-            counter = 1
-            while EmbeddingModel.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
-                self.slug = f"{original_slug}-{counter}"
-                counter += 1
-        
-        # Якщо модель стає дефолтною — скинути прапор у інших
-        if self.is_default:
-            # Використовуємо pk замість id для підтримки типізації
-            EmbeddingModel.objects.filter(is_default=True).exclude(pk=self.pk).update(is_default=False)
+        super().save(*args, **kwargs)
+
+
+class LLMProvider(models.Model):
+    """LLM провайдер для генерації відповідей (не для embeddings)"""
+    
+    PROVIDER_TYPES = [
+        ('openai', 'OpenAI'),
+        ('ollama_main', 'Ollama Main Server'),
+        ('ollama_light', 'Ollama Light Server'),
+        ('kimi', 'Kimi (Moonshot AI)'),
+        ('anthropic', 'Anthropic (Claude)'),
+        ('custom', 'Custom'),
+    ]
+    
+    name = models.CharField(
+        max_length=100,
+        unique=True,
+        help_text='Display name (e.g., "GPT-4o Mini", "Qwen2.5 7B Main")'
+    )
+    slug = models.SlugField(max_length=100, unique=True, blank=True)
+    provider_type = models.CharField(
+        max_length=50,
+        choices=PROVIDER_TYPES,
+        help_text='Provider type'
+    )
+    model_name = models.CharField(
+        max_length=100,
+        help_text='Model identifier (e.g., "gpt-4o-mini", "qwen2.5:7b")'
+    )
+    api_endpoint = models.URLField(
+        blank=True,
+        null=True,
+        help_text='API endpoint for Ollama/custom providers (e.g., http://192.168.0.51:11434)'
+    )
+    api_key = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text='API key (для OpenAI, Anthropic, Kimi)'
+    )
+    
+    # Ціноутворення
+    cost_per_1k_input_tokens = models.DecimalField(
+        max_digits=10,
+        decimal_places=6,
+        default=0,
+        help_text='Cost per 1000 input tokens (USD)'
+    )
+    cost_per_1k_output_tokens = models.DecimalField(
+        max_digits=10,
+        decimal_places=6,
+        default=0,
+        help_text='Cost per 1000 output tokens (USD)'
+    )
+    
+    # Параметри моделі
+    max_tokens = models.IntegerField(
+        default=4096,
+        help_text='Maximum context length'
+    )
+    temperature = models.FloatField(
+        default=0.7,
+        help_text='Default temperature (0.0-2.0)'
+    )
+    
+    # Статус
+    is_active = models.BooleanField(default=True)
+    is_default = models.BooleanField(default=False)
+    
+    # Метадані
+    description = models.TextField(
+        blank=True,
+        help_text='Description of the model capabilities'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        app_label = 'EmbeddingModel'
+        verbose_name = 'LLM Provider'
+        verbose_name_plural = 'LLM Providers'
+        ordering = ['provider_type', 'name']
+    
+    def __str__(self):
+        return f"{self.get_provider_type_display()} - {self.name}"
+    
+    def save(self, *args, **kwargs):
+        # Генеруємо slug з name, якщо він не встановлений
+        if not self.slug:
+            self.slug = slugify(self.name)
         super().save(*args, **kwargs)
