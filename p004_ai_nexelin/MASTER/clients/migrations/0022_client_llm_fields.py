@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.add_field(
+        migrations.AddField(
             model_name='client',
             name='llm_provider',
             field=models.CharField(
@@ -22,7 +22,7 @@ class Migration(migrations.Migration):
                 ],
             ),
         ),
-        migrations.add_field(
+        migrations.AddField(
             model_name='client',
             name='llm_model_name',
             field=models.CharField(

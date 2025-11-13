@@ -8,28 +8,28 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.add_field(
+        migrations.AddField(
             model_name='embeddingmodel',
             name='slug',
             field=models.SlugField(max_length=100, unique=True, blank=True, default=''),
             preserve_default=False,
         ),
-        migrations.add_field(
+        migrations.AddField(
             model_name='embeddingmodel',
             name='reindex_required',
             field=models.BooleanField(default=False),
         ),
-        migrations.add_field(
+        migrations.AddField(
             model_name='embeddingmodel',
             name='api_endpoint',
             field=models.URLField(blank=True, null=True, help_text='API endpoint for local models'),
         ),
-        migrations.add_field(
+        migrations.AddField(
             model_name='embeddingmodel',
             name='is_local',
             field=models.BooleanField(default=False, help_text='Is this a locally hosted model?'),
         ),
-        migrations.add_field(
+        migrations.AddField(
             model_name='embeddingmodel',
             name='server_type',
             field=models.CharField(
@@ -43,7 +43,7 @@ class Migration(migrations.Migration):
                 blank=True,
             ),
         ),
-        migrations.add_field(
+        migrations.AddField(
             model_name='embeddingmodel',
             name='api_key',
             field=models.CharField(max_length=255, blank=True, null=True, help_text='API key for third-party services (Kimi, etc.)'),
