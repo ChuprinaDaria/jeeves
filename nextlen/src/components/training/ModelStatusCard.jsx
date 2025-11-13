@@ -209,7 +209,7 @@ const ModelStatusCard = () => {
 
       <div className="text-sm text-gray-700 space-y-1">
         <p>
-          <strong>{t("modelStatus.lastUpdated")}:</strong> {modelStatus.lastUpdated}
+          <strong>{t("modelStatus.lastUpdated")}:</strong> {modelStatus.lastUpdated === "Unknown" ? (t("modelStatus.unknown") || "Unknown") : modelStatus.lastUpdated}
         </p>
         <p>
           <strong>{t("modelStatus.dataSources")}:</strong> {modelStatus.dataSources}
@@ -223,36 +223,38 @@ const ModelStatusCard = () => {
       <div className="mt-4">
         <div className="flex items-center justify-between mb-2">
           <label className="text-sm font-medium text-gray-700">
-            Embedding Model:
+            {t("modelStatus.embeddingModel") || "Embedding Model"}:
           </label>
           <button
             onClick={() => setShowModelSelect(!showModelSelect)}
             className="text-xs text-primary-600 hover:text-primary-700 font-medium"
           >
-            {showModelSelect ? "Cancel" : "Switch Model"}
+            {showModelSelect ? (t("modelStatus.cancel") || "Cancel") : (t("modelStatus.switchModel") || "Switch Model")}
           </button>
         </div>
         
         {!showModelSelect ? (
           <div className="border rounded-lg p-2 bg-gray-50">
             <p className="text-sm font-medium">
-              {selectedModel?.name || "No model selected"}
+              {selectedModel?.name || (t("modelStatus.noModelSelected") || "No model selected")}
             </p>
             {selectedModel && selectedModel.type === 'ai' && (
               <div className="text-xs text-gray-500 mt-1">
-                <div>Local: {selectedModel.pl} • Cloud: {selectedModel.pc} • Hybrid: {selectedModel.ph}</div>
+                <div>
+                  {t("modelStatus.local") || "Local"}: {selectedModel.pl} • {t("modelStatus.cloud") || "Cloud"}: {selectedModel.pc} • {t("modelStatus.hybrid") || "Hybrid"}: {selectedModel.ph}
+                </div>
               </div>
             )}
             {selectedModel && selectedModel.type === 'embedding' && (
               <p className="text-xs text-gray-500">
-                {selectedModel.dimensions} dimensions
+                {selectedModel.dimensions} {t("modelStatus.dimensions") || "dimensions"}
               </p>
             )}
           </div>
         ) : (
           <div className="border rounded-lg p-2 bg-white">
             {loading ? (
-              <p className="text-sm text-gray-500">Switching...</p>
+              <p className="text-sm text-gray-500">{t("modelStatus.switching") || "Switching..."}</p>
             ) : (
               <div className="space-y-1 max-h-60 overflow-y-auto">
                 {models.map((m) => {
@@ -290,9 +292,9 @@ const ModelStatusCard = () => {
                     )}
                     {m.type === 'embedding' && m.dimensions && (
                       <div className="text-xs mt-1">
-                        <span className="text-gray-500">{m.dimensions} dimensions</span>
+                        <span className="text-gray-500">{m.dimensions} {t("modelStatus.dimensions") || "dimensions"}</span>
                         {m.dimensions > 2000 && (
-                          <span className="ml-2 text-red-500 font-medium">⚠ Unsupported (max 2000)</span>
+                          <span className="ml-2 text-red-500 font-medium">⚠ {t("modelStatus.unsupported") || "Unsupported (max 2000)"}</span>
                         )}
                       </div>
                     )}

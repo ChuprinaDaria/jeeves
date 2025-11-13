@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Loader2, LayoutDashboard, GraduationCap, FlaskConical, MessageSquare } from 'lucide-react';
+import { Loader2, LayoutDashboard, GraduationCap, FlaskConical, MessageSquare, Plug2 } from 'lucide-react';
 import Header from '../components/layout/Header';
 import DashboardPage from './DashboardPage';
 import TrainingPage from './TrainingPage';
 import SandboxPage from './SandboxPage';
 import HistoryPage from './HistoryPage';
+import IntegrationsPage from './IntegrationsPage';
 import { useTranslation } from 'react-i18next';
 
 const ClientLoginPage = () => {
@@ -16,7 +17,7 @@ const ClientLoginPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [loginAttempted, setLoginAttempted] = useState(false);
-  const [currentView, setCurrentView] = useState('dashboard');
+  const [currentView, setCurrentView] = useState('integrations');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -94,6 +95,7 @@ const ClientLoginPage = () => {
       { id: 'dashboard', icon: LayoutDashboard, label: t('nav.dashboard') },
       { id: 'training', icon: GraduationCap, label: t('nav.training') },
       { id: 'sandbox', icon: FlaskConical, label: t('nav.sandbox') },
+      { id: 'integrations', icon: Plug2, label: t('nav.integrations') },
       { id: 'history', icon: MessageSquare, label: t('nav.history') },
     ];
 
@@ -103,6 +105,8 @@ const ClientLoginPage = () => {
           return <TrainingPage />;
         case 'sandbox':
           return <SandboxPage />;
+        case 'integrations':
+          return <IntegrationsPage />;
         case 'history':
           return <HistoryPage />;
         default:

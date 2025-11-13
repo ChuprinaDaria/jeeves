@@ -276,7 +276,18 @@
     "version": "Version",
     "dataSources": "Data Sources",
     "knowledgeBlocks": "Knowledge Blocks",
-    "viewHistory": "View Update History"
+    "viewHistory": "View Update History",
+    "embeddingModel": "Embedding Model",
+    "switchModel": "Switch Model",
+    "cancel": "Cancel",
+    "noModelSelected": "No model selected",
+    "local": "Local",
+    "cloud": "Cloud",
+    "hybrid": "Hybrid",
+    "dimensions": "dimensions",
+    "switching": "Switching...",
+    "unsupported": "Unsupported (max 2000)",
+    "unknown": "Unknown"
   },
   "syncActions": {
     "sync": "Sync New Data",
