@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { authAPI } from '../api/auth';
+import { clientAPI } from '../api/client';
 import { MOCK_MODE } from '../api/axios';
 
 const AuthContext = createContext();
@@ -28,33 +29,30 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const checkAuth = async () => {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      if (MOCK_MODE) {
-        // У мок режимі просто встановлюємо користувача з localStorage
-        const savedUser = localStorage.getItem('mock_user');
-        if (savedUser) {
-          setUser(JSON.parse(savedUser));
-        }
-        setLoading(false);
-        return;
+    // Пріоритет: робота без JWT — якщо є tag у URL або в localStorage, авторизуємо клієнта по ньому
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tagFromUrl = urlParams.get('tag');
+      if (tagFromUrl) {
+        localStorage.setItem('client_tag', tagFromUrl);
+        // Очищуємо JWT токени при використанні client tag
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
       }
-      
-      try {
-        const { data } = await authAPI.getProfile();
-        setUser(data);
-      } catch (error) {
-        // Якщо помилка мережі і мок режим активний
-        if (error.code === 'ERR_NETWORK' || error.code === 'ERR_CONNECTION_REFUSED') {
-          const savedUser = localStorage.getItem('mock_user');
-          if (savedUser) {
-            setUser(JSON.parse(savedUser));
-          }
-        } else {
-          localStorage.removeItem('access_token');
+      const clientTag = localStorage.getItem('client_tag') || tagFromUrl;
+      if (clientTag) {
+        try {
+          const { data } = await clientAPI.getMe();
+          setUser(data);
+          setLoading(false);
+          return;
+        } catch (_) {
+          // Якщо бекенд тимчасово недоступний — не ламаємось
         }
       }
-    }
+    } catch (_) {}
+
+    // JWT більше не обов'язковий — просто завершуємо завантаження
     setLoading(false);
   };
 
@@ -119,50 +117,22 @@ export const AuthProvider = ({ children }) => {
 
   const loginByClientToken = async (clientToken) => {
     try {
-      // Отримуємо JWT токен через client_token
-      const { data } = await authAPI.getTokenByClientToken(clientToken);
-
-      if (data && data.access) {
-        // Зберігаємо токени
-        localStorage.setItem('access_token', data.access);
-        if (data.refresh) {
-          localStorage.setItem('refresh_token', data.refresh);
-        }
-
-        // ВАЖЛИВО: Зберігаємо client_tag для можливості повторної авторизації
-        // при експірації токенів або перезавантаженні сторінки
-        localStorage.setItem('client_tag', clientToken);
-
-        // Отримуємо профіль користувача
-        try {
-          const profileResponse = await authAPI.getProfile();
-          setUser(profileResponse.data);
-        } catch (profileError) {
-          // Якщо не вдалося отримати профіль, використовуємо дані з токену
-          if (data.client) {
-            setUser({
-              id: data.client.id,
-              email: data.client.user || '',
-              company_name: data.client.company_name || '',
-              client_type: data.client.client_type || 'generic',
-            });
-          }
-        }
-
-        return data;
-      }
-      throw new Error('Invalid response from server');
+      // Новий потік без JWT: очищуємо JWT токени і використовуємо тільки client_tag
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.setItem('client_tag', clientToken);
+      
+      const { data } = await clientAPI.getMe();
+      setUser(data);
+      return { user: data };
     } catch (error) {
-      // Мок режим: якщо backend недоступний
+      // Fallback для мок/мережевих помилок
       if (MOCK_MODE || error.code === 'ERR_NETWORK' || error.code === 'ERR_CONNECTION_REFUSED') {
         const mockUser = createMockUser();
-        const mockToken = 'mock_token_' + Date.now();
-        localStorage.setItem('access_token', mockToken);
-        localStorage.setItem('refresh_token', mockToken);
         localStorage.setItem('client_tag', clientToken);
         localStorage.setItem('mock_user', JSON.stringify(mockUser));
         setUser(mockUser);
-        return { access: mockToken, refresh: mockToken, user: mockUser };
+        return { user: mockUser };
       }
       throw error;
     }

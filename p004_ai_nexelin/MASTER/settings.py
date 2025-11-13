@@ -152,7 +152,14 @@ DATABASES = {
 # === REST FRAMEWORK ===
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework.authentication.SessionAuthentication",
+        # SessionAuthentication вимагає CSRF token, що ламає API запити з X-Client-Token
+        # Тому видаляємо його як дефолтну автентифікацію
+        # Views, яким потрібна SessionAuthentication, мають явно її вказувати
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        # Дозволяємо доступ без автентифікації за замовчуванням
+        # Views, яким потрібна автентифікація, мають явно вказувати permission_classes
+        "rest_framework.permissions.AllowAny",
     ),
 }
 
@@ -299,7 +306,7 @@ OLLAMA_DEFAULT_EMBED_MODEL = os.getenv('OLLAMA_DEFAULT_EMBED_MODEL', OLLAMA_MAIN
 KIMI_API_KEY = os.getenv('KIMI_API_KEY', '')
 
 # === MG (Main Front) Integration ===
-# Endpoint to send AI token usage events (hardcoded per request)
+ # Endpoint to send AI token usage events (hardcoded per request)
 MG_AI_USAGE_URL = 'https://mg.nexelin.com/api/ai-token-usage'
 # Access token to authenticate our requests to MG
 MG_SYNC_API_KEY = os.getenv('MG_SYNC_API_KEY', os.getenv('MG_ACCESS_TOKEN', ''))

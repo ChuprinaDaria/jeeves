@@ -44,19 +44,9 @@ export const ragAPI = {
   },
 };
 
-// Legacy agentAPI для сумісності (залишаємо старі методи якщо потрібно)
+// Legacy agentAPI для сумісності - перенаправляємо на нові RAG ендпоінти
 export const agentAPI = {
-  // Використовуємо нові RAG ендпоінти
   uploadFile: (file, title) => ragAPI.uploadDocument(file, title),
   testChat: (message) => ragAPI.chat(message),
-  
-  // Залишаємо старі методи якщо потрібно для сумісності
-  getFiles: () => api.get('/agent/files/'),
-  deleteFile: (fileId) => api.delete(`/agent/files/${fileId}/`),
-  getPrompt: () => api.get('/agent/prompt/'),
-  updatePrompt: (prompt) => api.put('/agent/prompt/', { prompt }),
-  startTraining: () => api.post('/agent/train/'),
-  getTrainingStatus: () => api.get('/agent/train/status/'),
-  getChatHistory: () => api.get('/agent/history/'),
-  getChatDetail: (chatId) => api.get(`/agent/history/${chatId}/`),
+  reindexDocuments: () => ragAPI.reindexDocuments(),
 };

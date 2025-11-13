@@ -1,14 +1,14 @@
 import api from './axios';
 
 export const embeddingModelAPI = {
-  // Отримати список embedding моделей
-  getModels: () => api.get('/embedding-model/models/'),
+  // Отримати список embedding моделей (новий ендпоінт)
+  getModels: () => api.get('/rag/embedding-models/'),
 
-  // Вибрати embedding модель для клієнта
-  selectModel: (modelId, clientId) => 
-    api.post('/embedding-model/select/', { model_id: modelId, client_id: clientId }),
+  // Вибрати embedding модель для клієнта (новий ендпоінт)
+  selectModel: (modelId) => 
+    api.post('/rag/client/embedding-model/', { model_id: modelId, model_type: 'embedding' }),
 
-  // Переіндексувати документи клієнта
-  reindex: () => api.post('/embedding-model/reindex/'),
+  // Переіндексувати документи клієнта (новий ендпоінт)
+  reindex: () => api.post('/rag/client/reindex/'),
 };
 

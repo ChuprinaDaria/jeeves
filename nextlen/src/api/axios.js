@@ -27,12 +27,6 @@ const api = axios.create({
 
 // Interceptor для додавання токена та API ключа
 api.interceptors.request.use((config) => {
-  // Додаємо X-API-Key якщо є (працює разом з Bearer token)
-  const apiKey = localStorage.getItem('api_key');
-  if (apiKey) {
-    config.headers['X-API-Key'] = apiKey;
-  }
-
   // Зчитуємо tag з URL, зберігаємо як client_tag і додаємо заголовок X-Client-Token
   try {
     const urlParams = new URLSearchParams(window.location.search);
@@ -41,9 +35,24 @@ api.interceptors.request.use((config) => {
       localStorage.setItem('client_tag', tagFromUrl);
     }
   } catch (_) {}
+  
+  // Пріоритет авторизації:
+  // 1. X-API-Key (якщо є)
+  // 2. X-Client-Token (якщо є) - для client-only потоку БЕЗ JWT
+  // 3. JWT Bearer token (тільки якщо немає client_tag - для admin/user потоку)
+  
+  const apiKey = localStorage.getItem('api_key');
   const clientTag = localStorage.getItem('client_tag');
-  if (clientTag) {
+  const accessToken = localStorage.getItem('access_token');
+  
+  if (apiKey) {
+    config.headers['X-API-Key'] = apiKey;
+  } else if (clientTag) {
+    // Client-only потік: використовуємо тільки X-Client-Token, НЕ додаємо JWT
     config.headers['X-Client-Token'] = clientTag;
+  } else if (accessToken && !clientTag) {
+    // Admin/User потік: використовуємо JWT, тільки якщо немає client_tag
+    config.headers['Authorization'] = `Bearer ${accessToken}`;
   }
   
   return config;
