@@ -9,36 +9,47 @@ class ClientAPIKeyMiddleware:
 
     def __call__(self, request):
         path = request.path
-        if path.startswith('/api/rag/') or path.startswith('/api/query') or path.startswith('/api/upload') or path.startswith('/api/docs'):
-            # Дозволяємо публічний доступ до деяких endpoints
-            if ('/api/rag/auth/' in path or 
-                '/api/rag/bootstrap/' in path or 
-                '/api/rag/embedding-models/' in path or
-                '/api/rag/ai-models/' in path):
-                return self.get_response(request)
-
-            api_key = request.headers.get('X-API-Key')
-            if not api_key:
-                return JsonResponse({'error': 'API key required'}, status=401)
-
-            try:
-                key_obj = ClientAPIKey.objects.select_related('client').get(
-                    key=api_key,
-                    is_active=True
+        # Тимчасово робимо всі /api/* публічними:
+        # - не блокуємо 401/403
+        # - якщо є api_key або client tag — ідентифікуємо клієнта
+        # - інакше просто пропускаємо запит далі (AllowAny у DRF)
+        try:
+            api_key = (
+                request.headers.get('X-API-Key')
+                or request.COOKIES.get('api_key')
+                or request.GET.get('api_key')
+            )
+            if api_key:
+                try:
+                    key_obj = ClientAPIKey.objects.select_related('client').get(
+                        key=api_key,
+                        is_active=True
+                    )
+                    if key_obj.is_valid():
+                        key_obj.usage_count += 1
+                        key_obj.last_used_at = timezone.now()
+                        key_obj.save(update_fields=['usage_count', 'last_used_at'])
+                        request.client = key_obj.client
+                        request.api_key = key_obj
+                except ClientAPIKey.DoesNotExist:
+                    # Не блокуємо — публічний доступ
+                    pass
+            if not getattr(request, 'client', None):
+                client_tag = (
+                    request.headers.get('X-Client-Token')
+                    or request.COOKIES.get('client_tag')
+                    or request.GET.get('client_tag')
+                    or request.GET.get('tag')
                 )
-
-                if not key_obj.is_valid():
-                    return JsonResponse({'error': 'Invalid or expired API key'}, status=401)
-
-                key_obj.usage_count += 1
-                key_obj.last_used_at = timezone.now()
-                key_obj.save(update_fields=['usage_count', 'last_used_at'])
-
-                request.client = key_obj.client
-                request.api_key = key_obj
-
-            except ClientAPIKey.DoesNotExist:
-                return JsonResponse({'error': 'Invalid API key'}, status=401)
-        
+                if client_tag:
+                    from .models import Client
+                    try:
+                        client = Client.objects.get(tag=client_tag, is_active=True)
+                        request.client = client
+                    except Client.DoesNotExist:
+                        pass
+        except Exception:
+            # Будь-які збої в middleware не повинні ламати публічні ендпоїнти
+            pass
         return self.get_response(request)
 
