@@ -15,6 +15,7 @@ urlpatterns = [
     path('stats/', views.ClientStatsView.as_view(), name='client-stats'),
     path('embeddings-stats/', views.ClientEmbeddingsStatsView.as_view(), name='client-embeddings-stats'),
     path('model-status/', views.ClientModelStatusView.as_view(), name='client-model-status'),
+    path('whatsapp/meta/config/', views.ClientWhatsAppConfigView.as_view(), name='client-whatsapp-meta-config'),
     path('list-extended/', views.list_clients_extended, name='clients-list-extended'),
     path('rag-test/', views.rag_test_query, name='rag-test-query'),
     path('whatsapp/meta/webhook/', MetaWhatsAppWebhookView.as_view(), name='meta_whatsapp_webhook'),

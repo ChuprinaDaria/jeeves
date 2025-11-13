@@ -476,6 +476,53 @@ class ClientMeView(APIView):
         return Response(ClientSerializer(client, context={'request': request}).data)
 
 
+class ClientWhatsAppConfigView(APIView):
+    """Get/Update per-client Meta WhatsApp configuration."""
+    permission_classes = []  # Публічний, ідентифікація через middleware/api_key/tag
+
+    def get(self, request):
+        client = get_client_from_request(request)
+        if not client:
+            return Response({'error': 'Client not found'}, status=401)
+        data = {
+            'whatsapp_meta_enabled': getattr(client, 'whatsapp_meta_enabled', False),
+            'meta_waba_id': getattr(client, 'meta_waba_id', ''),
+            'meta_app_id': getattr(client, 'meta_app_id', ''),
+            'meta_phone_number_id': getattr(client, 'meta_phone_number_id', ''),
+            'meta_verify_token': getattr(client, 'meta_verify_token', ''),
+        }
+        return Response(data)
+
+    def post(self, request):
+        return self._update(request)
+
+    def patch(self, request):
+        return self._update(request)
+
+    def _update(self, request):
+        client = get_client_from_request(request)
+        if not client:
+            return Response({'error': 'Client not found'}, status=401)
+        data = request.data or {}
+        updatable = {
+            'whatsapp_meta_enabled',
+            'meta_waba_id',
+            'meta_app_id',
+            'meta_phone_number_id',
+            'meta_verify_token',
+            'meta_app_secret',
+            'meta_access_token',
+        }
+        changed = []
+        for key, val in data.items():
+            if key in updatable:
+                setattr(client, key, val)
+                changed.append(key)
+        if not changed:
+            return Response({'error': 'No fields to update'}, status=400)
+        client.save(update_fields=changed)
+        return Response({'success': True})
+
 class KnowledgeBlockDocumentsView(APIView):
     """API для додавання документів до Knowledge Block."""
     permission_classes = []  # Дозволяємо доступ без автентифікації, перевірка буде в методі
