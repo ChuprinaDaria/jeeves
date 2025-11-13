@@ -148,29 +148,36 @@ class PublicRAGChatView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        # Перевіряємо чи є JWT авторизація
+        # Ідентифікація клієнта в порядку пріоритету:
+        # 1) JWT (якщо є)
+        # 2) X-Client-Token або ?tag= (посилання клієнта)
+        # 3) X-API-Key
         client = None
         if request.user and request.user.is_authenticated:
-            # Якщо користувач авторизований через JWT, отримуємо його клієнта
             try:
                 from MASTER.clients.views import get_client_from_request
                 client = get_client_from_request(request)
             except Exception:
-                pass
-
-        # Якщо немає JWT, перевіряємо X-API-Key
+                client = None
         if not client:
-            api_key = request.headers.get('X-API-Key')
-            if not api_key:
-                return Response({'error': 'Authentication required (JWT or API key)'}, status=status.HTTP_401_UNAUTHORIZED)
-
+            # Спроба знайти клієнта за X-Client-Token або ?tag=
             try:
-                key_obj = ClientAPIKey.objects.get(key=api_key, is_active=True)
-                if not key_obj.is_valid():
-                    return Response({'error': 'Invalid API key'}, status=status.HTTP_401_UNAUTHORIZED)
-                client = key_obj.client
-            except ClientAPIKey.DoesNotExist:
-                return Response({'error': 'Invalid API key'}, status=status.HTTP_401_UNAUTHORIZED)
+                from MASTER.clients.views import get_client_from_request
+                client = get_client_from_request(request)
+            except Exception:
+                client = None
+        if not client:
+            # Fallback: X-API-Key
+            api_key = request.headers.get('X-API-Key')
+            if api_key:
+                try:
+                    key_obj = ClientAPIKey.objects.get(key=api_key, is_active=True)
+                    if key_obj.is_valid():
+                        client = key_obj.client
+                except ClientAPIKey.DoesNotExist:
+                    pass
+        if not client:
+            return Response({'error': 'Authentication required (tag link, JWT, or API key)'}, status=status.HTTP_401_UNAUTHORIZED)
 
         message = request.data.get('message', '')
         if not message:

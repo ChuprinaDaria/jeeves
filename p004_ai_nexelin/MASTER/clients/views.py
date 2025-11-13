@@ -1059,7 +1059,7 @@ class ClientTopQuestionsView(APIView):
     API endpoint для отримання найчастіше запитуваних питань користувачів
     GET /api/clients/top-questions/
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = []  # Дозволяємо доступ без JWT – ідентифікація за tag/API key
     
     def get(self, request):
         """Отримати топ питань з розмов WhatsApp"""
@@ -1144,7 +1144,7 @@ class ClientRecentActivityView(APIView):
     API endpoint для отримання останніх активностей клієнта
     GET /api/clients/recent-activity/
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = []  # Дозволяємо доступ без JWT – ідентифікація за tag/API key
     
     def get(self, request):
         """Отримати останні активності з розмов WhatsApp"""
