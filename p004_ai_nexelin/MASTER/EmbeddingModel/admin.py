@@ -7,13 +7,20 @@ from django.conf import settings
 
 @admin.register(EmbeddingModel)
 class EmbeddingModelAdmin(admin.ModelAdmin):
-    list_display = ['name', 'provider', 'model_name', 'dimensions', 'is_local', 'server_type', 'api_endpoint', 'is_active', 'is_default', 'reindex_required', 'created_at']
+    list_display = ['name', 'provider', 'model_name', 'dimensions', 'dimensions_status', 'is_local', 'server_type', 'api_endpoint', 'is_active', 'is_default', 'reindex_required', 'created_at']
     list_filter = ['provider', 'is_local', 'server_type', 'is_active', 'is_default', 'reindex_required', 'created_at']
     search_fields = ['name', 'model_name', 'slug']
     ordering = ['provider', 'name']
     list_editable = ['is_active', 'is_default']
-    actions = ['trigger_reindex', 'sync_from_nexelin']
+    actions = ['trigger_reindex', 'sync_from_nexelin', 'deactivate_invalid_models']
     readonly_fields = ('slug', 'created_at', 'updated_at')
+    
+    def dimensions_status(self, obj):
+        """Показує статус dimensions (чи підтримується pgvector)"""
+        if obj.dimensions > 2000:
+            return f"⚠️ {obj.dimensions} (TOO LARGE - max 2000)"
+        return f"✓ {obj.dimensions}"
+    dimensions_status.short_description = 'Dimensions Status'
     
     fieldsets = (
         ('Basic Info', {
@@ -37,6 +44,20 @@ class EmbeddingModelAdmin(admin.ModelAdmin):
         count = queryset.count()
         self.message_user(request, f"Reindex flag set for {count} model(s).")
     trigger_reindex.short_description = "Mark selected models for reindexing"
+    
+    def deactivate_invalid_models(self, request, queryset):
+        """Деактивувати моделі з dimensions > 2000 (pgvector limit)"""
+        invalid_models = queryset.filter(dimensions__gt=2000)
+        count = invalid_models.update(is_active=False)
+        if count > 0:
+            self.message_user(
+                request,
+                f"Деактивовано {count} модель(ей) з dimensions > 2000",
+                level=messages.WARNING
+            )
+        else:
+            self.message_user(request, "Невалідних моделей не знайдено")
+    deactivate_invalid_models.short_description = "Деактивувати моделі з dimensions > 2000"
     
     def sync_from_nexelin(self, request, queryset):
         """Синхронізувати моделі з mg.nexelin.com"""
