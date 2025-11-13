@@ -4,7 +4,8 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("clients", "0020_client_embedding_model_alter_client_id_and_more"),
+        # Depend on the 0020 that actually creates ClientQRCode on servers
+        ("clients", "0020_client_embedding_model_client_llm_model_name_and_more"),
     ]
 
     operations = [
