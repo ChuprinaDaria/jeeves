@@ -28,6 +28,13 @@ export const ragAPI = {
   // Переіндексувати документи клієнта
   reindexDocuments: () => api.post('/rag/client/reindex/'),
 
+  // Отримати список LLM провайдерів
+  getLLMProviders: () => api.get('/rag/llm-providers/'),
+
+  // Встановити LLM провайдера для клієнта
+  setLLMProvider: (providerId) => 
+    api.post('/rag/client/llm-provider/', { provider_id: providerId }),
+
   // Text-to-Speech (TTS)
   textToSpeech: (text, voice = 'alloy') => 
     api.post('/restaurant/tts/', { text, voice }, {

@@ -1022,3 +1022,105 @@ class ClientReindexDocumentsView(APIView):
             'documents_count': documents_count,
             'task_id': task_result.id,
         })
+
+
+class LLMProvidersListView(APIView):
+    """Return list of available LLM providers.
+    
+    Auth: JWT (client user) or X-API-Key (sets request.client).
+    Response: List of active LLM providers with their details.
+    """
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        from MASTER.clients.views import get_client_from_request
+        from MASTER.EmbeddingModel.models import LLMProvider
+        
+        client = get_client_from_request(request)
+        
+        # Отримуємо всі активні LLM провайдери
+        providers_list = LLMProvider.objects.filter(is_active=True).order_by('provider_type', 'name')
+        
+        selected_provider_id = None
+        if client:
+            selected_provider_id = getattr(client, 'llm_provider_model_id', None)
+        
+        default_provider = LLMProvider.objects.filter(is_default=True, is_active=True).first()
+        default_provider_id = getattr(default_provider, 'id', None) if default_provider else None
+        
+        result = []
+        for provider in providers_list:
+            provider_pk = getattr(provider, 'pk', None) or getattr(provider, 'id', None)
+            result.append({
+                'id': provider_pk,
+                'name': provider.name,
+                'slug': provider.slug,
+                'provider_type': provider.provider_type,
+                'model_name': provider.model_name,
+                'api_endpoint': provider.api_endpoint,
+                'max_tokens': provider.max_tokens,
+                'temperature': provider.temperature,
+                'description': provider.description,
+                'is_selected': (provider_pk == selected_provider_id),
+                'is_default': (provider_pk == default_provider_id),
+            })
+        
+        return Response({
+            'providers': result,
+            'selected_provider_id': selected_provider_id,
+            'default_provider_id': default_provider_id,
+        })
+
+
+class ClientLLMProviderSetView(APIView):
+    """Set LLM provider for authenticated client.
+    
+    Auth: JWT (client user) or X-API-Key (sets request.client).
+    Request JSON: { provider_id: int } or { provider_slug: str }
+    Response: { success: bool, provider: {...} }
+    """
+    
+    def post(self, request):
+        from MASTER.clients.views import get_client_from_request
+        from MASTER.EmbeddingModel.models import LLMProvider
+        
+        client = get_client_from_request(request)
+        if client is None:
+            return Response({'error': 'Client not found or unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        data = request.data or {}
+        provider_id = data.get('provider_id')
+        provider_slug = data.get('provider_slug')
+        
+        if not provider_id and not provider_slug:
+            return Response({'error': 'provider_id or provider_slug is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Знаходимо провайдера
+        try:
+            if provider_id:
+                provider = LLMProvider.objects.get(id=provider_id, is_active=True)
+            else:
+                provider = LLMProvider.objects.get(slug=provider_slug, is_active=True)
+        except LLMProvider.DoesNotExist:
+            return Response({'error': 'LLM provider not found or inactive'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Оновлюємо LLM провайдера клієнта
+        client.llm_provider_model = provider
+        client.save(update_fields=['llm_provider_model'])
+        
+        provider_pk = getattr(provider, 'pk', None) or getattr(provider, 'id', None)
+        
+        return Response({
+            'success': True,
+            'provider': {
+                'id': provider_pk,
+                'name': provider.name,
+                'slug': provider.slug,
+                'provider_type': provider.provider_type,
+                'model_name': provider.model_name,
+                'api_endpoint': provider.api_endpoint,
+                'max_tokens': provider.max_tokens,
+                'temperature': provider.temperature,
+            },
+            'message': 'LLM provider updated successfully.'
+        })
