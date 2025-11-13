@@ -298,6 +298,12 @@ OLLAMA_DEFAULT_EMBED_MODEL = os.getenv('OLLAMA_DEFAULT_EMBED_MODEL', OLLAMA_MAIN
 # Kimi API (Moonshot)
 KIMI_API_KEY = os.getenv('KIMI_API_KEY', '')
 
+# === MG (Main Front) Integration ===
+# Endpoint to send AI token usage events
+MG_AI_USAGE_URL = os.getenv('MG_AI_USAGE_URL', 'https://mg.nexelin.com/api/ai-token-usage')
+# Access token to authenticate our requests to MG
+MG_SYNC_API_KEY = os.getenv('MG_SYNC_API_KEY', os.getenv('MG_ACCESS_TOKEN', ''))
+
 META_WABA_ID = os.environ.get("META_WABA_ID", "")
 META_APP_ID = os.environ.get("META_APP_ID", "")
 META_APP_SECRET = os.environ.get("META_APP_SECRET", "")
