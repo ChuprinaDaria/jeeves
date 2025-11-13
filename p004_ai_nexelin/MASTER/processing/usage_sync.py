@@ -45,7 +45,10 @@ def send_usage_to_mg(usage: UsageStats) -> Optional[dict]:
     """
     try:
         url = getattr(settings, "MG_AI_USAGE_URL", "").strip()
-        access_token = getattr(settings, "MG_SYNC_API_KEY", "").strip()
+        # Пріоритет: токен на рівні моделі (EmbeddingModel.api_key) → глобальний
+        model = usage.embedding_model
+        model_token = (getattr(model, "api_key", "") or "").strip() if model else ""
+        access_token = model_token or getattr(settings, "MG_SYNC_API_KEY", "").strip()
         if not url or not access_token:
             logger.debug("MG sync is not configured (MG_AI_USAGE_URL / MG_SYNC_API_KEY)")
             return None
