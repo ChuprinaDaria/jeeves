@@ -654,7 +654,6 @@ class ClientQRCode(models.Model):
         verbose_name = 'Client QR Code'
         verbose_name_plural = 'Client QR Codes'
         ordering = ['client', 'name']
-        unique_together = [['client', 'name']]
         indexes = [
             models.Index(fields=['client', 'is_active']),
             models.Index(fields=['qr_token']),
