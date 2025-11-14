@@ -21,12 +21,29 @@ export const ragAPI = {
   // Отримати список AI моделей з mg.nexelin.com
   getAIModels: () => api.get('/rag/ai-models/'),
 
+  // Отримати список LLM провайдерів
+  getLLMProviders: () => api.get('/rag/llm-providers/'),
+
+  // Отримати готові пари LLM + Embedding
+  getModelPairs: () => api.get('/rag/model-pairs/'),
+
+  // Встановити LLM провайдера для клієнта
+  setLLMProvider: (providerId) => 
+    api.post('/rag/client/llm-provider/', { provider_id: providerId }),
+
   // Встановити embedding або AI модель для клієнта
   setEmbeddingModel: (modelId, modelType = 'embedding') => 
     api.post('/rag/client/embedding-model/', { model_id: modelId, model_type: modelType }),
 
   // Переіндексувати документи клієнта
   reindexDocuments: () => api.post('/rag/client/reindex/'),
+
+  // Отримати список LLM провайдерів
+  getLLMProviders: () => api.get('/rag/llm-providers/'),
+
+  // Встановити LLM провайдера для клієнта
+  setLLMProvider: (providerId) => 
+    api.post('/rag/client/llm-provider/', { provider_id: providerId }),
 
   // Text-to-Speech (TTS)
   textToSpeech: (text, voice = 'alloy') => 

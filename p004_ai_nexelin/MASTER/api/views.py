@@ -1062,6 +1062,93 @@ class LLMProvidersListView(APIView):
         })
 
 
+class ModelPairsView(APIView):
+    """Return list of compatible LLM + Embedding model pairs.
+    
+    GET /api/model-pairs/
+    Response: List of compatible pairs with metadata
+    """
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        from MASTER.clients.views import get_client_from_request
+        from MASTER.EmbeddingModel.models import LLMProvider, EmbeddingModel
+        
+        client = get_client_from_request(request)
+        
+        # Отримуємо активні LLM провайдери
+        llm_providers = LLMProvider.objects.filter(is_active=True).order_by('provider_type', 'name')
+        
+        # Отримуємо активні embedding моделі (макс 2000 dimensions для pgvector)
+        embedding_models = EmbeddingModel.objects.filter(is_active=True, dimensions__lte=2000).order_by('provider', 'name')
+        
+        # Поточні вибрані моделі
+        selected_llm_id = getattr(client, 'llm_provider_model_id', None) if client else None
+        selected_embedding_id = getattr(client, 'embedding_model_id', None) if client else None
+        
+        # Генеруємо сумісні пари
+        pairs = []
+        for llm in llm_providers:
+            for emb in embedding_models:
+                if self._check_compatibility(llm, emb):
+                    is_selected = (
+                        client and 
+                        selected_llm_id == llm.id and 
+                        selected_embedding_id == emb.id
+                    )
+                    
+                    pairs.append({
+                        'id': f"{llm.id}-{emb.id}",
+                        'llm_id': llm.id,
+                        'llm_name': llm.name,
+                        'llm_provider_type': llm.provider_type,
+                        'llm_model_name': llm.model_name,
+                        'embedding_id': emb.id,
+                        'embedding_name': emb.name,
+                        'embedding_provider': emb.provider,
+                        'embedding_model_name': emb.model_name,
+                        'embedding_dimensions': emb.dimensions,
+                        'embedding_server_type': emb.server_type or '',
+                        'is_selected': is_selected,
+                        'display_name': f"{llm.name} + {emb.name}",
+                        'description': f"{llm.provider_type} ({llm.model_name}) + {emb.provider} ({emb.dimensions}D)",
+                    })
+        
+        return Response({
+            'pairs': pairs,
+            'selected_llm_id': selected_llm_id,
+            'selected_embedding_id': selected_embedding_id,
+        })
+    
+    def _check_compatibility(self, llm, emb):
+        """Перевірка сумісності LLM + Embedding"""
+        llm_type = llm.provider_type
+        emb_provider = emb.provider
+        emb_server = getattr(emb, 'server_type', '') or ''
+        
+        # OpenAI LLM + OpenAI Embeddings
+        if llm_type == 'openai' and emb_provider == 'openai':
+            return True
+        
+        # Ollama LLM + Ollama Embeddings
+        if llm_type in ['ollama_main', 'ollama_light']:
+            if emb_provider == 'ollama':
+                return True
+            # HuggingFace на Ollama серверах
+            if emb_provider == 'huggingface' and emb_server in ['main', 'light']:
+                return True
+        
+        # Kimi працює з усіма
+        if llm_type == 'kimi':
+            return True
+        
+        # Custom працює з усіма
+        if llm_type == 'custom':
+            return True
+        
+        return False
+
+
 class ClientLLMProviderSetView(APIView):
     """Set LLM provider for authenticated client."""
     

@@ -26,6 +26,7 @@
     "sandbox": "Testen",
     "integrations": "Integrationen",
     "history": "Chat-Verlauf",
+    "setup": "Einrichtungsanleitung",
     "settings": "Einstellungen",
     "billing": "Abrechnung"
   },
@@ -189,6 +190,22 @@
     "addedToKnowledge": "Foto zur Wissensbasis hinzugefügt und Indizierung gestartet!",
     "addToKnowledgeError": "Fehler beim Hinzufügen des Fotos zur Wissensbasis"
   },
+  "setupInstructions": {
+    "title": "Einrichtungsanleitung",
+    "subtitle": "Schritt-für-Schritt-Anleitung zur Integration von Messaging-Plattformen",
+    "whatsappSetup": "WhatsApp Integration einrichten",
+    "whatsappIntro": "Folgen Sie diesen Schritten, um Ihr WhatsApp Business-Konto mit Nexelin AI Assistant zu verbinden.",
+    "step1Title": "Meta Business-Konto erstellen",
+    "step1Desc": "Zunächst benötigen Sie ein Meta Business-Konto mit WhatsApp Business API-Zugang.",
+    "step2Title": "Ihre Zugangsdaten erhalten",
+    "step2Desc": "Sammeln Sie alle notwendigen Zugangsdaten aus Ihrem Meta Business Manager:",
+    "step3Title": "Webhook konfigurieren",
+    "step3Desc": "Richten Sie den Webhook in Ihrer Meta-App ein, um Nachrichten zu empfangen:",
+    "step4Title": "Zugangsdaten in Nexelin eingeben",
+    "step4Desc": "Gehen Sie zur Integrationsseite und konfigurieren Sie WhatsApp:",
+    "step5Title": "QR-Code generieren",
+    "step5Desc": "Erstellen Sie einen QR-Code, damit Kunden Gespräche starten können:"
+  },
   "settings": {
     "title": "Einstellungen",
     "subtitle": "Konto und Präferenzen verwalten",
@@ -276,7 +293,23 @@
     "version": "Version",
     "dataSources": "Datenquellen",
     "knowledgeBlocks": "Wissensblöcke",
-    "viewHistory": "Aktualisierungsverlauf anzeigen"
+    "viewHistory": "Aktualisierungsverlauf anzeigen",
+    "embeddingModel": "Embedding-Modell",
+    "switchModel": "Modell wechseln",
+    "cancel": "Abbrechen",
+    "noModelSelected": "Kein Modell ausgewählt",
+    "dimensions": "Dimensionen",
+    "switching": "Wechsle...",
+    "llmAndEmbedding": "LLM & Embedding Modelle",
+    "currentPair": "Aktuelles Modellpaar",
+    "changePair": "Paar wechseln",
+    "noPairSelected": "Kein Modellpaar ausgewählt",
+    "loading": "Lädt...",
+    "compatiblePairsOnly": "Nur kompatible Paare werden angezeigt",
+    "noCompatiblePairs": "Keine kompatiblen Paare gefunden",
+    "pairInfo": "LLM generiert Antworten, Embedding konvertiert Text in Vektoren für die Suche",
+    "incompatibleWarning": "Warnung: Diese Modelle sind möglicherweise nicht vollständig kompatibel",
+    "switchError": "Fehler beim Wechseln der Modelle"
   },
   "syncActions": {
     "sync": "Neue Daten synchronisieren",

@@ -9,6 +9,7 @@ import TrainingPage from './pages/TrainingPage';
 import SandboxPage from './pages/SandboxPage';
 import HistoryPage from './pages/HistoryPage';
 import IntegrationsPage from './pages/IntegrationsPage';
+import SetupInstructionsPage from './pages/SetupInstructionsPage';
 import ClientLoginPage from './pages/ClientLoginPage';
 import LoginPage from './pages/LoginPage';
 // import SettingsPage from './pages/SettingsPage';
@@ -31,6 +32,7 @@ function App() {
               <Route path="/sandbox" element={<SandboxPage />} />
               <Route path="/integrations" element={<IntegrationsPage />} />
               <Route path="/history" element={<HistoryPage />} />
+              <Route path="/setup" element={<SetupInstructionsPage />} />
             </Route>
 
           {/* Redirect */}

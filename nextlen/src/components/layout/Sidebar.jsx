@@ -6,6 +6,7 @@ import {
   FlaskConical,
   Plug2,
   MessageSquare,
+  BookOpen,
   Settings,
   CreditCard,
   Menu,
@@ -23,6 +24,7 @@ const Sidebar = () => {
     { to: '/sandbox', icon: FlaskConical, label: t('nav.sandbox') },
     { to: '/integrations', icon: Plug2, label: t('nav.integrations') },
     { to: '/history', icon: MessageSquare, label: t('nav.history') },
+    { to: '/setup', icon: BookOpen, label: t('nav.setup') },
   ];
 
   const closeSidebar = () => setIsOpen(false);
