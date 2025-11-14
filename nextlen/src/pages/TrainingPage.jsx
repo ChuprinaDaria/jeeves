@@ -4,6 +4,7 @@ import FileUpload from '../components/training/FileUpload';
 import FileList from '../components/training/FileList';
 import PromptEditor from '../components/training/PromptEditor';
 import SyncActions from '../components/training/SyncActions';
+import LLMProviderCard from '../components/training/LLMProviderCard';
 import ModelStatusCard from '../components/training/ModelStatusCard';
 import KnowledgeBlocks from '../components/training/KnowledgeBlocks';
 import { clientAPI } from '../api/client';
@@ -103,6 +104,7 @@ const TrainingPage = () => {
           <PromptEditor />
         </div>
         <div className="space-y-6">
+          <LLMProviderCard />
           <ModelStatusCard />
           <KnowledgeBlocks />
         </div>

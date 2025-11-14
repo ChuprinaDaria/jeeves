@@ -26,6 +26,7 @@
     "sandbox": "Test Sandbox",
     "integrations": "Integrations",
     "history": "Chat History",
+    "setup": "Setup Instructions",
     "settings": "Settings",
     "billing": "Billing"
   },
@@ -191,6 +192,22 @@
     "addedToKnowledge": "Photo added to knowledge base and indexing started!",
     "addToKnowledgeError": "Failed to add photo to knowledge base"
   },
+  "setupInstructions": {
+    "title": "Setup Instructions",
+    "subtitle": "Step-by-step guides for integrating messaging platforms",
+    "whatsappSetup": "WhatsApp Integration Setup",
+    "whatsappIntro": "Follow these steps to connect your WhatsApp Business account with Nexelin AI Assistant.",
+    "step1Title": "Create Meta Business Account",
+    "step1Desc": "First, you need to have a Meta Business Account with WhatsApp Business API access.",
+    "step2Title": "Get Your Credentials",
+    "step2Desc": "Collect all necessary credentials from your Meta Business Manager:",
+    "step3Title": "Configure Webhook",
+    "step3Desc": "Set up the webhook in your Meta App to receive messages:",
+    "step4Title": "Enter Credentials in Nexelin",
+    "step4Desc": "Go to Integrations page and configure WhatsApp:",
+    "step5Title": "Generate QR Code",
+    "step5Desc": "Create a QR code for customers to start conversations:"
+  },
   "settings": {
     "title": "Settings",
     "subtitle": "Manage your account and preferences",
@@ -289,7 +306,17 @@
     "dimensions": "dimensions",
     "switching": "Switching...",
     "unsupported": "Unsupported (max 2000)",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "llmAndEmbedding": "LLM & Embedding Models",
+    "currentPair": "Current Model Pair",
+    "changePair": "Change Pair",
+    "noPairSelected": "No model pair selected",
+    "loading": "Loading...",
+    "compatiblePairsOnly": "Showing only compatible pairs",
+    "noCompatiblePairs": "No compatible pairs found",
+    "pairInfo": "LLM generates responses, Embedding converts text to vectors for search",
+    "incompatibleWarning": "Warning: These models may not be fully compatible",
+    "switchError": "Failed to switch models"
   },
   "syncActions": {
     "sync": "Sync New Data",

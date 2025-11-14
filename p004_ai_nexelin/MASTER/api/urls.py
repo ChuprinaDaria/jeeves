@@ -28,6 +28,6 @@ urlpatterns = [
     # LLM Providers endpoints
     path('llm-providers/', views.LLMProvidersListView.as_view(), name='llm-providers-list'),
     path('client/llm-provider/', views.ClientLLMProviderSetView.as_view(), name='client-llm-provider-set'),
+    # Model Pairs endpoint
+    path('model-pairs/', views.ModelPairsView.as_view(), name='model-pairs'),
 ]
-
-    # LLM Providers endpoints

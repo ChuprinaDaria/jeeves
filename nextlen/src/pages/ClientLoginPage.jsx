@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Loader2, LayoutDashboard, GraduationCap, FlaskConical, MessageSquare, Plug2 } from 'lucide-react';
+import { Loader2, LayoutDashboard, GraduationCap, FlaskConical, MessageSquare, Plug2, BookOpen } from 'lucide-react';
 import Header from '../components/layout/Header';
 import DashboardPage from './DashboardPage';
 import TrainingPage from './TrainingPage';
 import SandboxPage from './SandboxPage';
 import HistoryPage from './HistoryPage';
 import IntegrationsPage from './IntegrationsPage';
+import SetupInstructionsPage from './SetupInstructionsPage';
 import { useTranslation } from 'react-i18next';
 
 const ClientLoginPage = () => {
@@ -97,6 +98,7 @@ const ClientLoginPage = () => {
       { id: 'sandbox', icon: FlaskConical, label: t('nav.sandbox') },
       { id: 'integrations', icon: Plug2, label: t('nav.integrations') },
       { id: 'history', icon: MessageSquare, label: t('nav.history') },
+      { id: 'setup', icon: BookOpen, label: t('nav.setup') },
     ];
 
     const renderContent = () => {
@@ -109,6 +111,8 @@ const ClientLoginPage = () => {
           return <IntegrationsPage />;
         case 'history':
           return <HistoryPage />;
+        case 'setup':
+          return <SetupInstructionsPage />;
         default:
           return <DashboardPage />;
       }
