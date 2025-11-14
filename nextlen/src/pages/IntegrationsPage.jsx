@@ -10,6 +10,8 @@ const IntegrationsPage = () => {
     whatsapp_meta_enabled: false,
     meta_waba_id: '',
     meta_app_id: '',
+    meta_app_secret: '',
+    meta_phone_number: '',
     meta_phone_number_id: '',
     meta_verify_token: '',
     meta_access_token: '',
@@ -76,15 +78,67 @@ const IntegrationsPage = () => {
 
         <form onSubmit={onSave} className="grid grid-cols-1 gap-4">
           <div>
+            <label className="block text-sm font-medium mb-1">{t('integrations.phoneNumber')}</label>
+            <input
+              name="meta_phone_number"
+              value={form.meta_phone_number}
+              onChange={onChange}
+              className="w-full border rounded-lg px-3 py-2"
+              placeholder="+380671234567"
+              type="tel"
+            />
+            <p className="text-xs text-gray-500 mt-1">{t('integrations.phoneNumberHint')}</p>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">Meta WABA ID</label>
+            <input
+              name="meta_waba_id"
+              value={form.meta_waba_id}
+              onChange={onChange}
+              className="w-full border rounded-lg px-3 py-2"
+              placeholder="e.g. 1606460197401137"
+            />
+            <p className="text-xs text-gray-500 mt-1">Meta WhatsApp Business Account ID</p>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">Meta App ID</label>
+            <input
+              name="meta_app_id"
+              value={form.meta_app_id}
+              onChange={onChange}
+              className="w-full border rounded-lg px-3 py-2"
+              placeholder="e.g. 1896910764591075"
+            />
+            <p className="text-xs text-gray-500 mt-1">Meta App ID from your Meta Business App</p>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">Meta App Secret</label>
+            <input
+              name="meta_app_secret"
+              value={form.meta_app_secret || ''}
+              onChange={onChange}
+              type="password"
+              className="w-full border rounded-lg px-3 py-2"
+              placeholder="••••••••••••••••"
+            />
+            <p className="text-xs text-gray-500 mt-1">Keep this secret! It's used to verify webhook requests</p>
+          </div>
+          
+          <div>
             <label className="block text-sm font-medium mb-1">{t('integrations.phoneNumberId')}</label>
             <input
               name="meta_phone_number_id"
               value={form.meta_phone_number_id}
               onChange={onChange}
               className="w-full border rounded-lg px-3 py-2"
-              placeholder="e.g. 1234567890"
+              placeholder="e.g. 880980521764760"
             />
+            <p className="text-xs text-gray-500 mt-1">Meta Business Phone Number ID</p>
           </div>
+          
           <div>
             <label className="block text-sm font-medium mb-1">Verify Token</label>
             <input
@@ -92,18 +146,22 @@ const IntegrationsPage = () => {
               value={form.meta_verify_token}
               onChange={onChange}
               className="w-full border rounded-lg px-3 py-2"
-              placeholder="Random string for webhook verification"
+              placeholder="nexelin_wh_7f3a2c9b1e84d24f2a6c4d1e9a0b12d3"
             />
+            <p className="text-xs text-gray-500 mt-1">Random string for webhook verification</p>
           </div>
+          
           <div>
             <label className="block text-sm font-medium mb-1">{t('integrations.accessToken')}</label>
-            <input
+            <textarea
               name="meta_access_token"
               value={form.meta_access_token}
               onChange={onChange}
-              className="w-full border rounded-lg px-3 py-2"
-              placeholder="Paste Graph API access token"
+              rows="3"
+              className="w-full border rounded-lg px-3 py-2 font-mono text-sm"
+              placeholder="EAAa9OvRLRZBMBPZB41vIJ6yjX2WKjITZBRWFKYAiRv732pPw..."
             />
+            <p className="text-xs text-gray-500 mt-1">Meta Graph API Access Token (long-lived)</p>
           </div>
           {error && <div className="text-red-600 text-sm">{error}</div>}
           {success && <div className="text-green-600 text-sm">{success}</div>}
