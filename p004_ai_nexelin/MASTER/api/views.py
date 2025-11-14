@@ -1037,7 +1037,8 @@ class LLMProvidersListView(APIView):
         
         selected_provider_id = None
         if client:
-            selected_provider_id = getattr(client, 'llm_provider_model_id', None)
+            from MASTER.EmbeddingModel.models import LLMProvider as _LP
+        selected_provider_id = _LP.objects.filter(is_active=True, provider_type=getattr(client,'llm_provider',None), model_name=getattr(client,'llm_model_name',None)).values_list('id', flat=True).first()
         
         default_provider = LLMProvider.objects.filter(is_default=True, is_active=True).first()
         default_provider_id = getattr(default_provider, 'id', None) if default_provider else None
@@ -1087,8 +1088,9 @@ class ClientLLMProviderSetView(APIView):
         except LLMProvider.DoesNotExist:
             return Response({'error': 'LLM provider not found or inactive'}, status=status.HTTP_404_NOT_FOUND)
         
-        client.llm_provider_model = provider
-        client.save(update_fields=['llm_provider_model'])
+        client.llm_provider = provider.provider_type
+        client.llm_model_name = provider.model_name
+        client.save(update_fields=['llm_provider','llm_model_name'])
         
         provider_pk = getattr(provider, 'pk', None) or getattr(provider, 'id', None)
         

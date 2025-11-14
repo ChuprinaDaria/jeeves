@@ -59,6 +59,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       CLIENT_PORTAL_BASE_URL: "https://app.nexelin.com"
+      WHATSAPP_QR_SECRET: "super_secret_key_9283jd0923jd"
     depends_on:
       postgres:
         condition: service_healthy
@@ -138,18 +139,6 @@ services:
     networks: [nexelin_network]
 
   # ========================= FRONTEND =========================
-  client:
-    build:
-      context: ./MASTER/client_portal
-      dockerfile: Dockerfile.frontend
-      args:
-        VITE_API_BASE_URL: "https://api.nexelin.com"
-    image: nexelin-client:latest
-    container_name: nexelin_client
-    restart: unless-stopped
-    ports:
-      - "80:80"
-    networks: [nexelin_network]
 
 # ===================== NETWORKS & VOLUMES ====================
 networks:

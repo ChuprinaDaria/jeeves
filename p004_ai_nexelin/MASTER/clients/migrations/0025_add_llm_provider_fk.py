@@ -6,13 +6,13 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('clients', '0023_merge_llm_fields'),
-        ('EmbeddingModel', '0003_add_local_fields'),
+        ('EmbeddingModel', '0004_llmprovider'),
     ]
 
     operations = [
         migrations.AddField(
             model_name='client',
-            name='llm_provider_model',
+            name='llm_provider_fk',
             field=models.ForeignKey(
                 blank=True,
                 null=True,
@@ -24,4 +24,3 @@ class Migration(migrations.Migration):
             ),
         ),
     ]
-
