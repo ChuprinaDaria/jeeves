@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Camera, X, QrCode, Loader2 } from 'lucide-react';
 import { clientAPI } from '../../api/client';
@@ -8,7 +8,31 @@ const PhotoUploadTest = () => {
   const [photo, setPhoto] = useState(null);
   const [response, setResponse] = useState('');
   const [generatingQR, setGeneratingQR] = useState(false);
+  const [loadingQR, setLoadingQR] = useState(true);
   const [qrCodeUrl, setQrCodeUrl] = useState(null);
+
+  // Завантажити існуючий QR-код при монтуванні компонента
+  useEffect(() => {
+    const loadExistingQRCode = async () => {
+      try {
+        const response = await clientAPI.getQRCodes();
+        const qrCodes = response.data || [];
+        
+        // Знайти QR-код з назвою "Photo Upload Test"
+        const photoQRCode = qrCodes.find(qr => qr.name === 'Photo Upload Test');
+        
+        if (photoQRCode && photoQRCode.qr_code_url_display) {
+          setQrCodeUrl(photoQRCode.qr_code_url_display);
+        }
+      } catch (error) {
+        console.error('Failed to load existing QR code:', error);
+      } finally {
+        setLoadingQR(false);
+      }
+    };
+
+    loadExistingQRCode();
+  }, []);
 
   const handlePhotoUpload = (e) => {
     const file = e.target.files[0];
@@ -28,7 +52,7 @@ const PhotoUploadTest = () => {
   const handleClear = () => {
     setPhoto(null);
     setResponse('');
-    setQrCodeUrl(null);
+    // QR-код залишається навіть після очищення фото
   };
 
   const handleGenerateQR = async () => {
@@ -37,6 +61,18 @@ const PhotoUploadTest = () => {
       // Перевіряємо чи є вже QR коди
       const existingQRCodes = await clientAPI.getQRCodes();
       const qrCodes = existingQRCodes.data || [];
+      
+      // Перевіряємо чи вже існує QR-код з назвою "Photo Upload Test"
+      const existingPhotoQR = qrCodes.find(qr => qr.name === 'Photo Upload Test');
+      
+      if (existingPhotoQR) {
+        // Якщо QR-код вже існує, просто показуємо його
+        if (existingPhotoQR.qr_code_url_display) {
+          setQrCodeUrl(existingPhotoQR.qr_code_url_display);
+        }
+        alert(t('sandbox.qrCodeAlreadyExists') || 'QR code already exists!');
+        return;
+      }
       
       if (qrCodes.length >= 10) {
         alert(t('sandbox.maxQRCodesReached') || 'Maximum 10 QR codes allowed per client');
@@ -97,13 +133,23 @@ const PhotoUploadTest = () => {
           <div className="border-t pt-4">
             <button
               onClick={handleGenerateQR}
-              disabled={generatingQR}
+              disabled={generatingQR || loadingQR || qrCodeUrl}
               className="w-full btn-secondary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {generatingQR ? (
+              {loadingQR ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>{t('sandbox.loadingQR') || 'Loading...'}</span>
+                </>
+              ) : generatingQR ? (
                 <>
                   <Loader2 size={16} className="animate-spin" />
                   <span>{t('sandbox.generatingQR') || 'Generating...'}</span>
+                </>
+              ) : qrCodeUrl ? (
+                <>
+                  <QrCode size={16} />
+                  <span>{t('sandbox.qrCodeExists') || 'QR Code Already Generated'}</span>
                 </>
               ) : (
                 <>

@@ -488,6 +488,7 @@ class ClientWhatsAppConfigView(APIView):
             'whatsapp_meta_enabled': getattr(client, 'whatsapp_meta_enabled', False),
             'meta_waba_id': getattr(client, 'meta_waba_id', ''),
             'meta_app_id': getattr(client, 'meta_app_id', ''),
+            'meta_phone_number': getattr(client, 'meta_phone_number', ''),
             'meta_phone_number_id': getattr(client, 'meta_phone_number_id', ''),
             'meta_verify_token': getattr(client, 'meta_verify_token', ''),
         }
@@ -508,6 +509,7 @@ class ClientWhatsAppConfigView(APIView):
             'whatsapp_meta_enabled',
             'meta_waba_id',
             'meta_app_id',
+            'meta_phone_number',
             'meta_phone_number_id',
             'meta_verify_token',
             'meta_app_secret',

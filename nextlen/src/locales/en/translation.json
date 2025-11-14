@@ -159,6 +159,8 @@
     "setupCalendar": "Setup Calendar Integration",
     "botToken": "Bot Token",
     "webhookUrl": "Webhook URL",
+    "phoneNumber": "WhatsApp Phone Number",
+    "phoneNumberHint": "Enter your WhatsApp Business number in E.164 format (e.g. +380671234567 or +14155238886)",
     "phoneNumberId": "Phone Number ID",
     "accessToken": "Access Token",
     "calendarEmail": "Calendar Email",
