@@ -6,6 +6,7 @@ import PromptEditor from '../components/training/PromptEditor';
 import SyncActions from '../components/training/SyncActions';
 import LLMProviderCard from '../components/training/LLMProviderCard';
 import ModelStatusCard from '../components/training/ModelStatusCard';
+import LLMProviderCard from '../components/training/LLMProviderCard';
 import KnowledgeBlocks from '../components/training/KnowledgeBlocks';
 import { clientAPI } from '../api/client';
 
@@ -106,6 +107,7 @@ const TrainingPage = () => {
         <div className="space-y-6">
           <LLMProviderCard />
           <ModelStatusCard />
+          <LLMProviderCard />
           <KnowledgeBlocks />
         </div>
       </div>

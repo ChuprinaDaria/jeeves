@@ -323,5 +323,19 @@
     "syncing": "Syncing...",
     "retrain": "Retrain Now",
     "retraining": "Retraining..."
+  },
+  "llmProvider": {
+    "title": "LLM Provider",
+    "description": "Select the AI model for generating responses",
+    "currentProvider": "Current Provider",
+    "switchProvider": "Switch Provider",
+    "cancel": "Cancel",
+    "noProviderSelected": "No provider selected",
+    "model": "Model",
+    "type": "Type",
+    "endpoint": "Endpoint",
+    "maxTokens": "Max Tokens",
+    "temperature": "Temperature",
+    "switching": "Switching..."
   }
 }
