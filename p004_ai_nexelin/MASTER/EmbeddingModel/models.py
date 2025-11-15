@@ -29,7 +29,7 @@ class EmbeddingModel(models.Model):
         choices=[
             ('', 'Cloud/API'),
             ('main', 'Main Server (192.168.0.51)'),
-            ('light', 'Light Server (192.168.0.53)'),
+            ('light', 'Light Server (192.168.0.52)'),
         ],
         blank=True
     )

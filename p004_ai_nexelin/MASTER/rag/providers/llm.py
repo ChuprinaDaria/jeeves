@@ -74,6 +74,7 @@ class OllamaLLMProvider(BaseLLMProvider):
     
     def generate(self, messages: List[Dict[str, str]], **kwargs) -> Dict[str, Any]:
         temperature = kwargs.get('temperature', 0.7)
+        timeout = kwargs.get('timeout', 180)
         
         try:
             prompt = self._messages_to_prompt(messages)
@@ -86,7 +87,7 @@ class OllamaLLMProvider(BaseLLMProvider):
                     'temperature': temperature,
                     'stream': False
                 },
-                timeout=60
+                timeout=timeout
             )
             response.raise_for_status()
             data = response.json()

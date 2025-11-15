@@ -237,7 +237,7 @@ RAG_CONFIG = {
     'min_chunks_for_answer': 0,  # Відповідаємо навіть без контексту
     'max_results': 5,
     'max_context_chunks': 5,
-    'max_context_tokens': 1500
+    'max_context_tokens': 5000
 }
 
 VECTOR_SEARCH_CONFIG = {
@@ -257,13 +257,13 @@ VECTOR_SEARCH_CONFIG = {
 CONTEXT_BUILDER_CONFIG = {
     'max_context_chunks': 5,
     'chunk_context_window': 1,
-    'max_tokens': 1500
+    'max_tokens': 3000
 }
 LLM_CONFIG = {
     'provider': 'openai',
     'model': 'gpt-4o-mini',
     'temperature': 0.7,
-    'max_tokens': 1500,
+    'max_tokens': 10000,
     'top_p': 1.0,
     'frequency_penalty': 0.0,
     'presence_penalty': 0.0,
@@ -292,8 +292,8 @@ OLLAMA_MAIN_ENDPOINT = os.getenv('OLLAMA_MAIN_ENDPOINT', 'http://192.168.0.51:11
 OLLAMA_MAIN_LLM_MODEL = 'qwen2.5:7b'
 OLLAMA_MAIN_EMBED_MODEL = 'bge-m3'
 
-# Light server (small models)
-OLLAMA_LIGHT_ENDPOINT = os.getenv('OLLAMA_LIGHT_ENDPOINT', 'http://192.168.0.53:11434')
+# Light server (small models, fast CPU)
+OLLAMA_LIGHT_ENDPOINT = os.getenv('OLLAMA_LIGHT_ENDPOINT', 'http://192.168.0.52:11434')
 OLLAMA_LIGHT_LLM_MODEL = 'qwen2.5:1.5b'
 OLLAMA_LIGHT_EMBED_MODEL = 'nomic-embed-text'
 

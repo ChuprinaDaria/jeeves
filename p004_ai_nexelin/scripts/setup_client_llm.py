@@ -11,7 +11,7 @@
 LLM Providers:
     - openai: OpenAI GPT models (gpt-4o-mini, gpt-4o)
     - ollama_main: Ollama Main Server (192.168.0.51:11434)
-    - ollama_light: Ollama Light Server (192.168.0.53:11434)
+    - ollama_light: Ollama Light Server (192.168.0.52:11434)
     - kimi: Kimi Moonshot AI
 """
 
@@ -55,7 +55,7 @@ def setup_client_llm(client_tag, llm_provider, model_name):
     if llm_provider == 'ollama_main':
         print(f"   Endpoint: http://192.168.0.51:11434")
     elif llm_provider == 'ollama_light':
-        print(f"   Endpoint: http://192.168.0.53:11434")
+        print(f"   Endpoint: http://192.168.0.52:11434")
     
     return True
 
