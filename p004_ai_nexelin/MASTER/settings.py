@@ -237,7 +237,7 @@ RAG_CONFIG = {
     'min_chunks_for_answer': 0,  # Відповідаємо навіть без контексту
     'max_results': 5,
     'max_context_chunks': 5,
-    'max_context_tokens': 5000
+    'max_context_tokens': 2000  # Обмежуємо контекст для Ollama (4096 - system_prompt - query ~= 2000)
 }
 
 VECTOR_SEARCH_CONFIG = {
@@ -257,13 +257,13 @@ VECTOR_SEARCH_CONFIG = {
 CONTEXT_BUILDER_CONFIG = {
     'max_context_chunks': 5,
     'chunk_context_window': 1,
-    'max_tokens': 3000
+    'max_tokens': 2000  # Зменшено для Ollama (буде використовуватись RAG_CONFIG)
 }
 LLM_CONFIG = {
     'provider': 'openai',
     'model': 'gpt-4o-mini',
     'temperature': 0.7,
-    'max_tokens': 10000,
+    'max_tokens': 2000,  # Обмежуємо відповідь для Ollama (щоб разом з контекстом не перевищити 4096)
     'top_p': 1.0,
     'frequency_penalty': 0.0,
     'presence_penalty': 0.0,
