@@ -183,12 +183,31 @@ class PublicRAGChatView(APIView):
         if not message:
             return Response({'error': 'message is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Мова: беремо з тіла або з Accept-Language
-        language = (request.data.get('language') or '').lower() if isinstance(request.data, dict) else ''
+        # Мова: підтримуємо явний набір для UX: it, nl, de, en, fr + ru (тільки якщо справді вказана/прийшла)
+        # 1) language з body (якщо є)
+        language = ''
+        try:
+            if isinstance(request.data, dict):
+                language = str(request.data.get('language') or '').strip().lower()
+        except Exception:
+            language = ''
+        # 2) Якщо не передали явно — пробуємо з Accept-Language
         if not language:
-            language = (request.headers.get('Accept-Language') or 'en').split(',')[0].split('-')[0].lower()
-        if language not in {'uk','en','de','ru'}:
+            accept_lang = request.headers.get('Accept-Language') or ''
+            if accept_lang:
+                # Беремо першу мову з заголовка, без регіону (it-IT -> it)
+                language = accept_lang.split(',')[0].split(';')[0].strip().split('-')[0].lower()
+        # 3) Нормалізація до підтримуваного списку
+        supported_langs = {'en', 'de', 'fr', 'it', 'nl', 'ru'}
+        if not language:
             language = 'en'
+        elif language not in supported_langs:
+            # Якщо явно прийшла російська локаль — залишаємо 'ru'
+            if language.startswith('ru'):
+                language = 'ru'
+            else:
+                # Інші мови мапимо на англійську як дефолт
+                language = 'en'
 
         # Використовуємо клієнта для пошуку в його даних + даних бранча та спеціалізації
         generator = ResponseGenerator()

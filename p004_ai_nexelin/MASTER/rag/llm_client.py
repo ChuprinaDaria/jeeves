@@ -60,24 +60,60 @@ class LLMClient:
         self.retry_delay = self.config.get('retry_delay_seconds', 2)
     
     def _get_provider(self, client: Client | None) -> BaseLLMProvider:
-        # Default to OpenAI if no client provided
-        provider_name = (getattr(client, 'llm_provider', None) or 'openai').lower()
-        model_name = getattr(client, 'llm_model_name', None) or self.config.get('model', 'gpt-4o-mini')
+        """
+        Обираємо провайдера LLM з урахуванням нових моделей (LLMProvider) і старих полів.
         
-        if 'ollama' in provider_name:
-            endpoint = getattr(settings, 'OLLAMA_MAIN_ENDPOINT', '')
-            if provider_name == 'ollama_light':
-                endpoint = getattr(settings, 'OLLAMA_LIGHT_ENDPOINT', endpoint)
+        Пріоритет:
+        1) client.llm_provider_model (FK на LLMProvider)
+        2) client.llm_provider + client.llm_model_name (рядкові поля)
+        3) дефолт з LLM_CONFIG (OpenAI)
+        """
+        # 1) Новий шлях: LLMProvider FK на клієнті
+        llm_provider_obj = getattr(client, "llm_provider_model", None) if client else None
+        if llm_provider_obj is not None:
+            provider_type = getattr(llm_provider_obj, "provider_type", "openai").lower()
+            model_name = getattr(llm_provider_obj, "model_name", self.config.get("model", "gpt-4o-mini"))
+
+            if provider_type in ("ollama_main", "ollama_light"):
+                # Вибираємо endpoint за типом сервера
+                endpoint = getattr(settings, "OLLAMA_MAIN_ENDPOINT", "")
+                if provider_type == "ollama_light":
+                    endpoint = getattr(settings, "OLLAMA_LIGHT_ENDPOINT", endpoint)
+                return OllamaLLMProvider(api_endpoint=endpoint, model_name=model_name)
+
+            if provider_type == "kimi":
+                api_key = getattr(settings, "KIMI_API_KEY", "").strip()
+                if not api_key:
+                    raise ValueError("KIMI_API_KEY is not configured")
+                return KimiLLMProvider(api_key=api_key, model_name=model_name)
+
+            if provider_type == "openai":
+                api_key = getattr(settings, "OPENAI_API_KEY", "").strip()
+                if not api_key:
+                    raise ValueError("OPENAI_API_KEY is not configured")
+                return OpenAILLMProvider(model_name=model_name, api_key=api_key)
+
+            # На всяк випадок: fallback до конфіга, якщо тип незнайомий
+            logger.warning(f"Unsupported llm_provider_model.provider_type='{provider_type}', falling back to LLM_CONFIG")
+
+        # 2) Старий шлях: рядкові поля на клієнті
+        provider_name = (getattr(client, "llm_provider", None) or "openai").lower()
+        model_name = getattr(client, "llm_model_name", None) or self.config.get("model", "gpt-4o-mini")
+        
+        if "ollama" in provider_name:
+            endpoint = getattr(settings, "OLLAMA_MAIN_ENDPOINT", "")
+            if provider_name == "ollama_light":
+                endpoint = getattr(settings, "OLLAMA_LIGHT_ENDPOINT", endpoint)
             return OllamaLLMProvider(api_endpoint=endpoint, model_name=model_name)
         
-        if provider_name == 'kimi':
-            api_key = getattr(settings, 'KIMI_API_KEY', '').strip()
+        if provider_name == "kimi":
+            api_key = getattr(settings, "KIMI_API_KEY", "").strip()
             if not api_key:
                 raise ValueError("KIMI_API_KEY is not configured")
             return KimiLLMProvider(api_key=api_key, model_name=model_name)
         
-        if provider_name == 'openai':
-            api_key = getattr(settings, 'OPENAI_API_KEY', '').strip()
+        if provider_name == "openai":
+            api_key = getattr(settings, "OPENAI_API_KEY", "").strip()
             if not api_key:
                 raise ValueError("OPENAI_API_KEY is not configured")
             return OpenAILLMProvider(model_name=model_name, api_key=api_key)

@@ -247,16 +247,19 @@ class ResponseGenerator:
     def _no_context_response(self, query: str, language: str | None) -> RAGResponse:
         """Response when no relevant context found."""
         lang = (language or '').lower()
-        if lang not in {'uk','en','de','ru'}:
-            lang = 'en'
+        # Відповіді локалізуємо для it, nl, de, en, fr.
+        # Якщо мова інша — використовуємо англійський варіант, але сам lang не змінюємо.
+        supported = {'en', 'de', 'fr', 'it', 'nl'}
+        loc_lang = lang if lang in supported else 'en'
         localized = {
-            'uk': "Не знайшов достатньо релевантної інформації для точної відповіді. Спробуйте інакше сформулювати питання або уточніть деталі.",
             'en': "I couldn't find enough relevant information to answer precisely. Please rephrase your question or add more details.",
             'de': "Ich konnte nicht genügend relevante Informationen finden. Bitte formulieren Sie die Frage um oder fügen Sie Details hinzu.",
-            'ru': "Не удалось найти достаточно релевантной информации. Пожалуйста, переформулируйте вопрос или уточните детали.",
+            'fr': "Je n'ai pas trouvé suffisamment d'informations pertinentes pour répondre précisément. Veuillez reformuler votre question ou ajouter des détails.",
+            'it': "Non ho trovato informazioni sufficientemente pertinenti per rispondere con precisione. Per favore riformula la domanda o aggiungi dettagli.",
+            'nl': "Ik kon niet genoeg relevante informatie vinden om precies te antwoorden. Formuleer je vraag opnieuw of voeg meer details toe.",
         }
         return RAGResponse(
-            answer=localized[lang],
+            answer=localized[loc_lang],
             sources=[],
             query=query,
             context_used="",
@@ -267,16 +270,17 @@ class ResponseGenerator:
     def _insufficient_context_response(self, query: str, search_results, language: str | None) -> RAGResponse:
         """Response when insufficient context found."""
         lang = (language or '').lower()
-        if lang not in {'uk','en','de','ru'}:
-            lang = 'en'
+        supported = {'en', 'de', 'fr', 'it', 'nl'}
+        loc_lang = lang if lang in supported else 'en'
         base = {
-            'uk': "Знайшов частково дотичну інформацію, але вона може бути недостатньою для повної відповіді.",
             'en': "I found some related information, but it may be insufficient for a complete answer.",
             'de': "Ich habe einige relevante Informationen gefunden, die jedoch möglicherweise nicht ausreichen.",
-            'ru': "Нашёл некоторую связанную информацию, но её может быть недостаточно для полного ответа.",
+            'fr': "J'ai trouvé quelques informations liées, mais elles peuvent être insuffisantes pour une réponse complète.",
+            'it': "Ho trovato alcune informazioni correlate, ma potrebbero non essere sufficienti per una risposta completa.",
+            'nl': "Ik heb wat gerelateerde informatie gevonden, maar die is mogelijk niet voldoende voor een volledig antwoord.",
         }
         return RAGResponse(
-            answer=f"{base[lang]} ({len(search_results)} chunks)",
+            answer=f"{base[loc_lang]} ({len(search_results)} chunks)",
             sources=[],
             query=query,
             context_used="",
