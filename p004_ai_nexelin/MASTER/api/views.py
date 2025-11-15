@@ -696,7 +696,22 @@ class ClientEmbeddingModelSetView(APIView):
         # Check if client is changing model
         previous_model_id = getattr(client, 'embedding_model_id', None)
         model_pk = getattr(model, 'pk', None) or getattr(model, 'id', None)
-        reindex_required = (previous_model_id != model_pk and previous_model_id is not None)
+        
+        # Перевіряємо, чи існують embeddings для обраної моделі
+        from MASTER.clients.models import ClientEmbedding
+        existing_embeddings = ClientEmbedding.objects.filter(
+            client=client,
+            embedding_model=model
+        ).exists()
+        
+        # reindex потрібен тільки якщо:
+        # 1) змінюємо модель (previous != new)
+        # 2) і embeddings для нової моделі ще не створені
+        reindex_required = (
+            previous_model_id != model_pk and 
+            previous_model_id is not None and
+            not existing_embeddings
+        )
         
         # Update client's embedding model
         client.embedding_model = model
@@ -1093,6 +1108,8 @@ class ModelPairsView(APIView):
         from MASTER.clients.views import get_client_from_request
         from MASTER.EmbeddingModel.models import LLMProvider, EmbeddingModel
         
+        # ВАЖЛИВО: тут працюємо тільки з client, знайденим через tag / X-Client-Token / X-API-Key.
+        # JWT client_profile свідомо не використовуємо, щоб не змішувати admin/login потік з client-порталом.
         client = get_client_from_request(request)
         
         # Отримуємо активні LLM провайдери

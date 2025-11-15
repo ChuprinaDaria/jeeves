@@ -68,9 +68,11 @@ class QwenLocalProvider(BaseLLMProvider):
 
 
 class OllamaLLMProvider(BaseLLMProvider):
-    def __init__(self, api_endpoint: str, model_name: str = 'llama3'):
+    def __init__(self, api_endpoint: str, model_name: str = 'llama3', server_type: str | None = None):
         self.api_endpoint = api_endpoint.rstrip('/')
         self.model_name = model_name
+        # server_type: 'main' | 'light' | None — використовується для fallback логіки
+        self.server_type = server_type or ''
     
     def generate(self, messages: List[Dict[str, str]], **kwargs) -> Dict[str, Any]:
         temperature = kwargs.get('temperature', 0.7)

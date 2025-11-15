@@ -79,7 +79,11 @@ class LLMClient:
                 endpoint = getattr(settings, "OLLAMA_MAIN_ENDPOINT", "")
                 if provider_type == "ollama_light":
                     endpoint = getattr(settings, "OLLAMA_LIGHT_ENDPOINT", endpoint)
-                return OllamaLLMProvider(api_endpoint=endpoint, model_name=model_name)
+                return OllamaLLMProvider(
+                    api_endpoint=endpoint,
+                    model_name=model_name,
+                    server_type="light" if provider_type == "ollama_light" else "main",
+                )
 
             if provider_type == "kimi":
                 api_key = getattr(settings, "KIMI_API_KEY", "").strip()
@@ -102,9 +106,11 @@ class LLMClient:
         
         if "ollama" in provider_name:
             endpoint = getattr(settings, "OLLAMA_MAIN_ENDPOINT", "")
+            server_type = "main"
             if provider_name == "ollama_light":
                 endpoint = getattr(settings, "OLLAMA_LIGHT_ENDPOINT", endpoint)
-            return OllamaLLMProvider(api_endpoint=endpoint, model_name=model_name)
+                server_type = "light"
+            return OllamaLLMProvider(api_endpoint=endpoint, model_name=model_name, server_type=server_type)
         
         if provider_name == "kimi":
             api_key = getattr(settings, "KIMI_API_KEY", "").strip()
@@ -143,12 +149,29 @@ class LLMClient:
         Returns:
             Complete response string or generator of chunks if streaming
         """
+        # Перезавантажуємо клієнта з БД, щоб гарантувати свіжість custom_system_prompt і моделей
+        if client is not None and client.pk:
+            try:
+                client = Client.objects.get(pk=client.pk)
+            except Client.DoesNotExist:
+                pass  # якщо видалений — використовуємо переданий
+        
         system_prompt = self._get_system_prompt(client, specialization, branch)
+        
+        # Додаємо явну вказівку мови до system prompt для кращого розуміння моделлю
+        # (особливо важливо для Ollama)
+        language_instruction = ""
+        # Визначаємо мову з Accept-Language або дефолт
+        # (можна було б передавати language як параметр, але поки беремо з контексту або дефолт)
+        # Для початку просто додаємо універсальну інструкцію
+        language_instruction = "\n\nIMPORTANT: Always respond in the same language as the user's question. Detect the language automatically."
+        
+        enhanced_system_prompt = system_prompt + language_instruction
         
         messages: list[ChatCompletionMessageParam] = cast(
             list[ChatCompletionMessageParam],
             [
-                {"role": "system", "content": system_prompt},
+                {"role": "system", "content": enhanced_system_prompt},
                 {
                     "role": "user",
                     "content": f"{context}\n\n=== USER QUESTION ===\n{user_query}",
@@ -159,17 +182,41 @@ class LLMClient:
         logger.info(f"LLM request: provider={getattr(client, 'llm_provider', 'openai')}, model={getattr(client, 'llm_model_name', self.config.get('model'))}, stream={stream}")
         logger.debug(f"System prompt: {system_prompt[:200]}...")
         
-        # Call provider (non-streaming unified path)
+        # Call provider (non-streaming unified path) з fallback з main -> light
         provider = self._get_provider(client)
         msg_list = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"{context}\n\n=== USER QUESTION ===\n{user_query}"},
         ]
-        result = provider.generate(
-            messages=msg_list,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
-        )
+
+        def _call_provider(p: BaseLLMProvider) -> dict[str, Any]:
+            return p.generate(
+                messages=msg_list,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+            )
+
+        try:
+            result = _call_provider(provider)
+        except Exception as e:
+            # Якщо це повільний main-сервер Ollama і стався timeout — пробуємо легку пару
+            from MASTER.rag.providers.llm import OllamaLLMProvider  # локальний імпорт, щоб уникнути циклів
+            is_ollama_main = isinstance(provider, OllamaLLMProvider) and getattr(provider, "server_type", "") == "main"
+            err_text = str(e)
+            if is_ollama_main and "Read timed out" in err_text:
+                logger.warning("Ollama MAIN timed out, falling back to LIGHT server")
+                # Беремо легкий endpoint і модель з settings (qwen2.5:1.5b)
+                light_endpoint = getattr(settings, "OLLAMA_LIGHT_ENDPOINT", "")
+                light_model = getattr(settings, "OLLAMA_LIGHT_LLM_MODEL", "qwen2.5:1.5b")
+                fallback = OllamaLLMProvider(
+                    api_endpoint=light_endpoint,
+                    model_name=light_model,
+                    server_type="light",
+                )
+                result = _call_provider(fallback)
+            else:
+                # Інші помилки пробросуємо як є
+                raise
         content = cast(str, result.get('content', ''))
         if not stream:
             return content
