@@ -29,6 +29,8 @@ urlpatterns = [
     path('knowledge-blocks/<int:pk>/', views.KnowledgeBlockViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='knowledge-block-detail'),
     path('qr-codes/', views.ClientQRCodeViewSet.as_view({'get': 'list', 'post': 'create'}), name='qr-code-list'),
     path('qr-codes/<int:pk>/', views.ClientQRCodeViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='qr-code-detail'),
+    path('web-parsing-requests/', views.WebParsingRequestViewSet.as_view({'get': 'list', 'post': 'create'}), name='web-parsing-request-list'),
+    path('web-parsing-requests/<int:pk>/', views.WebParsingRequestViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='web-parsing-request-detail'),
     
     # Router URLs (viewsets) - після explicit routes
     path('', include(views.router.urls)),
@@ -40,8 +42,6 @@ urlpatterns = [
     path('api-docs/<int:client_id>/', views.generate_api_docs, name='generate_api_docs'),
     path('<int:pk>/regenerate-qrs/', views.ClientRegenerateQRsView.as_view(), name='client-regenerate-qrs'),
     path('knowledge-blocks/<int:block_id>/documents/', views.KnowledgeBlockDocumentsView.as_view(), name='knowledge-block-documents'),
-    path('web-parsing-requests/', views.WebParsingRequestViewSet.as_view({'get': 'list', 'post': 'create'}), name='web-parsing-request-list'),
-    path('web-parsing-requests/<int:pk>/', views.WebParsingRequestViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='web-parsing-request-detail'),
 ]
 
 # Twilio маршрути видалено — використовуємо лише Meta WhatsApp Business API
