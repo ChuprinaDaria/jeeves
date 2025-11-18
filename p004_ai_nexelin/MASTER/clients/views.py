@@ -836,6 +836,15 @@ class ClientConversationsView(APIView):
         # Отримуємо всі розмови клієнта (ClientWhatsAppConversation)
         conversations = ClientWhatsAppConversation.objects.filter(client=client).order_by('-started_at')
         
+        # Логування для діагностики
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"📊 Client {client.id} ({client.company_name}) requested conversations")
+        logger.info(f"📊 Total conversations: {conversations.count()}")
+        web_convs = conversations.filter(context_metadata__platform='web').count()
+        whatsapp_convs = conversations.exclude(context_metadata__platform='web').count()
+        logger.info(f"📊 Web conversations: {web_convs}, WhatsApp: {whatsapp_convs}")
+        
         # Також отримуємо RestaurantConversation для backward compatibility
         from MASTER.restaurant.models import RestaurantConversation
         restaurant_conversations = RestaurantConversation.objects.filter(client=client).order_by('-started_at')
@@ -1103,9 +1112,12 @@ class ClientWebConversationView(APIView):
     def post(self, request):
         """Зберегти повідомлення web розмови"""
         from django.utils import timezone
+        import logging
+        logger = logging.getLogger(__name__)
         
         client = get_client_from_request(request)
         if not client:
+            logger.error("❌ Web conversation: Client not found")
             return Response(
                 {'error': 'Client not found'},
                 status=status.HTTP_404_NOT_FOUND
@@ -1116,7 +1128,10 @@ class ClientWebConversationView(APIView):
         response_text = request.data.get('response', '')
         platform = request.data.get('platform', 'web')
         
+        logger.info(f"💬 Web conversation POST: client={client.id}, session={session_id[:20]}...")
+        
         if not session_id:
+            logger.error("❌ Web conversation: session_id is required")
             return Response(
                 {'error': 'session_id is required'},
                 status=status.HTTP_400_BAD_REQUEST
@@ -1135,6 +1150,8 @@ class ClientWebConversationView(APIView):
                 'context_metadata': {'platform': platform},
             }
         )
+        
+        logger.info(f"💬 Web conversation {'CREATED' if created else 'UPDATED'}: id={conversation.id}")
         
         # Оновлюємо platform в context_metadata якщо не створено
         if not created:
