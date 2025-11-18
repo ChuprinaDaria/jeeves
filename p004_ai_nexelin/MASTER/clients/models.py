@@ -486,6 +486,7 @@ class ClientZeroConfig(models.Model):
         return env
 
 from django.db.models.signals import post_save, pre_save
+from django.db.models import F
 from django.dispatch import receiver
 from typing import Any, Protocol, cast
 
@@ -501,6 +502,45 @@ def trigger_document_processing(sender, instance, created, **kwargs):
     if created and not instance.is_processed:
         from MASTER.processing.tasks import process_client_document as _task
         cast(_HasDelay, _task).delay(instance.id)
+
+
+# Store old status before save
+_old_parsing_status = {}
+
+@receiver(pre_save, sender='clients.WebParsingRequest')
+def store_old_parsing_status(sender, instance, **kwargs):
+    """Store old status before save to detect changes"""
+    if instance.pk:
+        try:
+            old_instance = sender.objects.get(pk=instance.pk)
+            _old_parsing_status[instance.pk] = old_instance.status
+        except sender.DoesNotExist:
+            _old_parsing_status[instance.pk] = None
+
+@receiver(post_save, sender='clients.WebParsingRequest')
+def process_completed_parsing_request(sender, instance, created, **kwargs):
+    """Automatically process parsing request when status changes to completed"""
+    if not created and instance.pk:  # Only for existing instances
+        try:
+            old_status = _old_parsing_status.get(instance.pk)
+            
+            # Check if status changed to completed and path_to_documents is set
+            if (old_status != instance.status and 
+                instance.status == WebParsingRequest.STATUS_COMPLETED and 
+                instance.path_to_documents and 
+                not instance.knowledge_block):
+                
+                # Process the parsing request asynchronously
+                from MASTER.clients.tasks import process_web_parsing_request
+                process_web_parsing_request.delay(instance.id)
+            
+            # Clean up stored status
+            if instance.pk in _old_parsing_status:
+                del _old_parsing_status[instance.pk]
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in process_completed_parsing_request: {e}", exc_info=True)
 
 
 @receiver(pre_save, sender=ClientEmbedding)
@@ -637,7 +677,19 @@ class ClientQRCode(models.Model):
         max_length=200,
         blank=True,
         verbose_name='Location',
-        help_text='Where this QR code is placed (e.g., "Front Desk", "Table 5", "Reception")'
+        help_text='Where this QR code is placed (e.g., "Front Desk", "Table 5", "Reception") or URL for Web Chat'
+    )
+    
+    # Integration type: 'whatsapp' or 'web'
+    integration_type = models.CharField(
+        max_length=20,
+        default='whatsapp',
+        choices=[
+            ('whatsapp', 'WhatsApp'),
+            ('web', 'Web Chat'),
+        ],
+        verbose_name='Integration Type',
+        help_text='Type of integration this QR code is for'
     )
     
     created_at = models.DateTimeField(
@@ -711,8 +763,41 @@ class ClientQRCode(models.Model):
         from MASTER.clients.qr_utils import build_wa_me_link
         return build_wa_me_link(self.get_whatsapp_prefill(), client=self.client)
     
+    def get_web_chat_link(self) -> str:
+        """Returns Web Chat link for this QR code"""
+        # Get client tag from API key
+        client_tag = None
+        try:
+            api_key = self.client.api_keys.filter(is_active=True).first()
+            if api_key:
+                client_tag = api_key.key
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Error getting API key for client {self.client.id}: {e}")
+        
+        if not client_tag:
+            # Fallback: use client ID
+            client_tag = f"client-{self.client.id}"
+        
+        # Use location if it's a full URL, otherwise construct it
+        if self.location and (self.location.startswith('http://') or self.location.startswith('https://')):
+            return self.location
+        
+        # Construct Web Chat URL
+        from django.conf import settings
+        base_url = getattr(settings, 'FRONTEND_URL', 'https://app.nexelin.com')
+        return f"{base_url}/client?tag={client_tag}"
+    
+    def get_qr_link(self) -> str:
+        """Returns the appropriate link based on integration type"""
+        if self.integration_type == 'web':
+            return self.get_web_chat_link()
+        else:  # whatsapp (default)
+            return self.get_whatsapp_link()
+    
     def generate_qr_code(self):
-        """Generate QR code with WhatsApp deep link and client logo"""
+        """Generate QR code with appropriate link (WhatsApp or Web Chat) and client logo"""
         if not self.client:
             raise ValidationError("Cannot generate QR code without client")
         
@@ -720,10 +805,14 @@ class ClientQRCode(models.Model):
         logger = logging.getLogger(__name__)
         
         try:
-            # Get WhatsApp link with error logging
-            logger.info(f"Generating QR code for ClientQRCode {self.pk}, client {self.client.id}")
-            link = self.get_whatsapp_link()
-            logger.info(f"WhatsApp link generated: {link[:50]}...")
+            # Get link based on integration type
+            logger.info(f"Generating QR code for ClientQRCode {self.pk}, client {self.client.id}, type: {self.integration_type}")
+            link = self.get_qr_link()
+            logger.info(f"Link generated ({self.integration_type}): {link[:50]}...")
+            
+            # For Web Chat, update location if it's not already set
+            if self.integration_type == 'web' and not self.location:
+                self.location = link
             
             # Safely get logo path
             logo_path = None
@@ -752,10 +841,20 @@ class ClientQRCode(models.Model):
             import secrets
             self.qr_token = secrets.token_urlsafe(32)
         
+        # Check if integration_type changed (for regeneration)
+        integration_type_changed = False
+        if self.pk:
+            try:
+                old_instance = ClientQRCode.objects.get(pk=self.pk)
+                if old_instance.integration_type != self.integration_type:
+                    integration_type_changed = True
+            except ClientQRCode.DoesNotExist:
+                pass
+        
         # Validate before saving
         self.full_clean()
         
-        # Generate QR code if not exists
+        # Generate QR code if not exists or if integration_type changed
         if not self.qr_code and not self.qr_code_url:
             try:
                 self.generate_qr_code()
@@ -764,8 +863,110 @@ class ClientQRCode(models.Model):
                 import logging
                 logger = logging.getLogger(__name__)
                 logger.warning(f"Failed to generate QR code for {self}: {e}")
+        elif integration_type_changed:
+            # Regenerate QR code if integration type changed
+            try:
+                self.generate_qr_code()
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to regenerate QR code for {self} after integration_type change: {e}")
         
         super().save(*args, **kwargs)
+
+
+class WebParsingRequest(models.Model):
+    """Web parsing request for extracting knowledge from websites"""
+    
+    STATUS_PENDING = 'pending'
+    STATUS_IN_PROGRESS = 'in_progress'
+    STATUS_COMPLETED = 'completed'
+    
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_IN_PROGRESS, 'In Progress'),
+        (STATUS_COMPLETED, 'Completed'),
+    ]
+    
+    id = models.AutoField(primary_key=True)
+    
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.CASCADE,
+        related_name='web_parsing_requests',
+        verbose_name='Client'
+    )
+    
+    # Client-provided fields
+    website_url = models.URLField(
+        max_length=500,
+        verbose_name='Website URL',
+        help_text='URL of the website to parse'
+    )
+    
+    description = models.TextField(
+        blank=True,
+        verbose_name='Description',
+        help_text='Description of the parsing request'
+    )
+    
+    # Admin-only fields
+    price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='Price',
+        help_text='Price for this parsing service (admin only)'
+    )
+    
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+        verbose_name='Status',
+        help_text='Current status of the parsing request'
+    )
+    
+    path_to_documents = models.CharField(
+        max_length=500,
+        blank=True,
+        verbose_name='Path to Documents',
+        help_text='Server URL and directory path where parsed documents are stored (admin only)'
+    )
+    
+    # Knowledge block created from this parsing
+    knowledge_block = models.ForeignKey(
+        'KnowledgeBlock',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='parsing_requests',
+        verbose_name='Knowledge Block',
+        help_text='Knowledge block created from this parsing'
+    )
+    
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Created At'
+    )
+    
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name='Updated At'
+    )
+    
+    class Meta:
+        verbose_name = 'Web Parsing Request'
+        verbose_name_plural = 'Web Parsing Requests'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['client', 'status']),
+            models.Index(fields=['status', 'created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.client.company_name} - {self.website_url} ({self.get_status_display()})"
 
 
 class ClientWhatsAppConversation(models.Model):

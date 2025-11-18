@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from MASTER.clients.models import Client, ClientDocument, ClientAPIKey, KnowledgeBlock, ClientQRCode
+from MASTER.clients.models import Client, ClientDocument, ClientAPIKey, KnowledgeBlock, ClientQRCode, WebParsingRequest
 
 
 class ClientSerializer(serializers.ModelSerializer):
@@ -171,6 +171,7 @@ class ClientQRCodeSerializer(serializers.ModelSerializer):
             'name',
             'description',
             'location',
+            'integration_type',
             'qr_code',
             'qr_code_url',
             'qr_code_url_display',
@@ -189,4 +190,40 @@ class ClientQRCodeSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.qr_code.url)
             return obj.qr_code.url
         return None
+
+
+class WebParsingRequestSerializer(serializers.ModelSerializer):
+    knowledge_block_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = WebParsingRequest
+        fields = [
+            'id',
+            'client',
+            'website_url',
+            'description',
+            'price',
+            'status',
+            'path_to_documents',
+            'knowledge_block',
+            'knowledge_block_name',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['client', 'created_at', 'updated_at', 'knowledge_block', 'knowledge_block_name']
+    
+    def get_knowledge_block_name(self, obj):
+        """Get knowledge block name"""
+        return obj.knowledge_block.name if obj.knowledge_block else None
+    
+    def validate(self, data):
+        """Client can only set website_url and description"""
+        # If user is not admin, restrict fields
+        request = self.context.get('request')
+        if request and not (request.user.is_superuser or getattr(request.user, 'is_staff', False)):
+            # Remove admin-only fields
+            data.pop('price', None)
+            data.pop('status', None)
+            data.pop('path_to_documents', None)
+        return data
 
