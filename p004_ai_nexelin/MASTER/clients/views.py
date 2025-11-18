@@ -999,9 +999,18 @@ class ClientConversationDetailView(APIView):
             else:
                 timestamp_display = conversation.started_at.strftime('%Y-%m-%d')
             
-            customer_name = conversation.customer_phone
-            if len(customer_name) > 10:
-                customer_name = f"+{customer_name[-9:]}" if customer_name.startswith('+') else customer_name[-9:]
+            # Визначаємо source на основі context_metadata
+            source = 'whatsapp'
+            if conversation.context_metadata and conversation.context_metadata.get('platform') == 'web':
+                source = 'web'
+            
+            # Форматуємо ім'я клієнта
+            if source == 'web':
+                customer_name = 'Web Chat'
+            else:
+                customer_name = conversation.customer_phone
+                if len(customer_name) > 10:
+                    customer_name = f"+{customer_name[-9:]}" if customer_name.startswith('+') else customer_name[-9:]
             
             return Response({
                 'id': conversation.id,
@@ -1014,7 +1023,7 @@ class ClientConversationDetailView(APIView):
                 'total_messages': conversation.total_messages,
                 'qr_code_name': conversation.qr_code.name if conversation.qr_code else None,
                 'messages': messages,
-                'source': 'whatsapp'
+                'source': source
             })
             
         except ClientWhatsAppConversation.DoesNotExist:
