@@ -285,3 +285,101 @@ def regenerate_qrs_for_client_task(self, client_id: int) -> Dict[str, Any]:
             logger.error(error_msg, exc_info=True)
             return {"status": "error", "message": error_msg}
 
+
+@shared_task(bind=True, max_retries=3)
+def process_web_parsing_request(self, parsing_request_id: int) -> Dict[str, Any]:
+    """
+    Process web parsing request: download documents and create knowledge block.
+    
+    Args:
+        parsing_request_id: ID of WebParsingRequest
+        
+    Returns:
+        Dict with operation result
+    """
+    from MASTER.clients.models import WebParsingRequest, KnowledgeBlock, ClientDocument
+    import requests
+    import os
+    from urllib.parse import urljoin, urlparse
+    from django.core.files.base import ContentFile
+    from django.core.files.storage import default_storage
+    
+    try:
+        parsing_request = WebParsingRequest.objects.select_related('client').get(id=parsing_request_id)
+        
+        if parsing_request.status != WebParsingRequest.STATUS_COMPLETED:
+            return {"status": "skipped", "message": "Request is not completed"}
+        
+        if not parsing_request.path_to_documents:
+            return {"status": "error", "message": "Path to documents is not set"}
+        
+        if parsing_request.knowledge_block:
+            return {"status": "skipped", "message": "Knowledge block already created"}
+        
+        # Parse path_to_documents (format: "https://server.com/path/to/documents" or "/path/to/documents")
+        path = parsing_request.path_to_documents.strip()
+        
+        # Extract website name from URL for knowledge block name
+        from urllib.parse import urlparse
+        parsed_url = urlparse(parsing_request.website_url)
+        website_name = parsed_url.netloc.replace('www.', '') if parsed_url.netloc else 'Website'
+        
+        # Create knowledge block
+        knowledge_block, created = KnowledgeBlock.objects.get_or_create(
+            client=parsing_request.client,
+            name=website_name,
+            defaults={
+                'description': f"Knowledge extracted from {parsing_request.website_url}",
+                'is_active': True,
+                'is_permanent': False,
+            }
+        )
+        
+        if not created:
+            # If block exists, update description
+            knowledge_block.description = f"Knowledge extracted from {parsing_request.website_url}"
+            knowledge_block.save(update_fields=['description'])
+        
+        # Link knowledge block to parsing request
+        parsing_request.knowledge_block = knowledge_block
+        parsing_request.save(update_fields=['knowledge_block'])
+        
+        # Download files from path_to_documents
+        # For now, we'll create a placeholder document
+        # In production, you would:
+        # 1. List files in the directory (via API or file system)
+        # 2. Download each file
+        # 3. Create ClientDocument for each
+        
+        # Example: Create a document with metadata about the parsing
+        # In real implementation, you would download actual files
+        logger.info(f"Processing web parsing request {parsing_request_id} for {parsing_request.website_url}")
+        logger.info(f"Path to documents: {path}")
+        logger.info(f"Created knowledge block: {knowledge_block.name} (ID: {knowledge_block.id})")
+        
+        # TODO: Implement actual file downloading from path_to_documents
+        # This would involve:
+        # - Connecting to the server (FTP, SFTP, HTTP, etc.)
+        # - Listing files in the directory
+        # - Downloading each file
+        # - Creating ClientDocument for each file
+        
+        return {
+            "status": "success",
+            "knowledge_block_id": knowledge_block.id,
+            "knowledge_block_name": knowledge_block.name,
+            "message": f"Knowledge block '{knowledge_block.name}' created. Files need to be downloaded manually or via separate process."
+        }
+        
+    except WebParsingRequest.DoesNotExist:
+        error_msg = f"WebParsingRequest with id={parsing_request_id} does not exist"
+        logger.error(error_msg)
+        return {"status": "error", "message": error_msg}
+    
+    except Exception as e:
+        error_msg = f"Failed to process web parsing request {parsing_request_id}: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        
+        # Retry if possible
+        raise self.retry(exc=e, countdown=60)
+

@@ -7,13 +7,14 @@ from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from MASTER.clients.models import Client, ClientDocument, ClientAPIKey, ClientAPIConfig, KnowledgeBlock, ClientQRCode, ClientWhatsAppConversation
+from MASTER.clients.models import Client, ClientDocument, ClientAPIKey, ClientAPIConfig, KnowledgeBlock, ClientQRCode, ClientWhatsAppConversation, WebParsingRequest
 from MASTER.clients.serializers import (
     ClientSerializer,
     ClientDocumentSerializer,
     ClientAPIKeySerializer,
     KnowledgeBlockSerializer,
     ClientQRCodeSerializer,
+    WebParsingRequestSerializer,
 )
 from MASTER.clients.permissions import IsAdminOrReadOnly, IsClientOwner
 from django.views.decorators.http import require_POST
@@ -845,11 +846,19 @@ class ClientConversationsView(APIView):
             else:
                 timestamp = conv.started_at.strftime('%Y-%m-%d')
             
+            # Визначаємо source на основі context_metadata
+            source = 'whatsapp'
+            if conv.context_metadata and conv.context_metadata.get('platform') == 'web':
+                source = 'web'
+            
             # Форматуємо номер телефону як ім'я
-            customer_name = conv.customer_phone
-            if len(customer_name) > 10:
-                # Спрощуємо номер для відображення
-                customer_name = f"+{customer_name[-9:]}" if customer_name.startswith('+') else customer_name[-9:]
+            if source == 'web':
+                customer_name = 'Web Chat'
+            else:
+                customer_name = conv.customer_phone
+                if len(customer_name) > 10:
+                    # Спрощуємо номер для відображення
+                    customer_name = f"+{customer_name[-9:]}" if customer_name.startswith('+') else customer_name[-9:]
             
             conversations_list.append({
                 'id': conv.id,
@@ -863,7 +872,7 @@ class ClientConversationsView(APIView):
                 'is_active': conv.is_active,
                 'total_messages': conv.total_messages,
                 'qr_code_name': conv.qr_code.name if conv.qr_code else None,
-                'source': 'whatsapp'
+                'source': source
             })
         
         # Додаємо RestaurantConversation (backward compatibility)
@@ -1054,6 +1063,83 @@ class ClientConversationDetailView(APIView):
                     {'error': 'Conversation not found'},
                     status=status.HTTP_404_NOT_FOUND
                 )
+
+
+class ClientWebConversationView(APIView):
+    """
+    API endpoint для збереження web розмов
+    POST /api/clients/web-conversations/
+    Body: { "session_id": "...", "message": "...", "response": "...", "platform": "web" }
+    """
+    permission_classes = []
+    
+    def post(self, request):
+        """Зберегти повідомлення web розмови"""
+        from django.utils import timezone
+        
+        client = get_client_from_request(request)
+        if not client:
+            return Response(
+                {'error': 'Client not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        session_id = request.data.get('session_id', '')
+        message = request.data.get('message', '')
+        response_text = request.data.get('response', '')
+        platform = request.data.get('platform', 'web')
+        
+        if not session_id:
+            return Response(
+                {'error': 'session_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Створюємо або оновлюємо розмову
+        # Використовуємо session_id як customer_phone для web розмов
+        conversation, created = ClientWhatsAppConversation.objects.get_or_create(
+            session_id=session_id,
+            client=client,
+            is_active=True,
+            defaults={
+                'customer_phone': f'web_{session_id}',
+                'started_at': timezone.now(),
+                'messages': [],
+                'context_metadata': {'platform': platform},
+            }
+        )
+        
+        # Оновлюємо platform в context_metadata якщо не створено
+        if not created:
+            if not conversation.context_metadata:
+                conversation.context_metadata = {}
+            conversation.context_metadata['platform'] = platform
+            conversation.save(update_fields=['context_metadata', 'updated_at'])
+        
+        # Додаємо повідомлення користувача та відповідь
+        if not conversation.messages:
+            conversation.messages = []
+        
+        conversation.messages.append({
+            'role': 'user',
+            'content': message,
+            'timestamp': timezone.now().isoformat()
+        })
+        
+        conversation.messages.append({
+            'role': 'assistant',
+            'content': response_text,
+            'timestamp': timezone.now().isoformat()
+        })
+        
+        conversation.total_messages = len(conversation.messages)
+        conversation.save(update_fields=['messages', 'total_messages', 'updated_at'])
+        
+        return Response({
+            'success': True,
+            'conversation_id': conversation.id,
+            'total_messages': conversation.total_messages
+        })
 
 
 class ClientTopQuestionsView(APIView):
@@ -1796,3 +1882,41 @@ def list_clients_extended(request):
         })
     
     return Response({'results': results})
+
+
+class WebParsingRequestViewSet(viewsets.ModelViewSet):
+    """API for web parsing requests"""
+    serializer_class = WebParsingRequestSerializer
+    permission_classes = []  # Allow access without JWT, check in methods
+    
+    def get_client_from_request_or_api_key(self):
+        """Get client from JWT or API key"""
+        client = get_client_from_request(self.request)
+        
+        if not client and 'HTTP_X_API_KEY' in self.request.META:
+            api_key = self.request.META['HTTP_X_API_KEY']
+            try:
+                key_obj = ClientAPIKey.objects.select_related('client').get(
+                    key=api_key,
+                    is_active=True
+                )
+                if key_obj.is_valid():
+                    client = key_obj.client
+            except ClientAPIKey.DoesNotExist:
+                pass
+        
+        return client
+    
+    def get_queryset(self):
+        """Return only requests for current client"""
+        client = self.get_client_from_request_or_api_key()
+        if not client:
+            return WebParsingRequest.objects.none()
+        return WebParsingRequest.objects.filter(client=client).order_by('-created_at')
+    
+    def perform_create(self, serializer):
+        """Automatically set client from request"""
+        client = self.get_client_from_request_or_api_key()
+        if not client:
+            raise serializers.ValidationError("Client not found")
+        serializer.save(client=client)

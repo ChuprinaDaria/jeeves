@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.conf import settings
 from django.urls import reverse
-from .models import Client, ClientAPIKey, ClientDocument, ClientAPIConfig, ClientEmbedding, ClientZeroConfig, KnowledgeBlock
+from .models import Client, ClientAPIKey, ClientDocument, ClientAPIConfig, ClientEmbedding, ClientZeroConfig, KnowledgeBlock, WebParsingRequest
 from django.shortcuts import render
 from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from django.contrib import messages
@@ -495,3 +495,51 @@ class KnowledgeBlockAdmin(admin.ModelAdmin):
         except Exception:
             pretty = str(obj.metadata)
         return format_html('<pre style="max-height:400px; overflow:auto;">{}</pre>', pretty)
+
+@admin.register(WebParsingRequest)
+class WebParsingRequestAdmin(admin.ModelAdmin):
+    list_display = ['website_url', 'client', 'status', 'price', 'knowledge_block', 'created_at']
+    list_filter = ['status', 'created_at', 'client']
+    search_fields = ['website_url', 'description', 'client__company_name', 'client__user']
+    ordering = ['-created_at']
+    readonly_fields = ['created_at', 'updated_at', 'knowledge_block_link']
+    
+    fieldsets = (
+        ('Client Information', {
+            'fields': ('client', 'website_url', 'description')
+        }),
+        ('Admin Only', {
+            'fields': ('price', 'status', 'path_to_documents'),
+            'description': 'These fields are only visible to administrators'
+        }),
+        ('Results', {
+            'fields': ('knowledge_block', 'knowledge_block_link'),
+            'classes': ('collapse',)
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_readonly_fields(self, request, obj=None):
+        """Make client-provided fields readonly for non-admins"""
+        readonly = list(self.readonly_fields)
+        if not request.user.is_superuser:
+            readonly.extend(['price', 'status', 'path_to_documents'])
+        return readonly
+    
+    def get_fieldsets(self, request, obj=None):
+        """Hide admin-only fields for non-admins"""
+        fieldsets = list(self.fieldsets)
+        if not request.user.is_superuser:
+            # Remove admin-only fieldset
+            fieldsets = [fs for fs in fieldsets if fs[0] != 'Admin Only']
+        return fieldsets
+    
+    @admin.display(description='Knowledge Block')
+    def knowledge_block_link(self, obj):
+        if obj.knowledge_block:
+            url = reverse('admin:clients_knowledgeblock_change', args=[obj.knowledge_block.id])
+            return format_html('<a href="{}">{}</a>', url, obj.knowledge_block.name)
+        return '-'
