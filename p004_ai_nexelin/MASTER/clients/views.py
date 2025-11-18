@@ -1138,13 +1138,17 @@ class ClientWebConversationView(APIView):
             )
         
         # Створюємо або оновлюємо розмову
-        # Використовуємо session_id як customer_phone для web розмов
+        # Використовуємо session_id для пошуку, але коротку версію для customer_phone (макс 20 символів)
+        # customer_phone для веб: "web_" + останні 16 символів session_id = 20 символів макс
+        short_phone = f"web_{session_id[-16:]}" if len(session_id) > 16 else f"web_{session_id}"
+        short_phone = short_phone[:20]  # Гарантуємо макс 20 символів
+        
         conversation, created = ClientWhatsAppConversation.objects.get_or_create(
             session_id=session_id,
             client=client,
             is_active=True,
             defaults={
-                'customer_phone': f'web_{session_id}',
+                'customer_phone': short_phone,
                 'started_at': timezone.now(),
                 'messages': [],
                 'context_metadata': {'platform': platform},
