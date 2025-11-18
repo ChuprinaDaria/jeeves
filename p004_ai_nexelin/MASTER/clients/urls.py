@@ -11,6 +11,7 @@ urlpatterns = [
     path('conversations/', views.ClientConversationsView.as_view(), name='client-conversations'),
     path('conversations/<int:conversation_id>/', views.ClientConversationDetailView.as_view(), name='client-conversation-detail'),
     path('web-conversations/', views.ClientWebConversationView.as_view(), name='client-web-conversations'),
+    path('web-knowledge/', views.ClientWebKnowledgeView.as_view(), name='client-web-knowledge'),
     path('top-questions/', views.ClientTopQuestionsView.as_view(), name='client-top-questions'),
     path('recent-activity/', views.ClientRecentActivityView.as_view(), name='client-recent-activity'),
     path('stats/', views.ClientStatsView.as_view(), name='client-stats'),

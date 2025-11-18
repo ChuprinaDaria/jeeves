@@ -683,7 +683,7 @@ class ClientQRCode(models.Model):
     # Integration type: 'whatsapp' or 'web'
     integration_type = models.CharField(
         max_length=20,
-        default='whatsapp',
+        default='web',
         choices=[
             ('whatsapp', 'WhatsApp'),
             ('web', 'Web Chat'),

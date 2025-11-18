@@ -50,7 +50,16 @@ def get_client_from_request(request):
                 client = Client.objects.get(tag=token, is_active=True)
                 return client
             except Client.DoesNotExist:
-                pass
+                # Якщо це не tag клієнта, пробуємо інтерпретувати як API key
+                try:
+                    key_obj = ClientAPIKey.objects.select_related('client').get(
+                        key=token,
+                        is_active=True
+                    )
+                    if key_obj.is_valid():
+                        return key_obj.client
+                except ClientAPIKey.DoesNotExist:
+                    pass
         # 2) Параметри запиту ?tag= або ?client_token=
         params = getattr(request, 'query_params', None) or getattr(request, 'GET', None)
         tag = None
@@ -67,7 +76,16 @@ def get_client_from_request(request):
                 client = Client.objects.get(tag=tag, is_active=True)
                 return client
             except Client.DoesNotExist:
-                pass
+                # Якщо це не tag клієнта, пробуємо інтерпретувати як API key
+                try:
+                    key_obj = ClientAPIKey.objects.select_related('client').get(
+                        key=tag,
+                        is_active=True
+                    )
+                    if key_obj.is_valid():
+                        return key_obj.client
+                except ClientAPIKey.DoesNotExist:
+                    pass
     except Exception:
         # Не ламаємо потік при будь-яких помилках
         pass
@@ -1140,6 +1158,49 @@ class ClientWebConversationView(APIView):
             'conversation_id': conversation.id,
             'total_messages': conversation.total_messages
         })
+
+
+class ClientWebKnowledgeView(APIView):
+    """
+    Legacy API endpoint для створення запитів на парсинг веб-сайтів.
+    POST /api/clients/web-knowledge/
+    Body: { "url": "...", "description": "..." }
+    Проксі до WebParsingRequest (новий функціонал).
+    """
+    permission_classes = []  # Ідентифікація через tag / X-Client-Token / X-API-Key
+
+    def post(self, request):
+        from MASTER.clients.models import WebParsingRequest
+
+        client = get_client_from_request(request)
+        if not client:
+            return Response(
+                {'error': 'Client not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        url = request.data.get('url') or request.data.get('website_url')
+        description = request.data.get('description', '') or ''
+
+        if not url:
+            return Response(
+                {'error': 'url is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        request_obj = WebParsingRequest.objects.create(
+            client=client,
+            website_url=url,
+            description=description.strip()
+        )
+
+        return Response({
+            'id': request_obj.id,
+            'website_url': request_obj.website_url,
+            'description': request_obj.description,
+            'status': request_obj.status,
+            'created_at': request_obj.created_at.isoformat(),
+        }, status=status.HTTP_201_CREATED)
 
 
 class ClientTopQuestionsView(APIView):
