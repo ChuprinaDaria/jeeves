@@ -1381,3 +1381,100 @@ class SaveSandboxQAView(APIView):
             logger = logging.getLogger(__name__)
             logger.error(f"Error saving Q&A: {e}")
             return Response({'error': f'Failed to save Q&A: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class SaveSandboxPhotoView(APIView):
+    """Save photo with AI analysis from sandbox to knowledge base."""
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        from MASTER.clients.views import get_client_from_request
+        from MASTER.clients.models import KnowledgeBlock, ClientDocument
+        import hashlib
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        client = get_client_from_request(request)
+        if client is None:
+            return Response({'error': 'Client not found or unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        # Отримуємо файл та опис від AI
+        photo = request.FILES.get('photo')
+        description = request.data.get('description', '').strip()
+        
+        if not photo:
+            return Response({'error': 'photo is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not description:
+            return Response({'error': 'description is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Знайти або створити knowledge block "Photos"
+            knowledge_block, created = KnowledgeBlock.objects.get_or_create(
+                client=client,
+                name='Photos',
+                defaults={
+                    'description': 'Photos with AI analysis from sandbox',
+                    'is_active': True,
+                    'is_permanent': False,
+                }
+            )
+            
+            # Створити унікальну назву для фото
+            file_hash = hashlib.md5(photo.read()).hexdigest()[:8]
+            photo.seek(0)  # Повернути вказівник після читання
+            
+            # Визначити розширення файлу
+            original_name = photo.name
+            file_ext = original_name.split('.')[-1] if '.' in original_name else 'jpg'
+            
+            # Створити назву з описом
+            short_desc = description[:50] + '...' if len(description) > 50 else description
+            title = f"Photo: {short_desc}"
+            
+            # Створити ClientDocument
+            document = ClientDocument.objects.create(
+                client=client,
+                knowledge_block=knowledge_block,
+                title=title,
+                file=photo,
+                file_type=file_ext,
+                file_size=photo.size,
+                is_processed=False,
+                metadata={
+                    'source': 'sandbox_photo',
+                    'ai_description': description,
+                    'file_hash': file_hash,
+                    'created_from': 'photo_upload_test'
+                }
+            )
+            
+            # Запустити індексацію нових документів
+            from MASTER.EmbeddingModel.tasks import index_new_client_documents_task
+            client_pk = getattr(client, 'pk', None) or getattr(client, 'id', None)
+            if client_pk:
+                task_result = index_new_client_documents_task.delay(int(client_pk))
+                task_id = task_result.id
+            else:
+                task_id = None
+            
+            return Response({
+                'success': True,
+                'message': 'Photo saved to knowledge base and indexing started',
+                'knowledge_block': {
+                    'id': knowledge_block.id,
+                    'name': knowledge_block.name,
+                    'created': created,
+                },
+                'document': {
+                    'id': document.id,
+                    'title': document.title,
+                    'file_size': document.file_size,
+                },
+                'task_id': task_id,
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            logger.error(f"Error saving photo: {e}")
+            return Response({'error': f'Failed to save photo: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

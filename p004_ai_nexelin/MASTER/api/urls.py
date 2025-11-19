@@ -32,4 +32,6 @@ urlpatterns = [
     path('model-pairs/', views.ModelPairsView.as_view(), name='model-pairs'),
     # Save Q&A from sandbox
     path('sandbox/save-qa/', views.SaveSandboxQAView.as_view(), name='sandbox-save-qa'),
+    # Save photo from sandbox
+    path('sandbox/save-photo/', views.SaveSandboxPhotoView.as_view(), name='sandbox-save-photo'),
 ]
