@@ -138,50 +138,33 @@ class APIDocsView(APIView):
 class PublicRAGChatView(APIView):
     """Public RAG chat endpoint - доступний для всіх клієнтів.
 
-    Підтримує 2 типи авторизації:
+    Підтримує 3 типи авторизації:
     - JWT Bearer token (для клієнтського фронтенду)
+    - X-Client-Token header (для публічного доступу з tag)
     - X-API-Key header (для зовнішніх API)
 
-    Body JSON: { "message": "..." }
+    Body: multipart/form-data or JSON
+    - message (required): текст повідомлення
+    - image (optional): файл зображення для аналізу
+    
     Response: { "response": "...", "sources": [...], "num_chunks": N, "total_tokens": N }
     """
     permission_classes = [AllowAny]
 
     def post(self, request):
-        # Ідентифікація клієнта в порядку пріоритету:
-        # 1) JWT (якщо є)
-        # 2) X-Client-Token або ?tag= (посилання клієнта)
-        # 3) X-API-Key
-        client = None
-        if request.user and request.user.is_authenticated:
-            try:
-                from MASTER.clients.views import get_client_from_request
-                client = get_client_from_request(request)
-            except Exception:
-                client = None
-        if not client:
-            # Спроба знайти клієнта за X-Client-Token або ?tag=
-            try:
-                from MASTER.clients.views import get_client_from_request
-                client = get_client_from_request(request)
-            except Exception:
-                client = None
-        if not client:
-            # Fallback: X-API-Key
-            api_key = request.headers.get('X-API-Key')
-            if api_key:
-                try:
-                    key_obj = ClientAPIKey.objects.get(key=api_key, is_active=True)
-                    if key_obj.is_valid():
-                        client = key_obj.client
-                except ClientAPIKey.DoesNotExist:
-                    pass
+        # Ідентифікація клієнта (підтримує X-Client-Token)
+        from MASTER.clients.views import get_client_from_request
+        client = get_client_from_request(request)
+        
         if not client:
             return Response({'error': 'Authentication required (tag link, JWT, or API key)'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        message = request.data.get('message', '')
-        if not message:
-            return Response({'error': 'message is required'}, status=status.HTTP_400_BAD_REQUEST)
+        # Підтримка і JSON і multipart/form-data
+        message = request.data.get('message', '') or request.POST.get('message', '')
+        image_file = request.FILES.get('image') or request.FILES.get('photo')
+        
+        if not message and not image_file:
+            return Response({'error': 'message or image is required'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Мова: підтримуємо явний набір для UX: it, nl, de, en, fr + ru (тільки якщо справді вказана/прийшла)
         # 1) language з body (якщо є)
@@ -209,6 +192,25 @@ class PublicRAGChatView(APIView):
                 # Інші мови мапимо на англійську як дефолт
                 language = 'en'
 
+        # Якщо є зображення — аналізуємо його за допомогою vision моделі
+        image_analysis = ''
+        if image_file:
+            try:
+                image_analysis = self._analyze_image(image_file, message, language, client)
+                # Якщо немає текстового повідомлення, використовуємо аналіз зображення як запит
+                if not message:
+                    message = image_analysis
+                else:
+                    # Якщо є і текст і зображення, об'єднуємо
+                    message = f"{message}\n\n[Image analysis: {image_analysis}]"
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Image analysis error: {e}")
+                # Якщо аналіз не вдався, але є текстове повідомлення, продовжуємо
+                if not message:
+                    return Response({'error': f'Image analysis failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         # Використовуємо клієнта для пошуку в його даних + даних бранча та спеціалізації
         generator = ResponseGenerator()
 
@@ -234,7 +236,61 @@ class PublicRAGChatView(APIView):
             'num_chunks': getattr(rag_response, 'num_chunks', 0),
             'total_tokens': getattr(rag_response, 'total_tokens', 0),
             'language': language,
+            'image_analysis': image_analysis if image_analysis else None,
         })
+    
+    def _analyze_image(self, image_file, message, language, client):
+        """Аналізує зображення за допомогою vision моделі клієнта або OpenAI."""
+        import base64
+        from openai import OpenAI
+        
+        # Читаємо зображення і конвертуємо в base64
+        image_data = image_file.read()
+        base64_image = base64.b64encode(image_data).decode('utf-8')
+        
+        # Визначаємо MIME type
+        content_type = getattr(image_file, 'content_type', 'image/jpeg')
+        if not content_type.startswith('image/'):
+            content_type = 'image/jpeg'
+        
+        # Використовуємо OpenAI Vision API
+        # TODO: В майбутньому можна додати підтримку інших vision провайдерів
+        openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        
+        # Формуємо промпт залежно від мови
+        vision_prompt = message if message else "Describe what you see in this image in detail."
+        if language == 'ru':
+            vision_prompt = message if message else "Опиши детально, что ты видишь на этом изображении."
+        elif language == 'de':
+            vision_prompt = message if message else "Beschreibe detailliert, was du auf diesem Bild siehst."
+        elif language == 'fr':
+            vision_prompt = message if message else "Décris en détail ce que tu vois sur cette image."
+        elif language == 'it':
+            vision_prompt = message if message else "Descrivi in dettaglio cosa vedi in questa immagine."
+        elif language == 'nl':
+            vision_prompt = message if message else "Beschrijf gedetailleerd wat je op deze afbeelding ziet."
+        
+        # Викликаємо vision API
+        response = openai_client.chat.completions.create(
+            model="gpt-4o",  # gpt-4o підтримує vision
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": vision_prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{content_type};base64,{base64_image}"
+                            }
+                        }
+                    ]
+                }
+            ],
+            max_tokens=500
+        )
+        
+        return response.choices[0].message.content
 
 
 class TokenByClientTokenView(APIView):
@@ -1231,3 +1287,97 @@ class ClientLLMProviderSetView(APIView):
             },
             'message': 'LLM provider updated successfully.'
         })
+
+
+class SaveSandboxQAView(APIView):
+    """Save Q&A pair from sandbox to knowledge base."""
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        from MASTER.clients.views import get_client_from_request
+        from MASTER.clients.models import KnowledgeBlock, ClientDocument
+        from django.core.files.base import ContentFile
+        import os
+        import hashlib
+        
+        client = get_client_from_request(request)
+        if client is None:
+            return Response({'error': 'Client not found or unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        data = request.data or {}
+        question = data.get('question', '').strip()
+        answer = data.get('answer', '').strip()
+        
+        if not question or not answer:
+            return Response({'error': 'question and answer are required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Знайти або створити knowledge block "Sandbox"
+            knowledge_block, created = KnowledgeBlock.objects.get_or_create(
+                client=client,
+                name='Sandbox',
+                defaults={
+                    'description': 'Q&A pairs saved from sandbox chat',
+                    'is_active': True,
+                    'is_permanent': False,
+                }
+            )
+            
+            # Створити текстовий вміст Q&A
+            qa_content = f"Question: {question}\n\nAnswer: {answer}\n"
+            
+            # Створити унікальну назву файлу на основі хешу питання
+            question_hash = hashlib.md5(question.encode()).hexdigest()[:8]
+            filename = f"sandbox_qa_{question_hash}.txt"
+            title = f"Q&A: {question[:50]}..." if len(question) > 50 else f"Q&A: {question}"
+            
+            # Створити ContentFile
+            content_file = ContentFile(qa_content.encode('utf-8'))
+            content_file.name = filename
+            
+            # Створити ClientDocument
+            document = ClientDocument.objects.create(
+                client=client,
+                knowledge_block=knowledge_block,
+                title=title,
+                file=content_file,
+                file_type='txt',
+                file_size=len(qa_content.encode('utf-8')),
+                is_processed=False,
+                metadata={
+                    'source': 'sandbox',
+                    'question': question,
+                    'answer': answer,
+                    'created_from': 'chat'
+                }
+            )
+            
+            # Запустити індексацію нових документів
+            from MASTER.EmbeddingModel.tasks import index_new_client_documents_task
+            client_pk = getattr(client, 'pk', None) or getattr(client, 'id', None)
+            if client_pk:
+                task_result = index_new_client_documents_task.delay(int(client_pk))
+                task_id = task_result.id
+            else:
+                task_id = None
+            
+            return Response({
+                'success': True,
+                'message': 'Q&A saved to knowledge base',
+                'knowledge_block': {
+                    'id': knowledge_block.id,
+                    'name': knowledge_block.name,
+                    'created': created,
+                },
+                'document': {
+                    'id': document.id,
+                    'title': document.title,
+                },
+                'task_id': task_id,
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error saving Q&A: {e}")
+            return Response({'error': f'Failed to save Q&A: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

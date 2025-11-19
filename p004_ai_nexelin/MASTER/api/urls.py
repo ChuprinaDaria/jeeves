@@ -30,4 +30,6 @@ urlpatterns = [
     path('client/llm-provider/', views.ClientLLMProviderSetView.as_view(), name='client-llm-provider-set'),
     # Model Pairs endpoint
     path('model-pairs/', views.ModelPairsView.as_view(), name='model-pairs'),
+    # Save Q&A from sandbox
+    path('sandbox/save-qa/', views.SaveSandboxQAView.as_view(), name='sandbox-save-qa'),
 ]
