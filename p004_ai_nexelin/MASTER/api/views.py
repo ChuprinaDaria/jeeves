@@ -1383,6 +1383,47 @@ class SaveSandboxQAView(APIView):
             return Response({'error': f'Failed to save Q&A: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class WebChatManifestView(APIView):
+    """Generate dynamic PWA manifest for webchat based on tag."""
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        tag = request.GET.get('tag', '')
+        
+        if not tag:
+            return Response({'error': 'tag parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        manifest = {
+            "name": "AI Chat Assistant",
+            "short_name": "AI Chat",
+            "description": "Chat with your AI assistant",
+            "start_url": f"/l?tag={tag}",
+            "scope": "/l",
+            "display": "standalone",
+            "background_color": "#ffffff",
+            "theme_color": "#4F46E5",
+            "orientation": "portrait-primary",
+            "icons": [
+                {
+                    "src": "/logo/logo.svg",
+                    "sizes": "any",
+                    "type": "image/svg+xml",
+                    "purpose": "any maskable"
+                },
+                {
+                    "src": "/icon.svg",
+                    "sizes": "512x512",
+                    "type": "image/svg+xml",
+                    "purpose": "any maskable"
+                }
+            ],
+            "categories": ["productivity", "social"],
+            "lang": "en"
+        }
+        
+        return Response(manifest, content_type='application/manifest+json')
+
+
 class SaveSandboxPhotoView(APIView):
     """Save photo with AI analysis from sandbox to knowledge base."""
     permission_classes = [AllowAny]

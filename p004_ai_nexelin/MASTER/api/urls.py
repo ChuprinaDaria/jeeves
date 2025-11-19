@@ -34,4 +34,6 @@ urlpatterns = [
     path('sandbox/save-qa/', views.SaveSandboxQAView.as_view(), name='sandbox-save-qa'),
     # Save photo from sandbox
     path('sandbox/save-photo/', views.SaveSandboxPhotoView.as_view(), name='sandbox-save-photo'),
+    # Dynamic manifest for webchat PWA
+    path('webchat/manifest.json', views.WebChatManifestView.as_view(), name='webchat-manifest'),
 ]
