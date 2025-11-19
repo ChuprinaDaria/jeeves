@@ -869,16 +869,41 @@ def stt_demo(request):
         stt_model = getattr(settings, 'STT_MODEL', 'gpt-4o-transcribe')
 
         # Деякі формати (webm/opus) краще подавати як файловий дескриптор
-        suffix = ''
+        # OpenAI підтримує: mp3, mp4, mpeg, mpga, m4a, wav, webm, ogg, opus, flac
+        suffix = '.mp3'  # default fallback
         name_lower = (getattr(audio, 'name', '') or '').lower()
+        
+        # Визначаємо розширення на основі імені файлу
         if name_lower.endswith('.webm'):
             suffix = '.webm'
         elif name_lower.endswith('.mp3'):
             suffix = '.mp3'
         elif name_lower.endswith('.wav'):
             suffix = '.wav'
+        elif name_lower.endswith('.m4a'):
+            suffix = '.m4a'
+        elif name_lower.endswith('.mp4'):
+            suffix = '.mp4'
+        elif name_lower.endswith('.mpeg') or name_lower.endswith('.mpga'):
+            suffix = '.mpeg'
+        elif name_lower.endswith('.ogg'):
+            suffix = '.ogg'
+        elif name_lower.endswith('.opus'):
+            suffix = '.opus'
+        elif name_lower.endswith('.flac'):
+            suffix = '.flac'
         else:
-            suffix = '.bin'
+            # Якщо не знайдено розширення, спробуємо визначити по content_type
+            content_type = getattr(audio, 'content_type', '') or ''
+            if 'webm' in content_type:
+                suffix = '.webm'
+            elif 'mp4' in content_type or 'm4a' in content_type:
+                suffix = '.m4a'
+            elif 'ogg' in content_type or 'opus' in content_type:
+                suffix = '.ogg'
+            elif 'mpeg' in content_type or 'mp3' in content_type:
+                suffix = '.mp3'
+            # else: залишаємо .mp3 як default
 
         with NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             for chunk in audio.chunks():
