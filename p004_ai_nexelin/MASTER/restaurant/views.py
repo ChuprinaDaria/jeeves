@@ -866,7 +866,8 @@ def stt_demo(request):
         import os
         from tempfile import NamedTemporaryFile
         openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        stt_model = getattr(settings, 'STT_MODEL', 'gpt-4o-transcribe')
+        # Використовуємо whisper-1 як дефолтну модель STT, вона стабільно підтримує webm/ogg/opus
+        stt_model = getattr(settings, 'STT_MODEL', 'whisper-1')
 
         # Деякі формати (webm/opus) краще подавати як файловий дескриптор
         # OpenAI підтримує: mp3, mp4, mpeg, mpga, m4a, wav, webm, ogg, opus, flac
@@ -889,7 +890,8 @@ def stt_demo(request):
         elif name_lower.endswith('.ogg'):
             suffix = '.ogg'
         elif name_lower.endswith('.opus'):
-            suffix = '.opus'
+            # OpenAI не приймає розширення .opus напряму, мапимо на .ogg
+            suffix = '.ogg'
         elif name_lower.endswith('.flac'):
             suffix = '.flac'
         else:
@@ -900,6 +902,7 @@ def stt_demo(request):
             elif 'mp4' in content_type or 'm4a' in content_type:
                 suffix = '.m4a'
             elif 'ogg' in content_type or 'opus' in content_type:
+                # Для потоків з codec=opus використовуємо .ogg, який підтримує OpenAI
                 suffix = '.ogg'
             elif 'mpeg' in content_type or 'mp3' in content_type:
                 suffix = '.mp3'
