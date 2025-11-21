@@ -64,6 +64,9 @@ CSRF_TRUSTED_ORIGINS = [
     "https://app.nexelin.com",  # Production фронтенд
     "https://mg.nexelin.com",
     "http://mg.nexelin.com",
+    # White-label domains
+    "https://ai.bytekraft.net",
+    "https://ai.bytekraft.net",
     # FTP хостинг для фронтенду (backup)
     "http://w020c360.kasserver.com",
     "https://w020c360.kasserver.com",
@@ -370,3 +373,7 @@ CORS_ALLOW_METHODS = [
     'POST',
     'PUT',
 ]
+
+# White-label domain support
+ALLOWED_HOSTS.append('*')  # Accept all domains for white-label clients
+
