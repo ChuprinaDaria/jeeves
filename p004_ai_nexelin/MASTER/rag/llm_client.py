@@ -135,6 +135,12 @@ class LLMClient:
                 raise ValueError("OPENAI_API_KEY is not configured")
             return OpenAILLMProvider(model_name=model_name, api_key=api_key)
         
+        if provider_name == "anthropic":
+            api_key = getattr(settings, "ANTHROPIC_API_KEY", "").strip()
+            if not api_key:
+                raise ValueError("ANTHROPIC_API_KEY is not configured")
+            return AnthropicLLMProvider(api_key=api_key, model_name=model_name)
+        
         raise ValueError(f"Unsupported LLM provider: {provider_name}")
     
     def generate_response(
@@ -177,7 +183,10 @@ class LLMClient:
         # Для початку просто додаємо універсальну інструкцію
         language_instruction = "\n\nIMPORTANT: Always respond in the same language as the user's question. Detect the language automatically."
         
-        enhanced_system_prompt = system_prompt + language_instruction
+        # Додаємо інструкцію не використовувати markdown
+        no_markdown_instruction = "\n\nCRITICAL: Do NOT use markdown formatting in your response. Write plain text only. Do not use **bold**, *italic*, `code blocks`, # headers, - lists, or any other markdown syntax. Use only plain text."
+        
+        enhanced_system_prompt = system_prompt + language_instruction + no_markdown_instruction
         
         messages: list[ChatCompletionMessageParam] = cast(
             list[ChatCompletionMessageParam],
@@ -196,7 +205,7 @@ class LLMClient:
         # Call provider (non-streaming unified path) з fallback з main -> light
         provider = self._get_provider(client)
         msg_list = [
-            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": enhanced_system_prompt},
             {"role": "user", "content": f"{context}\n\n=== USER QUESTION ===\n{user_query}"},
         ]
 
