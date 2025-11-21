@@ -1287,6 +1287,15 @@ class ModelPairsView(APIView):
         if llm_type == 'openai' and emb_provider == 'openai':
             return True
         
+        # Anthropic LLM працює з OpenAI embeddings (оскільки Anthropic не має embedding моделей)
+        if llm_type == 'anthropic':
+            # Дозволяємо використовувати OpenAI embeddings з Claude
+            if emb_provider == 'openai':
+                return True
+            # Також дозволяємо Anthropic embeddings (коли з'являться)
+            if emb_provider == 'anthropic':
+                return True
+        
         # Ollama LLM + Ollama Embeddings
         if llm_type in ['ollama_main', 'ollama_light']:
             if emb_provider == 'ollama':

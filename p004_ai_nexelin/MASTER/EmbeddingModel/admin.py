@@ -227,7 +227,8 @@ class LLMProviderAdmin(admin.ModelAdmin):
     list_editable = ['is_active', 'is_default']
     readonly_fields = ('slug', 'created_at', 'updated_at')
     actions = [
-        'add_gpt_5_1', 'add_gpt_4o', 'add_gpt_4o_mini',
+        'add_gpt_5_1', 'add_gpt_4o', 'add_gpt_4o_mini', 'add_gpt_4_turbo', 'add_gpt_4', 
+        'add_gpt_3_5_turbo', 'add_gpt_3_5_turbo_16k', 'add_o1_preview', 'add_o1_mini',
         'add_claude_3_5_sonnet', 'add_claude_3_5_haiku', 'add_claude_3_sonnet', 
         'add_claude_3_haiku', 'add_claude_3_opus', 'add_claude_4'
     ]
@@ -329,6 +330,156 @@ class LLMProviderAdmin(admin.ModelAdmin):
             self.message_user(request, f'✅ GPT-4o Mini успішно додано!', level=messages.SUCCESS)
         else:
             self.message_user(request, f'⚠️ GPT-4o Mini вже існує', level=messages.WARNING)
+    
+    @admin.action(description='➕ Додати GPT-4 Turbo')
+    def add_gpt_4_turbo(self, request, queryset):
+        """Додати GPT-4 Turbo провайдер"""
+        provider, created = LLMProvider.objects.get_or_create(
+            slug='gpt-4-turbo',
+            defaults={
+                'name': 'GPT-4 Turbo',
+                'provider_type': 'openai',
+                'model_name': 'gpt-4-turbo',
+                'api_key': getattr(settings, 'OPENAI_API_KEY', '').strip() or '',
+                'max_tokens': 4096,
+                'temperature': 0.7,
+                'cost_per_1k_input_tokens': 0.01,
+                'cost_per_1k_output_tokens': 0.03,
+                'is_active': True,
+                'is_default': False,
+                'description': 'OpenAI GPT-4 Turbo - швидка версія GPT-4'
+            }
+        )
+        
+        if created:
+            self.message_user(request, f'✅ GPT-4 Turbo успішно додано!', level=messages.SUCCESS)
+        else:
+            self.message_user(request, f'⚠️ GPT-4 Turbo вже існує', level=messages.WARNING)
+    
+    @admin.action(description='➕ Додати GPT-4')
+    def add_gpt_4(self, request, queryset):
+        """Додати GPT-4 провайдер"""
+        provider, created = LLMProvider.objects.get_or_create(
+            slug='gpt-4',
+            defaults={
+                'name': 'GPT-4',
+                'provider_type': 'openai',
+                'model_name': 'gpt-4',
+                'api_key': getattr(settings, 'OPENAI_API_KEY', '').strip() or '',
+                'max_tokens': 4096,
+                'temperature': 0.7,
+                'cost_per_1k_input_tokens': 0.03,
+                'cost_per_1k_output_tokens': 0.06,
+                'is_active': True,
+                'is_default': False,
+                'description': 'OpenAI GPT-4 - класична потужна модель'
+            }
+        )
+        
+        if created:
+            self.message_user(request, f'✅ GPT-4 успішно додано!', level=messages.SUCCESS)
+        else:
+            self.message_user(request, f'⚠️ GPT-4 вже існує', level=messages.WARNING)
+    
+    @admin.action(description='➕ Додати GPT-3.5 Turbo')
+    def add_gpt_3_5_turbo(self, request, queryset):
+        """Додати GPT-3.5 Turbo провайдер"""
+        provider, created = LLMProvider.objects.get_or_create(
+            slug='gpt-3-5-turbo',
+            defaults={
+                'name': 'GPT-3.5 Turbo',
+                'provider_type': 'openai',
+                'model_name': 'gpt-3.5-turbo',
+                'api_key': getattr(settings, 'OPENAI_API_KEY', '').strip() or '',
+                'max_tokens': 4096,
+                'temperature': 0.7,
+                'cost_per_1k_input_tokens': 0.0005,
+                'cost_per_1k_output_tokens': 0.0015,
+                'is_active': True,
+                'is_default': False,
+                'description': 'OpenAI GPT-3.5 Turbo - економна та швидка модель'
+            }
+        )
+        
+        if created:
+            self.message_user(request, f'✅ GPT-3.5 Turbo успішно додано!', level=messages.SUCCESS)
+        else:
+            self.message_user(request, f'⚠️ GPT-3.5 Turbo вже існує', level=messages.WARNING)
+    
+    @admin.action(description='➕ Додати GPT-3.5 Turbo 16k')
+    def add_gpt_3_5_turbo_16k(self, request, queryset):
+        """Додати GPT-3.5 Turbo 16k провайдер"""
+        provider, created = LLMProvider.objects.get_or_create(
+            slug='gpt-3-5-turbo-16k',
+            defaults={
+                'name': 'GPT-3.5 Turbo 16k',
+                'provider_type': 'openai',
+                'model_name': 'gpt-3.5-turbo-16k',
+                'api_key': getattr(settings, 'OPENAI_API_KEY', '').strip() or '',
+                'max_tokens': 16384,
+                'temperature': 0.7,
+                'cost_per_1k_input_tokens': 0.003,
+                'cost_per_1k_output_tokens': 0.004,
+                'is_active': True,
+                'is_default': False,
+                'description': 'OpenAI GPT-3.5 Turbo 16k - версія з розширеним контекстом'
+            }
+        )
+        
+        if created:
+            self.message_user(request, f'✅ GPT-3.5 Turbo 16k успішно додано!', level=messages.SUCCESS)
+        else:
+            self.message_user(request, f'⚠️ GPT-3.5 Turbo 16k вже існує', level=messages.WARNING)
+    
+    @admin.action(description='➕ Додати o1-preview')
+    def add_o1_preview(self, request, queryset):
+        """Додати o1-preview провайдер"""
+        provider, created = LLMProvider.objects.get_or_create(
+            slug='o1-preview',
+            defaults={
+                'name': 'o1-preview',
+                'provider_type': 'openai',
+                'model_name': 'o1-preview',
+                'api_key': getattr(settings, 'OPENAI_API_KEY', '').strip() or '',
+                'max_tokens': 16384,
+                'temperature': 0.0,  # o1 моделі не підтримують temperature
+                'cost_per_1k_input_tokens': 0.015,
+                'cost_per_1k_output_tokens': 0.06,
+                'is_active': True,
+                'is_default': False,
+                'description': 'OpenAI o1-preview - модель з покращеним міркуванням'
+            }
+        )
+        
+        if created:
+            self.message_user(request, f'✅ o1-preview успішно додано!', level=messages.SUCCESS)
+        else:
+            self.message_user(request, f'⚠️ o1-preview вже існує', level=messages.WARNING)
+    
+    @admin.action(description='➕ Додати o1-mini')
+    def add_o1_mini(self, request, queryset):
+        """Додати o1-mini провайдер"""
+        provider, created = LLMProvider.objects.get_or_create(
+            slug='o1-mini',
+            defaults={
+                'name': 'o1-mini',
+                'provider_type': 'openai',
+                'model_name': 'o1-mini',
+                'api_key': getattr(settings, 'OPENAI_API_KEY', '').strip() or '',
+                'max_tokens': 16384,
+                'temperature': 0.0,  # o1 моделі не підтримують temperature
+                'cost_per_1k_input_tokens': 0.003,
+                'cost_per_1k_output_tokens': 0.012,
+                'is_active': True,
+                'is_default': False,
+                'description': 'OpenAI o1-mini - компактна версія o1 з покращеним міркуванням'
+            }
+        )
+        
+        if created:
+            self.message_user(request, f'✅ o1-mini успішно додано!', level=messages.SUCCESS)
+        else:
+            self.message_user(request, f'⚠️ o1-mini вже існує', level=messages.WARNING)
     
     @admin.action(description='➕ Додати Claude 3.5 Sonnet')
     def add_claude_3_5_sonnet(self, request, queryset):
