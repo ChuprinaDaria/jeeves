@@ -17,12 +17,23 @@ class OpenAILLMProvider(BaseLLMProvider):
         temperature = kwargs.get('temperature', 0.7)
         max_tokens = kwargs.get('max_tokens', 2000)
         
-        response = self.client.chat.completions.create(
-            model=self.model_name,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens
-        )
+        # GPT-5.x та o1 моделі використовують max_completion_tokens замість max_tokens
+        model_name = self.model_name or ""
+        is_gpt5_plus = model_name.startswith("gpt-5") or model_name.startswith("o1")
+
+        params: Dict[str, Any] = {
+            "model": model_name,
+            "messages": messages,
+            "temperature": temperature,
+            "stream": False,
+        }
+
+        if is_gpt5_plus:
+            params["max_completion_tokens"] = max_tokens
+        else:
+            params["max_tokens"] = max_tokens
+
+        response = self.client.chat.completions.create(**params)
         
         return {
             'content': response.choices[0].message.content,
