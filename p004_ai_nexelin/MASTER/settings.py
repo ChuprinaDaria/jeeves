@@ -275,7 +275,10 @@ SYSTEM_PROMPTS = { 'default': "..." }
 
 # === OTHER ===
 EMBEDDINGS_FALLBACK_LOCAL = env.bool("EMBEDDINGS_FALLBACK_LOCAL", default=True)
+
+# API keys for external AI providers
 OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
+ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
 HUGGINGFACE_API_KEY = env("HUGGINGFACE_API_KEY", default="")
 COHERE_API_KEY = env("COHERE_API_KEY", default="")
 WHATSAPP_QR_SECRET = env("WHATSAPP_QR_SECRET", default="")
