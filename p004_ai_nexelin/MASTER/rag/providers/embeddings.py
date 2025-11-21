@@ -130,3 +130,37 @@ class OllamaEmbeddingProvider(BaseEmbeddingProvider):
             return 768
 
 
+class AnthropicEmbeddingProvider(BaseEmbeddingProvider):
+    """
+    Anthropic Embedding Provider
+    
+    Примітка: Anthropic поки що не має публічних embedding моделей.
+    Цей провайдер створено для майбутньої підтримки, коли Anthropic випустить embedding API.
+    """
+    def __init__(self, api_key: str, model_name: str = 'claude-embedding'):
+        self.api_key = api_key
+        self.model_name = model_name
+        self.api_endpoint = "https://api.anthropic.com/v1"
+    
+    def embed(self, texts: Union[str, List[str]]) -> Dict[str, Any]:
+        """
+        Створює embeddings через Anthropic API.
+        
+        Примітка: Це заглушка. Коли Anthropic випустить embedding API,
+        тут буде реалізовано справжній запит до API.
+        """
+        if isinstance(texts, str):
+            texts = [texts]
+        
+        # Поки що викидаємо помилку, оскільки Anthropic не має embedding API
+        raise NotImplementedError(
+            "Anthropic поки що не має публічних embedding моделей. "
+            "Використовуйте OpenAI або інші провайдери для embeddings."
+        )
+    
+    def get_dimensions(self) -> int:
+        # За замовчуванням, коли Anthropic випустить embeddings, вони можуть бути 1024 або 1536
+        # Оновіть це значення коли з'явиться офіційна інформація
+        return 1024
+
+

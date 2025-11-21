@@ -12,7 +12,11 @@ class EmbeddingModelAdmin(admin.ModelAdmin):
     search_fields = ['name', 'model_name', 'slug']
     ordering = ['provider', 'name']
     list_editable = ['is_active', 'is_default']
-    actions = ['trigger_reindex', 'sync_from_nexelin', 'deactivate_invalid_models', 'add_text_embedding_3_small', 'add_text_embedding_3_large', 'add_text_embedding_ada_002']
+    actions = [
+        'trigger_reindex', 'sync_from_nexelin', 'deactivate_invalid_models',
+        'add_text_embedding_3_small', 'add_text_embedding_3_large', 'add_text_embedding_ada_002',
+        'add_anthropic_embedding_placeholder'
+    ]
     readonly_fields = ('slug', 'created_at', 'updated_at')
     
     def dimensions_status(self, obj):
@@ -185,6 +189,33 @@ class EmbeddingModelAdmin(admin.ModelAdmin):
             self.message_user(request, f'✅ text-embedding-ada-002 успішно додано!', level=messages.SUCCESS)
         else:
             self.message_user(request, f'⚠️ text-embedding-ada-002 вже існує', level=messages.WARNING)
+    
+    @admin.action(description='➕ Додати Anthropic Embedding (placeholder)')
+    def add_anthropic_embedding_placeholder(self, request, queryset):
+        """Додати Anthropic Embedding модель (placeholder - поки не доступна)"""
+        model, created = EmbeddingModel.objects.get_or_create(
+            slug='anthropic-embedding',
+            defaults={
+                'name': 'Anthropic Embedding (placeholder)',
+                'provider': 'anthropic',
+                'model_name': 'claude-embedding',  # Оновіть коли з'явиться реальна модель
+                'dimensions': 1024,  # Оновіть коли з'явиться реальна модель
+                'api_key': getattr(settings, 'ANTHROPIC_API_KEY', '').strip() or '',
+                'cost_per_1k_tokens': 0.0,  # Оновіть коли з'явиться реальна модель
+                'is_active': False,  # Неактивна поки не з'явиться API
+                'is_default': False,
+                'is_local': False,
+            }
+        )
+        
+        if created:
+            self.message_user(
+                request,
+                f'⚠️ Anthropic Embedding додано як placeholder. Anthropic поки що не має публічних embedding моделей. Модель неактивна.',
+                level=messages.WARNING
+            )
+        else:
+            self.message_user(request, f'⚠️ Anthropic Embedding placeholder вже існує', level=messages.WARNING)
 
 
 @admin.register(LLMProvider)
@@ -195,7 +226,11 @@ class LLMProviderAdmin(admin.ModelAdmin):
     ordering = ['provider_type', 'name']
     list_editable = ['is_active', 'is_default']
     readonly_fields = ('slug', 'created_at', 'updated_at')
-    actions = ['add_gpt_5_1', 'add_gpt_4o', 'add_gpt_4o_mini', 'add_claude_3_5_sonnet', 'add_claude_4', 'add_claude_opus']
+    actions = [
+        'add_gpt_5_1', 'add_gpt_4o', 'add_gpt_4o_mini',
+        'add_claude_3_5_sonnet', 'add_claude_3_5_haiku', 'add_claude_3_sonnet', 
+        'add_claude_3_haiku', 'add_claude_3_opus', 'add_claude_4'
+    ]
     
     fieldsets = (
         ('Basic Info', {
@@ -311,7 +346,7 @@ class LLMProviderAdmin(admin.ModelAdmin):
                 'cost_per_1k_output_tokens': 0.015,
                 'is_active': True,
                 'is_default': False,
-                'description': 'Anthropic Claude 3.5 Sonnet - найпотужніша модель Claude'
+                'description': 'Anthropic Claude 3.5 Sonnet - найпотужніша модель Claude 3.5 серії'
             }
         )
         
@@ -322,21 +357,21 @@ class LLMProviderAdmin(admin.ModelAdmin):
     
     @admin.action(description='➕ Додати Claude 4')
     def add_claude_4(self, request, queryset):
-        """Додати Claude 4 провайдер"""
+        """Додати Claude 4 провайдер (якщо доступна)"""
         provider, created = LLMProvider.objects.get_or_create(
             slug='claude-4',
             defaults={
                 'name': 'Claude 4',
                 'provider_type': 'anthropic',
-                'model_name': 'claude-4-20241120',  # Оновіть на актуальну версію коли з'явиться
+                'model_name': 'claude-4',  # Оновіть на актуальну версію коли з'явиться
                 'api_key': getattr(settings, 'ANTHROPIC_API_KEY', '').strip() or '',
                 'max_tokens': 8192,
                 'temperature': 0.7,
                 'cost_per_1k_input_tokens': 0.005,
                 'cost_per_1k_output_tokens': 0.025,
-                'is_active': True,
+                'is_active': False,  # Неактивна поки не вийде
                 'is_default': False,
-                'description': 'Anthropic Claude 4 - найновіша модель Claude'
+                'description': 'Anthropic Claude 4 - найновіша модель Claude (очікується)'
             }
         )
         
@@ -345,13 +380,88 @@ class LLMProviderAdmin(admin.ModelAdmin):
         else:
             self.message_user(request, f'⚠️ Claude 4 вже існує', level=messages.WARNING)
     
-    @admin.action(description='➕ Додати Claude Opus')
-    def add_claude_opus(self, request, queryset):
-        """Додати Claude Opus провайдер"""
+    @admin.action(description='➕ Додати Claude 3.5 Haiku')
+    def add_claude_3_5_haiku(self, request, queryset):
+        """Додати Claude 3.5 Haiku провайдер"""
         provider, created = LLMProvider.objects.get_or_create(
-            slug='claude-opus',
+            slug='claude-3-5-haiku',
             defaults={
-                'name': 'Claude Opus',
+                'name': 'Claude 3.5 Haiku',
+                'provider_type': 'anthropic',
+                'model_name': 'claude-3-5-haiku-20241022',
+                'api_key': getattr(settings, 'ANTHROPIC_API_KEY', '').strip() or '',
+                'max_tokens': 8192,
+                'temperature': 0.7,
+                'cost_per_1k_input_tokens': 0.0008,
+                'cost_per_1k_output_tokens': 0.004,
+                'is_active': True,
+                'is_default': False,
+                'description': 'Anthropic Claude 3.5 Haiku - швидка та економна модель'
+            }
+        )
+        
+        if created:
+            self.message_user(request, f'✅ Claude 3.5 Haiku успішно додано!', level=messages.SUCCESS)
+        else:
+            self.message_user(request, f'⚠️ Claude 3.5 Haiku вже існує', level=messages.WARNING)
+    
+    @admin.action(description='➕ Додати Claude 3 Sonnet')
+    def add_claude_3_sonnet(self, request, queryset):
+        """Додати Claude 3 Sonnet провайдер"""
+        provider, created = LLMProvider.objects.get_or_create(
+            slug='claude-3-sonnet',
+            defaults={
+                'name': 'Claude 3 Sonnet',
+                'provider_type': 'anthropic',
+                'model_name': 'claude-3-sonnet-20240229',
+                'api_key': getattr(settings, 'ANTHROPIC_API_KEY', '').strip() or '',
+                'max_tokens': 4096,
+                'temperature': 0.7,
+                'cost_per_1k_input_tokens': 0.003,
+                'cost_per_1k_output_tokens': 0.015,
+                'is_active': True,
+                'is_default': False,
+                'description': 'Anthropic Claude 3 Sonnet - балансована модель серії Claude 3'
+            }
+        )
+        
+        if created:
+            self.message_user(request, f'✅ Claude 3 Sonnet успішно додано!', level=messages.SUCCESS)
+        else:
+            self.message_user(request, f'⚠️ Claude 3 Sonnet вже існує', level=messages.WARNING)
+    
+    @admin.action(description='➕ Додати Claude 3 Haiku')
+    def add_claude_3_haiku(self, request, queryset):
+        """Додати Claude 3 Haiku провайдер"""
+        provider, created = LLMProvider.objects.get_or_create(
+            slug='claude-3-haiku',
+            defaults={
+                'name': 'Claude 3 Haiku',
+                'provider_type': 'anthropic',
+                'model_name': 'claude-3-haiku-20240307',
+                'api_key': getattr(settings, 'ANTHROPIC_API_KEY', '').strip() or '',
+                'max_tokens': 4096,
+                'temperature': 0.7,
+                'cost_per_1k_input_tokens': 0.00025,
+                'cost_per_1k_output_tokens': 0.00125,
+                'is_active': True,
+                'is_default': False,
+                'description': 'Anthropic Claude 3 Haiku - найшвидша та найдешевша модель серії Claude 3'
+            }
+        )
+        
+        if created:
+            self.message_user(request, f'✅ Claude 3 Haiku успішно додано!', level=messages.SUCCESS)
+        else:
+            self.message_user(request, f'⚠️ Claude 3 Haiku вже існує', level=messages.WARNING)
+    
+    @admin.action(description='➕ Додати Claude 3 Opus')
+    def add_claude_3_opus(self, request, queryset):
+        """Додати Claude 3 Opus провайдер"""
+        provider, created = LLMProvider.objects.get_or_create(
+            slug='claude-3-opus',
+            defaults={
+                'name': 'Claude 3 Opus',
                 'provider_type': 'anthropic',
                 'model_name': 'claude-3-opus-20240229',
                 'api_key': getattr(settings, 'ANTHROPIC_API_KEY', '').strip() or '',
@@ -361,11 +471,11 @@ class LLMProviderAdmin(admin.ModelAdmin):
                 'cost_per_1k_output_tokens': 0.075,
                 'is_active': True,
                 'is_default': False,
-                'description': 'Anthropic Claude Opus - найпотужніша модель серії Claude 3'
+                'description': 'Anthropic Claude 3 Opus - найпотужніша модель серії Claude 3'
             }
         )
         
         if created:
-            self.message_user(request, f'✅ Claude Opus успішно додано!', level=messages.SUCCESS)
+            self.message_user(request, f'✅ Claude 3 Opus успішно додано!', level=messages.SUCCESS)
         else:
-            self.message_user(request, f'⚠️ Claude Opus вже існує', level=messages.WARNING)
+            self.message_user(request, f'⚠️ Claude 3 Opus вже існує', level=messages.WARNING)

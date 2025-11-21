@@ -4,6 +4,7 @@ from MASTER.EmbeddingModel.models import EmbeddingModel
 from MASTER.rag.providers.embeddings import (
     OpenAIEmbeddingProvider,
     OllamaEmbeddingProvider,
+    AnthropicEmbeddingProvider,
     BaseEmbeddingProvider,
 )
 
@@ -25,6 +26,19 @@ class EmbeddingService:
                 api_endpoint=endpoint,
                 model_name=embedding_model.model_name,
             )
+        # Anthropic provider
+        if provider_name == "anthropic":
+            # Використовуємо API key з EmbeddingModel якщо він є, інакше з settings
+            api_key = getattr(embedding_model, "api_key", "").strip()
+            if not api_key:
+                api_key = getattr(settings, "ANTHROPIC_API_KEY", "").strip()
+            if not api_key:
+                raise ValueError("ANTHROPIC_API_KEY is not configured (neither in EmbeddingModel nor in settings)")
+            return AnthropicEmbeddingProvider(
+                model_name=embedding_model.model_name,
+                api_key=api_key,
+            )
+        
         # Default to OpenAI
         if provider_name == "openai" or not provider_name:
             # Використовуємо API key з EmbeddingModel якщо він є, інакше з settings

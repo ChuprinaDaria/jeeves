@@ -7,6 +7,7 @@ class EmbeddingModel(models.Model):
         ('openai', 'OpenAI'),
         ('huggingface', 'HuggingFace'),
         ('cohere', 'Cohere'),
+        ('anthropic', 'Anthropic (Claude)'),
     ]
     
     name = models.CharField(max_length=100, unique=True)
