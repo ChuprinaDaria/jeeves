@@ -155,3 +155,71 @@ class KimiLLMProvider(BaseLLMProvider):
             raise Exception(f"Kimi generation failed: {str(e)}")
 
 
+class AnthropicLLMProvider(BaseLLMProvider):
+    """Anthropic Claude API провайдер"""
+    def __init__(self, api_key: str, model_name: str = 'claude-3-5-sonnet-20241022'):
+        self.api_key = api_key
+        self.model_name = model_name
+        self.api_endpoint = "https://api.anthropic.com/v1"
+    
+    def generate(self, messages: List[Dict[str, str]], **kwargs) -> Dict[str, Any]:
+        temperature = kwargs.get('temperature', 0.7)
+        max_tokens = kwargs.get('max_tokens', 2000)
+        
+        # Anthropic API вимагає окремий system message
+        system_message = None
+        conversation_messages = []
+        
+        for msg in messages:
+            if msg['role'] == 'system':
+                system_message = msg['content']
+            else:
+                # Anthropic використовує 'user' та 'assistant' ролі
+                conversation_messages.append({
+                    'role': msg['role'],
+                    'content': msg['content']
+                })
+        
+        try:
+            # Формуємо запит для Anthropic API
+            payload = {
+                'model': self.model_name,
+                'messages': conversation_messages,
+                'temperature': temperature,
+                'max_tokens': max_tokens
+            }
+            
+            if system_message:
+                payload['system'] = system_message
+            
+            response = requests.post(
+                f"{self.api_endpoint}/messages",
+                headers={
+                    "x-api-key": self.api_key,
+                    "anthropic-version": "2023-06-01",
+                    "Content-Type": "application/json"
+                },
+                json=payload,
+                timeout=60
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            # Anthropic повертає content як масив текстових блоків
+            content_parts = []
+            if 'content' in data:
+                for block in data['content']:
+                    if block.get('type') == 'text':
+                        content_parts.append(block.get('text', ''))
+            
+            content = ''.join(content_parts)
+            
+            return {
+                'content': content,
+                'model': data.get('model', self.model_name),
+                'usage': data.get('usage', {})
+            }
+        except Exception as e:
+            raise Exception(f"Anthropic generation failed: {str(e)}")
+
+

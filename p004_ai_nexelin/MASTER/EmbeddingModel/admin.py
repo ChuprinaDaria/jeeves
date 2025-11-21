@@ -12,7 +12,7 @@ class EmbeddingModelAdmin(admin.ModelAdmin):
     search_fields = ['name', 'model_name', 'slug']
     ordering = ['provider', 'name']
     list_editable = ['is_active', 'is_default']
-    actions = ['trigger_reindex', 'sync_from_nexelin', 'deactivate_invalid_models']
+    actions = ['trigger_reindex', 'sync_from_nexelin', 'deactivate_invalid_models', 'add_text_embedding_3_small', 'add_text_embedding_3_large', 'add_text_embedding_ada_002']
     readonly_fields = ('slug', 'created_at', 'updated_at')
     
     def dimensions_status(self, obj):
@@ -112,6 +112,79 @@ class EmbeddingModelAdmin(admin.ModelAdmin):
                 level=messages.ERROR
             )
     sync_from_nexelin.short_description = "Синхронізувати моделі з mg.nexelin.com"
+    
+    @admin.action(description='➕ Додати text-embedding-3-small')
+    def add_text_embedding_3_small(self, request, queryset):
+        """Додати OpenAI text-embedding-3-small модель"""
+        model, created = EmbeddingModel.objects.get_or_create(
+            slug='text-embedding-3-small',
+            defaults={
+                'name': 'text-embedding-3-small',
+                'provider': 'openai',
+                'model_name': 'text-embedding-3-small',
+                'dimensions': 1536,
+                'api_key': getattr(settings, 'OPENAI_API_KEY', '').strip() or '',
+                'cost_per_1k_tokens': 0.00002,  # $0.02 per 1M tokens
+                'is_active': True,
+                'is_default': True,
+                'is_local': False,
+            }
+        )
+        
+        if created:
+            self.message_user(request, f'✅ text-embedding-3-small успішно додано!', level=messages.SUCCESS)
+        else:
+            self.message_user(request, f'⚠️ text-embedding-3-small вже існує', level=messages.WARNING)
+    
+    @admin.action(description='➕ Додати text-embedding-3-large')
+    def add_text_embedding_3_large(self, request, queryset):
+        """Додати OpenAI text-embedding-3-large модель"""
+        model, created = EmbeddingModel.objects.get_or_create(
+            slug='text-embedding-3-large',
+            defaults={
+                'name': 'text-embedding-3-large',
+                'provider': 'openai',
+                'model_name': 'text-embedding-3-large',
+                'dimensions': 3072,
+                'api_key': getattr(settings, 'OPENAI_API_KEY', '').strip() or '',
+                'cost_per_1k_tokens': 0.00013,  # $0.13 per 1M tokens
+                'is_active': False,  # Неактивна за замовчуванням (dimensions > 2000)
+                'is_default': False,
+                'is_local': False,
+            }
+        )
+        
+        if created:
+            self.message_user(
+                request, 
+                f'⚠️ text-embedding-3-large додано, але dimensions=3072 > 2000 (pgvector limit). Модель неактивна.', 
+                level=messages.WARNING
+            )
+        else:
+            self.message_user(request, f'⚠️ text-embedding-3-large вже існує', level=messages.WARNING)
+    
+    @admin.action(description='➕ Додати text-embedding-ada-002')
+    def add_text_embedding_ada_002(self, request, queryset):
+        """Додати OpenAI text-embedding-ada-002 модель (legacy)"""
+        model, created = EmbeddingModel.objects.get_or_create(
+            slug='text-embedding-ada-002',
+            defaults={
+                'name': 'text-embedding-ada-002',
+                'provider': 'openai',
+                'model_name': 'text-embedding-ada-002',
+                'dimensions': 1536,
+                'api_key': getattr(settings, 'OPENAI_API_KEY', '').strip() or '',
+                'cost_per_1k_tokens': 0.0001,  # $0.10 per 1M tokens
+                'is_active': True,
+                'is_default': False,
+                'is_local': False,
+            }
+        )
+        
+        if created:
+            self.message_user(request, f'✅ text-embedding-ada-002 успішно додано!', level=messages.SUCCESS)
+        else:
+            self.message_user(request, f'⚠️ text-embedding-ada-002 вже існує', level=messages.WARNING)
 
 
 @admin.register(LLMProvider)
@@ -122,6 +195,7 @@ class LLMProviderAdmin(admin.ModelAdmin):
     ordering = ['provider_type', 'name']
     list_editable = ['is_active', 'is_default']
     readonly_fields = ('slug', 'created_at', 'updated_at')
+    actions = ['add_gpt_5_1', 'add_gpt_4o', 'add_gpt_4o_mini', 'add_claude_3_5_sonnet', 'add_claude_4', 'add_claude_opus']
     
     fieldsets = (
         ('Basic Info', {
@@ -145,3 +219,153 @@ class LLMProviderAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+    
+    @admin.action(description='➕ Додати GPT-5.1')
+    def add_gpt_5_1(self, request, queryset):
+        """Додати GPT-5.1 провайдер"""
+        provider, created = LLMProvider.objects.get_or_create(
+            slug='gpt-5-1',
+            defaults={
+                'name': 'GPT-5.1',
+                'provider_type': 'openai',
+                'model_name': 'gpt-5.1',
+                'api_key': getattr(settings, 'OPENAI_API_KEY', '').strip() or '',
+                'max_tokens': 16384,
+                'temperature': 0.7,
+                'cost_per_1k_input_tokens': 0.0025,
+                'cost_per_1k_output_tokens': 0.010,
+                'is_active': True,
+                'is_default': False,
+                'description': 'OpenAI GPT-5.1 - найновіша модель'
+            }
+        )
+        
+        if created:
+            self.message_user(request, f'✅ GPT-5.1 успішно додано!', level=messages.SUCCESS)
+        else:
+            self.message_user(request, f'⚠️ GPT-5.1 вже існує (slug: {provider.slug})', level=messages.WARNING)
+    
+    @admin.action(description='➕ Додати GPT-4o')
+    def add_gpt_4o(self, request, queryset):
+        """Додати GPT-4o провайдер"""
+        provider, created = LLMProvider.objects.get_or_create(
+            slug='gpt-4o',
+            defaults={
+                'name': 'GPT-4o',
+                'provider_type': 'openai',
+                'model_name': 'gpt-4o',
+                'api_key': getattr(settings, 'OPENAI_API_KEY', '').strip() or '',
+                'max_tokens': 16384,
+                'temperature': 0.7,
+                'cost_per_1k_input_tokens': 0.0025,
+                'cost_per_1k_output_tokens': 0.010,
+                'is_active': True,
+                'is_default': False,
+                'description': 'OpenAI GPT-4o - оптимізована модель'
+            }
+        )
+        
+        if created:
+            self.message_user(request, f'✅ GPT-4o успішно додано!', level=messages.SUCCESS)
+        else:
+            self.message_user(request, f'⚠️ GPT-4o вже існує', level=messages.WARNING)
+    
+    @admin.action(description='➕ Додати GPT-4o Mini')
+    def add_gpt_4o_mini(self, request, queryset):
+        """Додати GPT-4o Mini провайдер"""
+        provider, created = LLMProvider.objects.get_or_create(
+            slug='gpt-4o-mini',
+            defaults={
+                'name': 'GPT-4o Mini',
+                'provider_type': 'openai',
+                'model_name': 'gpt-4o-mini',
+                'api_key': getattr(settings, 'OPENAI_API_KEY', '').strip() or '',
+                'max_tokens': 16384,
+                'temperature': 0.7,
+                'cost_per_1k_input_tokens': 0.00015,
+                'cost_per_1k_output_tokens': 0.0006,
+                'is_active': True,
+                'is_default': True,
+                'description': 'OpenAI GPT-4o Mini - швидка та економна модель'
+            }
+        )
+        
+        if created:
+            self.message_user(request, f'✅ GPT-4o Mini успішно додано!', level=messages.SUCCESS)
+        else:
+            self.message_user(request, f'⚠️ GPT-4o Mini вже існує', level=messages.WARNING)
+    
+    @admin.action(description='➕ Додати Claude 3.5 Sonnet')
+    def add_claude_3_5_sonnet(self, request, queryset):
+        """Додати Claude 3.5 Sonnet провайдер"""
+        provider, created = LLMProvider.objects.get_or_create(
+            slug='claude-3-5-sonnet',
+            defaults={
+                'name': 'Claude 3.5 Sonnet',
+                'provider_type': 'anthropic',
+                'model_name': 'claude-3-5-sonnet-20241022',
+                'api_key': getattr(settings, 'ANTHROPIC_API_KEY', '').strip() or '',
+                'max_tokens': 8192,
+                'temperature': 0.7,
+                'cost_per_1k_input_tokens': 0.003,
+                'cost_per_1k_output_tokens': 0.015,
+                'is_active': True,
+                'is_default': False,
+                'description': 'Anthropic Claude 3.5 Sonnet - найпотужніша модель Claude'
+            }
+        )
+        
+        if created:
+            self.message_user(request, f'✅ Claude 3.5 Sonnet успішно додано!', level=messages.SUCCESS)
+        else:
+            self.message_user(request, f'⚠️ Claude 3.5 Sonnet вже існує', level=messages.WARNING)
+    
+    @admin.action(description='➕ Додати Claude 4')
+    def add_claude_4(self, request, queryset):
+        """Додати Claude 4 провайдер"""
+        provider, created = LLMProvider.objects.get_or_create(
+            slug='claude-4',
+            defaults={
+                'name': 'Claude 4',
+                'provider_type': 'anthropic',
+                'model_name': 'claude-4-20241120',  # Оновіть на актуальну версію коли з'явиться
+                'api_key': getattr(settings, 'ANTHROPIC_API_KEY', '').strip() or '',
+                'max_tokens': 8192,
+                'temperature': 0.7,
+                'cost_per_1k_input_tokens': 0.005,
+                'cost_per_1k_output_tokens': 0.025,
+                'is_active': True,
+                'is_default': False,
+                'description': 'Anthropic Claude 4 - найновіша модель Claude'
+            }
+        )
+        
+        if created:
+            self.message_user(request, f'✅ Claude 4 успішно додано!', level=messages.SUCCESS)
+        else:
+            self.message_user(request, f'⚠️ Claude 4 вже існує', level=messages.WARNING)
+    
+    @admin.action(description='➕ Додати Claude Opus')
+    def add_claude_opus(self, request, queryset):
+        """Додати Claude Opus провайдер"""
+        provider, created = LLMProvider.objects.get_or_create(
+            slug='claude-opus',
+            defaults={
+                'name': 'Claude Opus',
+                'provider_type': 'anthropic',
+                'model_name': 'claude-3-opus-20240229',
+                'api_key': getattr(settings, 'ANTHROPIC_API_KEY', '').strip() or '',
+                'max_tokens': 4096,
+                'temperature': 0.7,
+                'cost_per_1k_input_tokens': 0.015,
+                'cost_per_1k_output_tokens': 0.075,
+                'is_active': True,
+                'is_default': False,
+                'description': 'Anthropic Claude Opus - найпотужніша модель серії Claude 3'
+            }
+        )
+        
+        if created:
+            self.message_user(request, f'✅ Claude Opus успішно додано!', level=messages.SUCCESS)
+        else:
+            self.message_user(request, f'⚠️ Claude Opus вже існує', level=messages.WARNING)

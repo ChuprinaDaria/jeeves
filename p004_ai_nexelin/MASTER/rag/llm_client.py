@@ -19,6 +19,7 @@ from MASTER.rag.providers.llm import (
     OpenAILLMProvider,
     OllamaLLMProvider,
     KimiLLMProvider,
+    AnthropicLLMProvider,
     BaseLLMProvider,
 )
 
@@ -96,6 +97,16 @@ class LLMClient:
                 if not api_key:
                     raise ValueError("OPENAI_API_KEY is not configured")
                 return OpenAILLMProvider(model_name=model_name, api_key=api_key)
+
+            if provider_type == "anthropic":
+                # Використовуємо API key з LLMProvider об'єкта (якщо є) або з settings
+                api_key = getattr(llm_provider_obj, "api_key", "").strip()
+                if not api_key:
+                    # Fallback до settings
+                    api_key = getattr(settings, "ANTHROPIC_API_KEY", "").strip()
+                if not api_key:
+                    raise ValueError("ANTHROPIC_API_KEY is not configured (neither in LLMProvider nor in settings)")
+                return AnthropicLLMProvider(api_key=api_key, model_name=model_name)
 
             # На всяк випадок: fallback до конфіга, якщо тип незнайомий
             logger.warning(f"Unsupported llm_provider_model.provider_type='{provider_type}', falling back to LLM_CONFIG")

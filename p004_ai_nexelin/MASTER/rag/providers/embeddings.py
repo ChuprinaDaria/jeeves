@@ -18,6 +18,13 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
     def __init__(self, model_name: str, api_key: str):
         self.model_name = model_name
         self.client = OpenAI(api_key=api_key)
+        # Dimensions mapping for OpenAI embedding models
+        self._dimensions_map = {
+            'text-embedding-3-small': 1536,
+            'text-embedding-3-large': 3072,
+            'text-embedding-ada-002': 1536,
+            'text-embedding-3': 1536,  # Default for v3
+        }
     
     def embed(self, texts: Union[str, List[str]]) -> Dict[str, Any]:
         if isinstance(texts, str):
@@ -31,14 +38,21 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
         vectors = [item.embedding for item in response.data]
         # OpenAI python SDK: usage usually present
         total_tokens = response.usage.total_tokens
+        actual_dimensions = len(vectors[0]) if vectors else self.get_dimensions()
         
         return {
             'vectors': vectors,
             'token_count': total_tokens,
-            'dimensions': len(vectors[0]) if vectors else 0
+            'dimensions': actual_dimensions
         }
     
     def get_dimensions(self) -> int:
+        # Повертаємо dimensions на основі назви моделі
+        for model_key, dims in self._dimensions_map.items():
+            if model_key in self.model_name.lower():
+                return dims
+        # За замовчуванням для нових моделей використовуємо фактичну розмірність
+        # Але для безпеки повертаємо 1536
         return 1536
 
 

@@ -22,6 +22,7 @@ class ClientSerializer(serializers.ModelSerializer):
             'specialization_name',
             'company_name',
             'tag',
+            'webchat_domain',
             'description',
             'api_key',
             'logo',

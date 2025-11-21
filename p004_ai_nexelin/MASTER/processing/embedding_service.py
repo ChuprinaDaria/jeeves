@@ -27,9 +27,15 @@ class EmbeddingService:
             )
         # Default to OpenAI
         if provider_name == "openai" or not provider_name:
+            # Використовуємо API key з EmbeddingModel якщо він є, інакше з settings
+            api_key = getattr(embedding_model, "api_key", "").strip()
+            if not api_key:
+                api_key = getattr(settings, "OPENAI_API_KEY", "").strip()
+            if not api_key:
+                raise ValueError("OPENAI_API_KEY is not configured (neither in EmbeddingModel nor in settings)")
             return OpenAIEmbeddingProvider(
                 model_name=embedding_model.model_name,
-                api_key=settings.OPENAI_API_KEY,
+                api_key=api_key,
             )
         raise ValueError(f"Unsupported provider: {embedding_model.provider}")
     @staticmethod
