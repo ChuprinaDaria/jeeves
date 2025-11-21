@@ -79,7 +79,7 @@ class Client(models.Model):
     
     user = models.CharField(max_length=255)
     company_name = models.CharField(max_length=200, blank=True)
-
+    
     tag = models.CharField(
         max_length=255,
         unique=True,
@@ -88,6 +88,13 @@ class Client(models.Model):
         null=True,
         help_text="Unique client token/tag for bootstrap authentication and portal access"
     )
+    
+    webchat_domain = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Custom base domain for web chat and client portal (e.g. ai.bytekraft.net)"
+    )
+    
     description = models.TextField()
     
     api_key = models.CharField(max_length=64, unique=True, editable=False)
@@ -786,7 +793,19 @@ class ClientQRCode(models.Model):
         
         # Construct Web Chat URL
         from django.conf import settings
-        base_url = getattr(settings, 'FRONTEND_URL', 'https://app.nexelin.com')
+        
+        # 1) Custom per-client domain (white-label), if configured
+        custom_domain = (getattr(self.client, "webchat_domain", "") or "").strip()
+        if custom_domain:
+            # Allow both plain host (ai.bytekraft.net) and full URL (https://ai.bytekraft.net)
+            if custom_domain.startswith("http://") or custom_domain.startswith("https://"):
+                base_url = custom_domain.rstrip("/")
+            else:
+                base_url = f"https://{custom_domain}".rstrip("/")
+        else:
+            # 2) Fallback to global frontend URL
+            base_url = getattr(settings, 'FRONTEND_URL', 'https://app.nexelin.com').rstrip("/")
+        
         return f"{base_url}/client?tag={client_tag}"
     
     def get_qr_link(self) -> str:

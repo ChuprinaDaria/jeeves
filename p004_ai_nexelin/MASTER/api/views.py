@@ -211,6 +211,71 @@ class PublicRAGChatView(APIView):
                 if not message:
                     return Response({'error': f'Image analysis failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+        # Додаємо контекст діалогу (якщо переданий) до запиту
+        # MAX_HISTORY_MESSAGES визначає глибину контексту (20-30 повідомлень)
+        MAX_HISTORY_MESSAGES = 30
+        history_lines: list[str] = []
+
+        # 1) Контекст з фронтенду (optional)
+        # context може прийти:
+        # - як масив [{role, content}, ...] у JSON
+        # - або як JSON-рядок у multipart/form-data
+        raw_context = request.data.get('context')
+        if raw_context:
+            import json
+            try:
+                if isinstance(raw_context, str):
+                    ctx_list = json.loads(raw_context)
+                else:
+                    ctx_list = raw_context
+                if isinstance(ctx_list, list):
+                    for msg in ctx_list[-MAX_HISTORY_MESSAGES:]:
+                        role = str(msg.get('role', 'user')).upper()
+                        content = str(msg.get('content', '')).strip()
+                        if content:
+                            history_lines.append(f"{role}: {content}")
+            except Exception:
+                # Не ламаємо запит, якщо контекст некоректний
+                pass
+
+        # 2) Контекст із бекенду по session_id (web-client chat)
+        session_id = request.data.get('session_id') or request.data.get('conversation_id')
+        if session_id:
+            try:
+                from MASTER.clients.models import ClientWhatsAppConversation
+                conv = ClientWhatsAppConversation.objects.filter(
+                    client=client,
+                    session_id=session_id,
+                ).first()
+                if conv and conv.messages:
+                    for msg in conv.messages[-MAX_HISTORY_MESSAGES:]:
+                        role = str(msg.get('role', 'user')).upper()
+                        content = str(msg.get('content', '')).strip()
+                        if content:
+                            history_lines.append(f"{role}: {content}")
+            except Exception:
+                # Не блокуємо запит, якщо щось пішло не так з загрузкою історії
+                pass
+
+        # Уникаємо дублювання рядків в історії (якщо і фронт, і бекенд дають те саме)
+        if history_lines:
+            # Зберігаємо порядок, видаляючи дублікати
+            seen = set()
+            unique_lines: list[str] = []
+            for line in history_lines:
+                if line not in seen:
+                    seen.add(line)
+                    unique_lines.append(line)
+            history_text = "Conversation history:\n" + "\n".join(unique_lines)
+        else:
+            history_text = ''
+
+        # Формуємо фінальний запит для RAG:
+        # додаємо історію діалогу перед останнім повідомленням користувача
+        rag_query = message
+        if history_text:
+            rag_query = f"{history_text}\n\nLast user message:\n{message}"
+
         # Використовуємо клієнта для пошуку в його даних + даних бранча та спеціалізації
         generator = ResponseGenerator()
 
@@ -223,7 +288,7 @@ class PublicRAGChatView(APIView):
         # - Specialization embeddings (спільні дані для всіх клієнтів цієї спеціалізації)
         # - Branch embeddings (спільні дані для всіх клієнтів цього бранча)
         rag_response = generator.generate(
-            query=message,
+            query=rag_query,
             client=client,
             specialization=specialization,
             branch=branch,

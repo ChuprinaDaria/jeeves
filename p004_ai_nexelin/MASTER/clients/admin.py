@@ -14,7 +14,7 @@ from MASTER.accounts.models import Roles, User
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
-    list_display = ['user', 'tag', 'specialization', 'company_name', 'client_type', 'llm_provider', 'llm_model_name', 'is_active', 'logo_preview', 'api_keys_count', 'zero_status', 'api_docs_link', 'created_by_display', 'created_at']
+    list_display = ['user', 'tag', 'webchat_domain', 'specialization', 'company_name', 'client_type', 'llm_provider', 'llm_model_name', 'is_active', 'logo_preview', 'api_keys_count', 'zero_status', 'api_docs_link', 'created_by_display', 'created_at']
     list_display_links = ['user', 'tag']  # Поля, які будуть посиланнями на детальну сторінку
     list_filter = ['client_type', 'llm_provider', 'specialization__branch', 'specialization', 'is_active', 'created_by', 'created_at']
     search_fields = ['user', 'tag', 'company_name', 'description']
@@ -36,7 +36,7 @@ class ClientAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Basic Info', {
-            'fields': ('user', 'tag', 'description', 'specialization', 'company_name', 'is_active', 'client_type')
+            'fields': ('user', 'tag', 'webchat_domain', 'description', 'specialization', 'company_name', 'is_active', 'client_type')
         }),
         ('Logo', {
             'fields': ('logo', 'logo_preview'),
@@ -103,8 +103,19 @@ class ClientAdmin(admin.ModelAdmin):
         """One-click test link to the client portal for this client (opens in new tab)."""
         if not getattr(obj, 'pk', None) or not obj.tag:
             return '-'
-        base_url = settings.CLIENT_PORTAL_BASE_URL.rstrip('/')
-        # Новий формат: https://app.nexelin.com/l?tag={client_tag}
+        
+        # 1) Custom per-client domain (white-label), if configured
+        custom_domain = (getattr(obj, "webchat_domain", "") or "").strip()
+        if custom_domain:
+            if custom_domain.startswith("http://") or custom_domain.startswith("https://"):
+                base_url = custom_domain.rstrip("/")
+            else:
+                base_url = f"https://{custom_domain}".rstrip("/")
+        else:
+            # 2) Fallback to global client portal base URL
+            base_url = settings.CLIENT_PORTAL_BASE_URL.rstrip('/')
+        
+        # Формат: https://<domain>/l?tag={client_tag}
         url = f"{base_url}/l?tag={obj.tag}"
         return format_html('<a target="_blank" class="button" href="{}">Open Client Portal</a>', url)
     
