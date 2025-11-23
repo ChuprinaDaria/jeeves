@@ -116,8 +116,8 @@ class BranchDocument(models.Model):
         super().save(*args, **kwargs)
     
     def clean(self):
-        if not self.pk and self.branch and self.branch.documents.count() >= 100:
-            raise ValidationError('Maximum of 100 documents per branch is allowed for now.')
+        # Ліміт на кількість документів видалено
+        pass
     
     def delete(self, *args, **kwargs):
         BranchEmbedding.objects.filter(document=self).delete()

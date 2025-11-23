@@ -275,6 +275,11 @@ class ClientDocument(models.Model):
         ('csv', 'CSV'),
         ('json', 'JSON'),
         ('docx', 'Word'),
+        ('jpg', 'JPEG Image'),
+        ('jpeg', 'JPEG Image'),
+        ('png', 'PNG Image'),
+        ('gif', 'GIF Image'),
+        ('webp', 'WebP Image'),
     ]
     
     client = models.ForeignKey(
@@ -318,9 +323,8 @@ class ClientDocument(models.Model):
         super().save(*args, **kwargs)
 
     def clean(self):
-        # Максимум 100 документів на клієнта
-        if not self.pk and self.client and self.client.documents.count() >= 100:
-            raise ValidationError('Maximum of 100 documents per client is allowed for now.')
+        # Ліміт на кількість документів видалено
+        pass
 
 
 class ClientEmbedding(models.Model):
