@@ -144,8 +144,8 @@ class SpecializationDocument(models.Model):
         return super().delete(*args, **kwargs)
 
     def clean(self):
-        if not self.pk and self.specialization and self.specialization.documents.count() >= 100:
-            raise ValidationError('Maximum of 100 documents per specialization is allowed for now.')
+        # Ліміт на кількість документів видалено
+        pass
 
 
 class SpecializationEmbedding(models.Model):

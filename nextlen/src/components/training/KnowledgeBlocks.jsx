@@ -104,12 +104,12 @@ const KnowledgeBlocks = () => {
       <div className="card">
         {/* Header */}
         <div className="flex justify-between items-center mb-5">
-          <h3 className="text-lg font-semibold text-accent-900">
+          <h3 className="text-lg font-semibold text-accent-900 dark:text-accent-400">
             {t("knowledgeBlocks.title")}
           </h3>
           <button
             onClick={() => setShowAddModal(true)}
-            className="px-3 py-2 bg-accent-900 text-white rounded-lg hover:bg-accent-800 transition text-sm font-medium"
+            className="px-3 py-2 bg-accent-900 dark:bg-accent-700 text-white rounded-lg hover:bg-accent-800 dark:hover:bg-accent-600 transition text-sm font-medium"
           >
             {t("knowledgeBlocks.add")}
           </button>
@@ -117,31 +117,31 @@ const KnowledgeBlocks = () => {
 
         {loading ? (
           <div className="flex justify-center items-center py-8">
-            <Loader2 className="animate-spin text-primary-500" size={24} />
+            <Loader2 className="animate-spin text-primary-500 dark:text-primary-400" size={24} />
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {blocks.map((block) => (
               <div
                 key={block.id}
-                className={`border border-accent-200 rounded-xl p-4 ${
+                className={`border rounded-xl p-4 ${
                   block.permanent
-                    ? "bg-accent-100 border-accent-300"
-                    : "bg-accent-50 hover:bg-accent-100"
+                    ? "bg-accent-100 dark:bg-accent-900/30 border-accent-300 dark:border-accent-700"
+                    : "bg-accent-50 dark:bg-accent-900/20 hover:bg-accent-100 dark:hover:bg-accent-900/40 border-accent-200 dark:border-accent-800"
                 } transition`}
               >
                 <div className="flex flex-col justify-between h-full">
                   <div>
                     <div className="flex items-center gap-2">
-                      <p className="font-medium text-accent-900">{block.name}</p>
+                      <p className="font-medium text-accent-900 dark:text-accent-300">{block.name}</p>
                       {block.permanent && (
-                        <span className="text-xs bg-accent-200 text-accent-700 px-2 py-0.5 rounded">
+                        <span className="text-xs bg-accent-200 dark:bg-accent-800 text-accent-700 dark:text-accent-300 px-2 py-0.5 rounded">
                           Permanent
                         </span>
                       )}
                     </div>
                     {block.description && (
-                      <p className="text-xs text-accent-600 mt-1 line-clamp-2">
+                      <p className="text-xs text-accent-600 dark:text-accent-400 mt-1 line-clamp-2">
                         {block.description}
                       </p>
                     )}
@@ -149,13 +149,22 @@ const KnowledgeBlocks = () => {
 
                   <div className="flex justify-between items-center mt-4">
                     {!block.permanent && (
-                      <button
-                        onClick={() => handleEditBlock(block)}
-                        className="flex items-center gap-1 text-accent-900 text-sm font-medium hover:underline"
-                      >
-                        <Edit3 size={14} />
-                        {t("knowledgeBlocks.edit")}
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => handleEditBlock(block)}
+                          className="flex items-center gap-1 text-accent-900 dark:text-accent-300 text-sm font-medium hover:underline"
+                        >
+                          <Edit3 size={14} />
+                          {t("knowledgeBlocks.edit")}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteBlock(block.id)}
+                          className="flex items-center gap-1 text-red-600 dark:text-red-400 text-sm font-medium hover:underline"
+                        >
+                          <span>🗑️</span>
+                          {t("knowledgeBlocks.delete") || "Delete"}
+                        </button>
+                      </div>
                     )}
                     {block.permanent && <div></div>}
 
@@ -174,8 +183,8 @@ const KnowledgeBlocks = () => {
                         disabled={block.permanent}
                         className="sr-only peer"
                       />
-                      <div className="w-9 h-5 bg-accent-300 rounded-full peer peer-checked:bg-accent-900 transition-colors"></div>
-                      <div className="absolute left-[2px] top-[2px] bg-white w-4 h-4 rounded-full shadow-md transition-transform peer-checked:translate-x-4"></div>
+                      <div className="w-9 h-5 bg-accent-300 dark:bg-accent-700 rounded-full peer peer-checked:bg-accent-900 dark:peer-checked:bg-accent-500 transition-colors"></div>
+                      <div className="absolute left-[2px] top-[2px] bg-white dark:bg-gray-300 w-4 h-4 rounded-full shadow-md transition-transform peer-checked:translate-x-4"></div>
                     </label>
                   </div>
                 </div>

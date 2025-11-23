@@ -60,7 +60,7 @@ class DocumentUploadView(APIView):
         import os
         _, ext = os.path.splitext(getattr(uploaded, 'name', '') or '')
         ext = (ext or '').lower().lstrip('.')
-        allowed = {'pdf', 'txt', 'csv', 'json', 'docx'}
+        allowed = {'pdf', 'txt', 'csv', 'json', 'docx', 'jpg', 'jpeg', 'png', 'gif', 'webp'}
         file_type = ext if ext in allowed else 'txt'
         doc = ClientDocument(
             client=client,
@@ -1521,8 +1521,14 @@ class SaveSandboxPhotoView(APIView):
         if not photo:
             return Response({'error': 'photo is required'}, status=status.HTTP_400_BAD_REQUEST)
         
+        # Якщо опис не передано, викликаємо vision API для розшифровки фото
         if not description:
-            return Response({'error': 'description is required'}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                description = self._analyze_image(photo, '', 'en', client)
+                photo.seek(0)  # Повернути вказівник після читання
+            except Exception as e:
+                logger.error(f"Error analyzing image: {e}")
+                description = "Image uploaded - analysis pending"
         
         try:
             # Знайти або створити knowledge block "Photos"
@@ -1541,8 +1547,13 @@ class SaveSandboxPhotoView(APIView):
             photo.seek(0)  # Повернути вказівник після читання
             
             # Визначити розширення файлу
+            import os
             original_name = photo.name
-            file_ext = original_name.split('.')[-1] if '.' in original_name else 'jpg'
+            _, ext = os.path.splitext(original_name or '')
+            file_ext = (ext or '').lower().lstrip('.')
+            # Якщо розширення не визначено або не підтримується, використовуємо jpg
+            if not file_ext or file_ext not in ['jpg', 'jpeg', 'png', 'gif', 'webp']:
+                file_ext = 'jpg'
             
             # Створити назву з описом
             short_desc = description[:50] + '...' if len(description) > 50 else description
