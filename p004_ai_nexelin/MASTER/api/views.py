@@ -2157,12 +2157,13 @@ class PackageReceiveView(APIView):
         # Створення клієнта
         # Використовуємо user_name (name з payload) як user для Client
         # company_name автоматично скопіюється з user в методі save() моделі
+        # Для нових клієнтів завжди встановлюємо is_active=True, щоб вони могли автентифікуватися
         client = Client.objects.create(
             user=user_name,  # Використовуємо name як user (як очікує mg.nexelin)
             tag=guid,
             # company_name не встановлюємо явно - воно автоматично скопіюється з user в save()
             description=data.get('description', ''),
-            is_active=data.get('active', True),
+            is_active=True,  # Новий клієнт завжди активний для доступу
             client_type=client_type,
         )
         
@@ -2248,12 +2249,13 @@ class PackageReceiveView(APIView):
         # Клонування клієнта БЕЗ ембедингів та документів
         # Копіюємо тільки основні поля клієнта
         # company_name автоматично скопіюється з user в методі save() моделі
+        # Для нових клієнтів завжди встановлюємо is_active=True, щоб вони могли автентифікуватися
         client = Client.objects.create(
             user=user_name,  # Використовуємо name як user (як очікує mg.nexelin)
             tag=guid,
             # company_name не встановлюємо явно - воно автоматично скопіюється з user в save()
             description=data.get('description', ''),
-            is_active=data.get('active', True),
+            is_active=True,  # Новий клієнт завжди активний для доступу
             client_type=client_type,
             # Копіюємо конфігурацію з батьківського клієнта
             branch=parent_client.branch,
