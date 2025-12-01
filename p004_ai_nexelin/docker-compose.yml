@@ -49,7 +49,7 @@ services:
       - "8000:8000"
     environment:
       DJANGO_SETTINGS_MODULE: MASTER.settings
-      DEBUG: "1"
+      DEBUG: "0"
       SECRET_KEY: ${SECRET_KEY:-dev-secret}
       DB_NAME: ${DB_NAME:-admin_db}
       DB_USER: ${DB_USER:-admin_user}

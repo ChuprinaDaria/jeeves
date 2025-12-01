@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('clients', '0025_add_llm_provider_fk'),
+        ('clients', '0026_remove_client_llm_provider_fk_client_embedding_model_and_more'),
     ]
     operations = [
         migrations.AddField(

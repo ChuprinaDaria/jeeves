@@ -64,9 +64,6 @@ CSRF_TRUSTED_ORIGINS = [
     "https://app.nexelin.com",  # Production фронтенд
     "https://mg.nexelin.com",
     "http://mg.nexelin.com",
-    # White-label domains
-    "https://ai.bytekraft.net",
-    "https://ai.bytekraft.net",
     # FTP хостинг для фронтенду (backup)
     "http://w020c360.kasserver.com",
     "https://w020c360.kasserver.com",
@@ -278,10 +275,7 @@ SYSTEM_PROMPTS = { 'default': "..." }
 
 # === OTHER ===
 EMBEDDINGS_FALLBACK_LOCAL = env.bool("EMBEDDINGS_FALLBACK_LOCAL", default=True)
-
-# API keys for external AI providers
 OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
-ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
 HUGGINGFACE_API_KEY = env("HUGGINGFACE_API_KEY", default="")
 COHERE_API_KEY = env("COHERE_API_KEY", default="")
 WHATSAPP_QR_SECRET = env("WHATSAPP_QR_SECRET", default="")
@@ -376,7 +370,3 @@ CORS_ALLOW_METHODS = [
     'POST',
     'PUT',
 ]
-
-# White-label domain support
-ALLOWED_HOSTS.append('*')  # Accept all domains for white-label clients
-
