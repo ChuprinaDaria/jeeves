@@ -367,6 +367,95 @@ class PromptViewSet(viewsets.ModelViewSet):
         })
 
 
+class PromptVoteView(APIView):
+    """Окремий view для vote action, щоб гарантувати доступність через явний маршрут"""
+    permission_classes = [AllowAny]
+    
+    def post(self, request, pk):
+        """Оцінити промпт (like/dislike)"""
+        try:
+            prompt = Prompt.objects.get(pk=pk, is_public=True)
+        except Prompt.DoesNotExist:
+            return Response(
+                {'error': 'Prompt not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        vote_type = request.data.get('vote')
+        
+        if vote_type not in ['like', 'dislike']:
+            return Response(
+                {'error': 'Invalid vote type. Use "like" or "dislike"'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Отримуємо user_identifier
+        if request.user and request.user.is_authenticated:
+            user_identifier = str(request.user.id)
+            user = request.user
+        else:
+            # Для анонімних користувачів використовуємо IP
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            if x_forwarded_for:
+                user_identifier = x_forwarded_for.split(',')[0]
+            else:
+                user_identifier = request.META.get('REMOTE_ADDR', 'anonymous')
+            user = None
+        
+        # Перевіряємо чи вже є голос
+        existing_vote = PromptVote.objects.filter(
+            prompt=prompt,
+            user_identifier=user_identifier
+        ).first()
+        
+        if existing_vote:
+            # Якщо той самий голос - видаляємо
+            if existing_vote.vote == vote_type:
+                if existing_vote.vote == 'like':
+                    prompt.likes_count = max(0, prompt.likes_count - 1)
+                else:
+                    prompt.dislikes_count = max(0, prompt.dislikes_count - 1)
+                existing_vote.delete()
+            else:
+                # Якщо інший голос - змінюємо
+                old_vote = existing_vote.vote
+                existing_vote.vote = vote_type
+                existing_vote.save()
+                
+                # Оновлюємо лічильники
+                if old_vote == 'like':
+                    prompt.likes_count = max(0, prompt.likes_count - 1)
+                else:
+                    prompt.dislikes_count = max(0, prompt.dislikes_count - 1)
+                
+                if vote_type == 'like':
+                    prompt.likes_count += 1
+                else:
+                    prompt.dislikes_count += 1
+        else:
+            # Створюємо новий голос
+            PromptVote.objects.create(
+                prompt=prompt,
+                user=user,
+                user_identifier=user_identifier,
+                vote=vote_type
+            )
+            
+            # Оновлюємо лічильники
+            if vote_type == 'like':
+                prompt.likes_count += 1
+            else:
+                prompt.dislikes_count += 1
+        
+        prompt.save(update_fields=['likes_count', 'dislikes_count'])
+        
+        return Response({
+            'likes_count': prompt.likes_count,
+            'dislikes_count': prompt.dislikes_count,
+            'like_ratio': prompt.get_like_ratio(),
+        })
+
+
 class NewsViewSet(viewsets.ReadOnlyModelViewSet):
     """System news and updates - read-only for clients"""
     serializer_class = NewsSerializer
@@ -508,7 +597,7 @@ router.register(r'documents', ClientDocumentViewSet, basename='document')
 router.register(r'api-keys', APIKeyViewSet, basename='api-key')
 router.register(r'knowledge-blocks', KnowledgeBlockViewSet, basename='knowledge-block')
 router.register(r'qr-codes', ClientQRCodeViewSet, basename='qr-code')
-router.register(r'prompts', PromptViewSet, basename='prompt')
+# prompts зареєстрований явно в urls.py, щоб уникнути конфліктів
 router.register(r'news', NewsViewSet, basename='news')
 
 

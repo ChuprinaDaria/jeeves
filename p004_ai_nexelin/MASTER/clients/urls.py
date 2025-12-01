@@ -38,6 +38,9 @@ urlpatterns = [
     path('qr-codes/<int:pk>/', views.ClientQRCodeViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='qr-code-detail'),
     path('web-parsing-requests/', views.WebParsingRequestViewSet.as_view({'get': 'list', 'post': 'create'}), name='web-parsing-request-list'),
     path('web-parsing-requests/<int:pk>/', views.WebParsingRequestViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='web-parsing-request-detail'),
+    path('prompts/', views.PromptViewSet.as_view({'get': 'list', 'post': 'create'}), name='prompt-list'),
+    path('prompts/<int:pk>/', views.PromptViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='prompt-detail'),
+    path('prompts/<int:pk>/vote/', views.PromptVoteView.as_view(), name='prompt-vote'),
     
     # Router URLs (viewsets) - після explicit routes
     path('', include(views.router.urls)),

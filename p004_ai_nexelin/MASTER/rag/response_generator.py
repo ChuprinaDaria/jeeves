@@ -76,7 +76,9 @@ class ResponseGenerator:
         
         # Step 1: Create query embedding
         embedding_model = self._get_embedding_model(client, specialization, branch)
-        query_embedding_result = EmbeddingService.create_embedding(query, embedding_model)
+        # Use local reference to avoid UnboundLocalError
+        embedding_service = EmbeddingService
+        query_embedding_result = embedding_service.create_embedding(query, embedding_model)
         query_vector = query_embedding_result['vector']
         
         # Track embedding tokens for query (optional, but useful for complete statistics)
@@ -84,10 +86,9 @@ class ResponseGenerator:
         if query_tokens > 0 and client:
             try:
                 from MASTER.processing.models import UsageStats
-                from MASTER.processing.embedding_service import EmbeddingService
                 from MASTER.processing.usage_sync import send_usage_to_mg_async_delay
                 
-                query_cost = EmbeddingService.calculate_cost(query_tokens, embedding_model)
+                query_cost = embedding_service.calculate_cost(query_tokens, embedding_model)
                 query_usage_stat = UsageStats.objects.create(
                     client=client,
                     embedding_model=embedding_model,
