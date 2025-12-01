@@ -152,194 +152,202 @@ class PublicRAGChatView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        # Ідентифікація клієнта (підтримує X-Client-Token)
-        from MASTER.clients.views import get_client_from_request
-        client = get_client_from_request(request)
+        import logging
+        logger = logging.getLogger(__name__)
         
-        if not client:
-            return Response({'error': 'Authentication required (tag link, JWT, or API key)'}, status=status.HTTP_401_UNAUTHORIZED)
-
-        # Підтримка і JSON і multipart/form-data
-        message = request.data.get('message', '') or request.POST.get('message', '')
-        image_file = request.FILES.get('image') or request.FILES.get('photo')
-        
-        if not message and not image_file:
-            return Response({'error': 'message or image is required'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Мова: підтримуємо явний набір для UX: it, nl, de, en, fr + ru (тільки якщо справді вказана/прийшла)
-        # 1) language з body (якщо є)
-        language = ''
         try:
-            if isinstance(request.data, dict):
-                language = str(request.data.get('language') or '').strip().lower()
-        except Exception:
-            language = ''
-        # 2) Якщо не передали явно — пробуємо з Accept-Language
-        if not language:
-            accept_lang = request.headers.get('Accept-Language') or ''
-            if accept_lang:
-                # Беремо першу мову з заголовка, без регіону (it-IT -> it)
-                language = accept_lang.split(',')[0].split(';')[0].strip().split('-')[0].lower()
-        # 3) Нормалізація до підтримуваного списку
-        supported_langs = {'en', 'de', 'fr', 'it', 'nl', 'ru'}
-        if not language:
-            language = 'en'
-        elif language not in supported_langs:
-            # Якщо явно прийшла російська локаль — залишаємо 'ru'
-            if language.startswith('ru'):
-                language = 'ru'
-            else:
-                # Інші мови мапимо на англійську як дефолт
-                language = 'en'
-
-        # Якщо є зображення — аналізуємо його за допомогою vision моделі
-        image_analysis = ''
-        if image_file:
-            try:
-                image_analysis = self._analyze_image(image_file, message, language, client)
-                # Якщо немає текстового повідомлення, використовуємо аналіз зображення як запит
-                if not message:
-                    message = image_analysis
-                else:
-                    # Якщо є і текст і зображення, об'єднуємо
-                    message = f"{message}\n\n[Image analysis: {image_analysis}]"
-            except Exception as e:
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(f"Image analysis error: {e}")
-                # Якщо аналіз не вдався, але є текстове повідомлення, продовжуємо
-                if not message:
-                    return Response({'error': f'Image analysis failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        # Додаємо контекст діалогу (якщо переданий) до запиту
-        # MAX_HISTORY_MESSAGES визначає глибину контексту (20-30 повідомлень)
-        MAX_HISTORY_MESSAGES = 30
-        history_lines: list[str] = []
-
-        # 1) Контекст з фронтенду (optional)
-        # context може прийти:
-        # - як масив [{role, content}, ...] у JSON
-        # - або як JSON-рядок у multipart/form-data
-        raw_context = request.data.get('context')
-        if raw_context:
-            import json
-            try:
-                if isinstance(raw_context, str):
-                    ctx_list = json.loads(raw_context)
-                else:
-                    ctx_list = raw_context
-                if isinstance(ctx_list, list):
-                    for msg in ctx_list[-MAX_HISTORY_MESSAGES:]:
-                        role = str(msg.get('role', 'user')).upper()
-                        content = str(msg.get('content', '')).strip()
-                        if content:
-                            history_lines.append(f"{role}: {content}")
-            except Exception:
-                # Не ламаємо запит, якщо контекст некоректний
-                pass
-
-        # 2) Контекст із бекенду по session_id (web-client chat)
-        session_id = request.data.get('session_id') or request.data.get('conversation_id')
-        if session_id:
-            try:
-                from MASTER.clients.models import ClientWhatsAppConversation
-                conv = ClientWhatsAppConversation.objects.filter(
-                    client=client,
-                    session_id=session_id,
-                ).first()
-                if conv and conv.messages:
-                    for msg in conv.messages[-MAX_HISTORY_MESSAGES:]:
-                        role = str(msg.get('role', 'user')).upper()
-                        content = str(msg.get('content', '')).strip()
-                        if content:
-                            history_lines.append(f"{role}: {content}")
-            except Exception:
-                # Не блокуємо запит, якщо щось пішло не так з загрузкою історії
-                pass
-
-        # Уникаємо дублювання рядків в історії (якщо і фронт, і бекенд дають те саме)
-        if history_lines:
-            # Зберігаємо порядок, видаляючи дублікати
-            seen = set()
-            unique_lines: list[str] = []
-            for line in history_lines:
-                if line not in seen:
-                    seen.add(line)
-                    unique_lines.append(line)
-            history_text = "Conversation history:\n" + "\n".join(unique_lines)
-        else:
-            history_text = ''
-
-        # Перевіряємо чи є email команди та обробляємо їх
-        email_result = None
-        if client:
-            email_enabled = getattr(client, 'email_smtp_enabled', False)
-            logger.info(f"Client {client.id} email_smtp_enabled: {email_enabled}")
+            # Ідентифікація клієнта (підтримує X-Client-Token)
+            from MASTER.clients.views import get_client_from_request
+            client = get_client_from_request(request)
             
-            if email_enabled:
-                logger.info(f"Processing email command for message: '{message[:100]}'")
-                email_result = self._process_email_command(message, client, language)
-                logger.info(f"Email command result: {email_result}")
-                
-                if email_result and email_result.get('action_taken'):
-                    command_type = email_result.get('command_type')
-                    # Для аналітики та пошуку мейлів повертаємо відповідь без виклику RAG,
-                    # щоб уникнути "жартів" та зайвого контексту від LLM
-                    if command_type in {'analyze', 'find', 'recent'}:
-                        logger.info(f"Returning email {command_type} result directly")
-                        return Response(
-                            {
-                                'response': email_result.get('message', ''),
-                                'email_action': email_result,
-                                'language': language,
-                            }
-                        )
-                    # Для send email — додаємо результат в контекст, але все одно викликаємо RAG
-                    elif command_type == 'send':
-                        email_context = f"\n\n[Email Service Result: {email_result.get('message', '')}]\n"
-                        message = message + email_context
+            if not client:
+                return Response({'error': 'Authentication required (tag link, JWT, or API key)'}, status=status.HTTP_401_UNAUTHORIZED)
+
+            # Підтримка і JSON і multipart/form-data
+            message = request.data.get('message', '') or request.POST.get('message', '')
+            image_file = request.FILES.get('image') or request.FILES.get('photo')
+            
+            if not message and not image_file:
+                return Response({'error': 'message or image is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Мова: підтримуємо явний набір для UX: it, nl, de, en, fr + ru (тільки якщо справді вказана/прийшла)
+            # 1) language з body (якщо є)
+            language = ''
+            try:
+                if isinstance(request.data, dict):
+                    language = str(request.data.get('language') or '').strip().lower()
+            except Exception:
+                language = ''
+            # 2) Якщо не передали явно — пробуємо з Accept-Language
+            if not language:
+                accept_lang = request.headers.get('Accept-Language') or ''
+                if accept_lang:
+                    # Беремо першу мову з заголовка, без регіону (it-IT -> it)
+                    language = accept_lang.split(',')[0].split(';')[0].strip().split('-')[0].lower()
+            # 3) Нормалізація до підтримуваного списку
+            supported_langs = {'en', 'de', 'fr', 'it', 'nl', 'ru'}
+            if not language:
+                language = 'en'
+            elif language not in supported_langs:
+                # Якщо явно прийшла російська локаль — залишаємо 'ru'
+                if language.startswith('ru'):
+                    language = 'ru'
+                else:
+                    # Інші мови мапимо на англійську як дефолт
+                    language = 'en'
+
+            # Якщо є зображення — аналізуємо його за допомогою vision моделі
+            image_analysis = ''
+            if image_file:
+                try:
+                    image_analysis = self._analyze_image(image_file, message, language, client)
+                    # Якщо немає текстового повідомлення, використовуємо аналіз зображення як запит
+                    if not message:
+                        message = image_analysis
+                    else:
+                        # Якщо є і текст і зображення, об'єднуємо
+                        message = f"{message}\n\n[Image analysis: {image_analysis}]"
+                except Exception as e:
+                    logger.error(f"Image analysis error: {e}")
+                    # Якщо аналіз не вдався, але є текстове повідомлення, продовжуємо
+                    if not message:
+                        return Response({'error': f'Image analysis failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            # Додаємо контекст діалогу (якщо переданий) до запиту
+            # MAX_HISTORY_MESSAGES визначає глибину контексту (20-30 повідомлень)
+            MAX_HISTORY_MESSAGES = 30
+            history_lines: list[str] = []
+
+            # 1) Контекст з фронтенду (optional)
+            # context може прийти:
+            # - як масив [{role, content}, ...] у JSON
+            # - або як JSON-рядок у multipart/form-data
+            raw_context = request.data.get('context')
+            if raw_context:
+                import json
+                try:
+                    if isinstance(raw_context, str):
+                        ctx_list = json.loads(raw_context)
+                    else:
+                        ctx_list = raw_context
+                    if isinstance(ctx_list, list):
+                        for msg in ctx_list[-MAX_HISTORY_MESSAGES:]:
+                            role = str(msg.get('role', 'user')).upper()
+                            content = str(msg.get('content', '')).strip()
+                            if content:
+                                history_lines.append(f"{role}: {content}")
+                except Exception:
+                    # Не ламаємо запит, якщо контекст некоректний
+                    pass
+
+            # 2) Контекст із бекенду по session_id (web-client chat)
+            session_id = request.data.get('session_id') or request.data.get('conversation_id')
+            if session_id:
+                try:
+                    from MASTER.clients.models import ClientWhatsAppConversation
+                    conv = ClientWhatsAppConversation.objects.filter(
+                        client=client,
+                        session_id=session_id,
+                    ).first()
+                    if conv and conv.messages:
+                        for msg in conv.messages[-MAX_HISTORY_MESSAGES:]:
+                            role = str(msg.get('role', 'user')).upper()
+                            content = str(msg.get('content', '')).strip()
+                            if content:
+                                history_lines.append(f"{role}: {content}")
+                except Exception:
+                    # Не блокуємо запит, якщо щось пішло не так з загрузкою історії
+                    pass
+
+            # Уникаємо дублювання рядків в історії (якщо і фронт, і бекенд дають те саме)
+            if history_lines:
+                # Зберігаємо порядок, видаляючи дублікати
+                seen = set()
+                unique_lines: list[str] = []
+                for line in history_lines:
+                    if line not in seen:
+                        seen.add(line)
+                        unique_lines.append(line)
+                history_text = "Conversation history:\n" + "\n".join(unique_lines)
             else:
-                logger.warning(f"Client {client.id} has email_smtp_enabled=False, skipping email command processing")
+                history_text = ''
 
-        # Формуємо фінальний запит для RAG:
-        # додаємо історію діалогу перед останнім повідомленням користувача
-        rag_query = message
-        if history_text:
-            rag_query = f"{history_text}\n\nLast user message:\n{message}"
+            # Перевіряємо чи є email команди та обробляємо їх
+            email_result = None
+            if client:
+                email_enabled = getattr(client, 'email_smtp_enabled', False)
+                logger.info(f"Client {client.id} email_smtp_enabled: {email_enabled}")
+                
+                if email_enabled:
+                    logger.info(f"Processing email command for message: '{message[:100]}'")
+                    email_result = self._process_email_command(message, client, language)
+                    logger.info(f"Email command result: {email_result}")
+                    
+                    if email_result and email_result.get('action_taken'):
+                        command_type = email_result.get('command_type')
+                        # Для аналітики та пошуку мейлів повертаємо відповідь без виклику RAG,
+                        # щоб уникнути "жартів" та зайвого контексту від LLM
+                        if command_type in {'analyze', 'find', 'recent'}:
+                            logger.info(f"Returning email {command_type} result directly")
+                            return Response(
+                                {
+                                    'response': email_result.get('message', ''),
+                                    'email_action': email_result,
+                                    'language': language,
+                                }
+                            )
+                        # Для send email — додаємо результат в контекст, але все одно викликаємо RAG
+                        elif command_type == 'send':
+                            email_context = f"\n\n[Email Service Result: {email_result.get('message', '')}]\n"
+                            message = message + email_context
+                else:
+                    logger.warning(f"Client {client.id} has email_smtp_enabled=False, skipping email command processing")
 
-        # Використовуємо клієнта для пошуку в його даних + даних бранча та спеціалізації
-        generator = ResponseGenerator()
+            # Формуємо фінальний запит для RAG:
+            # додаємо історію діалогу перед останнім повідомленням користувача
+            rag_query = message
+            if history_text:
+                rag_query = f"{history_text}\n\nLast user message:\n{message}"
 
-        # Отримуємо branch та specialization клієнта для багаторівневого пошуку
-        specialization = getattr(client, 'specialization', None)
-        branch = getattr(specialization, 'branch', None) if specialization else None
+            # Використовуємо клієнта для пошуку в його даних + даних бранча та спеціалізації
+            generator = ResponseGenerator()
 
-        # Передаємо client, specialization та branch для багаторівневого пошуку:
-        # - Client embeddings (приватні дані клієнта)
-        # - Specialization embeddings (спільні дані для всіх клієнтів цієї спеціалізації)
-        # - Branch embeddings (спільні дані для всіх клієнтів цього бранча)
-        rag_response = generator.generate(
-            query=rag_query,
-            client=client,
-            specialization=specialization,
-            branch=branch,
-            stream=False,
-            language=language,
-        )
-        response_data = {
-            'response': getattr(rag_response, 'answer', ''),
-            'sources': getattr(rag_response, 'sources', []),
-            'num_chunks': getattr(rag_response, 'num_chunks', 0),
-            'total_tokens': getattr(rag_response, 'total_tokens', 0),
-            'language': language,
-            'image_analysis': image_analysis if image_analysis else None,
-        }
-        
-        # Додаємо email результат якщо є
-        if email_result:
-            response_data['email_action'] = email_result
-        
-        return Response(response_data)
+            # Отримуємо branch та specialization клієнта для багаторівневого пошуку
+            specialization = getattr(client, 'specialization', None)
+            branch = getattr(specialization, 'branch', None) if specialization else None
+
+            # Передаємо client, specialization та branch для багаторівневого пошуку:
+            # - Client embeddings (приватні дані клієнта)
+            # - Specialization embeddings (спільні дані для всіх клієнтів цієї спеціалізації)
+            # - Branch embeddings (спільні дані для всіх клієнтів цього бранча)
+            rag_response = generator.generate(
+                query=rag_query,
+                client=client,
+                specialization=specialization,
+                branch=branch,
+                stream=False,
+                language=language,
+            )
+            response_data = {
+                'response': getattr(rag_response, 'answer', ''),
+                'sources': getattr(rag_response, 'sources', []),
+                'num_chunks': getattr(rag_response, 'num_chunks', 0),
+                'total_tokens': getattr(rag_response, 'total_tokens', 0),
+                'language': language,
+                'image_analysis': image_analysis if image_analysis else None,
+            }
+            
+            # Додаємо email результат якщо є
+            if email_result:
+                response_data['email_action'] = email_result
+            
+            return Response(response_data)
+        except Exception as e:
+            logger.error(f"Error in PublicRAGChatView.post(): {e}", exc_info=True)
+            return Response(
+                {'error': f'Internal server error: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     def _process_email_command(self, message: str, client, language: str = 'en') -> dict:
         """
