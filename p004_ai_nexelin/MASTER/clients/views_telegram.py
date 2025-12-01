@@ -312,6 +312,13 @@ class TelegramWebhookView(View):
                 # Якщо немає активної розмови, використовуємо RAG з першим доступним клієнтом
                 response_text = self.generate_rag_response_without_conversation(message_text, chat_id)
             else:
+                # Оновлюємо context_metadata для Telegram conversations (якщо не встановлено)
+                if not conversation.context_metadata:
+                    conversation.context_metadata = {}
+                if conversation.context_metadata.get('platform') != 'telegram':
+                    conversation.context_metadata['platform'] = 'telegram'
+                    conversation.save(update_fields=['context_metadata', 'updated_at'])
+                
                 # Використовуємо RAG для генерації відповіді
                 response_text = self.generate_rag_response(message_text, conversation, chat_id)
             

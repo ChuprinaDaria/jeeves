@@ -312,10 +312,19 @@ OLLAMA_DEFAULT_EMBED_MODEL = os.getenv('OLLAMA_DEFAULT_EMBED_MODEL', OLLAMA_MAIN
 KIMI_API_KEY = os.getenv('KIMI_API_KEY', '')
 
 # === MG (Main Front) Integration ===
- # Endpoint to send AI token usage events (hardcoded per request)
+# Endpoint to send AI token usage events (hardcoded per request)
 MG_AI_USAGE_URL = 'https://mg.nexelin.com/api/ai-token-usage'
-# Access token to authenticate our requests to MG
+# Endpoint to create/update packages on MG
+MG_PACKAGE_URL = os.getenv('MG_PACKAGE_URL', 'https://mg.nexelin.com/api/package')
+# Base package GUID for cloning (optional, used when creating packages with parent)
+MG_BASE_PACKAGE_GUID = os.getenv('MG_BASE_PACKAGE_GUID', '')
+# Access token to authenticate our requests to MG (used in Authorization: Bearer header)
 MG_SYNC_API_KEY = os.getenv('MG_SYNC_API_KEY', os.getenv('MG_ACCESS_TOKEN', ''))
+# Optional: Custom mapping between client_type and package_type
+# Format: {'client_type': 'package_type', 'default': 'AI_TYPE_GENERIC'}
+# Example: {'restaurant': 'AI_TYPE_RESTAURANT', 'generic': 'AI_TYPE_GENERIC', 'default': 'AI_TYPE_GENERIC'}
+# If not set, default mapping is used (see MASTER.clients.package_sync)
+# MG_PACKAGE_TYPE_MAP = {}
 
 META_WABA_ID = os.environ.get("META_WABA_ID", "")
 META_APP_ID = os.environ.get("META_APP_ID", "")

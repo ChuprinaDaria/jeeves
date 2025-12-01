@@ -18,6 +18,9 @@ from django.conf import settings
 import hashlib
 from MASTER.accounts.models import User as AppUser
 import requests
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class RAGQueryView(APIView):
@@ -2037,3 +2040,278 @@ class SaveSandboxPhotoView(APIView):
         except Exception as e:
             logger.error(f"Error saving photo: {e}")
             return Response({'error': f'Failed to save photo: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class PackageReceiveView(APIView):
+    """
+    API endpoint для прийняття пакетів з mg.nexelin.
+    Підтримує дії: create, clone, update
+    
+    Відповідно до документації Package API:
+    - create: створює новий пакет (клієнт)
+    - clone: клонує існуючий пакет (клієнт) без ембедингів та документів
+    - update: оновлює існуючий пакет (клієнт)
+    """
+    permission_classes = [AllowAny]  # Може бути захищено через API key або інший механізм
+    
+    def post(self, request):
+        """
+        Обробка POST запитів з mg.nexelin для створення/клонування/оновлення пакетів.
+        
+        Expected JSON payload:
+        {
+            "action": "create|clone|update",
+            "name": "Package name",
+            "guid": "unique-guid",
+            "package_type": "AI_TYPE_ID",
+            "description": "Description",
+            "active": true,
+            "parent": "base-guid"  // required for clone
+        }
+        """
+        # Перевірка Content-Type
+        content_type = request.content_type
+        if 'application/json' not in (content_type or ''):
+            return Response({
+                'error': 'Unsupported Media Type',
+                'message': 'Content-Type must be application/json'
+            }, status=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
+        
+        data = request.data or {}
+        action = data.get('action')
+        guid = data.get('guid')
+        
+        # Валідація обов'язкових полів
+        if not action:
+            return Response({
+                'error': 'Bad Request',
+                'message': 'Field "action" is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if action not in ['create', 'clone', 'update']:
+            return Response({
+                'error': 'Bad Request',
+                'message': f'Invalid action: {action}. Must be one of: create, clone, update'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not guid:
+            return Response({
+                'error': 'Bad Request',
+                'message': 'Field "guid" is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Імпортуємо функцію для маппінгу package_type -> client_type
+            from MASTER.clients.package_sync import _get_client_type_from_package_type
+            
+            if action == 'create':
+                return self._handle_create(data, guid, _get_client_type_from_package_type)
+            elif action == 'clone':
+                return self._handle_clone(data, guid, _get_client_type_from_package_type)
+            elif action == 'update':
+                return self._handle_update(data, guid)
+        except Exception as e:
+            logger.error(f"Error processing package {action} request: {e}", exc_info=True)
+            return Response({
+                'error': 'Internal Server Error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def _handle_create(self, data, guid, get_client_type_func):
+        """Обробка створення нового пакету (клієнта)"""
+        # Валідація обов'язкових полів для create
+        required_fields = ['name', 'package_type', 'description']
+        for field in required_fields:
+            if field not in data:
+                return Response({
+                    'error': 'Bad Request',
+                    'message': f'Field "{field}" is required for create action'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Перевірка чи guid вже існує
+        if Client.objects.filter(tag=guid).exists():
+            return Response({
+                'error': 'Bad Request',
+                'message': f'Package with guid "{guid}" already exists'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Маппінг package_type -> client_type
+        package_type = data.get('package_type')
+        client_type = get_client_type_func(package_type)
+        
+        # Створення користувача
+        username = f"client_{guid}"
+        User = get_user_model()
+        
+        # Перевірка чи користувач вже існує
+        if User.objects.filter(username=username).exists():
+            # Якщо користувач існує, використовуємо його
+            user = User.objects.get(username=username)
+        else:
+            # Створюємо нового користувача
+            user = User.objects.create(
+                username=username,
+                email=f"{username[:40]}@mg.nexelin.local",
+                first_name=data.get('name', '')[:30] or 'Client',
+                last_name='',
+            )
+            user.set_password(get_random_string(12))
+            if hasattr(user, 'role'):
+                user.role = 'client'
+            user.save()
+        
+        # Створення клієнта
+        client = Client.objects.create(
+            user=user.username,
+            tag=guid,
+            company_name=data.get('name', ''),
+            description=data.get('description', ''),
+            is_active=data.get('active', True),
+            client_type=client_type,
+        )
+        
+        logger.info(f"Created client {client.id} from package create request (guid: {guid})")
+        
+        return Response({
+            'success': True,
+            'message': 'Package created successfully',
+            'client': {
+                'id': client.id,
+                'guid': client.tag,
+                'name': client.company_name,
+                'client_type': client.client_type,
+                'is_active': client.is_active,
+            }
+        }, status=status.HTTP_201_CREATED)
+    
+    def _handle_clone(self, data, guid, get_client_type_func):
+        """Обробка клонування пакету (клієнта) без ембедингів та документів"""
+        # Валідація обов'язкових полів для clone
+        parent_guid = data.get('parent')
+        if not parent_guid:
+            return Response({
+                'error': 'Bad Request',
+                'message': 'Field "parent" is required for clone action'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        required_fields = ['name', 'package_type', 'description']
+        for field in required_fields:
+            if field not in data:
+                return Response({
+                    'error': 'Bad Request',
+                    'message': f'Field "{field}" is required for clone action'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Перевірка чи guid вже існує
+        if Client.objects.filter(tag=guid).exists():
+            return Response({
+                'error': 'Bad Request',
+                'message': f'Package with guid "{guid}" already exists'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Знаходимо батьківський клієнт
+        try:
+            parent_client = Client.objects.get(tag=parent_guid)
+        except Client.DoesNotExist:
+            return Response({
+                'error': 'Not Found',
+                'message': f'Parent package with guid "{parent_guid}" not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Маппінг package_type -> client_type
+        package_type = data.get('package_type')
+        client_type = get_client_type_func(package_type)
+        
+        # Створення користувача
+        username = f"client_{guid}"
+        User = get_user_model()
+        
+        if User.objects.filter(username=username).exists():
+            user = User.objects.get(username=username)
+        else:
+            user = User.objects.create(
+                username=username,
+                email=f"{username[:40]}@mg.nexelin.local",
+                first_name=data.get('name', '')[:30] or 'Client',
+                last_name='',
+            )
+            user.set_password(get_random_string(12))
+            if hasattr(user, 'role'):
+                user.role = 'client'
+            user.save()
+        
+        # Клонування клієнта БЕЗ ембедингів та документів
+        # Копіюємо тільки основні поля клієнта
+        client = Client.objects.create(
+            user=user.username,
+            tag=guid,
+            company_name=data.get('name', ''),
+            description=data.get('description', ''),
+            is_active=data.get('active', True),
+            client_type=client_type,
+            # Копіюємо конфігурацію з батьківського клієнта
+            branch=parent_client.branch,
+            specialization=parent_client.specialization,
+            embedding_model=parent_client.embedding_model,
+            llm_provider_model=parent_client.llm_provider_model,
+            llm_provider=parent_client.llm_provider,
+            llm_model_name=parent_client.llm_model_name,
+            features=parent_client.features.copy() if parent_client.features else {},
+            custom_system_prompt=parent_client.custom_system_prompt,
+            # Не копіюємо: logo, documents, embeddings, api_key (генерується автоматично)
+        )
+        
+        logger.info(f"Cloned client {client.id} from parent {parent_client.id} (guid: {guid}, parent_guid: {parent_guid})")
+        
+        return Response({
+            'success': True,
+            'message': 'Package cloned successfully',
+            'client': {
+                'id': client.id,
+                'guid': client.tag,
+                'name': client.company_name,
+                'client_type': client.client_type,
+                'is_active': client.is_active,
+                'parent_guid': parent_guid,
+            }
+        }, status=status.HTTP_201_CREATED)
+    
+    def _handle_update(self, data, guid):
+        """Обробка оновлення пакету (клієнта)"""
+        # Валідація обов'язкових полів для update
+        required_fields = ['name', 'description']
+        for field in required_fields:
+            if field not in data:
+                return Response({
+                    'error': 'Bad Request',
+                    'message': f'Field "{field}" is required for update action'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Знаходимо клієнта
+        try:
+            client = Client.objects.get(tag=guid)
+        except Client.DoesNotExist:
+            return Response({
+                'error': 'Not Found',
+                'message': f'Package with guid "{guid}" not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Оновлюємо поля
+        client.company_name = data.get('name', client.company_name)
+        client.description = data.get('description', client.description)
+        client.is_active = data.get('active', client.is_active)
+        client.save(update_fields=['company_name', 'description', 'is_active'])
+        
+        logger.info(f"Updated client {client.id} from package update request (guid: {guid})")
+        
+        return Response({
+            'success': True,
+            'message': 'Package updated successfully',
+            'client': {
+                'id': client.id,
+                'guid': client.tag,
+                'name': client.company_name,
+                'client_type': client.client_type,
+                'is_active': client.is_active,
+            }
+        }, status=status.HTTP_200_OK)

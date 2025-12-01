@@ -73,15 +73,7 @@ class WebWidgetConfigView(APIView):
             client.widget_enabled = bool(data['widget_enabled'])
             client.save(update_fields=['widget_enabled'])
             
-            # Створюємо новину про нову інтеграцію Web Widget
-            if client.widget_enabled and not old_widget_enabled:
-                try:
-                    from MASTER.clients.news_utils import create_integration_news
-                    create_integration_news('Web Widget', 'Web Widget integration is now available! Embed your AI assistant chat directly on your website with a simple code snippet.')
-                except Exception as e:
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.warning(f"Failed to create Web Widget integration news: {e}")
+            # Новіни про інтеграції створюються тільки через адмін-панель, не автоматично
         
         # Повертаємо оновлені дані
         base_url = getattr(settings, 'WEB_WIDGET_BASE_URL', request.build_absolute_uri('/').rstrip('/'))

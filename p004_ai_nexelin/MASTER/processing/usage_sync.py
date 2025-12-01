@@ -12,81 +12,88 @@ logger = logging.getLogger(__name__)
 
 
 def _resolve_uid(usage: UsageStats) -> str:
-    """Generate unique identifier for usage record."""
+    """
+    Generate unique identifier for usage record.
+    Returns string with max 255 characters (API requirement).
+    """
+    uid = None
     if usage.client_id:
-        return f"client-{usage.client_id}"
-    if usage.branch_id:
-        return f"branch-{usage.branch_id}"
-    if usage.specialization_id:
-        return f"spec-{usage.specialization_id}"
-    return "unknown"
+        uid = f"client-{usage.client_id}"
+    elif usage.branch_id:
+        uid = f"branch-{usage.branch_id}"
+    elif usage.specialization_id:
+        uid = f"spec-{usage.specialization_id}"
+    else:
+        uid = "unknown"
+    
+    # Ensure uid doesn't exceed 255 characters (API requirement)
+    if len(uid) > 255:
+        uid = uid[:255]
+    
+    return uid
 
 
 def _resolve_access_token(usage: UsageStats) -> Optional[str]:
     """
-    Resolve package GUID (access_token) from Client.
-    Priority: Client.tag (package GUID) → Client.api_key → settings fallback
+    Resolve package GUID from Client.
+    This is used as 'guid' field in the API request.
+    Priority: Client.tag (package GUID) → Client.api_key (fallback only)
+    
+    Note: Returns None if no package GUID can be resolved (don't use MG_SYNC_API_KEY
+    as it's an authentication token, not a package GUID).
     """
-    # Try to get from client
-    if usage.client_id:
+    # Try to get from client (use direct ForeignKey access if available)
+    client = None
+    if hasattr(usage, 'client') and usage.client:
+        client = usage.client
+    elif usage.client_id:
         try:
             from MASTER.clients.models import Client
             client = Client.objects.get(pk=usage.client_id)
-            # Client.tag is the package GUID
-            if hasattr(client, 'tag') and client.tag:
-                return client.tag.strip()
-            # Fallback to api_key if tag is not set
-            if hasattr(client, 'api_key') and client.api_key:
-                return client.api_key.strip()
         except Exception:
             pass
     
-    # Fallback to global setting
-    return getattr(settings, "MG_SYNC_API_KEY", "").strip() or None
+    if client:
+        # Client.tag is the package GUID (required for MG API)
+        if hasattr(client, 'tag') and client.tag:
+            return client.tag.strip()
+        # Fallback to api_key if tag is not set (not ideal, but better than nothing)
+        if hasattr(client, 'api_key') and client.api_key:
+            logger.warning(f"Client {client.id} has no tag, using api_key as fallback for package GUID")
+            return client.api_key.strip()
+    
+    # Return None if no package GUID can be resolved
+    # Don't use MG_SYNC_API_KEY as it's an authentication token, not a package GUID
+    return None
 
 
 def _resolve_ai_model(usage: UsageStats) -> str:
     """
-    Resolve AI model identifier.
-    For embedding models: use model name/slug
-    For LLM models: get from metadata or client
+    Resolve AI model GUID identifier for mg.nexelin API.
+    Priority: metadata['ai_model_guid'] → metadata['llm_model_guid'] → model id as fallback
     """
-    # Check if this is LLM usage (stored in metadata)
     metadata = getattr(usage, 'metadata', {}) or {}
     if isinstance(metadata, dict):
-        llm_model = metadata.get('llm_model')
-        if llm_model:
-            return str(llm_model)
+        # Try to get GUID from metadata (preferred)
+        ai_model_guid = metadata.get('ai_model_guid') or metadata.get('llm_model_guid')
+        if ai_model_guid:
+            return str(ai_model_guid)
     
-    # Default: embedding model
+    # Fallback: use model id (may need to be converted to GUID format if required)
     model = usage.embedding_model
     if not model:
         return "unknown"
-    return getattr(model, "slug", None) or getattr(model, "name", None) or getattr(model, "model_name", "unknown")
-
-
-def _resolve_price_type(usage: UsageStats) -> str:
-    """
-    Resolve price type: pl (local), pc (cloud), ph (hybrid).
-    For embedding: check is_local
-    For LLM: check metadata or infer from provider type
-    """
-    # Check if this is LLM usage
-    metadata = getattr(usage, 'metadata', {}) or {}
-    if isinstance(metadata, dict):
-        llm_provider = metadata.get('llm_provider', '').lower()
-        # Ollama is typically local
-        if 'ollama' in llm_provider:
-            return "pl"
-        # OpenAI, Anthropic, Kimi are cloud
-        if llm_provider in ('openai', 'anthropic', 'kimi'):
-            return "pc"
     
-    # Default: embedding model
-    model = usage.embedding_model
-    if model and getattr(model, "is_local", False):
-        return "pl"
-    return "pc"
+    # Try to get model id as GUID (assuming id might be GUID or can be used as identifier)
+    model_id = getattr(model, 'pk', None) or getattr(model, 'id', None)
+    if model_id:
+        return str(model_id)
+    
+    return "unknown"
+
+
+# Note: _resolve_price_type function removed as it's no longer needed
+# The API endpoint /api/ai-token-usage doesn't require ai_price_type field
 
 
 def send_usage_to_mg(usage: UsageStats) -> Optional[dict]:
@@ -98,26 +105,31 @@ def send_usage_to_mg(usage: UsageStats) -> Optional[dict]:
     """
     try:
         # Check if client has disabled usage stats sync
-        if usage.client_id:
+        client = None
+        if hasattr(usage, 'client') and usage.client:
+            client = usage.client
+        elif usage.client_id:
             try:
                 from MASTER.clients.models import Client
                 client = Client.objects.get(pk=usage.client_id)
-                if hasattr(client, 'sync_usage_stats') and not client.sync_usage_stats:
-                    logger.debug(f"Usage stats sync disabled for client {client.id} ({client.company_name})")
-                    return None
             except Exception as e:
-                logger.warning(f"Error checking sync_usage_stats for client {usage.client_id}: {e}")
+                logger.warning(f"Error getting client for usage {usage.id}: {e}")
+        
+        if client:
+            if hasattr(client, 'sync_usage_stats') and not client.sync_usage_stats:
+                logger.debug(f"Usage stats sync disabled for client {client.id} ({client.company_name})")
+                return None
         
         url = getattr(settings, "MG_AI_USAGE_URL", "").strip()
-        access_token = _resolve_access_token(usage)
+        package_guid = _resolve_access_token(usage)  # This returns package GUID (Client.tag)
         
-        if not url or not access_token:
-            logger.debug("MG sync is not configured (MG_AI_USAGE_URL / access_token)")
+        if not url or not package_guid:
+            logger.debug("MG sync is not configured (MG_AI_USAGE_URL / package_guid)")
             return None
 
-        # Format occurred date as required: "YYYY-MM-DD HH:MM:SS"
+        # Format occurred date as ISO 8601 with Z: "2025-12-01T11:55:02Z"
         occurred_dt = usage.created_at or datetime.utcnow()
-        occurred_str = occurred_dt.strftime("%Y-%m-%d %H:%M:%S")
+        occurred_str = occurred_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
         # Validate and convert tokens to int (prevent sending invalid large numbers)
         tokens_value = usage.tokens_used
@@ -125,13 +137,13 @@ def send_usage_to_mg(usage: UsageStats) -> Optional[dict]:
             logger.warning(f"UsageStats {usage.id} has None tokens_used, skipping sync")
             return None
         
-        # Convert to int, but check for reasonable values (max 1 billion tokens per request)
+        # Convert to int, but check for reasonable values (min: 1, max 1 billion tokens per request)
         try:
             tokens_int = int(float(tokens_value))
-            if tokens_int < 0:
-                logger.warning(f"UsageStats {usage.id} has negative tokens: {tokens_int}, skipping sync")
+            if tokens_int < 1:  # API requires min: 1
+                logger.warning(f"UsageStats {usage.id} has tokens < 1: {tokens_int}, skipping sync")
                 return None
-            if tokens_int > 1_000_000_000:  # 1 billion tokens max
+            if tokens_int > 1_000_000_000:  # 1 billion tokens max (reasonable limit)
                 logger.error(f"UsageStats {usage.id} has suspiciously large tokens value: {tokens_int}, skipping sync")
                 return None
         except (ValueError, TypeError, OverflowError) as e:
@@ -139,12 +151,11 @@ def send_usage_to_mg(usage: UsageStats) -> Optional[dict]:
             return None
 
         payload = {
-            "access_token": access_token,
-            "tokens": tokens_int,
-            "occurred": occurred_str,
-            "uid": _resolve_uid(usage),
-            "ai_model": _resolve_ai_model(usage),
-            "ai_price_type": _resolve_price_type(usage),
+            "guid": package_guid,  # Package GUID (required)
+            "tokens": tokens_int,  # Number of used tokens (required, min: 1)
+            "occurred": occurred_str,  # Date when usage occurred (required, ISO 8601 format)
+            "uid": _resolve_uid(usage),  # Unique report identifier (required, max: 255)
+            "ai_model": _resolve_ai_model(usage),  # GUID AI Sub model identifier (required, max: 255)
         }
 
         resp = requests.post(url, json=payload, timeout=10)

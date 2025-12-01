@@ -41,4 +41,6 @@ urlpatterns = [
     path('email/analyze/', views.EmailAnalyzeView.as_view(), name='email-analyze'),
     # Dynamic manifest for webchat PWA
     path('webchat/manifest.json', views.WebChatManifestView.as_view(), name='webchat-manifest'),
+    # Package API endpoint (from mg.nexelin)
+    path('package/', views.PackageReceiveView.as_view(), name='package-receive'),
 ]

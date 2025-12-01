@@ -204,6 +204,9 @@ class Client(models.Model):
     def save(self, *args, **kwargs):
         if not self.api_key:
             self.api_key = self.generate_api_key()
+        # Автоматично копіюємо user в company_name, якщо company_name порожнє
+        if not self.company_name and self.user:
+            self.company_name = self.user
         super().save(*args, **kwargs)
     
     def generate_api_key(self):

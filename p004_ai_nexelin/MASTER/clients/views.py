@@ -8,6 +8,7 @@ from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.exceptions import PermissionDenied
 from django.db.models import Q
 import logging
 import hashlib
@@ -259,12 +260,23 @@ class PromptViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Фільтрація промптів по категорії, індустрії та пошуку"""
-        queryset = Prompt.objects.filter(is_public=True)
+        # Показуємо публічні промпти + власні промпти користувача
+        if self.request.user and self.request.user.is_authenticated:
+            queryset = Prompt.objects.filter(
+                Q(is_public=True) | Q(created_by=self.request.user)
+            )
+        else:
+            queryset = Prompt.objects.filter(is_public=True)
         
         # Фільтри
         category = self.request.query_params.get('category')
         industry = self.request.query_params.get('industry')
         search = self.request.query_params.get('search')
+        my_prompts = self.request.query_params.get('my', '').lower() == 'true'
+        
+        # Фільтр "my" - показуємо тільки свої промпти
+        if my_prompts and self.request.user and self.request.user.is_authenticated:
+            queryset = queryset.filter(created_by=self.request.user)
         
         if category and category != 'all':
             queryset = queryset.filter(category=category)
@@ -289,6 +301,29 @@ class PromptViewSet(viewsets.ModelViewSet):
             serializer.save(created_by=self.request.user)
         else:
             serializer.save()
+    
+    def perform_destroy(self, instance):
+        """Дозволяє видаляти тільки свої промпти"""
+        # Staff/superuser може видаляти будь-які промпти
+        if self.request.user and self.request.user.is_authenticated:
+            if self.request.user.is_staff or self.request.user.is_superuser:
+                instance.delete()
+                return
+        
+        # Перевіряємо, чи користувач є автором промпту
+        if instance.created_by and self.request.user and self.request.user.is_authenticated:
+            if instance.created_by == self.request.user:
+                instance.delete()
+                return
+        
+        # Якщо промпт без автора (created_by=None) - дозволяємо видалення тільки staff
+        if not instance.created_by:
+            if self.request.user and self.request.user.is_authenticated and (self.request.user.is_staff or self.request.user.is_superuser):
+                instance.delete()
+                return
+        
+        # Якщо не пройшов перевірку - забороняємо
+        raise PermissionDenied("Ви можете видаляти тільки свої власні промпти")
     
     @action(detail=True, methods=['post'])
     def vote(self, request, pk=None):
@@ -957,13 +992,7 @@ class ClientTelegramConfigView(APIView):
         
         client.save(update_fields=changed)
         
-        # Створюємо новину про нову інтеграцію Telegram
-        if token_changed and client.telegram_enabled and client.telegram_bot_token:
-            try:
-                from MASTER.clients.news_utils import create_integration_news
-                create_integration_news('Telegram', 'Telegram Bot integration is now available! Connect your AI assistant to Telegram and reach your customers on their favorite messaging platform.')
-            except Exception as e:
-                logger.warning(f"Failed to create Telegram integration news: {e}")
+        # Новіни про інтеграції створюються тільки через адмін-панель, не автоматично
         
         return Response({
             'success': True,
@@ -1043,12 +1072,7 @@ class ClientEmailSMTPConfigView(APIView):
                 server.login(client.email_smtp_username, client.email_smtp_password)
                 server.quit()
                 
-                # Створюємо новину про нову інтеграцію Email
-                try:
-                    from MASTER.clients.news_utils import create_integration_news
-                    create_integration_news('Email SMTP', 'Email SMTP integration is now available! Send and receive emails through your AI assistant.')
-                except Exception as e:
-                    logger.warning(f"Failed to create Email SMTP integration news: {e}")
+                # Новіни про інтеграції створюються тільки через адмін-панель, не автоматично
             except Exception as e:
                 return Response({
                     'error': f'SMTP connection test failed: {str(e)}',
@@ -1361,9 +1385,28 @@ class ClientConversationsView(APIView):
         logger = logging.getLogger(__name__)
         logger.info(f"📊 Client {client.id} ({client.company_name}) requested conversations")
         logger.info(f"📊 Total conversations: {conversations.count()}")
-        web_convs = conversations.filter(context_metadata__platform='web').count()
-        whatsapp_convs = conversations.exclude(context_metadata__platform='web').count()
-        logger.info(f"📊 Web conversations: {web_convs}, WhatsApp: {whatsapp_convs}")
+        
+        # Підрахунок по типах
+        web_convs = 0
+        telegram_convs = 0
+        whatsapp_convs = 0
+        web_widget_convs = 0
+        
+        for conv in conversations:
+            platform = None
+            if conv.context_metadata:
+                platform = conv.context_metadata.get('platform')
+            
+            if platform == 'telegram' or (conv.customer_phone and conv.customer_phone.startswith('telegram_')):
+                telegram_convs += 1
+            elif platform == 'web_widget' or platform == 'iframe' or platform == 'widget':
+                web_widget_convs += 1
+            elif platform == 'web' or (conv.customer_phone and conv.customer_phone.startswith('web_')):
+                web_convs += 1
+            else:
+                whatsapp_convs += 1
+        
+        logger.info(f"📊 Conversations by type: Web={web_convs}, Telegram={telegram_convs}, WhatsApp={whatsapp_convs}, WebWidget={web_widget_convs}")
         
         # Також отримуємо RestaurantConversation для backward compatibility
         from MASTER.restaurant.models import RestaurantConversation
@@ -1374,6 +1417,37 @@ class ClientConversationsView(APIView):
         
         # Додаємо ClientWhatsAppConversation
         for conv in conversations:
+            # Автоматично оновлюємо context_metadata для старих conversations
+            needs_update = False
+            if not conv.context_metadata:
+                conv.context_metadata = {}
+                needs_update = True
+            
+            # Визначаємо source на основі context_metadata та customer_phone
+            source = 'whatsapp'
+            platform = conv.context_metadata.get('platform') if conv.context_metadata else None
+            
+            # Визначаємо source на основі platform або customer_phone prefix
+            if platform == 'telegram' or (conv.customer_phone and conv.customer_phone.startswith('telegram_')):
+                source = 'telegram'
+                if platform != 'telegram':
+                    conv.context_metadata['platform'] = 'telegram'
+                    needs_update = True
+            elif platform == 'web_widget' or platform == 'iframe' or platform == 'widget':
+                source = 'web_widget'
+                if platform not in ['web_widget', 'iframe', 'widget']:
+                    conv.context_metadata['platform'] = 'web_widget'
+                    needs_update = True
+            elif platform == 'web' or (conv.customer_phone and conv.customer_phone.startswith('web_')):
+                source = 'web'
+                if platform != 'web':
+                    conv.context_metadata['platform'] = 'web'
+                    needs_update = True
+            
+            # Оновлюємо context_metadata якщо потрібно
+            if needs_update:
+                conv.save(update_fields=['context_metadata', 'updated_at'])
+            
             # Отримуємо останнє повідомлення
             last_message = conv.messages[-1] if conv.messages else None
             last_message_text = last_message.get('content', '') if last_message else ''
@@ -1392,20 +1466,6 @@ class ClientConversationsView(APIView):
                 timestamp = f"{time_diff.days} days ago"
             else:
                 timestamp = conv.started_at.strftime('%Y-%m-%d')
-            
-            # Визначаємо source на основі context_metadata та customer_phone
-            source = 'whatsapp'
-            platform = None
-            if conv.context_metadata:
-                platform = conv.context_metadata.get('platform')
-            
-            # Визначаємо source на основі platform або customer_phone prefix
-            if platform == 'telegram' or (conv.customer_phone and conv.customer_phone.startswith('telegram_')):
-                source = 'telegram'
-            elif platform == 'web_widget' or platform == 'iframe' or platform == 'widget':
-                source = 'web_widget'
-            elif platform == 'web' or (conv.customer_phone and conv.customer_phone.startswith('web_')):
-                source = 'web'
             
             # Форматуємо номер телефону як ім'я
             if source == 'web':
