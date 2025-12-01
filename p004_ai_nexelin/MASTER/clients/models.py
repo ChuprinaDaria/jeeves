@@ -1353,11 +1353,11 @@ class News(models.Model):
     
     title = models.CharField(max_length=255, help_text="Title in English (default language)")
     description = models.TextField(help_text="Description in English (default language)")
-    # Translations stored as JSON: {"uk": {"title": "...", "description": "..."}, "de": {...}, ...}
+    # Translations stored as JSON: {"en": {"title": "...", "description": "..."}, "de": {...}, ...}
     translations = models.JSONField(
         default=dict,
         blank=True,
-        help_text="Translations for title and description in all supported languages (uk, en, de, es, fr, it, nl, da)"
+        help_text="Translations for title and description in all supported languages (en, de, es, fr, it, nl, da)"
     )
     news_type = models.CharField(max_length=20, choices=NEWS_TYPES, default='update')
     image = models.ImageField(

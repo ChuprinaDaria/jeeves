@@ -121,6 +121,23 @@ class ClientViewSet(viewsets.ModelViewSet):
             qs = qs.filter(specialization__branch_id=branch_id)
         return qs
     
+    def create(self, request, *args, **kwargs):
+        """
+        Перевизначений create для підтримки Package API формату від mg.nexelin.
+        Якщо payload містить поле 'action' - це Package API, інакше - стандартний формат.
+        """
+        data = request.data or {}
+        
+        # Перевірка чи це Package API формат (має поле 'action')
+        if 'action' in data and data.get('action') in ['create', 'clone', 'update']:
+            # Це Package API формат - делегуємо обробку PackageReceiveView
+            from MASTER.api.views import PackageReceiveView
+            package_view = PackageReceiveView()
+            return package_view.post(request)
+        
+        # Стандартний формат створення клієнта
+        return super().create(request, *args, **kwargs)
+    
     def perform_create(self, serializer):
         """Встановлюємо created_by при створенні клієнта через API"""
         # Якщо користувач авторизований, встановлюємо created_by

@@ -1646,18 +1646,7 @@ class ClientLLMProviderSetView(APIView):
         client.llm_model_name = provider.model_name
         client.save(update_fields=['llm_provider_model', 'llm_provider', 'llm_model_name'])
         
-        # Створюємо новину про нову модель якщо це перший вибір або зміна
-        if not old_provider or old_provider.id != provider.id:
-            try:
-                from MASTER.clients.news_utils import create_model_news
-                create_model_news(
-                    provider.name,
-                    f"New AI model {provider.name} ({provider.provider_type}) is now available! Experience improved performance and accuracy with this model."
-                )
-            except Exception as e:
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.warning(f"Failed to create model news: {e}")
+        # Новіни про моделі створюються тільки через адмін-панель, не автоматично
         
         provider_pk = getattr(provider, 'pk', None) or getattr(provider, 'id', None)
         

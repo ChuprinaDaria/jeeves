@@ -9,12 +9,11 @@ from MASTER.clients.models import News
 
 logger = logging.getLogger(__name__)
 
-# Supported languages in the app
-SUPPORTED_LANGUAGES = ['uk', 'en', 'de', 'es', 'fr', 'it', 'nl', 'da']
+# Supported languages in the app (matching frontend locales: en, de, fr, es, it, nl, da)
+SUPPORTED_LANGUAGES = ['en', 'de', 'es', 'fr', 'it', 'nl', 'da']
 
 # Language names for translation prompts
 LANGUAGE_NAMES = {
-    'uk': 'Ukrainian',
     'en': 'English',
     'de': 'German',
     'es': 'Spanish',
@@ -146,7 +145,7 @@ def translate_text(text: str, target_language: str) -> str:
     
     Args:
         text: Text to translate
-        target_language: Target language code (uk, de, es, fr, it, nl, da)
+        target_language: Target language code (en, de, es, fr, it, nl, da)
     
     Returns:
         Translated text or original text if translation fails
@@ -204,7 +203,7 @@ def generate_translations(title: str, description: str) -> dict:
         description: English description
     
     Returns:
-        Dictionary with translations: {"uk": {"title": "...", "description": "..."}, ...}
+        Dictionary with translations: {"en": {"title": "...", "description": "..."}, "de": {...}, ...}
     """
     translations = {}
     
