@@ -60,15 +60,19 @@ class EmailService:
         if smtp_host_lower in host_mapping:
             return host_mapping[smtp_host_lower]
         
-        # Special handling for home.pl servers (serwerXXXXXX.home.pl -> pocztaXXXXXX.home.pl)
-        if 'serwer' in smtp_host_lower and 'home.pl' in smtp_host_lower:
-            imap_host = smtp_host_lower.replace('serwer', 'poczta')
-            logger.info(f"Detected home.pl server, using IMAP host: {imap_host}")
-            return imap_host
-        
-        # Special handling for other home.pl variants
+        # Special handling for home.pl servers
         if 'home.pl' in smtp_host_lower:
-            # Try common patterns for home.pl
+            # Для home.pl зазвичай використовується загальний IMAP сервер poczta.home.pl
+            # Але спочатку пробуємо специфічний для сервера
+            if 'serwer' in smtp_host_lower:
+                # Варіант 1: serwerXXXXXX.home.pl -> pocztaXXXXXX.home.pl
+                imap_host = smtp_host_lower.replace('serwer', 'poczta')
+                logger.info(f"Detected home.pl server (serwer), trying IMAP host: {imap_host}")
+                # Повертаємо специфічний, але якщо не працює - користувач побачить помилку
+                return imap_host
+            
+            # Варіант 2: poczta.home.pl (загальний для всіх home.pl) - використовуємо як fallback
+            # Але спочатку пробуємо замінити smtp/mail на poczta
             if 'smtp' in smtp_host_lower:
                 imap_host = smtp_host_lower.replace('smtp', 'poczta')
             elif 'mail' in smtp_host_lower:
@@ -79,11 +83,10 @@ class EmailService:
                 if len(parts) >= 2:
                     imap_host = f"poczta.{'.'.join(parts[1:])}"
                 else:
-                    imap_host = None
+                    imap_host = 'poczta.home.pl'  # Загальний fallback
             
-            if imap_host:
-                logger.info(f"Detected home.pl server, using IMAP host: {imap_host}")
-                return imap_host
+            logger.info(f"Using home.pl IMAP host: {imap_host}")
+            return imap_host
         
         # Try replacing smtp with imap
         if 'smtp' in smtp_host_lower:
@@ -203,9 +206,11 @@ class EmailService:
             List of email dictionaries
         """
         if not self.imap_host:
+            logger.warning(f"IMAP host not configured for SMTP host: {self.smtp_host}")
             return []
         
         try:
+            logger.info(f"Connecting to IMAP server: {self.imap_host}:{self.imap_port}")
             # Connect to IMAP server
             mail = imaplib.IMAP4_SSL(self.imap_host, self.imap_port)
             mail.login(self.smtp_username, self.smtp_password)
@@ -245,7 +250,14 @@ class EmailService:
             
             return emails
         except Exception as e:
-            logger.error(f"Failed to get recent emails: {e}")
+            error_msg = str(e)
+            logger.error(f"Failed to get recent emails from {self.imap_host}: {error_msg}", exc_info=True)
+            
+            # Якщо помилка DNS - повертаємо порожній список, але збережемо помилку для analyze_recent_emails
+            if 'Name or service not known' in error_msg or 'Errno -2' in error_msg:
+                logger.warning(f"IMAP host {self.imap_host} is not accessible (DNS error). Please check IMAP configuration.")
+            
+            # Повертаємо порожній список, але логуємо деталі
             return []
     
     def search_emails(
@@ -337,10 +349,27 @@ class EmailService:
         emails = self.get_recent_emails(limit=50, days_back=days_back)
         
         if not emails:
-            return {
-                'total_emails': 0,
-                'message': 'No emails found in the specified period'
-            }
+            # Перевіряємо, чи проблема в IMAP хості
+            if not self.imap_host:
+                error_msg = f'❌ IMAP host not configured.\n\nSMTP host: {self.smtp_host}\n\nPlease configure IMAP settings for email reading. For home.pl servers, IMAP host is usually "poczta.home.pl" or "poczta[server_number].home.pl".'
+                return {
+                    'total_emails': 0,
+                    'message': error_msg,
+                    'summary': error_msg,
+                    'error': 'IMAP host not configured',
+                    'smtp_host': self.smtp_host
+                }
+            else:
+                # Можливо, IMAP хост не доступний або неправильний
+                error_msg = f'⚠️ No emails found or IMAP connection failed.\n\nIMAP host: {self.imap_host}\nSMTP host: {self.smtp_host}\nPeriod: last {days_back} days\n\nPossible issues:\n- IMAP host is incorrect\n- IMAP server is not accessible\n- No emails in the specified period\n- IMAP credentials are incorrect'
+                return {
+                    'total_emails': 0,
+                    'message': error_msg,
+                    'summary': error_msg,
+                    'imap_host': self.imap_host,
+                    'smtp_host': self.smtp_host,
+                    'days_back': days_back
+                }
         
         # Analyze emails
         senders = {}

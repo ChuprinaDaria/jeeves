@@ -454,9 +454,10 @@ class PublicRAGChatView(APIView):
                     analysis = email_service.analyze_recent_emails(days_back=days)
                     result['action_taken'] = True
                     result['command_type'] = 'analyze'
-                    result['message'] = analysis.get('summary', 'Email analysis completed')
+                    # Використовуємо summary якщо є, інакше message, інакше загальне повідомлення
+                    result['message'] = analysis.get('summary') or analysis.get('message', 'Email analysis completed')
                     result['analysis'] = analysis
-                    logger.info(f"Email analysis completed: {len(analysis.get('emails', []))} emails found")
+                    logger.info(f"Email analysis completed: {len(analysis.get('emails', []))} emails found, message: {result['message'][:100]}")
                     return result
             
             logger.info("No analyze pattern matched")
