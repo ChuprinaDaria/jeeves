@@ -173,9 +173,12 @@ const IntegrationsPage = () => {
       const qrCodes = existingQRCodes.data || [];
       
       // Отримуємо client_tag для формування URL
-      const clientTag = localStorage.getItem('client_tag');
+      // 1) спершу з localStorage (стандартний шлях)
+      // 2) якщо немає - з clientInfo.tag, який приходить з /clients/me/
+      const storedTag = localStorage.getItem('client_tag');
+      const clientTag = storedTag || clientInfo?.tag;
       if (!clientTag) {
-        console.error('Client tag not found');
+        console.error('Client tag not found (neither in localStorage nor in /clients/me/ response)');
         setLoadingWebQR(false);
         return;
       }
@@ -841,7 +844,10 @@ const IntegrationsPage = () => {
                         Scan this QR code or share the link to access Web Chat
                       </p>
                       {(() => {
-                        const clientTag = localStorage.getItem('client_tag');
+                        // Той самий підхід, що й у loadOrCreateWebQR:
+                        // спершу беремо tag з localStorage, потім з clientInfo.tag
+                        const storedTag = localStorage.getItem('client_tag');
+                        const clientTag = storedTag || clientInfo?.tag;
                         // Для white label використовуємо webchat_domain
                         let baseUrl = window.location.origin;
                         if (clientInfo?.webchat_domain) {
