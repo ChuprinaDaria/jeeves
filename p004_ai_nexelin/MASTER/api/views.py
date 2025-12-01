@@ -2139,7 +2139,12 @@ class PackageReceiveView(APIView):
         package_type = data.get('package_type')
         client_type = get_client_type_func(package_type)
         
-        # Створення користувача
+        # Використовуємо name як user (як очікує mg.nexelin API)
+        user_name = data.get('name', '').strip()
+        if not user_name:
+            user_name = f"Client {guid[:8]}"
+        
+        # Створення користувача (для внутрішньої системи)
         username = f"client_{guid}"
         User = get_user_model()
         
@@ -2152,7 +2157,7 @@ class PackageReceiveView(APIView):
             user = User.objects.create(
                 username=username,
                 email=f"{username[:40]}@mg.nexelin.local",
-                first_name=data.get('name', '')[:30] or 'Client',
+                first_name=user_name[:30] or 'Client',
                 last_name='',
             )
             user.set_password(get_random_string(12))
@@ -2161,10 +2166,12 @@ class PackageReceiveView(APIView):
             user.save()
         
         # Створення клієнта
+        # Використовуємо user_name (name з payload) як user для Client
+        # company_name автоматично скопіюється з user в методі save() моделі
         client = Client.objects.create(
-            user=user.username,
+            user=user_name,  # Використовуємо name як user (як очікує mg.nexelin)
             tag=guid,
-            company_name=data.get('name', ''),
+            # company_name не встановлюємо явно - воно автоматично скопіюється з user в save()
             description=data.get('description', ''),
             is_active=data.get('active', True),
             client_type=client_type,
@@ -2177,8 +2184,12 @@ class PackageReceiveView(APIView):
             'message': 'Package created successfully',
             'client': {
                 'id': client.id,
+                'user': client.user,  # Додаємо user для mg.nexelin API
                 'guid': client.tag,
                 'name': client.company_name,
+                'company_name': client.company_name,
+                'tag': client.tag,
+                'description': client.description,
                 'client_type': client.client_type,
                 'is_active': client.is_active,
             }
@@ -2222,7 +2233,12 @@ class PackageReceiveView(APIView):
         package_type = data.get('package_type')
         client_type = get_client_type_func(package_type)
         
-        # Створення користувача
+        # Використовуємо name як user (як очікує mg.nexelin API)
+        user_name = data.get('name', '').strip()
+        if not user_name:
+            user_name = f"Client {guid[:8]}"
+        
+        # Створення користувача (для внутрішньої системи)
         username = f"client_{guid}"
         User = get_user_model()
         
@@ -2232,7 +2248,7 @@ class PackageReceiveView(APIView):
             user = User.objects.create(
                 username=username,
                 email=f"{username[:40]}@mg.nexelin.local",
-                first_name=data.get('name', '')[:30] or 'Client',
+                first_name=user_name[:30] or 'Client',
                 last_name='',
             )
             user.set_password(get_random_string(12))
@@ -2242,10 +2258,11 @@ class PackageReceiveView(APIView):
         
         # Клонування клієнта БЕЗ ембедингів та документів
         # Копіюємо тільки основні поля клієнта
+        # company_name автоматично скопіюється з user в методі save() моделі
         client = Client.objects.create(
-            user=user.username,
+            user=user_name,  # Використовуємо name як user (як очікує mg.nexelin)
             tag=guid,
-            company_name=data.get('name', ''),
+            # company_name не встановлюємо явно - воно автоматично скопіюється з user в save()
             description=data.get('description', ''),
             is_active=data.get('active', True),
             client_type=client_type,
@@ -2268,8 +2285,12 @@ class PackageReceiveView(APIView):
             'message': 'Package cloned successfully',
             'client': {
                 'id': client.id,
+                'user': client.user,  # Додаємо user для mg.nexelin API
                 'guid': client.tag,
                 'name': client.company_name,
+                'company_name': client.company_name,
+                'tag': client.tag,
+                'description': client.description,
                 'client_type': client.client_type,
                 'is_active': client.is_active,
                 'parent_guid': parent_guid,
@@ -2309,8 +2330,12 @@ class PackageReceiveView(APIView):
             'message': 'Package updated successfully',
             'client': {
                 'id': client.id,
+                'user': client.user,  # Додаємо user для mg.nexelin API
                 'guid': client.tag,
                 'name': client.company_name,
+                'company_name': client.company_name,
+                'tag': client.tag,
+                'description': client.description,
                 'client_type': client.client_type,
                 'is_active': client.is_active,
             }
