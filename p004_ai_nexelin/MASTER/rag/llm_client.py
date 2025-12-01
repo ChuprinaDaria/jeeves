@@ -151,7 +151,7 @@ class LLMClient:
         specialization: Specialization | None = None,
         branch: Branch | None = None,
         stream: bool = True,
-    ) -> str | Generator[str, None, None]:
+    ) -> str | Generator[str, None, None] | dict[str, Any]:
         """
         Generate response from LLM.
         
@@ -164,7 +164,8 @@ class LLMClient:
             stream: Whether to stream response
             
         Returns:
-            Complete response string or generator of chunks if streaming
+            If stream=False: dict with 'content' and 'usage' keys
+            If stream=True: generator of chunks (for backward compatibility)
         """
         # Перезавантажуємо клієнта з БД, щоб гарантувати свіжість custom_system_prompt і моделей
         if client is not None and client.pk:
@@ -237,10 +238,26 @@ class LLMClient:
             else:
                 # Інші помилки пробросуємо як є
                 raise
+        
         content = cast(str, result.get('content', ''))
+        usage = result.get('usage', {})
+        model_name = result.get('model', '')
+        
+        # Get provider info for metadata
+        provider_type = 'openai'
+        if client:
+            provider_type = getattr(client, 'llm_provider', 'openai')
+        
         if not stream:
-            return content
-        # Streaming emulation: yield once
+            # Return dict with content and usage for non-streaming
+            return {
+                'content': content,
+                'usage': usage,
+                'model': model_name,
+                'provider': provider_type,
+            }
+        
+        # Streaming emulation: yield once (for backward compatibility)
         def _one_shot() -> Generator[str, None, None]:
             yield content
         return _one_shot()
@@ -264,6 +281,10 @@ class LLMClient:
         if client:
             client_prompt = self._get_client_custom_prompt(client)
             if client_prompt:
+                # Add email capabilities info if enabled
+                email_info = self._get_email_capabilities_info(client)
+                if email_info:
+                    client_prompt = client_prompt + "\n\n" + email_info
                 logger.info(f"Using custom prompt for client: {client.user}")
                 return client_prompt
         
@@ -283,7 +304,35 @@ class LLMClient:
         
         # Priority 4: Default prompt
         logger.info("Using default system prompt")
-        return settings.SYSTEM_PROMPTS['default']
+        default_prompt = settings.SYSTEM_PROMPTS.get('default', 'You are a helpful AI assistant.')
+        
+        # Add email capabilities info if client has email enabled
+        if client:
+            email_info = self._get_email_capabilities_info(client)
+            if email_info:
+                default_prompt = default_prompt + "\n\n" + email_info
+        
+        return default_prompt
+    
+    def _get_email_capabilities_info(self, client: Client) -> str | None:
+        """Get email capabilities information for system prompt if email is enabled."""
+        if not getattr(client, 'email_smtp_enabled', False):
+            return None
+        
+        return """EMAIL CAPABILITIES:
+You have access to email functionality through SMTP. You can help users with:
+- Sending emails: When user asks to "create email", "send email", "write email to [address]", extract recipient, subject, and body, then send the email.
+- Analyzing recent emails: When user asks "analyze recent emails", "what's in my emails", provide summary of recent emails.
+- Finding emails: When user asks "find emails from [sender]", "show emails from [address]", search and display matching emails.
+- Getting recent emails: When user asks "show recent emails", "what's new in email", retrieve and summarize recent emails.
+
+Commands you can understand:
+- "створи мейл для [email]" / "send email to [email]" - Send email
+- "дай аналіз останніх мейлів" / "analyze recent emails" - Analyze emails
+- "знайди мейли від [email]" / "find emails from [email]" - Search emails
+- "покажи останні мейли" / "show recent emails" - Get recent emails
+
+Always confirm email actions and provide clear feedback about what was done."""
     
     def _get_client_custom_prompt(self, client: Client) -> str | None:
         """Get custom prompt from client metadata."""

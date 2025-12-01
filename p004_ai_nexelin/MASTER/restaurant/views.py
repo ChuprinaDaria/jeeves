@@ -544,12 +544,17 @@ class RestaurantChatViewSet(viewsets.GenericViewSet):
                     f"{msg['role'].upper()}: {msg['content']}" for msg in history_messages
                 ])
                 full_context = (context + "\n\n" + history_text).strip()
-                response_text = cast(str, llm.generate_response(
+                llm_result = llm.generate_response(
                     user_query=message,
                     context=full_context,
                     client=client,
                     stream=False,
-                ))
+                )
+                # Handle new format (dict) or old format (str)
+                if isinstance(llm_result, dict):
+                    response_text = cast(str, llm_result.get('content', ''))
+                else:
+                    response_text = cast(str, llm_result)
             finally:
                 client.custom_system_prompt = old_prompt
         except Exception as e:

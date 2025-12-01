@@ -27,12 +27,14 @@ class Client(models.Model):
     TYPE_HOTEL = 'hotel'
     TYPE_MEDICAL = 'medical'
     TYPE_RETAIL = 'retail'
+    TYPE_WHITE_LABEL = 'white_label'
     CLIENT_TYPE_CHOICES = [
         (TYPE_GENERIC, 'Generic'),
         (TYPE_RESTAURANT, 'Restaurant'),
         (TYPE_HOTEL, 'Hotel'),
         (TYPE_MEDICAL, 'Medical'),
         (TYPE_RETAIL, 'Retail'),
+        (TYPE_WHITE_LABEL, 'White Label'),
     ]
     
     branch = models.ForeignKey(
@@ -61,6 +63,16 @@ class Client(models.Model):
     )
     
     # LLM configuration (generation model) per client
+    # New: ForeignKey to LLMProvider (preferred)
+    llm_provider_model = models.ForeignKey(
+        'EmbeddingModel.LLMProvider',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='clients',
+        help_text="Selected LLM provider model. If not set, llm_provider and llm_model_name will be used."
+    )
+    # Legacy: CharField for backward compatibility
     llm_provider = models.CharField(
         max_length=50,
         default='openai',
@@ -159,6 +171,24 @@ class Client(models.Model):
     meta_phone_number_id = models.CharField(max_length=64, blank=True, help_text="Meta Business Phone Number ID")
     meta_verify_token = models.CharField(max_length=128, blank=True, help_text="Webhook verify token for Meta")
     meta_phone_number = models.CharField(max_length=20, blank=True, help_text="Business phone number in E.164 format, e.g. +14155552671")
+
+    # Telegram Bot per-client configuration
+    telegram_enabled = models.BooleanField(default=False, help_text="Enable Telegram Bot for this client")
+    telegram_bot_token = models.CharField(max_length=255, blank=True, help_text="Telegram Bot Token from @BotFather")
+    telegram_webhook_url = models.URLField(blank=True, help_text="Telegram webhook URL (auto-generated)")
+
+    # Web Widget configuration (only for white label clients)
+    widget_enabled = models.BooleanField(default=False, help_text="Enable web widget for white label clients")
+
+    # SMTP Email configuration
+    email_smtp_enabled = models.BooleanField(default=False, help_text="Enable SMTP email for this client")
+    email_smtp_host = models.CharField(max_length=255, blank=True, help_text="SMTP server host (e.g., smtp.gmail.com)")
+    email_smtp_port = models.IntegerField(default=587, help_text="SMTP server port (usually 587 for TLS, 465 for SSL)")
+    email_smtp_use_tls = models.BooleanField(default=True, help_text="Use TLS encryption for SMTP")
+    email_smtp_username = models.CharField(max_length=255, blank=True, help_text="SMTP username (usually email address)")
+    email_smtp_password = models.CharField(max_length=255, blank=True, help_text="SMTP password or app password")
+    email_from_address = models.EmailField(blank=True, help_text="From email address for sending emails")
+    email_from_name = models.CharField(max_length=255, blank=True, help_text="From name for sending emails")
 
     class Meta:
         verbose_name = 'Client'
@@ -776,24 +806,27 @@ class ClientQRCode(models.Model):
     
     def get_web_chat_link(self) -> str:
         """Returns Web Chat link for this QR code"""
-        # Get client tag from API key
+        # Use location if it's a full URL, otherwise construct it
+        if self.location and (self.location.startswith('http://') or self.location.startswith('https://')):
+            return self.location
+        
+        # Get client tag (priority: client.tag -> API key -> client ID)
         client_tag = None
-        try:
-            api_key = self.client.api_keys.filter(is_active=True).first()
-            if api_key:
-                client_tag = api_key.key
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Error getting API key for client {self.client.id}: {e}")
+        if hasattr(self.client, 'tag') and self.client.tag:
+            client_tag = self.client.tag
+        else:
+            try:
+                api_key = self.client.api_keys.filter(is_active=True).first()
+                if api_key:
+                    client_tag = api_key.key
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Error getting API key for client {self.client.id}: {e}")
         
         if not client_tag:
             # Fallback: use client ID
             client_tag = f"client-{self.client.id}"
-        
-        # Use location if it's a full URL, otherwise construct it
-        if self.location and (self.location.startswith('http://') or self.location.startswith('https://')):
-            return self.location
         
         # Construct Web Chat URL
         from django.conf import settings
@@ -808,7 +841,8 @@ class ClientQRCode(models.Model):
                 base_url = f"https://{custom_domain}".rstrip("/")
         else:
             # 2) Fallback to global frontend URL
-            base_url = getattr(settings, 'FRONTEND_URL', 'https://app.nexelin.com').rstrip("/")
+            frontend_url = getattr(settings, 'FRONTEND_URL', 'https://app.nexelin.com')
+            base_url = frontend_url.rstrip("/") if isinstance(frontend_url, str) else 'https://app.nexelin.com'
         
         return f"{base_url}/client?tag={client_tag}"
     
@@ -1155,3 +1189,162 @@ class ClientWhatsAppConversation(models.Model):
                 self.save(update_fields=['is_active', 'ended_at'])
             except Exception:
                 pass
+
+
+class Prompt(models.Model):
+    """Public prompt library - доступний для всіх користувачів"""
+    CATEGORY_CHOICES = [
+        ('marketing', 'Marketing'),
+        ('sales', 'Sales'),
+        ('hr', 'HR / Recruitment'),
+        ('customer_support', 'Customer Support'),
+        ('legal', 'Legal / Compliance'),
+        ('finance', 'Finance / Analytics'),
+        ('tech', 'Software Development'),
+        ('content', 'Content Creation'),
+    ]
+
+    INDUSTRY_CHOICES = [
+        ('retail', 'Retail'),
+        ('healthcare', 'Healthcare'),
+        ('finance', 'Finance'),
+        ('tech', 'Technology'),
+        ('education', 'Education'),
+        ('all', 'All Industries'),
+    ]
+
+    id = models.AutoField(primary_key=True)
+    title = models.CharField(max_length=200)
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
+    industry = models.CharField(max_length=100, choices=INDUSTRY_CHOICES, default='all')
+    description = models.TextField()
+    prompt_template = models.TextField(help_text="Prompt template with {{variables}}")
+    variables = models.JSONField(default=list, help_text="List of variable definitions")
+    examples = models.JSONField(default=list, blank=True, help_text="Example inputs and outputs")
+    
+    # Metadata
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_prompts'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # AI model settings
+    model = models.CharField(max_length=50, default='gpt-4', help_text="Recommended model")
+    temperature = models.FloatField(default=0.7)
+    max_tokens = models.IntegerField(default=1500)
+    
+    # Statistics
+    usage_count = models.IntegerField(default=0)
+    likes_count = models.IntegerField(default=0)
+    dislikes_count = models.IntegerField(default=0)
+    
+    tags = models.JSONField(default=list, blank=True)
+    is_public = models.BooleanField(default=True, help_text="Public prompts are visible to all users")
+    is_featured = models.BooleanField(default=False, help_text="Featured prompts appear first")
+
+    class Meta:
+        verbose_name = 'Prompt'
+        verbose_name_plural = 'Prompts'
+        ordering = ['-is_featured', '-created_at']
+        indexes = [
+            models.Index(fields=['category', 'industry']),
+            models.Index(fields=['is_public', '-likes_count']),
+            models.Index(fields=['is_featured', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.title} ({self.category})"
+    
+    def get_like_ratio(self):
+        """Calculate like/dislike ratio"""
+        total = self.likes_count + self.dislikes_count
+        if total == 0:
+            return 0.0
+        return self.likes_count / total
+
+
+class PromptVote(models.Model):
+    """User votes on prompts (like/dislike)"""
+    VOTE_CHOICES = [
+        ('like', 'Like'),
+        ('dislike', 'Dislike'),
+    ]
+    
+    prompt = models.ForeignKey(
+        Prompt,
+        on_delete=models.CASCADE,
+        related_name='votes'
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='prompt_votes'
+    )
+    # Для анонімних користувачів зберігаємо IP або session
+    user_identifier = models.CharField(
+        max_length=255,
+        help_text="IP address or session ID for anonymous users"
+    )
+    vote = models.CharField(max_length=10, choices=VOTE_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Prompt Vote'
+        verbose_name_plural = 'Prompt Votes'
+        unique_together = [['prompt', 'user_identifier']]
+        indexes = [
+            models.Index(fields=['prompt', 'vote']),
+        ]
+
+    def __str__(self):
+        user_str = self.user.username if self.user else self.user_identifier
+        return f"{user_str} - {self.vote} on {self.prompt.title}"
+
+
+class News(models.Model):
+    """System news and updates for dashboard"""
+    NEWS_TYPES = [
+        ('integration', 'Integration'),
+        ('model', 'Model'),
+        ('feature', 'Feature'),
+        ('update', 'Update'),
+        ('announcement', 'Announcement'),
+    ]
+    
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    news_type = models.CharField(max_length=20, choices=NEWS_TYPES, default='update')
+    image_url = models.URLField(
+        blank=True,
+        null=True,
+        help_text="Image URL from Unsplash or other source"
+    )
+    is_active = models.BooleanField(default=True)
+    is_featured = models.BooleanField(default=False, help_text="Featured news appear first")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # Metadata for automatic news generation
+    related_integration = models.CharField(max_length=50, blank=True, help_text="Related integration name")
+    related_model = models.CharField(max_length=100, blank=True, help_text="Related model name")
+    related_feature = models.CharField(max_length=100, blank=True, help_text="Related feature name")
+    
+    class Meta:
+        verbose_name = 'News'
+        verbose_name_plural = 'News'
+        ordering = ['-is_featured', '-created_at']
+        indexes = [
+            models.Index(fields=['is_active', '-created_at']),
+            models.Index(fields=['news_type', '-created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.title} ({self.news_type})"

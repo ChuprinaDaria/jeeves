@@ -34,6 +34,11 @@ urlpatterns = [
     path('sandbox/save-qa/', views.SaveSandboxQAView.as_view(), name='sandbox-save-qa'),
     # Save photo from sandbox
     path('sandbox/save-photo/', views.SaveSandboxPhotoView.as_view(), name='sandbox-save-photo'),
+    # Email service endpoints
+    path('email/send/', views.EmailSendView.as_view(), name='email-send'),
+    path('email/recent/', views.EmailRecentView.as_view(), name='email-recent'),
+    path('email/search/', views.EmailSearchView.as_view(), name='email-search'),
+    path('email/analyze/', views.EmailAnalyzeView.as_view(), name='email-analyze'),
     # Dynamic manifest for webchat PWA
     path('webchat/manifest.json', views.WebChatManifestView.as_view(), name='webchat-manifest'),
 ]

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from MASTER.clients.models import Client, ClientDocument, ClientAPIKey, KnowledgeBlock, ClientQRCode, WebParsingRequest
+from MASTER.clients.models import Client, ClientDocument, ClientAPIKey, KnowledgeBlock, ClientQRCode, WebParsingRequest, Prompt, PromptVote, News
 
 
 class ClientSerializer(serializers.ModelSerializer):
@@ -227,4 +227,96 @@ class WebParsingRequestSerializer(serializers.ModelSerializer):
             data.pop('status', None)
             data.pop('path_to_documents', None)
         return data
+
+
+class PromptSerializer(serializers.ModelSerializer):
+    like_ratio = serializers.FloatField(read_only=True)
+    user_vote = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Prompt
+        fields = [
+            'id',
+            'title',
+            'category',
+            'industry',
+            'description',
+            'prompt_template',
+            'variables',
+            'examples',
+            'model',
+            'temperature',
+            'max_tokens',
+            'usage_count',
+            'likes_count',
+            'dislikes_count',
+            'like_ratio',
+            'tags',
+            'is_public',
+            'is_featured',
+            'created_by',
+            'created_at',
+            'updated_at',
+            'user_vote',
+        ]
+        read_only_fields = [
+            'created_by', 'created_at', 'updated_at',
+            'usage_count', 'likes_count', 'dislikes_count', 'like_ratio', 'user_vote'
+        ]
+    
+    def get_user_vote(self, obj):
+        """Get current user's vote if exists"""
+        request = self.context.get('request')
+        if not request:
+            return None
+        
+        # Спробуємо отримати user_identifier
+        user_identifier = self._get_user_identifier(request)
+        if not user_identifier:
+            return None
+        
+        try:
+            vote = PromptVote.objects.get(prompt=obj, user_identifier=user_identifier)
+            return vote.vote
+        except PromptVote.DoesNotExist:
+            return None
+    
+    def _get_user_identifier(self, request):
+        """Get user identifier (user ID or IP address)"""
+        if request.user and request.user.is_authenticated:
+            return str(request.user.id)
+        # Для анонімних користувачів використовуємо IP
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+        return ip or 'anonymous'
+
+
+class PromptVoteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PromptVote
+        fields = ['id', 'prompt', 'vote', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+
+class NewsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = News
+        fields = [
+            'id',
+            'title',
+            'description',
+            'news_type',
+            'image_url',
+            'is_active',
+            'is_featured',
+            'created_at',
+            'updated_at',
+            'related_integration',
+            'related_model',
+            'related_feature',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
 

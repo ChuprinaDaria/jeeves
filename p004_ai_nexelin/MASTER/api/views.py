@@ -270,6 +270,15 @@ class PublicRAGChatView(APIView):
         else:
             history_text = ''
 
+        # Перевіряємо чи є email команди та обробляємо їх
+        email_result = None
+        if client and getattr(client, 'email_smtp_enabled', False):
+            email_result = self._process_email_command(message, client, language)
+            if email_result and email_result.get('action_taken'):
+                # Якщо email команда виконана, додаємо результат до контексту
+                email_context = f"\n\n[Email Service Result: {email_result.get('message', '')}]\n"
+                message = message + email_context
+
         # Формуємо фінальний запит для RAG:
         # додаємо історію діалогу перед останнім повідомленням користувача
         rag_query = message
@@ -295,14 +304,120 @@ class PublicRAGChatView(APIView):
             stream=False,
             language=language,
         )
-        return Response({
+        response_data = {
             'response': getattr(rag_response, 'answer', ''),
             'sources': getattr(rag_response, 'sources', []),
             'num_chunks': getattr(rag_response, 'num_chunks', 0),
             'total_tokens': getattr(rag_response, 'total_tokens', 0),
             'language': language,
             'image_analysis': image_analysis if image_analysis else None,
-        })
+        }
+        
+        # Додаємо email результат якщо є
+        if email_result:
+            response_data['email_action'] = email_result
+        
+        return Response(response_data)
+    
+    def _process_email_command(self, message: str, client, language: str = 'en') -> dict:
+        """
+        Process email-related commands from user message.
+        Detects commands like:
+        - "створи мейл", "send email", "напиши email"
+        - "дай аналіз останніх мейлів", "analyze recent emails"
+        - "знайди мейли від", "find emails from"
+        """
+        from MASTER.clients.email_service import EmailService
+        import re
+        
+        message_lower = message.lower()
+        email_service = EmailService(client)
+        result = {'action_taken': False, 'message': ''}
+        
+        try:
+            # Command: Send/Create email
+            send_patterns = [
+                r'(?:створи|напиши|відправ|send|create|write)\s+(?:мейл|email|лист)',
+                r'email\s+(?:to|для)\s+([\w\.-]+@[\w\.-]+\.\w+)',
+            ]
+            
+            for pattern in send_patterns:
+                if re.search(pattern, message_lower):
+                    # Extract email address and subject/body
+                    email_match = re.search(r'([\w\.-]+@[\w\.-]+\.\w+)', message)
+                    if email_match:
+                        to_address = email_match.group(1)
+                        # Try to extract subject and body
+                        subject_match = re.search(r'(?:subject|тема)[:\s]+(.+?)(?:\n|body|тіло|$)', message, re.IGNORECASE)
+                        subject = subject_match.group(1).strip() if subject_match else 'Email from AI Assistant'
+                        
+                        body_match = re.search(r'(?:body|тіло|message|повідомлення)[:\s]+(.+?)$', message, re.IGNORECASE | re.DOTALL)
+                        body = body_match.group(1).strip() if body_match else 'This email was sent by AI Assistant.'
+                        
+                        send_result = email_service.send_email(to_address, subject, body)
+                        result['action_taken'] = True
+                        result['message'] = send_result.get('message', 'Email sent')
+                        result['email_sent'] = send_result.get('success', False)
+                        return result
+            
+            # Command: Analyze recent emails
+            analyze_patterns = [
+                r'(?:дай|покажи|analyze|show|get)\s+(?:аналіз|analysis)\s+(?:останніх|recent)\s+(?:мейлів|emails)',
+                r'(?:що|what)\s+(?:в|in)\s+(?:останніх|recent)\s+(?:мейлах|emails)',
+            ]
+            
+            for pattern in analyze_patterns:
+                if re.search(pattern, message_lower):
+                    days_match = re.search(r'(\d+)\s+(?:днів|days)', message_lower)
+                    days = int(days_match.group(1)) if days_match else 7
+                    
+                    analysis = email_service.analyze_recent_emails(days_back=days)
+                    result['action_taken'] = True
+                    result['message'] = analysis.get('summary', 'Email analysis completed')
+                    result['analysis'] = analysis
+                    return result
+            
+            # Command: Find emails from sender
+            find_patterns = [
+                r'(?:знайди|find|search|шукай)\s+(?:мейли|emails)\s+(?:від|from)\s+([\w\.-]+@[\w\.-]+\.\w+)',
+                r'(?:мейли|emails)\s+(?:від|from)\s+([\w\.-]+@[\w\.-]+\.\w+)',
+            ]
+            
+            for pattern in find_patterns:
+                match = re.search(pattern, message_lower)
+                if match:
+                    from_address = match.group(1)
+                    emails = email_service.search_emails(from_address=from_address, limit=10)
+                    result['action_taken'] = True
+                    result['message'] = f'Found {len(emails)} emails from {from_address}'
+                    result['emails'] = emails
+                    return result
+            
+            # Command: Get recent emails
+            recent_patterns = [
+                r'(?:покажи|show|get|дай)\s+(?:останні|recent|latest)\s+(?:мейли|emails)',
+                r'(?:що|what)\s+(?:нового|new)\s+(?:в|in)\s+(?:мейлі|email)',
+            ]
+            
+            for pattern in recent_patterns:
+                if re.search(pattern, message_lower):
+                    limit_match = re.search(r'(\d+)\s+(?:мейлів|emails)', message_lower)
+                    limit = int(limit_match.group(1)) if limit_match else 10
+                    
+                    emails = email_service.get_recent_emails(limit=limit)
+                    result['action_taken'] = True
+                    result['message'] = f'Retrieved {len(emails)} recent emails'
+                    result['emails'] = emails
+                    return result
+                    
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Email command processing error: {e}")
+            result['action_taken'] = False
+            result['error'] = str(e)
+        
+        return result
     
     def _analyze_image(self, image_file, message, language, client):
         """Аналізує зображення за допомогою vision моделі клієнта або OpenAI."""
@@ -859,16 +974,39 @@ class ClientLLMSetView(APIView):
     """Set LLM provider/model for authenticated client.
     
     Auth: JWT (client user) or X-API-Key (sets request.client).
-    Request JSON: { provider: str, model_name: str }
+    Request JSON: { provider: str, model_name: str } or { provider_id: int }
     Response: { success: bool, provider: str, model_name: str }
     """
     def post(self, request):
         from MASTER.clients.views import get_client_from_request
+        from MASTER.EmbeddingModel.models import LLMProvider
+        
         client = get_client_from_request(request)
         if client is None:
             return Response({'error': 'Client not found or unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
         
         data = request.data or {}
+        provider_id = data.get('provider_id')
+        
+        # Якщо передано provider_id, використовуємо LLMProvider
+        if provider_id:
+            try:
+                provider_obj = LLMProvider.objects.get(id=provider_id, is_active=True)
+                client.llm_provider_model = provider_obj
+                client.llm_provider = provider_obj.provider_type
+                client.llm_model_name = provider_obj.model_name
+                client.save(update_fields=['llm_provider_model', 'llm_provider', 'llm_model_name'])
+                
+                return Response({
+                    'success': True,
+                    'provider': client.llm_provider,
+                    'model_name': client.llm_model_name,
+                    'provider_id': provider_obj.id,
+                })
+            except LLMProvider.DoesNotExist:
+                return Response({'error': 'LLM provider not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Legacy: використовуємо provider та model_name
         provider = (data.get('provider') or '').strip().lower()
         model_name = (data.get('model_name') or '').strip()
         
@@ -880,15 +1018,28 @@ class ClientLLMSetView(APIView):
         if provider not in supported_providers:
             return Response({'error': f'Unsupported provider: {provider}'}, status=status.HTTP_400_BAD_REQUEST)
         
+        # Спробуємо знайти LLMProvider за provider_type та model_name
+        llm_provider_obj = LLMProvider.objects.filter(
+            provider_type=provider,
+            model_name=model_name,
+            is_active=True
+        ).first()
+        
         # Save settings
+        if llm_provider_obj:
+            client.llm_provider_model = llm_provider_obj
         client.llm_provider = provider
         client.llm_model_name = model_name
-        client.save(update_fields=['llm_provider', 'llm_model_name'])
+        update_fields = ['llm_provider', 'llm_model_name']
+        if llm_provider_obj:
+            update_fields.append('llm_provider_model')
+        client.save(update_fields=update_fields)
         
         return Response({
             'success': True,
             'provider': client.llm_provider,
             'model_name': client.llm_model_name,
+            'provider_id': llm_provider_obj.id if llm_provider_obj else None,
         })
 
 class EmbeddingModelsSyncToMGView(APIView):
@@ -1240,7 +1391,24 @@ class ModelPairsView(APIView):
         embedding_models = EmbeddingModel.objects.filter(is_active=True, dimensions__lte=2000).order_by('provider', 'name')
         
         # Поточні вибрані моделі
-        selected_llm_id = getattr(client, 'llm_provider_model_id', None) if client else None
+        # Для LLM: спочатку перевіряємо ForeignKey, потім fallback на старі поля
+        selected_llm_id = None
+        if client:
+            if hasattr(client, 'llm_provider_model') and client.llm_provider_model:
+                selected_llm_id = client.llm_provider_model.id
+            else:
+                # Fallback: шукаємо LLMProvider за provider_type та model_name
+                llm_provider_type = getattr(client, 'llm_provider', None)
+                llm_model_name = getattr(client, 'llm_model_name', None)
+                if llm_provider_type and llm_model_name:
+                    matching_llm = LLMProvider.objects.filter(
+                        provider_type=llm_provider_type,
+                        model_name=llm_model_name,
+                        is_active=True
+                    ).first()
+                    if matching_llm:
+                        selected_llm_id = matching_llm.id
+        
         selected_embedding_id = getattr(client, 'embedding_model_id', None) if client else None
         
         # Генеруємо сумісні пари
@@ -1341,9 +1509,25 @@ class ClientLLMProviderSetView(APIView):
         except LLMProvider.DoesNotExist:
             return Response({'error': 'LLM provider not found or inactive'}, status=status.HTTP_404_NOT_FOUND)
         
+        # Зберігаємо як ForeignKey (новий спосіб) та CharField (для сумісності)
+        old_provider = client.llm_provider_model
+        client.llm_provider_model = provider
         client.llm_provider = provider.provider_type
         client.llm_model_name = provider.model_name
-        client.save(update_fields=['llm_provider','llm_model_name'])
+        client.save(update_fields=['llm_provider_model', 'llm_provider', 'llm_model_name'])
+        
+        # Створюємо новину про нову модель якщо це перший вибір або зміна
+        if not old_provider or old_provider.id != provider.id:
+            try:
+                from MASTER.clients.news_utils import create_model_news
+                create_model_news(
+                    provider.name,
+                    f"New AI model {provider.name} ({provider.provider_type}) is now available! Experience improved performance and accuracy with this model."
+                )
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to create model news: {e}")
         
         provider_pk = getattr(provider, 'pk', None) or getattr(provider, 'id', None)
         
@@ -1457,6 +1641,124 @@ class SaveSandboxQAView(APIView):
             return Response({'error': f'Failed to save Q&A: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class EmailSendView(APIView):
+    """Send email via SMTP"""
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        from MASTER.clients.views import get_client_from_request
+        from MASTER.clients.email_service import EmailService
+        
+        client = get_client_from_request(request)
+        if not client:
+            return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        if not getattr(client, 'email_smtp_enabled', False):
+            return Response({'error': 'Email SMTP is not enabled for this client'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        to_address = request.data.get('to')
+        subject = request.data.get('subject', '')
+        body = request.data.get('body', '')
+        is_html = request.data.get('is_html', False)
+        cc = request.data.get('cc', [])
+        bcc = request.data.get('bcc', [])
+        
+        if not to_address:
+            return Response({'error': 'Recipient email address is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        email_service = EmailService(client)
+        result = email_service.send_email(to_address, subject, body, is_html, cc, bcc)
+        
+        if result.get('success'):
+            return Response(result, status=status.HTTP_200_OK)
+        else:
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+
+
+class EmailRecentView(APIView):
+    """Get recent emails"""
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        from MASTER.clients.views import get_client_from_request
+        from MASTER.clients.email_service import EmailService
+        
+        client = get_client_from_request(request)
+        if not client:
+            return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        if not getattr(client, 'email_smtp_enabled', False):
+            return Response({'error': 'Email SMTP is not enabled for this client'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        limit = int(request.query_params.get('limit', 10))
+        days_back = int(request.query_params.get('days_back', 7))
+        
+        email_service = EmailService(client)
+        emails = email_service.get_recent_emails(limit=limit, days_back=days_back)
+        
+        return Response({
+            'emails': emails,
+            'count': len(emails)
+        })
+
+
+class EmailSearchView(APIView):
+    """Search emails by criteria"""
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        from MASTER.clients.views import get_client_from_request
+        from MASTER.clients.email_service import EmailService
+        
+        client = get_client_from_request(request)
+        if not client:
+            return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        if not getattr(client, 'email_smtp_enabled', False):
+            return Response({'error': 'Email SMTP is not enabled for this client'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        from_address = request.query_params.get('from')
+        subject = request.query_params.get('subject')
+        days_back = int(request.query_params.get('days_back', 30))
+        limit = int(request.query_params.get('limit', 20))
+        
+        email_service = EmailService(client)
+        emails = email_service.search_emails(
+            from_address=from_address,
+            subject=subject,
+            days_back=days_back,
+            limit=limit
+        )
+        
+        return Response({
+            'emails': emails,
+            'count': len(emails)
+        })
+
+
+class EmailAnalyzeView(APIView):
+    """Analyze recent emails"""
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        from MASTER.clients.views import get_client_from_request
+        from MASTER.clients.email_service import EmailService
+        
+        client = get_client_from_request(request)
+        if not client:
+            return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        if not getattr(client, 'email_smtp_enabled', False):
+            return Response({'error': 'Email SMTP is not enabled for this client'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        days_back = int(request.query_params.get('days_back', 7))
+        
+        email_service = EmailService(client)
+        analysis = email_service.analyze_recent_emails(days_back=days_back)
+        
+        return Response(analysis)
+
+
 class WebChatManifestView(APIView):
     """Generate dynamic PWA manifest for webchat based on tag."""
     permission_classes = [AllowAny]
@@ -1517,6 +1819,7 @@ class SaveSandboxPhotoView(APIView):
         # Отримуємо файл та опис від AI
         photo = request.FILES.get('photo')
         description = request.data.get('description', '').strip()
+        is_clean = request.data.get('is_clean', 'false').lower() == 'true'
         
         if not photo:
             return Response({'error': 'photo is required'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1524,7 +1827,9 @@ class SaveSandboxPhotoView(APIView):
         # Якщо опис не передано, викликаємо vision API для розшифровки фото
         if not description:
             try:
-                description = self._analyze_image(photo, '', 'en', client)
+                # Якщо потрібен чистий опис, використовуємо спеціальний промпт
+                prompt = 'Describe what you see in this image in detail. Focus only on the visual content, objects, people, text, and any other relevant information. Do not add any game-related context or references.' if is_clean else ''
+                description = self._analyze_image(photo, prompt, 'en', client)
                 photo.seek(0)  # Повернути вказівник після читання
             except Exception as e:
                 logger.error(f"Error analyzing image: {e}")
@@ -1571,6 +1876,7 @@ class SaveSandboxPhotoView(APIView):
                 metadata={
                     'source': 'sandbox_photo',
                     'ai_description': description,
+                    'is_clean_description': is_clean,
                     'file_hash': file_hash,
                     'created_from': 'photo_upload_test'
                 }
