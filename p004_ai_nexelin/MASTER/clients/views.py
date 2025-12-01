@@ -573,7 +573,14 @@ class ClientQRCodeViewSet(viewsets.ModelViewSet):
             if response.status_code == 200 and response.data:
                 client = self.get_client_from_request_or_api_key()
                 if client:
-                    qr_list = response.data.get('results', response.data if isinstance(response.data, list) else [])
+                    # response.data може бути ReturnList (список) або OrderedDict (словник з пагінацією)
+                    if isinstance(response.data, list):
+                        qr_list = response.data
+                    elif hasattr(response.data, 'get'):
+                        qr_list = response.data.get('results', [])
+                    else:
+                        qr_list = []
+                    
                     for qr_data in qr_list:
                         if isinstance(qr_data, dict) and qr_data.get('integration_type') == 'web':
                             try:
