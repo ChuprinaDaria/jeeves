@@ -41,6 +41,8 @@ urlpatterns = [
     path('prompts/', views.PromptViewSet.as_view({'get': 'list', 'post': 'create'}), name='prompt-list'),
     path('prompts/<int:pk>/', views.PromptViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='prompt-detail'),
     path('prompts/<int:pk>/vote/', views.PromptVoteView.as_view(), name='prompt-vote'),
+    path('news/', views.NewsViewSet.as_view({'get': 'list'}), name='news-list'),
+    path('news/<int:pk>/', views.NewsViewSet.as_view({'get': 'retrieve'}), name='news-detail'),
     
     # Router URLs (viewsets) - після explicit routes
     path('', include(views.router.urls)),

@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.conf import settings
 from django.urls import reverse
-from .models import Client, ClientAPIKey, ClientDocument, ClientAPIConfig, ClientEmbedding, ClientZeroConfig, KnowledgeBlock, WebParsingRequest
+from .models import Client, ClientAPIKey, ClientDocument, ClientAPIConfig, ClientEmbedding, ClientZeroConfig, KnowledgeBlock, WebParsingRequest, News
 from django.shortcuts import render
 from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from django.contrib import messages
@@ -554,3 +554,60 @@ class WebParsingRequestAdmin(admin.ModelAdmin):
             url = reverse('admin:clients_knowledgeblock_change', args=[obj.knowledge_block.id])
             return format_html('<a href="{}">{}</a>', url, obj.knowledge_block.name)
         return '-'
+
+
+@admin.register(News)
+class NewsAdmin(admin.ModelAdmin):
+    """Admin interface for managing system news"""
+    list_display = ['title', 'news_type', 'is_active', 'is_featured', 'created_at', 'image_preview']
+    list_filter = ['news_type', 'is_active', 'is_featured', 'created_at']
+    search_fields = ['title', 'description', 'related_integration', 'related_model', 'related_feature']
+    ordering = ['-is_featured', '-created_at']
+    list_editable = ['is_active', 'is_featured']
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('title', 'description', 'news_type')
+        }),
+        ('Image', {
+            'fields': ('image_url', 'image_preview'),
+            'classes': ('collapse',)
+        }),
+        ('Status', {
+            'fields': ('is_active', 'is_featured')
+        }),
+        ('Related Information', {
+            'fields': ('related_integration', 'related_model', 'related_feature'),
+            'classes': ('collapse',),
+            'description': 'Optional metadata for automatic news generation'
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    readonly_fields = ['created_at', 'updated_at', 'image_preview']
+    
+    @admin.display(description='Image')
+    def image_preview(self, obj):
+        if obj.image_url:
+            return format_html(
+                '<img src="{}" style="max-width: 200px; max-height: 150px; border: 1px solid #ddd;" />',
+                obj.image_url
+            )
+        return format_html('<span style="color: gray;">No image</span>')
+    
+    def save_model(self, request, obj, form, change):
+        """Auto-generate image URL if not provided"""
+        if not obj.image_url:
+            from MASTER.clients.news_utils import get_unsplash_image_url
+            keyword = 'technology'
+            if obj.related_integration:
+                keyword = obj.related_integration.lower()
+            elif obj.related_model:
+                keyword = 'artificial intelligence'
+            elif obj.related_feature:
+                keyword = 'innovation'
+            obj.image_url = get_unsplash_image_url(keyword)
+        super().save_model(request, obj, form, change)

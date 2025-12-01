@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Q
 import logging
+import hashlib
 
 logger = logging.getLogger(__name__)
 from MASTER.clients.models import Client, ClientDocument, ClientAPIKey, ClientAPIConfig, KnowledgeBlock, ClientQRCode, ClientWhatsAppConversation, WebParsingRequest, Prompt, PromptVote, News
@@ -279,7 +280,8 @@ class PromptViewSet(viewsets.ModelViewSet):
                 Q(tags__contains=[search])
             )
         
-        return queryset.order_by('-is_featured', '-created_at')
+        # Сортування: featured спочатку, потім за оцінками (likes_count), потім за датою
+        return queryset.order_by('-is_featured', '-likes_count', '-created_at')
     
     def perform_create(self, serializer):
         """Автоматично встановлює created_by при створенні"""
@@ -302,15 +304,18 @@ class PromptViewSet(viewsets.ModelViewSet):
         
         # Отримуємо user_identifier
         if request.user and request.user.is_authenticated:
+            # Для автентифікованих користувачів використовуємо user.id
             user_identifier = str(request.user.id)
             user = request.user
         else:
-            # Для анонімних користувачів використовуємо IP
+            # Для анонімних користувачів використовуємо комбінацію IP + User-Agent для унікальності
+            # Це дозволяє різним користувачам з одного IP голосувати окремо
             x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-            if x_forwarded_for:
-                user_identifier = x_forwarded_for.split(',')[0]
-            else:
-                user_identifier = request.META.get('REMOTE_ADDR', 'anonymous')
+            ip_address = x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR', 'unknown')
+            user_agent = request.META.get('HTTP_USER_AGENT', 'unknown')[:50]  # Обмежуємо довжину
+            # Створюємо унікальний ідентифікатор для анонімного користувача
+            unique_string = f"{ip_address}:{user_agent}"
+            user_identifier = hashlib.md5(unique_string.encode()).hexdigest()
             user = None
         
         # Перевіряємо чи вже є голос
@@ -391,15 +396,18 @@ class PromptVoteView(APIView):
         
         # Отримуємо user_identifier
         if request.user and request.user.is_authenticated:
+            # Для автентифікованих користувачів використовуємо user.id
             user_identifier = str(request.user.id)
             user = request.user
         else:
-            # Для анонімних користувачів використовуємо IP
+            # Для анонімних користувачів використовуємо комбінацію IP + User-Agent для унікальності
+            # Це дозволяє різним користувачам з одного IP голосувати окремо
             x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-            if x_forwarded_for:
-                user_identifier = x_forwarded_for.split(',')[0]
-            else:
-                user_identifier = request.META.get('REMOTE_ADDR', 'anonymous')
+            ip_address = x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR', 'unknown')
+            user_agent = request.META.get('HTTP_USER_AGENT', 'unknown')[:50]  # Обмежуємо довжину
+            # Створюємо унікальний ідентифікатор для анонімного користувача
+            unique_string = f"{ip_address}:{user_agent}"
+            user_identifier = hashlib.md5(unique_string.encode()).hexdigest()
             user = None
         
         # Перевіряємо чи вже є голос
@@ -597,8 +605,7 @@ router.register(r'documents', ClientDocumentViewSet, basename='document')
 router.register(r'api-keys', APIKeyViewSet, basename='api-key')
 router.register(r'knowledge-blocks', KnowledgeBlockViewSet, basename='knowledge-block')
 router.register(r'qr-codes', ClientQRCodeViewSet, basename='qr-code')
-# prompts зареєстрований явно в urls.py, щоб уникнути конфліктів
-router.register(r'news', NewsViewSet, basename='news')
+# prompts та news зареєстровані явно в urls.py, щоб уникнути конфліктів
 
 
 def generate_api_docs(request, client_id: int):

@@ -360,10 +360,12 @@ class PublicRAGChatView(APIView):
                         result['email_sent'] = send_result.get('success', False)
                         return result
             
-            # Command: Analyze recent emails
+            # Command: Analyze recent emails or get summary
             analyze_patterns = [
-                r'(?:дай|покажи|analyze|show|get)\s+(?:аналіз|analysis)\s+(?:останніх|recent)\s+(?:мейлів|emails)',
+                r'(?:дай|покажи|analyze|show|get)\s+(?:аналіз|analysis|саммарі|summary|саммарі)\s+(?:останніх|recent)\s+(?:мейлів|emails|листів)',
                 r'(?:що|what)\s+(?:в|in)\s+(?:останніх|recent)\s+(?:мейлах|emails)',
+                r'(?:дай|покажи|get|show)\s+(?:саммарі|summary)\s+(?:останніх|recent)\s+(?:мейлів|emails|листів)',
+                r'(?:саммарі|summary)\s+(?:останніх|recent)\s+(?:мейлів|emails|листів)',
             ]
             
             for pattern in analyze_patterns:

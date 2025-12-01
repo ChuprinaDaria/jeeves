@@ -310,14 +310,35 @@ class EmailService:
         # Get top senders
         top_senders = sorted(senders.items(), key=lambda x: x[1], reverse=True)[:5]
         
+        # Create detailed summary
+        summary_parts = [
+            f"📧 Знайдено {len(emails)} листів за останні {days_back} днів"
+        ]
+        
+        if unread_count > 0:
+            summary_parts.append(f"📬 Непрочитаних: {unread_count}")
+        
+        if top_senders:
+            summary_parts.append(f"\n👤 Топ відправники:")
+            for email, count in top_senders[:3]:
+                summary_parts.append(f"  • {email}: {count} листів")
+        
+        if subjects:
+            summary_parts.append(f"\n📋 Останні теми:")
+            for i, subject in enumerate(subjects[:5], 1):
+                subject_short = subject[:60] + '...' if len(subject) > 60 else subject
+                summary_parts.append(f"  {i}. {subject_short}")
+        
+        summary_text = '\n'.join(summary_parts)
+        
         return {
             'total_emails': len(emails),
             'unread_count': unread_count,
             'date_range': f'Last {days_back} days',
             'top_senders': [{'email': email, 'count': count} for email, count in top_senders],
             'recent_subjects': subjects[:10],
-            'summary': f"Found {len(emails)} emails in the last {days_back} days. "
-                       f"{unread_count} unread. Top sender: {top_senders[0][0] if top_senders else 'N/A'}"
+            'emails': emails[:10],  # Include first 10 emails for context
+            'summary': summary_text
         }
     
     def _parse_email(self, email_message) -> Dict[str, any]:
