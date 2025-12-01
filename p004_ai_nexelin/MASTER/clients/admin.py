@@ -66,6 +66,10 @@ class ClientAdmin(admin.ModelAdmin):
             'classes': ('collapse',),
             'description': 'Custom system prompt for AI assistant. Higher priority than specialization/branch prompts.'
         }),
+        ('Usage Statistics', {
+            'fields': ('sync_usage_stats',),
+            'description': 'Control whether usage statistics are sent to MG for this client'
+        }),
         ('Metadata', {
             'fields': ('created_by', 'created_at', 'updated_at', 'api_keys_count', 'api_docs_link', 'client_portal_link'),
             'classes': ('collapse',)

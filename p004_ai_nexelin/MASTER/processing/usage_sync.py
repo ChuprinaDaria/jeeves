@@ -97,6 +97,17 @@ def send_usage_to_mg(usage: UsageStats) -> Optional[dict]:
     Note: This is the synchronous version. For async, use send_usage_to_mg_async().
     """
     try:
+        # Check if client has disabled usage stats sync
+        if usage.client_id:
+            try:
+                from MASTER.clients.models import Client
+                client = Client.objects.get(pk=usage.client_id)
+                if hasattr(client, 'sync_usage_stats') and not client.sync_usage_stats:
+                    logger.debug(f"Usage stats sync disabled for client {client.id} ({client.company_name})")
+                    return None
+            except Exception as e:
+                logger.warning(f"Error checking sync_usage_stats for client {usage.client_id}: {e}")
+        
         url = getattr(settings, "MG_AI_USAGE_URL", "").strip()
         access_token = _resolve_access_token(usage)
         
@@ -108,9 +119,28 @@ def send_usage_to_mg(usage: UsageStats) -> Optional[dict]:
         occurred_dt = usage.created_at or datetime.utcnow()
         occurred_str = occurred_dt.strftime("%Y-%m-%d %H:%M:%S")
 
+        # Validate and convert tokens to int (prevent sending invalid large numbers)
+        tokens_value = usage.tokens_used
+        if tokens_value is None:
+            logger.warning(f"UsageStats {usage.id} has None tokens_used, skipping sync")
+            return None
+        
+        # Convert to int, but check for reasonable values (max 1 billion tokens per request)
+        try:
+            tokens_int = int(float(tokens_value))
+            if tokens_int < 0:
+                logger.warning(f"UsageStats {usage.id} has negative tokens: {tokens_int}, skipping sync")
+                return None
+            if tokens_int > 1_000_000_000:  # 1 billion tokens max
+                logger.error(f"UsageStats {usage.id} has suspiciously large tokens value: {tokens_int}, skipping sync")
+                return None
+        except (ValueError, TypeError, OverflowError) as e:
+            logger.error(f"UsageStats {usage.id} has invalid tokens_used value: {tokens_value}, error: {e}")
+            return None
+
         payload = {
             "access_token": access_token,
-            "tokens": int(usage.tokens_used),
+            "tokens": tokens_int,
             "occurred": occurred_str,
             "uid": _resolve_uid(usage),
             "ai_model": _resolve_ai_model(usage),

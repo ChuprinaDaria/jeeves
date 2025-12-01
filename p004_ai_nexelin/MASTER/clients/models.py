@@ -180,6 +180,12 @@ class Client(models.Model):
     # Web Widget configuration (only for white label clients)
     widget_enabled = models.BooleanField(default=False, help_text="Enable web widget for white label clients")
 
+    # Usage statistics sync configuration
+    sync_usage_stats = models.BooleanField(
+        default=True,
+        help_text="Enable/disable sending usage statistics to MG for this client"
+    )
+
     # SMTP Email configuration
     email_smtp_enabled = models.BooleanField(default=False, help_text="Enable SMTP email for this client")
     email_smtp_host = models.CharField(max_length=255, blank=True, help_text="SMTP server host (e.g., smtp.gmail.com)")
