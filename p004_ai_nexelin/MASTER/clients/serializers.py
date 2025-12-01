@@ -309,6 +309,8 @@ class PromptVoteSerializer(serializers.ModelSerializer):
 
 
 class NewsSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+    
     class Meta:
         model = News
         fields = [
@@ -326,4 +328,13 @@ class NewsSerializer(serializers.ModelSerializer):
             'related_feature',
         ]
         read_only_fields = ['created_at', 'updated_at']
+    
+    def get_image_url(self, obj):
+        """Return uploaded image URL if available, otherwise return image_url field"""
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return obj.image_url
 

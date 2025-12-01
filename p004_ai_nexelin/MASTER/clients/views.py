@@ -483,25 +483,38 @@ class TopPromptsView(APIView):
         from django.utils import timezone
         from django.db.models import F, Case, When, FloatField
         
-        # Отримуємо промпти з мінімальною кількістю голосів (наприклад, 3+)
-        min_votes = 3
-        top_prompts = Prompt.objects.filter(
+        # Отримуємо промпти з мінімальною кількістю голосів (наприклад, 1+)
+        # Якщо немає достатньої кількості голосів, показуємо просто найпопулярніші за лайками
+        min_votes = 1
+        base_qs = Prompt.objects.filter(
             is_public=True,
             likes_count__gte=0
         ).annotate(
             total_votes=F('likes_count') + F('dislikes_count'),
-            calculated_ratio=Case(
+            like_ratio=Case(
                 When(total_votes__gt=0, then=F('likes_count') * 1.0 / (F('likes_count') + F('dislikes_count'))),
                 default=0.0,
                 output_field=FloatField()
             )
-        ).filter(
+        )
+
+        # Спочатку пробуємо взяти промпти з достатньою кількістю голосів
+        top_prompts = base_qs.filter(
             total_votes__gte=min_votes
         ).order_by(
-            '-calculated_ratio',  # Спочатку за співвідношенням лайків
+            '-like_ratio',  # Спочатку за співвідношенням лайків
             '-likes_count',  # Потім за кількістю лайків
-            '-total_votes'  # І нарешті за загальною кількістю голосів
+            '-total_votes',  # І нарешті за загальною кількістю голосів
+            '-created_at',
         )[:5]
+
+        # Якщо після фільтрації нічого немає, просто беремо топ-5 за лайками
+        if not top_prompts:
+            top_prompts = base_qs.order_by(
+                '-likes_count',
+                '-total_votes',
+                '-created_at',
+            )[:5]
         
         serializer = PromptSerializer(top_prompts, many=True, context={'request': request})
         

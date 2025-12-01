@@ -574,8 +574,8 @@ class NewsAdmin(admin.ModelAdmin):
             'fields': ('title', 'description', 'news_type')
         }),
         ('Image', {
-            'fields': ('image_url', 'image_preview'),
-            'classes': ('collapse',)
+            'fields': ('image', 'image_url', 'image_preview'),
+            'description': 'Upload an image file OR provide an image URL. If both are provided, uploaded image takes priority.'
         }),
         ('Status', {
             'fields': ('is_active', 'is_featured')
@@ -593,18 +593,36 @@ class NewsAdmin(admin.ModelAdmin):
     
     readonly_fields = ['created_at', 'updated_at', 'image_preview']
     
-    @admin.display(description='Image')
+    @admin.display(description='Image Preview')
     def image_preview(self, obj):
-        if obj.image_url:
+        """Display preview of uploaded image or image URL"""
+        if obj.pk and obj.image:
+            # Show uploaded image
+            try:
+                # Try to get request from admin site
+                from django.contrib import admin
+                admin_site = admin.site
+                # Build absolute URL for uploaded image
+                image_url = obj.image.url
+                # In list view, use relative URL; in detail view, try to build absolute
+                return format_html(
+                    '<img src="{}" style="max-width: 150px; max-height: 100px; border: 1px solid #ddd; border-radius: 4px; object-fit: cover;" /><br/><small style="color: green;">✓ Uploaded</small>',
+                    image_url
+                )
+            except Exception:
+                return format_html('<span style="color: gray;">Image uploaded</span>')
+        elif obj.image_url:
+            # Show image from URL
             return format_html(
-                '<img src="{}" style="max-width: 200px; max-height: 150px; border: 1px solid #ddd;" />',
+                '<img src="{}" style="max-width: 150px; max-height: 100px; border: 1px solid #ddd; border-radius: 4px; object-fit: cover;" /><br/><small style="color: blue;">URL</small>',
                 obj.image_url
             )
         return format_html('<span style="color: gray;">No image</span>')
     
     def save_model(self, request, obj, form, change):
-        """Auto-generate image URL if not provided"""
-        if not obj.image_url:
+        """Auto-generate image URL if not provided and no image uploaded"""
+        # Only auto-generate image_url if no image file is uploaded and no image_url is provided
+        if not obj.image and not obj.image_url:
             from MASTER.clients.news_utils import get_unsplash_image_url
             keyword = 'technology'
             if obj.related_integration:

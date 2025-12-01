@@ -361,11 +361,36 @@ class PublicRAGChatView(APIView):
                         return result
             
             # Command: Analyze recent emails or get summary
+            # Більш гнучкі патерни, враховуємо всі мови додатку (uk, en, de, es, fr, it, nl, da)
             analyze_patterns = [
-                r'(?:дай|покажи|analyze|show|get)\s+(?:аналіз|analysis|саммарі|summary|саммарі)\s+(?:останніх|recent)\s+(?:мейлів|emails|листів)',
-                r'(?:що|what)\s+(?:в|in)\s+(?:останніх|recent)\s+(?:мейлах|emails)',
-                r'(?:дай|покажи|get|show)\s+(?:саммарі|summary)\s+(?:останніх|recent)\s+(?:мейлів|emails|листів)',
-                r'(?:саммарі|summary)\s+(?:останніх|recent)\s+(?:мейлів|emails|листів)',
+                # Приклади:
+                # - "дай аналіз останніх мейлів", "покажи саммарі останнії мейлів"
+                # - "show analysis of recent emails", "give summary of last emails"
+                # - "analysiere die letzten E-Mails", "zeige Zusammenfassung der letzten Mails"
+                # - "analiza los últimos correos", "muestra resumen de correos recientes"
+                # - "analyse les derniers emails", "donne un résumé des derniers courriels"
+                # - "analizza le ultime email", "mostra riepilogo delle ultime mail"
+                # - "analyseer de laatste e-mails", "toon samenvatting van recente mails"
+                # - "vis analyse af de seneste mails", "giv resumé af sidste emails"
+                r'(?:дай|покажи|vis|zeige|muestra|mostrar|show|give|get|donne|mostra|dammi|toon|geef|analyze|analyse|analysiere|analizar|analiza|analizza|analyseer)?'
+                r'\s*'
+                r'(?:аналіз|analysis|analyse|análisis|analisi|analise|analyseer|анализ)\s+'
+                r'(?:останні\w*|recent|last|latest|letzten|neueste\w*|últim\w*|derni\w*|ultim\w*|laatste\w*|seneste\w*)\s+'
+                r'(?:мейлів|emails?|e-mails?|mail\w*|mails?|correos(?:\s+electrónicos)?|courriels?)',
+
+                # "що в останніх мейлах", "what is in recent emails", "was ist in den letzten Emails"
+                r'(?:що|what|was)\s+(?:в|in)\s+(?:останні\w*|recent|letzten|últim\w*|derni\w*|ultim\w*|laatste\w*|seneste\w*)\s+(?:мейлах|emails?|e-mails?|mails?|correos|courriels?)',
+
+                # "дай саммарі останніх мейлів", "show summary recent emails", "gib Zusammenfassung der letzten Emails"
+                r'(?:дай|покажи|vis|zeige|muestra|mostrar|show|give|get|donne|mostra|dammi|toon|geef)\s+'
+                r'(?:саммарі|summary|zusammenfassung|resumen|résumé|riepilogo|samenvatting|resumé)\s+'
+                r'(?:останні\w*|recent|last|latest|letzten|últim\w*|derni\w*|ultim\w*|laatste\w*|seneste\w*)?\s*'
+                r'(?:мейлів|emails?|e-mails?|mail\w*|mails?|correos(?:\s+electrónicos)?|courriels?)',
+
+                # "саммарі останніх мейлів", "summary of recent emails", "Zusammenfassung der letzten Emails"
+                r'(?:саммарі|summary|zusammenfassung|resumen|résumé|riepilogo|samenvatting|resumé)\s+'
+                r'(?:останні\w*|recent|last|latest|letzten|últim\w*|derni\w*|ultim\w*|laatste\w*|seneste\w*)?\s*'
+                r'(?:мейлів|emails?|e-mails?|mail\w*|mails?|correos(?:\s+electrónicos)?|courriels?)',
             ]
             
             for pattern in analyze_patterns:
@@ -379,10 +404,17 @@ class PublicRAGChatView(APIView):
                     result['analysis'] = analysis
                     return result
             
-            # Command: Find emails from sender
+            # Command: Find emails from sender (by email address)
             find_patterns = [
-                r'(?:знайди|find|search|шукай)\s+(?:мейли|emails)\s+(?:від|from)\s+([\w\.-]+@[\w\.-]+\.\w+)',
-                r'(?:мейли|emails)\s+(?:від|from)\s+([\w\.-]+@[\w\.-]+\.\w+)',
+                # "знайди мейли від X", "find emails from X", "suche emails von X",
+                # "buscar correos de X", "rechercher emails de X", "trova email da X", "zoek e-mails van X"
+                r'(?:знайди|find|search|шукай|suche|buscar|rechercher|trova|cerca|zoek)\s+'
+                r'(?:мейли|emails?|e-mails?|mails?|correos|courriels?)\s+'
+                r'(?:від|from|von|de)\s+([\w\.-]+@[\w\.-]+\.\w+)',
+
+                # "emails from X", "mails von X", "correos de X"
+                r'(?:мейли|emails?|e-mails?|mails?|correos|courriels?)\s+'
+                r'(?:від|from|von|de)\s+([\w\.-]+@[\w\.-]+\.\w+)',
             ]
             
             for pattern in find_patterns:
@@ -395,10 +427,35 @@ class PublicRAGChatView(APIView):
                     result['emails'] = emails
                     return result
             
-            # Command: Get recent emails
+            # Command: Get recent emails (list without analysis)
             recent_patterns = [
-                r'(?:покажи|show|get|дай)\s+(?:останні|recent|latest)\s+(?:мейли|emails)',
-                r'(?:що|what)\s+(?:нового|new)\s+(?:в|in)\s+(?:мейлі|email)',
+                # "покажи останні мейли", "дай останнії мейли"
+                r'(?:покажи|дай|get|show)\s+(?:останні\w*|нові)\s+(?:мейли|emails?|e-mails?|mails?)',
+
+                # English: "show recent emails", "get latest emails", "any new emails"
+                r'(?:show|get|list)\s+(?:recent|last|latest)\s+(?:emails?|e-mails?|mails?)',
+                r'(?:any|are there)\s+(?:new|recent)\s+(?:emails?|e-mails?|mails?)',
+
+                # German: "zeige letzte Emails", "neue E-Mails anzeigen"
+                r'(?:zeige|zeig|list)\s+(?:letzte\w*|neue\w*|aktuelle\w*)\s+(?:emails?|e-mails?|mails?)',
+
+                # Spanish: "muestra últimos correos", "ver correos recientes"
+                r'(?:muestra|mostrar|ver)\s+(?:últim\w*|recient\w*)\s+(?:correos(?:\s+electrónicos)?|emails?|mails?)',
+
+                # French: "montre les derniers emails", "affiche les nouveaux courriels"
+                r'(?:montre|montrer|affiche|afficher)\s+(?:les\s+)?(?:derni\w*|nouveaux)\s+(?:emails?|courriels?)',
+
+                # Italian: "mostra le ultime email", "fammi vedere le email recenti"
+                r'(?:mostra|fammi\s+vedere|vedi)\s+(?:le\s+)?(?:ultim\w*|recent\w*)\s+(?:email|mail|emails?)',
+
+                # Dutch: "toon laatste e-mails", "laat recente mails zien"
+                r'(?:toon|laat\s+zien)\s+(?:laatste\w*|recente\w*)\s+(?:e-mails?|emails?|mails?)',
+
+                # Danish: "vis seneste mails"
+                r'(?:vis)\s+(?:seneste\w*|sidste\w*)\s+(?:mails?|emails?|e-mails?)',
+
+                # Generic "what's new in email"
+                r'(?:що|what)\s+(?:нового|new)\s+(?:в|in)\s+(?:мейлі|email|mail)',
             ]
             
             for pattern in recent_patterns:

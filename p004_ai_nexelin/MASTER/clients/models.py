@@ -1326,10 +1326,16 @@ class News(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField()
     news_type = models.CharField(max_length=20, choices=NEWS_TYPES, default='update')
+    image = models.ImageField(
+        upload_to='news/images/',
+        blank=True,
+        null=True,
+        help_text="Upload image file for this news item"
+    )
     image_url = models.URLField(
         blank=True,
         null=True,
-        help_text="Image URL from Unsplash or other source"
+        help_text="Image URL from Unsplash or other source (used if image file is not uploaded)"
     )
     is_active = models.BooleanField(default=True)
     is_featured = models.BooleanField(default=False, help_text="Featured news appear first")
