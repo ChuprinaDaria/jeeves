@@ -246,9 +246,17 @@ class TelegramWebhookView(View):
                         'role': 'user',
                         'content': message_text,
                         'timestamp': timezone.now().isoformat()
-                    }]
+                    }],
+                    'context_metadata': {'platform': 'telegram'}
                 }
             )
+            
+            # Оновлюємо platform в context_metadata якщо не створено
+            if not created:
+                if not conversation.context_metadata:
+                    conversation.context_metadata = {}
+                conversation.context_metadata['platform'] = 'telegram'
+                conversation.save(update_fields=['context_metadata', 'updated_at'])
             
             if not created:
                 if not conversation.messages:

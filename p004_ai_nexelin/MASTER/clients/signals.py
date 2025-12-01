@@ -1,6 +1,9 @@
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
-from .models import Client
+from .models import Client, ClientQRCode
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @receiver(post_save, sender=Client)
@@ -45,3 +48,48 @@ def regenerate_table_qrs_on_logo_change(sender, instance: Client, created, **kwa
                     print(f"Error regenerating QR code for table {table.table_number}: {e}")
         except ImportError:
             print("Restaurant app not available")
+
+
+@receiver(post_save, sender=Client)
+def regenerate_web_qrs_on_domain_change(sender, instance: Client, created, **kwargs):
+    """Regenerates QR codes for web integration when webchat_domain changes"""
+    # Only for white label clients
+    if instance.client_type != Client.TYPE_WHITE_LABEL:
+        return
+    
+    # Check if webchat_domain was updated
+    if created:
+        # New client - no need to regenerate
+        return
+    
+    update_fields = kwargs.get('update_fields')
+    if update_fields and 'webchat_domain' not in update_fields:
+        # webchat_domain was not updated
+        return
+    
+    # Regenerate all web integration QR codes for this client
+    try:
+        web_qr_codes = ClientQRCode.objects.filter(
+            client=instance,
+            integration_type='web',
+            is_active=True
+        )
+        
+        regenerated_count = 0
+        for qr_code in web_qr_codes:
+            try:
+                # Update location with new domain
+                new_link = qr_code.get_web_chat_link()
+                qr_code.location = new_link
+                # Regenerate QR code image
+                qr_code.generate_qr_code()
+                qr_code.save(update_fields=['qr_code', 'qr_code_url', 'location'])
+                regenerated_count += 1
+                logger.info(f"Regenerated web QR code {qr_code.id} for client {instance.id} after domain change")
+            except Exception as e:
+                logger.error(f"Failed to regenerate web QR code {qr_code.id}: {e}")
+        
+        if regenerated_count > 0:
+            logger.info(f"Regenerated {regenerated_count} web QR codes for client {instance.id} after webchat_domain change")
+    except Exception as e:
+        logger.error(f"Error regenerating web QR codes for client {instance.id}: {e}")

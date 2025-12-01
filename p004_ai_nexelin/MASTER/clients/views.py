@@ -543,8 +543,28 @@ class ClientQRCodeViewSet(viewsets.ModelViewSet):
         return ClientQRCode.objects.filter(client=client)
     
     def list(self, request, *args, **kwargs):
-        """Override list to ensure it's available"""
-        return super().list(request, *args, **kwargs)
+        """Override list to ensure it's available and update web QR codes location"""
+        response = super().list(request, *args, **kwargs)
+        
+        # Оновлюємо location для web QR кодів, щоб використовувати актуальний webchat_domain
+        if response.status_code == 200 and response.data:
+            client = self.get_client_from_request_or_api_key()
+            if client:
+                qr_list = response.data.get('results', response.data if isinstance(response.data, list) else [])
+                for qr_data in qr_list:
+                    if isinstance(qr_data, dict) and qr_data.get('integration_type') == 'web':
+                        try:
+                            qr_code = ClientQRCode.objects.get(id=qr_data.get('id'))
+                            new_link = qr_code.get_web_chat_link()
+                            if qr_code.location != new_link:
+                                qr_code.location = new_link
+                                qr_code.save(update_fields=['location'])
+                                # Оновлюємо дані в відповіді
+                                qr_data['location'] = new_link
+                        except (ClientQRCode.DoesNotExist, ValueError):
+                            pass
+        
+        return response
     
     def create(self, request, *args, **kwargs):
         """Override create to ensure it's available"""
@@ -571,12 +591,19 @@ class ClientQRCodeViewSet(viewsets.ModelViewSet):
         qr_code = serializer.save(client=client)
         logger.info(f"QR code created with id {qr_code.id}")
         
+        # Для web integration, встановлюємо location якщо не встановлено
+        if qr_code.integration_type == 'web' and not qr_code.location:
+            web_chat_link = qr_code.get_web_chat_link()
+            qr_code.location = web_chat_link
+            logger.info(f"Set location for web QR code {qr_code.id}: {web_chat_link[:50]}...")
+            qr_code.save(update_fields=['location'])
+        
         # Генеруємо QR код якщо не згенеровано
         if not qr_code.qr_code and not qr_code.qr_code_url:
             try:
-                logger.info(f"Generating QR code image for QRCode {qr_code.id}")
+                logger.info(f"Generating QR code image for QRCode {qr_code.id}, type: {qr_code.integration_type}")
                 qr_code.generate_qr_code()
-                qr_code.save(update_fields=['qr_code', 'qr_code_url'])
+                qr_code.save(update_fields=['qr_code', 'qr_code_url', 'location'])
                 logger.info(f"QR code image generated successfully for QRCode {qr_code.id}")
             except Exception as e:
                 # Логуємо помилку з повним traceback
@@ -588,11 +615,18 @@ class ClientQRCodeViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         serializer.save()
         
-        # Регенеруємо QR код якщо змінили назву або локацію (може змінитися prefill)
-        if 'name' in serializer.validated_data or 'location' in serializer.validated_data:
+        # Для web integration завжди оновлюємо location з актуальним webchat_domain
+        if instance.integration_type == 'web':
+            web_chat_link = instance.get_web_chat_link()
+            if instance.location != web_chat_link:
+                instance.location = web_chat_link
+                instance.save(update_fields=['location'])
+        
+        # Регенеруємо QR код якщо змінили назву, локацію або для web integration (щоб використовувати актуальний домен)
+        if 'name' in serializer.validated_data or 'location' in serializer.validated_data or instance.integration_type == 'web':
             try:
                 instance.generate_qr_code()
-                instance.save(update_fields=['qr_code', 'qr_code_url'])
+                instance.save(update_fields=['qr_code', 'qr_code_url', 'location'])
             except Exception as e:
                 import logging
                 logger = logging.getLogger(__name__)
@@ -1323,14 +1357,27 @@ class ClientConversationsView(APIView):
             else:
                 timestamp = conv.started_at.strftime('%Y-%m-%d')
             
-            # Визначаємо source на основі context_metadata
+            # Визначаємо source на основі context_metadata та customer_phone
             source = 'whatsapp'
-            if conv.context_metadata and conv.context_metadata.get('platform') == 'web':
+            platform = None
+            if conv.context_metadata:
+                platform = conv.context_metadata.get('platform')
+            
+            # Визначаємо source на основі platform або customer_phone prefix
+            if platform == 'telegram' or (conv.customer_phone and conv.customer_phone.startswith('telegram_')):
+                source = 'telegram'
+            elif platform == 'web_widget' or platform == 'iframe' or platform == 'widget':
+                source = 'web_widget'
+            elif platform == 'web' or (conv.customer_phone and conv.customer_phone.startswith('web_')):
                 source = 'web'
             
             # Форматуємо номер телефону як ім'я
             if source == 'web':
                 customer_name = 'Web Chat'
+            elif source == 'telegram':
+                customer_name = 'Telegram'
+            elif source == 'web_widget':
+                customer_name = 'Web Widget'
             else:
                 customer_name = conv.customer_phone
                 if len(customer_name) > 10:

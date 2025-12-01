@@ -805,11 +805,7 @@ class ClientQRCode(models.Model):
         return build_wa_me_link(self.get_whatsapp_prefill(), client=self.client)
     
     def get_web_chat_link(self) -> str:
-        """Returns Web Chat link for this QR code"""
-        # Use location if it's a full URL, otherwise construct it
-        if self.location and (self.location.startswith('http://') or self.location.startswith('https://')):
-            return self.location
-        
+        """Returns Web Chat link for this QR code - always uses current webchat_domain for white label clients"""
         # Get client tag (priority: client.tag -> API key -> client ID)
         client_tag = None
         if hasattr(self.client, 'tag') and self.client.tag:
@@ -828,7 +824,7 @@ class ClientQRCode(models.Model):
             # Fallback: use client ID
             client_tag = f"client-{self.client.id}"
         
-        # Construct Web Chat URL
+        # Construct Web Chat URL - always use current webchat_domain (don't rely on stored location)
         from django.conf import settings
         
         # 1) Custom per-client domain (white-label), if configured
@@ -867,9 +863,11 @@ class ClientQRCode(models.Model):
             link = self.get_qr_link()
             logger.info(f"Link generated ({self.integration_type}): {link[:50]}...")
             
-            # For Web Chat, update location if it's not already set
-            if self.integration_type == 'web' and not self.location:
+            # For Web Chat, update location if it's not already set or if it's outdated
+            if self.integration_type == 'web':
+                # Завжди оновлюємо location для web integration, щоб використовувати актуальний webchat_domain
                 self.location = link
+                logger.info(f"Updated location for web QR code {self.pk}: {link[:50]}...")
             
             # Safely get logo path
             logo_path = None

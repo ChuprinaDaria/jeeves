@@ -185,6 +185,13 @@ class ClientQRCodeSerializer(serializers.ModelSerializer):
     
     def get_qr_code_url_display(self, obj):
         """Returns QR code image URL"""
+        # Для web integration, оновлюємо location з актуальним webchat_domain
+        if obj.integration_type == 'web' and obj.client:
+            new_link = obj.get_web_chat_link()
+            if obj.location != new_link:
+                obj.location = new_link
+                obj.save(update_fields=['location'])
+        
         if obj.qr_code:
             request = self.context.get('request')
             if request:
