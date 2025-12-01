@@ -272,24 +272,34 @@ class PublicRAGChatView(APIView):
 
         # Перевіряємо чи є email команди та обробляємо їх
         email_result = None
-        if client and getattr(client, 'email_smtp_enabled', False):
-            email_result = self._process_email_command(message, client, language)
-            if email_result and email_result.get('action_taken'):
-                command_type = email_result.get('command_type')
-                # Для аналітики та пошуку мейлів повертаємо відповідь без виклику RAG,
-                # щоб уникнути "жартів" та зайвого контексту від LLM
-                if command_type in {'analyze', 'find', 'recent'}:
-                    return Response(
-                        {
-                            'response': email_result.get('message', ''),
-                            'email_action': email_result,
-                            'language': language,
-                        }
-                    )
-                # Для send email — додаємо результат в контекст, але все одно викликаємо RAG
-                elif command_type == 'send':
-                    email_context = f"\n\n[Email Service Result: {email_result.get('message', '')}]\n"
-                    message = message + email_context
+        if client:
+            email_enabled = getattr(client, 'email_smtp_enabled', False)
+            logger.info(f"Client {client.id} email_smtp_enabled: {email_enabled}")
+            
+            if email_enabled:
+                logger.info(f"Processing email command for message: '{message[:100]}'")
+                email_result = self._process_email_command(message, client, language)
+                logger.info(f"Email command result: {email_result}")
+                
+                if email_result and email_result.get('action_taken'):
+                    command_type = email_result.get('command_type')
+                    # Для аналітики та пошуку мейлів повертаємо відповідь без виклику RAG,
+                    # щоб уникнути "жартів" та зайвого контексту від LLM
+                    if command_type in {'analyze', 'find', 'recent'}:
+                        logger.info(f"Returning email {command_type} result directly")
+                        return Response(
+                            {
+                                'response': email_result.get('message', ''),
+                                'email_action': email_result,
+                                'language': language,
+                            }
+                        )
+                    # Для send email — додаємо результат в контекст, але все одно викликаємо RAG
+                    elif command_type == 'send':
+                        email_context = f"\n\n[Email Service Result: {email_result.get('message', '')}]\n"
+                        message = message + email_context
+            else:
+                logger.warning(f"Client {client.id} has email_smtp_enabled=False, skipping email command processing")
 
         # Формуємо фінальний запит для RAG:
         # додаємо історію діалогу перед останнім повідомленням користувача
@@ -341,8 +351,12 @@ class PublicRAGChatView(APIView):
         """
         from MASTER.clients.email_service import EmailService
         import re
+        import logging
         
+        logger = logging.getLogger(__name__)
         message_lower = message.lower()
+        logger.info(f"Processing email command from message: '{message_lower[:100]}'")
+        
         email_service = EmailService(client)
         # Base result structure
         result: dict = {
@@ -381,6 +395,9 @@ class PublicRAGChatView(APIView):
             # Command: Analyze recent emails or get summary
             # Більш гнучкі патерни, враховуємо всі мови додатку (uk, en, de, es, fr, it, nl, da)
             analyze_patterns = [
+                # НАЙПРОСТІШІ КОМАНДИ (одне слово): "summary", "саммаріі", "анализ"
+                r'^(?:summary|саммаріі|саммарі|анализ|analysis|analyse|resumen|résumé|riepilogo|samenvatting|resumé)$',
+                
                 # Приклади:
                 # - "дай аналіз останніх мейлів", "покажи саммарі останнії мейлів"
                 # - "show analysis of recent emails", "give summary of last emails"
@@ -405,23 +422,36 @@ class PublicRAGChatView(APIView):
                 r'(?:останні\w*|recent|last|latest|letzten|últim\w*|derni\w*|ultim\w*|laatste\w*|seneste\w*)?\s*'
                 r'(?:мейлів|emails?|e-mails?|mail\w*|mails?|correos(?:\s+electrónicos)?|courriels?)',
 
-                # "саммарі останніх мейлів", "summary of recent emails", "Zusammenfassung der letzten Emails"
+                # "саммарі останніх мейлів", "summary of recent emails", "summary of last email from my mail box"
                 r'(?:саммарі|summary|zusammenfassung|resumen|résumé|riepilogo|samenvatting|resumé)\s+'
-                r'(?:останні\w*|recent|last|latest|letzten|últim\w*|derni\w*|ultim\w*|laatste\w*|seneste\w*)?\s*'
-                r'(?:мейлів|emails?|e-mails?|mail\w*|mails?|correos(?:\s+electrónicos)?|courriels?)',
+                r'(?:of\s+)?(?:останні\w*|recent|last|latest|letzten|últim\w*|derni\w*|ultim\w*|laatste\w*|seneste\w*)?\s*'
+                r'(?:мейлів|emails?|e-mails?|mail\w*|mails?|correos(?:\s+electrónicos)?|courriels?)'
+                r'(?:\s+from\s+(?:my\s+)?(?:mail\s*box|inbox))?',
+                
+                # Загальні email запити: "analyze my emails", "check my mailbox", "read my inbox"
+                r'(?:analyze|check|read|show|get|аналізуй|перевір|читай|покажи)\s+(?:my\s+)?(?:email|mail\s*box|inbox|мейли|пошту|мейл)',
+                
+                # "what's in my mailbox", "що в моїй пошті"
+                r'(?:what|що).{0,20}(?:in\s+my\s+|в\s+мої\w*\s+)(?:mail\s*box|inbox|email|пошті|мейлі)',
             ]
             
             for pattern in analyze_patterns:
-                if re.search(pattern, message_lower):
+                match = re.search(pattern, message_lower)
+                if match:
+                    logger.info(f"Email analyze pattern matched: '{pattern}' in '{message_lower}'")
                     days_match = re.search(r'(\d+)\s+(?:днів|days)', message_lower)
                     days = int(days_match.group(1)) if days_match else 7
                     
+                    logger.info(f"Analyzing emails for last {days} days")
                     analysis = email_service.analyze_recent_emails(days_back=days)
                     result['action_taken'] = True
                     result['command_type'] = 'analyze'
                     result['message'] = analysis.get('summary', 'Email analysis completed')
                     result['analysis'] = analysis
+                    logger.info(f"Email analysis completed: {len(analysis.get('emails', []))} emails found")
                     return result
+            
+            logger.info("No analyze pattern matched")
             
             # Command: Find emails from sender (by email address)
             find_patterns = [
@@ -447,13 +477,14 @@ class PublicRAGChatView(APIView):
                     result['emails'] = emails
                     return result
             
-            # Command: Get recent emails (list without analysis)
+            # Command: Get recent emails (list without analysis) 
+            # Це для простого отримання списку листів без детального аналізу
             recent_patterns = [
                 # "покажи останні мейли", "дай останнії мейли"
-                r'(?:покажи|дай|get|show)\s+(?:останні\w*|нові)\s+(?:мейли|emails?|e-mails?|mails?)',
+                r'(?:покажи|дай|get|show|list|read)\s+(?:останні\w*|нові|recent|last|latest)\s+(?:мейли|emails?|e-mails?|mails?)',
 
-                # English: "show recent emails", "get latest emails", "any new emails"
-                r'(?:show|get|list)\s+(?:recent|last|latest)\s+(?:emails?|e-mails?|mails?)',
+                # "show recent emails", "get latest emails", "any new emails"
+                r'(?:show|get|list|read|display)\s+(?:recent|last|latest|new)\s+(?:emails?|e-mails?|mails?)',
                 r'(?:any|are there)\s+(?:new|recent)\s+(?:emails?|e-mails?|mails?)',
 
                 # German: "zeige letzte Emails", "neue E-Mails anzeigen"
@@ -474,21 +505,28 @@ class PublicRAGChatView(APIView):
                 # Danish: "vis seneste mails"
                 r'(?:vis)\s+(?:seneste\w*|sidste\w*)\s+(?:mails?|emails?|e-mails?)',
 
-                # Generic "what's new in email"
-                r'(?:що|what)\s+(?:нового|new)\s+(?:в|in)\s+(?:мейлі|email|mail)',
+                # Generic "what's new in email", "read my emails"
+                r'(?:що|what).{0,10}(?:нового|new)\s+(?:в|in)\s+(?:мейлі|email|mail)',
+                r'(?:read|show|check)\s+(?:my\s+)?(?:inbox|mailbox|emails?)',
             ]
             
             for pattern in recent_patterns:
-                if re.search(pattern, message_lower):
+                match = re.search(pattern, message_lower)
+                if match:
+                    logger.info(f"Email recent pattern matched: '{pattern}' in '{message_lower}'")
                     limit_match = re.search(r'(\d+)\s+(?:мейлів|emails)', message_lower)
                     limit = int(limit_match.group(1)) if limit_match else 10
                     
+                    logger.info(f"Getting {limit} recent emails")
                     emails = email_service.get_recent_emails(limit=limit)
                     result['action_taken'] = True
                     result['command_type'] = 'recent'
                     result['message'] = f'Retrieved {len(emails)} recent emails'
                     result['emails'] = emails
+                    logger.info(f"Retrieved {len(emails)} recent emails")
                     return result
+            
+            logger.info("No recent pattern matched")
                     
         except Exception as e:
             import logging

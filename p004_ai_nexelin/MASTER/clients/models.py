@@ -812,6 +812,9 @@ class ClientQRCode(models.Model):
     
     def get_web_chat_link(self) -> str:
         """Returns Web Chat link for this QR code - always uses current webchat_domain for white label clients"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
         # Get client tag (priority: client.tag -> API key -> client ID)
         client_tag = None
         if hasattr(self.client, 'tag') and self.client.tag:
@@ -822,8 +825,6 @@ class ClientQRCode(models.Model):
                 if api_key:
                     client_tag = api_key.key
             except Exception as e:
-                import logging
-                logger = logging.getLogger(__name__)
                 logger.warning(f"Error getting API key for client {self.client.id}: {e}")
         
         if not client_tag:
@@ -836,6 +837,8 @@ class ClientQRCode(models.Model):
         
         # 1) Custom per-client domain (white-label), if configured
         custom_domain = (getattr(self.client, "webchat_domain", "") or "").strip()
+        logger.info(f"Client {self.client.id} webchat_domain: '{custom_domain}'")
+        
         if custom_domain:
             # Allow both plain host (ai.bytekraft.net) and full URL (https://ai.bytekraft.net/anything?x=1)
             try:
@@ -852,16 +855,22 @@ class ClientQRCode(models.Model):
                     base_url = custom_domain.split("?")[0].split("#")[0].rstrip("/")
                     if not (base_url.startswith("http://") or base_url.startswith("https://")):
                         base_url = f"https://{base_url}".rstrip("/")
-            except Exception:
+            except Exception as e:
                 # As a last resort, fallback to https:// + host part
+                logger.warning(f"Error parsing webchat_domain '{custom_domain}': {e}")
                 host = custom_domain.split("/")[0]
                 base_url = f"https://{host}".rstrip("/")
+            
+            logger.info(f"Using custom domain base_url: {base_url}")
         else:
             # 2) Fallback to global frontend URL
             frontend_url = getattr(settings, 'FRONTEND_URL', 'https://app.nexelin.com')
             base_url = frontend_url.rstrip("/") if isinstance(frontend_url, str) else 'https://app.nexelin.com'
+            logger.info(f"Using default FRONTEND_URL: {base_url}")
         
-        return f"{base_url}/client?tag={client_tag}"
+        web_chat_url = f"{base_url}/client?tag={client_tag}"
+        logger.info(f"Generated web chat link for client {self.client.id}: {web_chat_url}")
+        return web_chat_url
     
     def get_qr_link(self) -> str:
         """Returns the appropriate link based on integration type"""

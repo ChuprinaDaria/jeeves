@@ -53,11 +53,7 @@ def regenerate_table_qrs_on_logo_change(sender, instance: Client, created, **kwa
 @receiver(post_save, sender=Client)
 def regenerate_web_qrs_on_domain_change(sender, instance: Client, created, **kwargs):
     """Regenerates QR codes for web integration when webchat_domain changes"""
-    # Only for white label clients
-    if instance.client_type != Client.TYPE_WHITE_LABEL:
-        return
-    
-    # Check if webchat_domain was updated
+    # Check if webchat_domain was updated (не обмежуємо тільки white label)
     if created:
         # New client - no need to regenerate
         return
@@ -65,6 +61,10 @@ def regenerate_web_qrs_on_domain_change(sender, instance: Client, created, **kwa
     update_fields = kwargs.get('update_fields')
     if update_fields and 'webchat_domain' not in update_fields:
         # webchat_domain was not updated
+        return
+    
+    # Тільки якщо webchat_domain встановлений
+    if not instance.webchat_domain:
         return
     
     # Regenerate all web integration QR codes for this client
@@ -85,7 +85,7 @@ def regenerate_web_qrs_on_domain_change(sender, instance: Client, created, **kwa
                 qr_code.generate_qr_code()
                 qr_code.save(update_fields=['qr_code', 'qr_code_url', 'location'])
                 regenerated_count += 1
-                logger.info(f"Regenerated web QR code {qr_code.id} for client {instance.id} after domain change")
+                logger.info(f"Regenerated web QR code {qr_code.id} for client {instance.id} after webchat_domain change to {instance.webchat_domain}")
             except Exception as e:
                 logger.error(f"Failed to regenerate web QR code {qr_code.id}: {e}")
         
