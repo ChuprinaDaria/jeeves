@@ -32,7 +32,8 @@ def check_email_status():
             print(f"  SMTP Port: {client.email_smtp_port}")
             print(f"  SMTP Use TLS: {client.email_smtp_use_tls}")
             print(f"  SMTP Username: {client.email_smtp_username}")
-            print(f"  SMTP Password: {'*' * len(client.email_smtp_password) if client.email_smtp_password else 'NOT SET'}")
+            password_set = bool(client.email_smtp_password and client.email_smtp_password.strip())
+            print(f"  SMTP Password: {'SET (' + '*' * min(20, len(client.email_smtp_password)) + ')' if password_set else 'NOT SET ⚠️'}")
             print(f"  From Address: {client.email_from_address}")
             print(f"  From Name: {client.email_from_name}")
             
@@ -40,7 +41,18 @@ def check_email_status():
             from MASTER.clients.email_service import EmailService
             try:
                 email_service = EmailService(client)
-                print(f"  IMAP Host (detected): {email_service.imap_host}")
+                if email_service.imap_host:
+                    print(f"  IMAP Host (detected): {email_service.imap_host} ✅")
+                else:
+                    print(f"  IMAP Host (detected): None ⚠️ (Email reading will not work)")
+                
+                # Test if we can connect (optional, might be slow)
+                if password_set and email_service.imap_host:
+                    print(f"  Email reading: Available (IMAP configured)")
+                elif password_set:
+                    print(f"  Email reading: Not available (IMAP host not detected)")
+                else:
+                    print(f"  Email reading: Not available (Password not set)")
             except Exception as e:
                 print(f"  IMAP Host detection error: {e}")
         else:

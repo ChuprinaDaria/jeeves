@@ -37,29 +37,79 @@ class EmailService:
         # IMAP settings (using same credentials, common providers support IMAP)
         self.imap_host = self._get_imap_host()
         self.imap_port = 993  # Standard IMAP SSL port
+        
+        logger.info(f"EmailService initialized for client {client.id}: SMTP={self.smtp_host}, IMAP={self.imap_host}")
     
     def _get_imap_host(self) -> Optional[str]:
         """Get IMAP host based on SMTP host"""
         if not self.smtp_host:
             return None
         
+        smtp_host_lower = self.smtp_host.lower()
+        
         # Map common SMTP hosts to IMAP hosts
         host_mapping = {
             'smtp.gmail.com': 'imap.gmail.com',
             'smtp-mail.outlook.com': 'outlook.office365.com',
-            'smtp-mail.outlook.com': 'imap-mail.outlook.com',
             'smtp.mail.yahoo.com': 'imap.mail.yahoo.com',
             'smtp.office365.com': 'outlook.office365.com',
+            'mail.gmail.com': 'imap.gmail.com',
         }
         
         # Try direct mapping
-        if self.smtp_host in host_mapping:
-            return host_mapping[self.smtp_host]
+        if smtp_host_lower in host_mapping:
+            return host_mapping[smtp_host_lower]
+        
+        # Special handling for home.pl servers (serwerXXXXXX.home.pl -> pocztaXXXXXX.home.pl)
+        if 'serwer' in smtp_host_lower and 'home.pl' in smtp_host_lower:
+            imap_host = smtp_host_lower.replace('serwer', 'poczta')
+            logger.info(f"Detected home.pl server, using IMAP host: {imap_host}")
+            return imap_host
+        
+        # Special handling for other home.pl variants
+        if 'home.pl' in smtp_host_lower:
+            # Try common patterns for home.pl
+            if 'smtp' in smtp_host_lower:
+                imap_host = smtp_host_lower.replace('smtp', 'poczta')
+            elif 'mail' in smtp_host_lower:
+                imap_host = smtp_host_lower.replace('mail', 'poczta')
+            else:
+                # Fallback: try adding poczta prefix
+                parts = smtp_host_lower.split('.')
+                if len(parts) >= 2:
+                    imap_host = f"poczta.{'.'.join(parts[1:])}"
+                else:
+                    imap_host = None
+            
+            if imap_host:
+                logger.info(f"Detected home.pl server, using IMAP host: {imap_host}")
+                return imap_host
         
         # Try replacing smtp with imap
-        if 'smtp' in self.smtp_host:
-            return self.smtp_host.replace('smtp', 'imap')
+        if 'smtp' in smtp_host_lower:
+            imap_host = smtp_host_lower.replace('smtp', 'imap')
+            logger.info(f"Trying IMAP host by replacing smtp: {imap_host}")
+            return imap_host
         
+        # Try replacing mail with imap
+        if 'mail' in smtp_host_lower and 'imap' not in smtp_host_lower:
+            imap_host = smtp_host_lower.replace('mail', 'imap')
+            logger.info(f"Trying IMAP host by replacing mail: {imap_host}")
+            return imap_host
+        
+        # Last resort: try common patterns
+        # For custom domains, try mail.domain.com or imap.domain.com
+        if '.' in smtp_host_lower:
+            domain_parts = smtp_host_lower.split('.')
+            if len(domain_parts) >= 2:
+                # Extract domain (e.g., example.com from smtp.example.com)
+                domain = '.'.join(domain_parts[-2:])  # Get last 2 parts (domain.tld)
+                # Try mail.domain.com
+                imap_host = f"mail.{domain}"
+                logger.info(f"Trying common IMAP pattern: {imap_host}")
+                return imap_host
+        
+        logger.warning(f"Could not determine IMAP host for SMTP host: {self.smtp_host}")
         return None
     
     def send_email(

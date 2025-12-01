@@ -185,12 +185,18 @@ class ClientQRCodeSerializer(serializers.ModelSerializer):
     
     def get_qr_code_url_display(self, obj):
         """Returns QR code image URL"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
         # Для web integration, оновлюємо location з актуальним webchat_domain
         if obj.integration_type == 'web' and obj.client:
-            new_link = obj.get_web_chat_link()
-            if obj.location != new_link:
-                obj.location = new_link
-                obj.save(update_fields=['location'])
+            try:
+                new_link = obj.get_web_chat_link()
+                if obj.location != new_link:
+                    obj.location = new_link
+                    obj.save(update_fields=['location'])
+            except Exception as e:
+                logger.error(f"Error updating web QR code location for {obj.id}: {e}", exc_info=True)
         
         if obj.qr_code:
             request = self.context.get('request')

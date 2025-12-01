@@ -563,27 +563,37 @@ class ClientQRCodeViewSet(viewsets.ModelViewSet):
     
     def list(self, request, *args, **kwargs):
         """Override list to ensure it's available and update web QR codes location"""
-        response = super().list(request, *args, **kwargs)
+        import logging
+        logger = logging.getLogger(__name__)
         
-        # Оновлюємо location для web QR кодів, щоб використовувати актуальний webchat_domain
-        if response.status_code == 200 and response.data:
-            client = self.get_client_from_request_or_api_key()
-            if client:
-                qr_list = response.data.get('results', response.data if isinstance(response.data, list) else [])
-                for qr_data in qr_list:
-                    if isinstance(qr_data, dict) and qr_data.get('integration_type') == 'web':
-                        try:
-                            qr_code = ClientQRCode.objects.get(id=qr_data.get('id'))
-                            new_link = qr_code.get_web_chat_link()
-                            if qr_code.location != new_link:
-                                qr_code.location = new_link
-                                qr_code.save(update_fields=['location'])
-                                # Оновлюємо дані в відповіді
-                                qr_data['location'] = new_link
-                        except (ClientQRCode.DoesNotExist, ValueError):
-                            pass
-        
-        return response
+        try:
+            response = super().list(request, *args, **kwargs)
+            
+            # Оновлюємо location для web QR кодів, щоб використовувати актуальний webchat_domain
+            if response.status_code == 200 and response.data:
+                client = self.get_client_from_request_or_api_key()
+                if client:
+                    qr_list = response.data.get('results', response.data if isinstance(response.data, list) else [])
+                    for qr_data in qr_list:
+                        if isinstance(qr_data, dict) and qr_data.get('integration_type') == 'web':
+                            try:
+                                qr_code = ClientQRCode.objects.get(id=qr_data.get('id'))
+                                new_link = qr_code.get_web_chat_link()
+                                if qr_code.location != new_link:
+                                    qr_code.location = new_link
+                                    qr_code.save(update_fields=['location'])
+                                    # Оновлюємо дані в відповіді
+                                    qr_data['location'] = new_link
+                            except (ClientQRCode.DoesNotExist, ValueError) as e:
+                                logger.warning(f"Error updating web QR code {qr_data.get('id')}: {e}")
+                            except Exception as e:
+                                logger.error(f"Unexpected error updating web QR code {qr_data.get('id')}: {e}", exc_info=True)
+            
+            return response
+        except Exception as e:
+            logger.error(f"Error in ClientQRCodeViewSet.list(): {e}", exc_info=True)
+            from rest_framework.response import Response
+            return Response({'error': str(e)}, status=500)
     
     def create(self, request, *args, **kwargs):
         """Override create to ensure it's available"""
