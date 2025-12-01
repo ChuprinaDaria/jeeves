@@ -2,8 +2,27 @@
 Utility functions for automatic news generation
 """
 import requests
+import logging
 from django.utils import timezone
+from django.conf import settings
 from MASTER.clients.models import News
+
+logger = logging.getLogger(__name__)
+
+# Supported languages in the app
+SUPPORTED_LANGUAGES = ['uk', 'en', 'de', 'es', 'fr', 'it', 'nl', 'da']
+
+# Language names for translation prompts
+LANGUAGE_NAMES = {
+    'uk': 'Ukrainian',
+    'en': 'English',
+    'de': 'German',
+    'es': 'Spanish',
+    'fr': 'French',
+    'it': 'Italian',
+    'nl': 'Dutch',
+    'da': 'Danish',
+}
 
 
 def get_unsplash_image_url(keyword='technology', width=800, height=600):
@@ -27,25 +46,37 @@ def create_news(
     related_integration='',
     related_model='',
     related_feature='',
-    image_keyword='technology'
+    image_keyword='technology',
+    auto_translate=True
 ):
     """
     Create a news item automatically.
     
     Args:
-        title: News title
-        description: News description
+        title: News title (in English)
+        description: News description (in English)
         news_type: Type of news (integration, model, feature, update, announcement)
         related_integration: Related integration name (if applicable)
         related_model: Related model name (if applicable)
         related_feature: Related feature name (if applicable)
         image_keyword: Keyword for Unsplash image search
+        auto_translate: Whether to automatically generate translations
     """
     image_url = get_unsplash_image_url(image_keyword)
+    
+    # Generate translations if enabled
+    translations = {}
+    if auto_translate:
+        try:
+            translations = generate_translations(title, description)
+        except Exception as e:
+            logger.error(f"Failed to generate translations: {e}", exc_info=True)
+            # Continue without translations
     
     news = News.objects.create(
         title=title,
         description=description,
+        translations=translations,
         news_type=news_type,
         image_url=image_url,
         related_integration=related_integration,
@@ -107,4 +138,100 @@ def create_feature_news(feature_name, description=None):
         related_feature=feature_name,
         image_keyword='innovation'
     )
+
+
+def translate_text(text: str, target_language: str) -> str:
+    """
+    Translate text to target language using OpenAI API.
+    
+    Args:
+        text: Text to translate
+        target_language: Target language code (uk, de, es, fr, it, nl, da)
+    
+    Returns:
+        Translated text or original text if translation fails
+    """
+    if target_language == 'en':
+        return text  # English is the default
+    
+    if target_language not in SUPPORTED_LANGUAGES:
+        logger.warning(f"Unsupported language: {target_language}")
+        return text
+    
+    try:
+        from openai import OpenAI
+        
+        # Try to get OpenAI API key from settings
+        api_key = getattr(settings, 'OPENAI_API_KEY', None)
+        if not api_key:
+            logger.warning("OPENAI_API_KEY not configured, skipping translation")
+            return text
+        
+        client = OpenAI(api_key=api_key)
+        language_name = LANGUAGE_NAMES.get(target_language, target_language)
+        
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",  # Use cheap model for translations
+            messages=[
+                {
+                    "role": "system",
+                    "content": f"You are a professional translator. Translate the following text to {language_name}. Return only the translation, no explanations."
+                },
+                {
+                    "role": "user",
+                    "content": text
+                }
+            ],
+            temperature=0.3,
+            max_tokens=500
+        )
+        
+        translated = response.choices[0].message.content.strip()
+        logger.info(f"Translated text to {target_language}: {text[:50]}... -> {translated[:50]}...")
+        return translated
+        
+    except Exception as e:
+        logger.error(f"Translation failed for {target_language}: {e}", exc_info=True)
+        return text  # Return original text on failure
+
+
+def generate_translations(title: str, description: str) -> dict:
+    """
+    Generate translations for title and description in all supported languages.
+    
+    Args:
+        title: English title
+        description: English description
+    
+    Returns:
+        Dictionary with translations: {"uk": {"title": "...", "description": "..."}, ...}
+    """
+    translations = {}
+    
+    for lang_code in SUPPORTED_LANGUAGES:
+        if lang_code == 'en':
+            # English is the default
+            translations[lang_code] = {
+                'title': title,
+                'description': description
+            }
+        else:
+            # Translate to other languages
+            try:
+                translated_title = translate_text(title, lang_code)
+                translated_description = translate_text(description, lang_code)
+                
+                translations[lang_code] = {
+                    'title': translated_title,
+                    'description': translated_description
+                }
+            except Exception as e:
+                logger.error(f"Failed to generate translation for {lang_code}: {e}")
+                # Fallback to English
+                translations[lang_code] = {
+                    'title': title,
+                    'description': description
+                }
+    
+    return translations
 

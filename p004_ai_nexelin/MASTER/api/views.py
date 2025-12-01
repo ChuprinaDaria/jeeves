@@ -275,9 +275,21 @@ class PublicRAGChatView(APIView):
         if client and getattr(client, 'email_smtp_enabled', False):
             email_result = self._process_email_command(message, client, language)
             if email_result and email_result.get('action_taken'):
-                # Якщо email команда виконана, додаємо результат до контексту
-                email_context = f"\n\n[Email Service Result: {email_result.get('message', '')}]\n"
-                message = message + email_context
+                command_type = email_result.get('command_type')
+                # Для аналітики та пошуку мейлів повертаємо відповідь без виклику RAG,
+                # щоб уникнути "жартів" та зайвого контексту від LLM
+                if command_type in {'analyze', 'find', 'recent'}:
+                    return Response(
+                        {
+                            'response': email_result.get('message', ''),
+                            'email_action': email_result,
+                            'language': language,
+                        }
+                    )
+                # Для send email — додаємо результат в контекст, але все одно викликаємо RAG
+                elif command_type == 'send':
+                    email_context = f"\n\n[Email Service Result: {email_result.get('message', '')}]\n"
+                    message = message + email_context
 
         # Формуємо фінальний запит для RAG:
         # додаємо історію діалогу перед останнім повідомленням користувача
@@ -332,7 +344,12 @@ class PublicRAGChatView(APIView):
         
         message_lower = message.lower()
         email_service = EmailService(client)
-        result = {'action_taken': False, 'message': ''}
+        # Base result structure
+        result: dict = {
+            'action_taken': False,
+            'message': '',
+            'command_type': None,  # 'send', 'analyze', 'find', 'recent'
+        }
         
         try:
             # Command: Send/Create email
@@ -356,6 +373,7 @@ class PublicRAGChatView(APIView):
                         
                         send_result = email_service.send_email(to_address, subject, body)
                         result['action_taken'] = True
+                        result['command_type'] = 'send'
                         result['message'] = send_result.get('message', 'Email sent')
                         result['email_sent'] = send_result.get('success', False)
                         return result
@@ -400,6 +418,7 @@ class PublicRAGChatView(APIView):
                     
                     analysis = email_service.analyze_recent_emails(days_back=days)
                     result['action_taken'] = True
+                    result['command_type'] = 'analyze'
                     result['message'] = analysis.get('summary', 'Email analysis completed')
                     result['analysis'] = analysis
                     return result
@@ -423,6 +442,7 @@ class PublicRAGChatView(APIView):
                     from_address = match.group(1)
                     emails = email_service.search_emails(from_address=from_address, limit=10)
                     result['action_taken'] = True
+                    result['command_type'] = 'find'
                     result['message'] = f'Found {len(emails)} emails from {from_address}'
                     result['emails'] = emails
                     return result
@@ -465,6 +485,7 @@ class PublicRAGChatView(APIView):
                     
                     emails = email_service.get_recent_emails(limit=limit)
                     result['action_taken'] = True
+                    result['command_type'] = 'recent'
                     result['message'] = f'Retrieved {len(emails)} recent emails'
                     result['emails'] = emails
                     return result

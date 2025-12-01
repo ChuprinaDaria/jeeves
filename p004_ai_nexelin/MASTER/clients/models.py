@@ -832,15 +832,30 @@ class ClientQRCode(models.Model):
         
         # Construct Web Chat URL - always use current webchat_domain (don't rely on stored location)
         from django.conf import settings
+        from urllib.parse import urlparse
         
         # 1) Custom per-client domain (white-label), if configured
         custom_domain = (getattr(self.client, "webchat_domain", "") or "").strip()
         if custom_domain:
-            # Allow both plain host (ai.bytekraft.net) and full URL (https://ai.bytekraft.net)
-            if custom_domain.startswith("http://") or custom_domain.startswith("https://"):
-                base_url = custom_domain.rstrip("/")
-            else:
-                base_url = f"https://{custom_domain}".rstrip("/")
+            # Allow both plain host (ai.bytekraft.net) and full URL (https://ai.bytekraft.net/anything?x=1)
+            try:
+                if custom_domain.startswith("http://") or custom_domain.startswith("https://"):
+                    parsed = urlparse(custom_domain)
+                else:
+                    parsed = urlparse(f"https://{custom_domain}")
+                
+                if parsed.scheme and parsed.netloc:
+                    # Use only scheme + host, ignore path/query for safety
+                    base_url = f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
+                else:
+                    # Fallback: strip trailing slash and any query/fragment manually
+                    base_url = custom_domain.split("?")[0].split("#")[0].rstrip("/")
+                    if not (base_url.startswith("http://") or base_url.startswith("https://")):
+                        base_url = f"https://{base_url}".rstrip("/")
+            except Exception:
+                # As a last resort, fallback to https:// + host part
+                host = custom_domain.split("/")[0]
+                base_url = f"https://{host}".rstrip("/")
         else:
             # 2) Fallback to global frontend URL
             frontend_url = getattr(settings, 'FRONTEND_URL', 'https://app.nexelin.com')
@@ -1323,8 +1338,14 @@ class News(models.Model):
         ('announcement', 'Announcement'),
     ]
     
-    title = models.CharField(max_length=255)
-    description = models.TextField()
+    title = models.CharField(max_length=255, help_text="Title in English (default language)")
+    description = models.TextField(help_text="Description in English (default language)")
+    # Translations stored as JSON: {"uk": {"title": "...", "description": "..."}, "de": {...}, ...}
+    translations = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Translations for title and description in all supported languages (uk, en, de, es, fr, it, nl, da)"
+    )
     news_type = models.CharField(max_length=20, choices=NEWS_TYPES, default='update')
     image = models.ImageField(
         upload_to='news/images/',

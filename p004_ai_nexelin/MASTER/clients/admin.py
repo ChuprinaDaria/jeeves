@@ -570,8 +570,14 @@ class NewsAdmin(admin.ModelAdmin):
     list_editable = ['is_active', 'is_featured']
     
     fieldsets = (
-        ('Basic Information', {
-            'fields': ('title', 'description', 'news_type')
+        ('Basic Information (English)', {
+            'fields': ('title', 'description', 'news_type'),
+            'description': 'Enter title and description in English. Translations will be generated automatically.'
+        }),
+        ('Translations', {
+            'fields': ('translations', 'translations_preview'),
+            'classes': ('collapse',),
+            'description': 'Automatically generated translations. Click "Save and continue editing" to regenerate translations if needed.'
         }),
         ('Image', {
             'fields': ('image', 'image_url', 'image_preview'),
@@ -591,7 +597,7 @@ class NewsAdmin(admin.ModelAdmin):
         }),
     )
     
-    readonly_fields = ['created_at', 'updated_at', 'image_preview']
+    readonly_fields = ['created_at', 'updated_at', 'image_preview', 'translations_preview']
     
     @admin.display(description='Image Preview')
     def image_preview(self, obj):
@@ -619,8 +625,29 @@ class NewsAdmin(admin.ModelAdmin):
             )
         return format_html('<span style="color: gray;">No image</span>')
     
+    @admin.display(description='Translations Preview')
+    def translations_preview(self, obj):
+        """Display preview of translations"""
+        if not obj.translations:
+            return format_html('<span style="color: gray;">No translations yet. Save to generate.</span>')
+        
+        preview_html = '<div style="max-height: 300px; overflow-y: auto;">'
+        for lang_code, trans in obj.translations.items():
+            lang_name = {'uk': '🇺🇦 Ukrainian', 'en': '🇬🇧 English', 'de': '🇩🇪 German', 
+                        'es': '🇪🇸 Spanish', 'fr': '🇫🇷 French', 'it': '🇮🇹 Italian',
+                        'nl': '🇳🇱 Dutch', 'da': '🇩🇰 Danish'}.get(lang_code, lang_code)
+            preview_html += f'''
+            <div style="margin-bottom: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                <strong>{lang_name}:</strong><br/>
+                <strong>Title:</strong> {trans.get('title', 'N/A')[:100]}<br/>
+                <strong>Description:</strong> {trans.get('description', 'N/A')[:200]}...
+            </div>
+            '''
+        preview_html += '</div>'
+        return format_html(preview_html)
+    
     def save_model(self, request, obj, form, change):
-        """Auto-generate image URL if not provided and no image uploaded"""
+        """Auto-generate image URL and translations if needed"""
         # Only auto-generate image_url if no image file is uploaded and no image_url is provided
         if not obj.image and not obj.image_url:
             from MASTER.clients.news_utils import get_unsplash_image_url
@@ -632,4 +659,15 @@ class NewsAdmin(admin.ModelAdmin):
             elif obj.related_feature:
                 keyword = 'innovation'
             obj.image_url = get_unsplash_image_url(keyword)
+        
+        # Auto-generate translations if not present or if title/description changed
+        if not obj.translations or (change and ('title' in form.changed_data or 'description' in form.changed_data)):
+            from MASTER.clients.news_utils import generate_translations
+            try:
+                obj.translations = generate_translations(obj.title, obj.description)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to generate translations: {e}", exc_info=True)
+        
         super().save_model(request, obj, form, change)

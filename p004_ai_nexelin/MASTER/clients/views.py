@@ -472,6 +472,12 @@ class NewsViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         """Return only active news, ordered by featured and date"""
         return News.objects.filter(is_active=True).order_by('-is_featured', '-created_at')
+    
+    def get_serializer_context(self):
+        """Add request to serializer context for language detection"""
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
 
 
 class TopPromptsView(APIView):

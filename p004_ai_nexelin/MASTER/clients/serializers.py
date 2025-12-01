@@ -310,6 +310,8 @@ class PromptVoteSerializer(serializers.ModelSerializer):
 
 class NewsSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
+    title = serializers.SerializerMethodField()
+    description = serializers.SerializerMethodField()
     
     class Meta:
         model = News
@@ -337,4 +339,80 @@ class NewsSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.image.url)
             return obj.image.url
         return obj.image_url
+    
+    def get_title(self, obj):
+        """Return translated title based on user's language preference"""
+        request = self.context.get('request')
+        if request:
+            # Priority: query param > Accept-Language header
+            lang = request.GET.get('lang')
+            if not lang:
+                # Parse Accept-Language header (e.g., "en-US,en;q=0.9,uk;q=0.8")
+                accept_lang = request.META.get('HTTP_ACCEPT_LANGUAGE', 'en')
+                if accept_lang:
+                    lang = accept_lang.split(',')[0].split('-')[0].lower()
+            
+            # Normalize language code
+            if lang:
+                lang = lang.lower()
+                # Map common variations
+                lang_map = {
+                    'uk': 'uk',
+                    'ua': 'uk',
+                    'en': 'en',
+                    'de': 'de',
+                    'es': 'es',
+                    'fr': 'fr',
+                    'it': 'it',
+                    'nl': 'nl',
+                    'da': 'da',
+                }
+                lang = lang_map.get(lang, 'en')
+            
+            # Check if translation exists for this language
+            if obj.translations and lang in obj.translations:
+                translated_title = obj.translations[lang].get('title')
+                if translated_title:
+                    return translated_title
+        
+        # Fallback to English (default)
+        return obj.title
+    
+    def get_description(self, obj):
+        """Return translated description based on user's language preference"""
+        request = self.context.get('request')
+        if request:
+            # Priority: query param > Accept-Language header
+            lang = request.GET.get('lang')
+            if not lang:
+                # Parse Accept-Language header
+                accept_lang = request.META.get('HTTP_ACCEPT_LANGUAGE', 'en')
+                if accept_lang:
+                    lang = accept_lang.split(',')[0].split('-')[0].lower()
+            
+            # Normalize language code
+            if lang:
+                lang = lang.lower()
+                # Map common variations
+                lang_map = {
+                    'uk': 'uk',
+                    'ua': 'uk',
+                    'en': 'en',
+                    'de': 'de',
+                    'es': 'es',
+                    'fr': 'fr',
+                    'it': 'it',
+                    'nl': 'nl',
+                    'da': 'da',
+                }
+                lang = lang_map.get(lang, 'en')
+            
+            # Check if translation exists for this language
+            if obj.translations and lang in obj.translations:
+                translated_desc = obj.translations[lang].get('description')
+                if translated_desc:
+                    return translated_desc
+        
+        # Fallback to English (default)
+        return obj.description
 
