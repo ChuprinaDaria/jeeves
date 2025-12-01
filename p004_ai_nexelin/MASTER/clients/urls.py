@@ -1,6 +1,8 @@
 from django.urls import path, include
 from . import views
 from .views_meta_whatsapp import MetaWhatsAppWebhookView
+from .views_telegram import TelegramWebhookView
+from .views_webwidget import WebWidgetConfigView, WebWidgetChatIframeView, WebWidgetScriptView
 
 
 urlpatterns = [
@@ -17,10 +19,15 @@ urlpatterns = [
     path('stats/', views.ClientStatsView.as_view(), name='client-stats'),
     path('embeddings-stats/', views.ClientEmbeddingsStatsView.as_view(), name='client-embeddings-stats'),
     path('model-status/', views.ClientModelStatusView.as_view(), name='client-model-status'),
+    path('top-prompts/', views.TopPromptsView.as_view(), name='top-prompts'),
     path('whatsapp/meta/config/', views.ClientWhatsAppConfigView.as_view(), name='client-whatsapp-meta-config'),
+    path('telegram/config/', views.ClientTelegramConfigView.as_view(), name='client-telegram-config'),
+    path('email-smtp/config/', views.ClientEmailSMTPConfigView.as_view(), name='client-email-smtp-config'),
+    path('web-widget/config/', WebWidgetConfigView.as_view(), name='client-web-widget-config'),
     path('list-extended/', views.list_clients_extended, name='clients-list-extended'),
     path('rag-test/', views.rag_test_query, name='rag-test-query'),
     path('whatsapp/meta/webhook/', MetaWhatsAppWebhookView.as_view(), name='meta_whatsapp_webhook'),
+    path('telegram/webhook/', TelegramWebhookView.as_view(), name='telegram_webhook'),
     
     # Явні маршрути для viewsets з POST підтримкою
     path('documents/', views.ClientDocumentViewSet.as_view({'get': 'list', 'post': 'create'}), name='document-list'),

@@ -140,6 +140,20 @@ services:
 
   # ========================= FRONTEND =========================
 
+  # ========================= NGINX ===========================
+  nginx:
+    image: nginx:alpine
+    container_name: ai_nexelin_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      - web
+    networks: [nexelin_network]
+
 # ===================== NETWORKS & VOLUMES ====================
 networks:
   nexelin_network:

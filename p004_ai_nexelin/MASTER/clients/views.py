@@ -3,11 +3,16 @@ from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.template.loader import render_to_string
 from rest_framework import viewsets, permissions, status, serializers
+from rest_framework.decorators import action
 from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from MASTER.clients.models import Client, ClientDocument, ClientAPIKey, ClientAPIConfig, KnowledgeBlock, ClientQRCode, ClientWhatsAppConversation, WebParsingRequest
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.db.models import Q
+import logging
+
+logger = logging.getLogger(__name__)
+from MASTER.clients.models import Client, ClientDocument, ClientAPIKey, ClientAPIConfig, KnowledgeBlock, ClientQRCode, ClientWhatsAppConversation, WebParsingRequest, Prompt, PromptVote, News
 from MASTER.clients.serializers import (
     ClientSerializer,
     ClientDocumentSerializer,
@@ -15,6 +20,9 @@ from MASTER.clients.serializers import (
     KnowledgeBlockSerializer,
     ClientQRCodeSerializer,
     WebParsingRequestSerializer,
+    PromptSerializer,
+    NewsSerializer,
+    PromptVoteSerializer,
 )
 from MASTER.clients.permissions import IsAdminOrReadOnly, IsClientOwner
 from django.views.decorators.http import require_POST
@@ -243,6 +251,169 @@ class KnowledgeBlockViewSet(viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
 
+class PromptViewSet(viewsets.ModelViewSet):
+    """Public Prompt Library - доступний для всіх користувачів"""
+    serializer_class = PromptSerializer
+    permission_classes = [AllowAny]  # Публічний доступ
+    
+    def get_queryset(self):
+        """Фільтрація промптів по категорії, індустрії та пошуку"""
+        queryset = Prompt.objects.filter(is_public=True)
+        
+        # Фільтри
+        category = self.request.query_params.get('category')
+        industry = self.request.query_params.get('industry')
+        search = self.request.query_params.get('search')
+        
+        if category and category != 'all':
+            queryset = queryset.filter(category=category)
+        
+        if industry and industry != 'all':
+            queryset = queryset.filter(industry=industry)
+        
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search) |
+                Q(description__icontains=search) |
+                Q(prompt_template__icontains=search) |
+                Q(tags__contains=[search])
+            )
+        
+        return queryset.order_by('-is_featured', '-created_at')
+    
+    def perform_create(self, serializer):
+        """Автоматично встановлює created_by при створенні"""
+        if self.request.user and self.request.user.is_authenticated:
+            serializer.save(created_by=self.request.user)
+        else:
+            serializer.save()
+    
+    @action(detail=True, methods=['post'])
+    def vote(self, request, pk=None):
+        """Оцінити промпт (like/dislike)"""
+        prompt = self.get_object()
+        vote_type = request.data.get('vote')
+        
+        if vote_type not in ['like', 'dislike']:
+            return Response(
+                {'error': 'Invalid vote type. Use "like" or "dislike"'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Отримуємо user_identifier
+        if request.user and request.user.is_authenticated:
+            user_identifier = str(request.user.id)
+            user = request.user
+        else:
+            # Для анонімних користувачів використовуємо IP
+            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+            if x_forwarded_for:
+                user_identifier = x_forwarded_for.split(',')[0]
+            else:
+                user_identifier = request.META.get('REMOTE_ADDR', 'anonymous')
+            user = None
+        
+        # Перевіряємо чи вже є голос
+        existing_vote = PromptVote.objects.filter(
+            prompt=prompt,
+            user_identifier=user_identifier
+        ).first()
+        
+        if existing_vote:
+            # Якщо той самий голос - видаляємо
+            if existing_vote.vote == vote_type:
+                if existing_vote.vote == 'like':
+                    prompt.likes_count = max(0, prompt.likes_count - 1)
+                else:
+                    prompt.dislikes_count = max(0, prompt.dislikes_count - 1)
+                existing_vote.delete()
+            else:
+                # Якщо інший голос - змінюємо
+                old_vote = existing_vote.vote
+                existing_vote.vote = vote_type
+                existing_vote.save()
+                
+                # Оновлюємо лічильники
+                if old_vote == 'like':
+                    prompt.likes_count = max(0, prompt.likes_count - 1)
+                else:
+                    prompt.dislikes_count = max(0, prompt.dislikes_count - 1)
+                
+                if vote_type == 'like':
+                    prompt.likes_count += 1
+                else:
+                    prompt.dislikes_count += 1
+        else:
+            # Створюємо новий голос
+            PromptVote.objects.create(
+                prompt=prompt,
+                user=user,
+                user_identifier=user_identifier,
+                vote=vote_type
+            )
+            
+            # Оновлюємо лічильники
+            if vote_type == 'like':
+                prompt.likes_count += 1
+            else:
+                prompt.dislikes_count += 1
+        
+        prompt.save(update_fields=['likes_count', 'dislikes_count'])
+        
+        return Response({
+            'likes_count': prompt.likes_count,
+            'dislikes_count': prompt.dislikes_count,
+            'like_ratio': prompt.get_like_ratio(),
+        })
+
+
+class NewsViewSet(viewsets.ReadOnlyModelViewSet):
+    """System news and updates - read-only for clients"""
+    serializer_class = NewsSerializer
+    permission_classes = [AllowAny]  # Public access
+    
+    def get_queryset(self):
+        """Return only active news, ordered by featured and date"""
+        return News.objects.filter(is_active=True).order_by('-is_featured', '-created_at')
+
+
+class TopPromptsView(APIView):
+    """Get top 5 prompts by client ratings (daily)"""
+    permission_classes = [AllowAny]  # Public access
+    
+    def get(self, request):
+        """Return top 5 prompts by like ratio and total votes"""
+        from django.utils import timezone
+        from django.db.models import F, Case, When, FloatField
+        
+        # Отримуємо промпти з мінімальною кількістю голосів (наприклад, 3+)
+        min_votes = 3
+        top_prompts = Prompt.objects.filter(
+            is_public=True,
+            likes_count__gte=0
+        ).annotate(
+            total_votes=F('likes_count') + F('dislikes_count'),
+            calculated_ratio=Case(
+                When(total_votes__gt=0, then=F('likes_count') * 1.0 / (F('likes_count') + F('dislikes_count'))),
+                default=0.0,
+                output_field=FloatField()
+            )
+        ).filter(
+            total_votes__gte=min_votes
+        ).order_by(
+            '-calculated_ratio',  # Спочатку за співвідношенням лайків
+            '-likes_count',  # Потім за кількістю лайків
+            '-total_votes'  # І нарешті за загальною кількістю голосів
+        )[:5]
+        
+        serializer = PromptSerializer(top_prompts, many=True, context={'request': request})
+        
+        return Response({
+            'top_prompts': serializer.data,
+            'updated_at': timezone.now().isoformat()
+        })
+
+
 class ClientQRCodeViewSet(viewsets.ModelViewSet):
     """API для роботи з QR кодами клієнтів (до 10 на клієнта)."""
     serializer_class = ClientQRCodeSerializer
@@ -337,6 +508,8 @@ router.register(r'documents', ClientDocumentViewSet, basename='document')
 router.register(r'api-keys', APIKeyViewSet, basename='api-key')
 router.register(r'knowledge-blocks', KnowledgeBlockViewSet, basename='knowledge-block')
 router.register(r'qr-codes', ClientQRCodeViewSet, basename='qr-code')
+router.register(r'prompts', PromptViewSet, basename='prompt')
+router.register(r'news', NewsViewSet, basename='news')
 
 
 def generate_api_docs(request, client_id: int):
@@ -543,6 +716,187 @@ class ClientWhatsAppConfigView(APIView):
             return Response({'error': 'No fields to update'}, status=400)
         client.save(update_fields=changed)
         return Response({'success': True})
+
+
+class ClientTelegramConfigView(APIView):
+    """Get/Update per-client Telegram Bot configuration."""
+    permission_classes = []  # Публічний, ідентифікація через middleware/api_key/tag
+
+    def get(self, request):
+        client = get_client_from_request(request)
+        if not client:
+            return Response({'error': 'Client not found'}, status=401)
+        data = {
+            'telegram_enabled': getattr(client, 'telegram_enabled', False),
+            'telegram_bot_token': getattr(client, 'telegram_bot_token', ''),
+            'telegram_webhook_url': getattr(client, 'telegram_webhook_url', ''),
+        }
+        return Response(data)
+
+    def post(self, request):
+        return self._update(request)
+
+    def patch(self, request):
+        return self._update(request)
+
+    def _update(self, request):
+        from .views_telegram import set_telegram_webhook, delete_telegram_webhook
+        from django.conf import settings
+        
+        client = get_client_from_request(request)
+        if not client:
+            return Response({'error': 'Client not found'}, status=401)
+        
+        data = request.data or {}
+        updatable = {
+            'telegram_enabled',
+            'telegram_bot_token',
+        }
+        
+        old_token = client.telegram_bot_token
+        old_enabled = client.telegram_enabled
+        
+        changed = []
+        for key, val in data.items():
+            if key in updatable:
+                setattr(client, key, val)
+                changed.append(key)
+        
+        if not changed:
+            return Response({'error': 'No fields to update'}, status=400)
+        
+        # Якщо змінився токен або статус, оновлюємо webhook
+        token_changed = 'telegram_bot_token' in changed
+        enabled_changed = 'telegram_enabled' in changed
+        
+        if token_changed or enabled_changed:
+            # Видаляємо старий webhook якщо був токен
+            if old_token and (token_changed or (enabled_changed and not client.telegram_enabled)):
+                try:
+                    delete_telegram_webhook(old_token)
+                except Exception as e:
+                    logger.warning(f"Failed to delete old Telegram webhook: {e}")
+            
+            # Встановлюємо новий webhook якщо увімкнено і є токен
+            if client.telegram_enabled and client.telegram_bot_token:
+                # Формуємо webhook URL
+                base_url = getattr(settings, 'TELEGRAM_WEBHOOK_BASE_URL', request.build_absolute_uri('/').rstrip('/'))
+                webhook_url = f"{base_url}/api/clients/telegram/webhook/"
+                
+                if set_telegram_webhook(client.telegram_bot_token, webhook_url):
+                    client.telegram_webhook_url = webhook_url
+                    changed.append('telegram_webhook_url')
+                else:
+                    return Response({'error': 'Failed to set Telegram webhook'}, status=500)
+        
+        client.save(update_fields=changed)
+        
+        # Створюємо новину про нову інтеграцію Telegram
+        if token_changed and client.telegram_enabled and client.telegram_bot_token:
+            try:
+                from MASTER.clients.news_utils import create_integration_news
+                create_integration_news('Telegram', 'Telegram Bot integration is now available! Connect your AI assistant to Telegram and reach your customers on their favorite messaging platform.')
+            except Exception as e:
+                logger.warning(f"Failed to create Telegram integration news: {e}")
+        
+        return Response({
+            'success': True,
+            'telegram_enabled': client.telegram_enabled,
+            'telegram_webhook_url': client.telegram_webhook_url,
+        })
+
+
+class ClientEmailSMTPConfigView(APIView):
+    """Get/Update per-client SMTP Email configuration."""
+    permission_classes = []  # Публічний, ідентифікація через middleware/api_key/tag
+
+    def get(self, request):
+        client = get_client_from_request(request)
+        if not client:
+            return Response({'error': 'Client not found'}, status=401)
+        data = {
+            'email_smtp_enabled': getattr(client, 'email_smtp_enabled', False),
+            'email_smtp_host': getattr(client, 'email_smtp_host', ''),
+            'email_smtp_port': getattr(client, 'email_smtp_port', 587),
+            'email_smtp_use_tls': getattr(client, 'email_smtp_use_tls', True),
+            'email_smtp_username': getattr(client, 'email_smtp_username', ''),
+            'email_smtp_password': '',  # Не повертаємо пароль
+            'email_from_address': getattr(client, 'email_from_address', ''),
+            'email_from_name': getattr(client, 'email_from_name', ''),
+        }
+        return Response(data)
+
+    def post(self, request):
+        return self._update(request)
+
+    def patch(self, request):
+        return self._update(request)
+
+    def _update(self, request):
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        
+        client = get_client_from_request(request)
+        if not client:
+            return Response({'error': 'Client not found'}, status=401)
+        
+        data = request.data or {}
+        updatable = {
+            'email_smtp_enabled',
+            'email_smtp_host',
+            'email_smtp_port',
+            'email_smtp_use_tls',
+            'email_smtp_username',
+            'email_smtp_password',
+            'email_from_address',
+            'email_from_name',
+        }
+        
+        changed = []
+        test_connection = data.get('test_connection', False)
+        
+        for key, val in data.items():
+            if key in updatable and key != 'test_connection':
+                setattr(client, key, val)
+                changed.append(key)
+        
+        if not changed:
+            return Response({'error': 'No fields to update'}, status=400)
+        
+        # Тестуємо з'єднання якщо потрібно
+        if test_connection and client.email_smtp_enabled and client.email_smtp_host and client.email_smtp_username and client.email_smtp_password:
+            try:
+                # Тестуємо SMTP з'єднання
+                if client.email_smtp_use_tls:
+                    server = smtplib.SMTP(client.email_smtp_host, client.email_smtp_port)
+                    server.starttls()
+                else:
+                    server = smtplib.SMTP_SSL(client.email_smtp_host, client.email_smtp_port)
+                
+                server.login(client.email_smtp_username, client.email_smtp_password)
+                server.quit()
+                
+                # Створюємо новину про нову інтеграцію Email
+                try:
+                    from MASTER.clients.news_utils import create_integration_news
+                    create_integration_news('Email SMTP', 'Email SMTP integration is now available! Send and receive emails through your AI assistant.')
+                except Exception as e:
+                    logger.warning(f"Failed to create Email SMTP integration news: {e}")
+            except Exception as e:
+                return Response({
+                    'error': f'SMTP connection test failed: {str(e)}',
+                    'test_passed': False
+                }, status=400)
+        
+        client.save(update_fields=changed)
+        
+        return Response({
+            'success': True,
+            'email_smtp_enabled': client.email_smtp_enabled,
+            'test_passed': test_connection if 'test_connection' in data else None,
+        })
+
 
 class KnowledgeBlockDocumentsView(APIView):
     """API для додавання документів до Knowledge Block."""

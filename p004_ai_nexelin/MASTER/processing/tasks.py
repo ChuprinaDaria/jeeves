@@ -12,7 +12,7 @@ from .chunker import chunk_text
 from .embedding_service import EmbeddingService
 from .models import UsageStats
 from .metadata_extractor import extract_metadata
-from .usage_sync import send_usage_to_mg
+from .usage_sync import send_usage_to_mg_async_delay
 
 
 @shared_task(bind=True, max_retries=0)
@@ -141,10 +141,10 @@ def process_client_document(self, document_id: int):
             },
         )
         try:
-            # Fire-and-forget sync (best-effort)
+            # Fire-and-forget async sync (best-effort, non-blocking)
             latest = UsageStats.objects.filter(client=client).order_by('-id').first()
             if latest:
-                send_usage_to_mg(latest)
+                send_usage_to_mg_async_delay(latest.id)
         except Exception:
             pass
 
@@ -254,9 +254,10 @@ def process_branch_document(self, document_id: int):
             },
         )
         try:
+            # Fire-and-forget async sync (best-effort, non-blocking)
             latest = UsageStats.objects.filter(branch=branch).order_by('-id').first()
             if latest:
-                send_usage_to_mg(latest)
+                send_usage_to_mg_async_delay(latest.id)
         except Exception:
             pass
 
@@ -368,9 +369,10 @@ def process_specialization_document(self, document_id: int):
             },
         )
         try:
+            # Fire-and-forget async sync (best-effort, non-blocking)
             latest = UsageStats.objects.filter(specialization=specialization).order_by('-id').first()
             if latest:
-                send_usage_to_mg(latest)
+                send_usage_to_mg_async_delay(latest.id)
         except Exception:
             pass
 

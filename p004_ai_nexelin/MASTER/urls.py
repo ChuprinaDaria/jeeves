@@ -7,6 +7,7 @@ from django.urls import path, re_path, include
 
 from MASTER.clients.views_meta_whatsapp import MetaWhatsAppWebhookView
 from MASTER.clients.views_whatsapp import TwilioWhatsAppWebhookView
+from MASTER.clients.views_webwidget import WebWidgetChatIframeView, WebWidgetScriptView
 from MASTER.quick_admin import urlpatterns as quick_admin_urlpatterns
 
 
@@ -44,6 +45,10 @@ urlpatterns = [
 
     # Meta WhatsApp API (офіційна інтеграція)
     path('api/whatsapp/meta/webhook/', MetaWhatsAppWebhookView.as_view(), name='meta_whatsapp_webhook'),
+
+    # Web Widget routes (for white label clients)
+    path('widget/chat.js', WebWidgetScriptView.as_view(), name='web_widget_script'),
+    path('widget/chat', WebWidgetChatIframeView.as_view(), name='web_widget_iframe'),
 
     # Client portal тепер обробляється React додатком (nextlen), не Django
 ]

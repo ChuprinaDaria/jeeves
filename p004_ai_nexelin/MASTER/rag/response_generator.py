@@ -78,6 +78,31 @@ class ResponseGenerator:
         embedding_model = self._get_embedding_model(client, specialization, branch)
         query_embedding_result = EmbeddingService.create_embedding(query, embedding_model)
         query_vector = query_embedding_result['vector']
+        
+        # Track embedding tokens for query (optional, but useful for complete statistics)
+        query_tokens = query_embedding_result.get('token_count', 0)
+        if query_tokens > 0 and client:
+            try:
+                from MASTER.processing.models import UsageStats
+                from MASTER.processing.embedding_service import EmbeddingService
+                from MASTER.processing.usage_sync import send_usage_to_mg_async_delay
+                
+                query_cost = EmbeddingService.calculate_cost(query_tokens, embedding_model)
+                query_usage_stat = UsageStats.objects.create(
+                    client=client,
+                    embedding_model=embedding_model,
+                    operation_type='query',
+                    tokens_used=query_tokens,
+                    cost=query_cost,
+                    metadata={'query': query[:200]},
+                )
+                # Send to MG asynchronously (best-effort, non-blocking)
+                try:
+                    send_usage_to_mg_async_delay(query_usage_stat.id)
+                except Exception:
+                    pass
+            except Exception as e:
+                logger.debug(f"Failed to track query embedding tokens: {e}")
 
         # Step 2: Vector search (передаємо embedding_model для фільтрації)
         search_results = self.vector_search.search(
@@ -134,16 +159,70 @@ class ResponseGenerator:
         branch: Branch | None,
     ) -> RAGResponse:
         """Generate complete (non-streaming) response."""
-        answer = cast(str, self.llm_client.generate_response(
+        llm_result = self.llm_client.generate_response(
             user_query=query,
             context=context,
             client=client,
             specialization=specialization,
             branch=branch,
             stream=False,
-        ))
+        )
+        
+        # Handle new format (dict with content and usage) or old format (str)
+        if isinstance(llm_result, dict):
+            answer = cast(str, llm_result.get('content', ''))
+            llm_usage = llm_result.get('usage', {})
+            llm_model = llm_result.get('model', '')
+            llm_provider = llm_result.get('provider', '')
+        else:
+            # Backward compatibility: old format (str)
+            answer = cast(str, llm_result)
+            llm_usage = {}
+            llm_model = ''
+            llm_provider = ''
         
         sources = self._format_sources(context_chunks)
+        
+        # Get embedding model for UsageStats
+        embedding_model = self._get_embedding_model(client, specialization, branch)
+        
+        # Create UsageStats for LLM tokens if we have usage info
+        if llm_usage and client:
+            try:
+                from MASTER.processing.models import UsageStats
+                from MASTER.processing.usage_sync import send_usage_to_mg_async_delay
+                from decimal import Decimal
+                
+                total_tokens = int(llm_usage.get('total_tokens', 0))
+                if total_tokens > 0:
+                    # Calculate cost (simplified - can be enhanced with LLMProvider model)
+                    # For now, use a default cost per 1k tokens
+                    cost_per_1k = Decimal('0.002')  # Default $0.002 per 1k tokens
+                    cost = Decimal(total_tokens) / Decimal(1000) * cost_per_1k
+                    
+                    # Create UsageStats for LLM
+                    llm_usage_stat = UsageStats.objects.create(
+                        client=client,
+                        embedding_model=embedding_model,  # Required field, but this is LLM usage
+                        operation_type='rag_chat',
+                        tokens_used=total_tokens,
+                        cost=cost,
+                        metadata={
+                            'llm_model': llm_model,
+                            'llm_provider': llm_provider,
+                            'prompt_tokens': llm_usage.get('prompt_tokens', 0),
+                            'completion_tokens': llm_usage.get('completion_tokens', 0),
+                            'query': query[:200],  # Store first 200 chars of query
+                        },
+                    )
+                    
+                    # Send to MG asynchronously (non-blocking)
+                    try:
+                        send_usage_to_mg_async_delay(llm_usage_stat.id)
+                    except Exception:
+                        pass  # Best-effort sync
+            except Exception as e:
+                logger.warning(f"Failed to create LLM UsageStats: {e}")
         
         return RAGResponse(
             answer=answer,
