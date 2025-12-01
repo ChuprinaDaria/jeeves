@@ -49,11 +49,24 @@ class EmailService:
         
         # Map common SMTP hosts to IMAP hosts
         host_mapping = {
+            # Gmail
             'smtp.gmail.com': 'imap.gmail.com',
-            'smtp-mail.outlook.com': 'outlook.office365.com',
-            'smtp.mail.yahoo.com': 'imap.mail.yahoo.com',
-            'smtp.office365.com': 'outlook.office365.com',
             'mail.gmail.com': 'imap.gmail.com',
+            # Microsoft / Outlook
+            'smtp-mail.outlook.com': 'outlook.office365.com',
+            'smtp.office365.com': 'outlook.office365.com',
+            'smtp.live.com': 'imap-mail.outlook.com',
+            'smtp-mail.live.com': 'imap-mail.outlook.com',
+            # Yahoo
+            'smtp.mail.yahoo.com': 'imap.mail.yahoo.com',
+            'smtp.mail.yahoo.co.uk': 'imap.mail.yahoo.co.uk',
+            # Zoho
+            'smtp.zoho.com': 'imap.zoho.com',
+            'smtp.zoho.eu': 'imap.zoho.eu',
+            # ProtonMail
+            'mail.protonmail.com': '127.0.0.1',  # ProtonMail використовує Bridge
+            # iCloud
+            'smtp.mail.me.com': 'imap.mail.me.com',
         }
         
         # Try direct mapping
@@ -61,31 +74,25 @@ class EmailService:
             return host_mapping[smtp_host_lower]
         
         # Special handling for home.pl servers
+        # Для home.pl IMAP використовує той самий хост що і SMTP (serwer2555348.home.pl)
+        # Порт: 993 (SSL) або 143 (без SSL)
         if 'home.pl' in smtp_host_lower:
-            # Для home.pl зазвичай використовується загальний IMAP сервер poczta.home.pl
-            # Але спочатку пробуємо специфічний для сервера
-            if 'serwer' in smtp_host_lower:
-                # Варіант 1: serwerXXXXXX.home.pl -> pocztaXXXXXX.home.pl
-                imap_host = smtp_host_lower.replace('serwer', 'poczta')
-                logger.info(f"Detected home.pl server (serwer), trying IMAP host: {imap_host}")
-                # Повертаємо специфічний, але якщо не працює - користувач побачить помилку
-                return imap_host
+            # Для home.pl IMAP хост = SMTP хост (той самий сервер)
+            # Приклади:
+            # - SMTP: serwer2555348.home.pl -> IMAP: serwer2555348.home.pl
+            # - SMTP: smtp.serwer2555348.home.pl -> IMAP: serwer2555348.home.pl (прибираємо smtp. префікс)
+            # - SMTP: mail.serwer2555348.home.pl -> IMAP: serwer2555348.home.pl (прибираємо mail. префікс)
             
-            # Варіант 2: poczta.home.pl (загальний для всіх home.pl) - використовуємо як fallback
-            # Але спочатку пробуємо замінити smtp/mail на poczta
-            if 'smtp' in smtp_host_lower:
-                imap_host = smtp_host_lower.replace('smtp', 'poczta')
-            elif 'mail' in smtp_host_lower:
-                imap_host = smtp_host_lower.replace('mail', 'poczta')
+            # Прибираємо префікси smtp. або mail. якщо є
+            if smtp_host_lower.startswith('smtp.'):
+                imap_host = smtp_host_lower.replace('smtp.', '')
+            elif smtp_host_lower.startswith('mail.'):
+                imap_host = smtp_host_lower.replace('mail.', '')
             else:
-                # Fallback: try adding poczta prefix
-                parts = smtp_host_lower.split('.')
-                if len(parts) >= 2:
-                    imap_host = f"poczta.{'.'.join(parts[1:])}"
-                else:
-                    imap_host = 'poczta.home.pl'  # Загальний fallback
+                # Якщо немає префіксу - використовуємо той самий хост
+                imap_host = smtp_host_lower
             
-            logger.info(f"Using home.pl IMAP host: {imap_host}")
+            logger.info(f"Detected home.pl server, using IMAP host: {imap_host} (same as SMTP host)")
             return imap_host
         
         # Try replacing smtp with imap
@@ -351,7 +358,11 @@ class EmailService:
         if not emails:
             # Перевіряємо, чи проблема в IMAP хості
             if not self.imap_host:
-                error_msg = f'❌ IMAP host not configured.\n\nSMTP host: {self.smtp_host}\n\nPlease configure IMAP settings for email reading. For home.pl servers, IMAP host is usually "poczta.home.pl" or "poczta[server_number].home.pl".'
+                # Для home.pl IMAP хост = SMTP хост
+                if 'home.pl' in (self.smtp_host or '').lower():
+                    error_msg = f'❌ IMAP host not configured.\n\nSMTP host: {self.smtp_host}\n\nFor home.pl servers, IMAP host should be the same as SMTP host:\n- IMAP host: {self.smtp_host}\n- IMAP port: 993 (SSL) or 143 (without SSL)'
+                else:
+                    error_msg = f'❌ IMAP host not configured.\n\nSMTP host: {self.smtp_host}\n\nPlease configure IMAP settings for email reading.'
                 return {
                     'total_emails': 0,
                     'message': error_msg,
