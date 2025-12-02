@@ -14,7 +14,7 @@ from MASTER.accounts.models import Roles, User
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
-    list_display = ['user', 'tag', 'webchat_domain', 'specialization', 'company_name', 'client_type', 'llm_provider', 'llm_model_name', 'is_active', 'logo_preview', 'api_keys_count', 'zero_status', 'api_docs_link', 'created_by_display', 'created_at']
+    list_display = ['user', 'tag', 'webchat_domain', 'specialization', 'company_name', 'client_type', 'llm_provider', 'llm_model_name', 'is_active', 'telegram_enabled', 'logo_preview', 'api_keys_count', 'zero_status', 'api_docs_link', 'created_by_display', 'created_at']
     list_display_links = ['user', 'tag']  # Поля, які будуть посиланнями на детальну сторінку
     list_filter = ['client_type', 'llm_provider', 'specialization__branch', 'specialization', 'is_active', 'created_by', 'created_at']
     search_fields = ['user', 'tag', 'company_name', 'description']
@@ -55,6 +55,15 @@ class ClientAdmin(admin.ModelAdmin):
             ),
             'classes': ('collapse',),
             'description': 'Per-client Meta WhatsApp Business configuration. Use verify token for webhook validation.'
+        }),
+        ('Telegram Bot', {
+            'fields': (
+                'telegram_enabled',
+                'telegram_bot_token',
+                'telegram_webhook_url',
+            ),
+            'classes': ('collapse',),
+            'description': 'Telegram Bot configuration for this client. Set bot token from @BotFather and enable integration.'
         }),
         ('Features Configuration', {
             'fields': ('features',),
