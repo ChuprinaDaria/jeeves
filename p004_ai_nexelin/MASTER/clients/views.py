@@ -154,6 +154,32 @@ def _extract_entities_from_text(text: str) -> dict:
 
     phones = set()
     for match in PHONE_RE.findall(text):
+        # Remove all non-digit characters to count digits
+        digits_only = re.sub(r'\D', '', match)
+        digit_count = len(digits_only)
+        
+        # Filter out invalid phone numbers:
+        # - Too short (less than 7 digits) - not a valid phone
+        # - Too long (more than 15 digits) - likely IBAN, credit card, or other ID
+        # - Exactly 16 digits - likely IBAN or credit card
+        # - More than 12 digits without country code indicator - suspicious
+        if digit_count < 7 or digit_count > 15:
+            continue
+        
+        # Filter out numbers that look like IBANs, credit cards, or IDs
+        # (usually 10+ digits without proper phone formatting)
+        has_formatting = bool(re.search(r'[\s\-\(\)]', match))
+        
+        # If it's 10+ digits and doesn't have proper phone formatting (spaces, dashes, parentheses),
+        # it's likely not a phone number (could be ID, account number, etc.)
+        if digit_count >= 10 and not has_formatting:
+            continue
+        
+        # Filter out numbers that are too long without country code
+        # If it starts with +, it can be longer, but still max 15 digits
+        if not match.startswith('+') and digit_count > 12:
+            continue
+        
         normalized = ' '.join(match.split())
         phones.add(normalized)
 
