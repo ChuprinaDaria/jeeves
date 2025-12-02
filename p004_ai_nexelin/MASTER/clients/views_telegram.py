@@ -54,25 +54,39 @@ def set_telegram_webhook(bot_token: str, webhook_url: str) -> bool:
     Встановлює webhook для Telegram бота
     """
     try:
+        # Спочатку видаляємо старий webhook
+        delete_telegram_webhook(bot_token)
+        
         url = f"{TELEGRAM_API_URL}{bot_token}/setWebhook"
         payload = {
             "url": webhook_url,
-            # Використовуємо secret_token, щоб однозначно визначати клієнта по запиту
-            # На стороні webhook ми зможемо знайти Client за цим значенням
-            "secret_token": bot_token,
+            # Не використовуємо secret_token, щоб уникнути конфліктів
+            # Клієнта визначаємо через URL параметр або інші методи
         }
         
         response = requests.post(url, json=payload, timeout=10)
-        response.raise_for_status()
         
+        # Спочатку отримуємо JSON результат
         result = response.json()
-        if result.get('ok'):
-            logger.info(f"Telegram webhook set successfully: {webhook_url}")
-            return True
-        else:
-            logger.error(f"Failed to set Telegram webhook: {result.get('description', 'Unknown error')}")
+        
+        # Логування детальної інформації про помилку
+        if not result.get('ok'):
+            error_description = result.get('description', 'Unknown error')
+            logger.error(f"Telegram API error: {error_description}")
+            logger.error(f"Full response: {result}")
             return False
+        
+        logger.info(f"Telegram webhook set successfully: {webhook_url}")
+        return True
             
+    except requests.exceptions.HTTPError as e:
+        logger.error(f"HTTP error setting Telegram webhook: {str(e)}", exc_info=True)
+        try:
+            error_detail = e.response.json()
+            logger.error(f"Telegram API error details: {error_detail}")
+        except:
+            pass
+        return False
     except Exception as e:
         logger.error(f"Error setting Telegram webhook: {str(e)}", exc_info=True)
         return False

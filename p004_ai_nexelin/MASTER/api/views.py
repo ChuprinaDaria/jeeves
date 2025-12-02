@@ -755,8 +755,8 @@ class PublicRAGChatView(APIView):
                         except (TypeError, ValueError):
                             days = 7
 
-                        logger.info(f"Analyzing emails via LLM intent for last {days} days")
-                        analysis = email_service.analyze_recent_emails(days_back=days)
+                        logger.info(f"Analyzing emails via LLM intent for last {days} days (language: {language})")
+                        analysis = email_service.analyze_recent_emails(days_back=days, language=language)
                         result['action_taken'] = True
                         result['command_type'] = 'analyze'
                         result['message'] = (
@@ -1000,8 +1000,8 @@ class PublicRAGChatView(APIView):
                     days_match = re.search(r'(\d+)\s+(?:днів|days)', message_lower)
                     days = int(days_match.group(1)) if days_match else 7
                     
-                    logger.info(f"Analyzing emails for last {days} days")
-                    analysis = email_service.analyze_recent_emails(days_back=days)
+                    logger.info(f"Analyzing emails for last {days} days (language: {language})")
+                    analysis = email_service.analyze_recent_emails(days_back=days, language=language)
                     result['action_taken'] = True
                     result['command_type'] = 'analyze'
                     # Використовуємо summary якщо є, інакше message, інакше загальне повідомлення
@@ -2421,8 +2421,11 @@ class EmailAnalyzeView(APIView):
         
         days_back = int(request.query_params.get('days_back', 7))
         
+        # Отримуємо мову з запиту (за замовчуванням 'en')
+        language = request.query_params.get('language', 'en')
+        
         email_service = EmailService(client)
-        analysis = email_service.analyze_recent_emails(days_back=days_back)
+        analysis = email_service.analyze_recent_emails(days_back=days_back, language=language)
         
         return Response(analysis)
 

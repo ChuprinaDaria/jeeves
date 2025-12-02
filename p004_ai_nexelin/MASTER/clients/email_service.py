@@ -343,12 +343,13 @@ class EmailService:
             logger.error(f"Failed to search emails: {e}")
             return []
     
-    def analyze_recent_emails(self, days_back: int = 7) -> Dict[str, any]:
+    def analyze_recent_emails(self, days_back: int = 7, language: str = 'en') -> Dict[str, any]:
         """
-        Analyze recent emails and provide summary
+        Analyze recent emails and provide summary using LLM
         
         Args:
             days_back: Number of days to analyze
+            language: User's language for response (en, uk, de, fr, es, it, nl, da, ru)
         
         Returns:
             Analysis summary dictionary
@@ -400,26 +401,74 @@ class EmailService:
         # Get top senders
         top_senders = sorted(senders.items(), key=lambda x: x[1], reverse=True)[:5]
         
-        # Create detailed summary
-        summary_parts = [
-            f"📧 Знайдено {len(emails)} листів за останні {days_back} днів"
-        ]
+        # Використовуємо LLM для створення саммарі мовою користувача
+        try:
+            from MASTER.rag.llm_client import LLMClient
+            
+            # Підготовка даних для LLM (беремо останні 10 листів з body)
+            emails_for_summary = []
+            for email_dict in emails[:10]:
+                # Обрізаємо body до 500 символів для економії токенів
+                body = email_dict.get('body', '')[:500]
+                emails_for_summary.append({
+                    'date': email_dict.get('date', ''),
+                    'from': email_dict.get('from', ''),
+                    'subject': email_dict.get('subject', ''),
+                    'body': body if body else '(No content)'
+                })
+            
+            # Промпт для LLM
+            prompt = f"""Analyze the following {len(emails)} emails from the last {days_back} days and provide a concise summary in {language.upper()} language.
+
+Total emails: {len(emails)}
+Unread: {unread_count}
+Period: last {days_back} days
+
+Top senders:
+{chr(10).join([f'- {email}: {count} emails' for email, count in top_senders[:3]])}
+
+Recent emails (with content):
+{chr(10).join([f'{i+1}. [{e["date"][:16]}] From: {e["from"]}, Subject: {e["subject"]}, Content: {e["body"][:200]}...' for i, e in enumerate(emails_for_summary)])}
+
+Please provide a structured summary that includes:
+1. Overview (total count, period, unread)
+2. Main topics/categories based on email content (not just subjects)
+3. Key senders
+4. Important information or actions needed
+
+Respond in {language.upper()} language. Be concise but informative."""
+
+            llm_client = LLMClient(self.client)
+            llm_response = llm_client.generate(prompt, temperature=0.3, max_tokens=500)
+            
+            if llm_response:
+                summary_text = llm_response.strip()
+            else:
+                # Fallback до простого саммарі
+                raise Exception("LLM response is empty")
         
-        if unread_count > 0:
-            summary_parts.append(f"📬 Непрочитаних: {unread_count}")
-        
-        if top_senders:
-            summary_parts.append(f"\n👤 Топ відправники:")
-            for email, count in top_senders[:3]:
-                summary_parts.append(f"  • {email}: {count} листів")
-        
-        if subjects:
-            summary_parts.append(f"\n📋 Останні теми:")
-            for i, subject in enumerate(subjects[:5], 1):
-                subject_short = subject[:60] + '...' if len(subject) > 60 else subject
-                summary_parts.append(f"  {i}. {subject_short}")
-        
-        summary_text = '\n'.join(summary_parts)
+        except Exception as e:
+            logger.warning(f"Failed to generate LLM summary: {e}. Using fallback.")
+            # Fallback до простого саммарі українською (original logic)
+            summary_parts = [
+                f"📧 Знайдено {len(emails)} листів за останні {days_back} днів"
+            ]
+            
+            if unread_count > 0:
+                summary_parts.append(f"📬 Непрочитаних: {unread_count}")
+            
+            if top_senders:
+                summary_parts.append(f"\n👤 Топ відправники:")
+                for email, count in top_senders[:3]:
+                    summary_parts.append(f"  • {email}: {count} листів")
+            
+            if subjects:
+                summary_parts.append(f"\n📋 Останні теми:")
+                for i, subject in enumerate(subjects[:5], 1):
+                    subject_short = subject[:60] + '...' if len(subject) > 60 else subject
+                    summary_parts.append(f"  {i}. {subject_short}")
+            
+            summary_text = '\n'.join(summary_parts)
         
         return {
             'total_emails': len(emails),
