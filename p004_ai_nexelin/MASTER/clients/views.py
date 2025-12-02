@@ -1289,33 +1289,107 @@ class ClientExtensionPageView(APIView):
 
         entities_payload = {'emails': [], 'phones': [], 'addresses': []}
 
-        # Create embeddings for this page if requested
+        # Create a text document for this page so it appears in Knowledge Blocks
         if mode in ('scrap', 'both') and full_text:
             try:
-                from MASTER.EmbeddingModel.models import EmbeddingModel  # Local import to avoid circular deps
+                from MASTER.clients.models import ClientDocument
+                from django.core.files.base import ContentFile
+                import io
+                
+                # Create a text file with the page content
+                text_content = f"Title: {title}\nURL: {url}\n\n"
+                
+                # Add structured content
+                if headings:
+                    text_content += "\n## Headings\n"
+                    for h in headings[:20]:  # Limit to first 20 headings
+                        text_content += f"{h.get('level', 'h')}: {h.get('text', '')}\n"
+                
+                if lists_data:
+                    text_content += "\n## Lists\n"
+                    for lst in lists_data[:10]:  # Limit to first 10 lists
+                        items = lst.get('items', [])[:10]  # First 10 items per list
+                        text_content += f"{lst.get('type', 'ul')}: " + ", ".join(items) + "\n"
+                
+                if quotes:
+                    text_content += "\n## Quotes\n"
+                    for q in quotes[:10]:  # First 10 quotes
+                        text_content += f"- {q}\n"
+                
+                # Add full text (truncated if too long)
+                if full_text:
+                    text_content += f"\n## Full Text\n{full_text[:50000]}"  # Limit to 50k chars
+                
+                # Create document
+                document = ClientDocument.objects.create(
+                    client=client,
+                    knowledge_block=knowledge_block,
+                    title=f"{title[:200]} - {site_name}" if title else f"Page from {site_name}",
+                    file_type='txt',
+                    file=ContentFile(text_content.encode('utf-8'), name=f"extension_page_{page.id}.txt"),
+                    metadata={
+                        'source': 'extension',
+                        'site_name': site_name,
+                        'url': url,
+                        'extension_page_id': page.id,
+                    },
+                )
+                logger.info(f"Created document {document.id} for extension page {page.id}")
+                
+                # Create embeddings for the document
+                try:
+                    from MASTER.EmbeddingModel.models import EmbeddingModel  # Local import to avoid circular deps
 
-                embedding_model = getattr(client, 'embedding_model', None)
-                if embedding_model is None:
-                    embedding_model = EmbeddingModel.objects.filter(
-                        is_default=True,
-                        is_active=True,
-                    ).first()
+                    embedding_model = getattr(client, 'embedding_model', None)
+                    if embedding_model is None:
+                        embedding_model = EmbeddingModel.objects.filter(
+                            is_default=True,
+                            is_active=True,
+                        ).first()
 
-                if embedding_model is not None:
-                    ClientEmbedding.objects.create(
-                        client=client,
-                        document=None,
-                        embedding_model=embedding_model,
-                        content=full_text,
-                        metadata={
-                            'source': 'extension',
-                            'site_name': site_name,
-                            'url': url,
-                            'extension_page_id': page.id,
-                        },
-                    )
+                    if embedding_model is not None:
+                        ClientEmbedding.objects.create(
+                            client=client,
+                            document=document,  # Link embedding to document
+                            embedding_model=embedding_model,
+                            content=full_text,
+                            metadata={
+                                'source': 'extension',
+                                'site_name': site_name,
+                                'url': url,
+                                'extension_page_id': page.id,
+                            },
+                        )
+                except Exception as e:
+                    logger.warning(f"Failed to create embedding for extension document {document.id}: {e}", exc_info=True)
+                    
             except Exception as e:
-                logger.warning(f"Failed to create embedding for extension page {page.id}: {e}", exc_info=True)
+                logger.warning(f"Failed to create document for extension page {page.id}: {e}", exc_info=True)
+                # Fallback: create embeddings even if document creation failed
+                if mode in ('scrap', 'both') and full_text:
+                    try:
+                        from MASTER.EmbeddingModel.models import EmbeddingModel
+                        embedding_model = getattr(client, 'embedding_model', None)
+                        if embedding_model is None:
+                            embedding_model = EmbeddingModel.objects.filter(
+                                is_default=True,
+                                is_active=True,
+                            ).first()
+                        if embedding_model is not None:
+                            ClientEmbedding.objects.create(
+                                client=client,
+                                document=None,
+                                embedding_model=embedding_model,
+                                content=full_text,
+                                metadata={
+                                    'source': 'extension',
+                                    'site_name': site_name,
+                                    'url': url,
+                                    'extension_page_id': page.id,
+                                },
+                            )
+                    except Exception as e2:
+                        logger.warning(f"Failed to create fallback embedding for extension page {page.id}: {e2}", exc_info=True)
 
         # Semantic extraction of entities (emails/phones/addresses)
         if mode in ('collect', 'both') and full_text:
