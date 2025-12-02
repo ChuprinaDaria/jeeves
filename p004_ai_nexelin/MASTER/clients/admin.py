@@ -513,6 +513,34 @@ class ClientEmbeddingAdmin(admin.ModelAdmin):
     readonly_fields = ['created_at', 'vector']
 
 
+class ExtensionPageInline(admin.TabularInline):
+    """Inline для перегляду Extension Pages в Knowledge Block"""
+    model = ExtensionPage
+    extra = 0
+    readonly_fields = ['url', 'title', 'site_name', 'created_at', 'full_text_preview', 'headings_count', 'lists_count']
+    fields = ['url', 'title', 'site_name', 'headings_count', 'lists_count', 'created_at', 'full_text_preview']
+    can_delete = False
+    show_change_link = True
+    
+    def full_text_preview(self, obj):
+        if obj.full_text:
+            preview = obj.full_text[:200] + '...' if len(obj.full_text) > 200 else obj.full_text
+            return format_html('<div style="max-height:100px; overflow:auto; font-size:11px;">{}</div>', preview)
+        return '-'
+    full_text_preview.short_description = 'Text Preview'
+    
+    def headings_count(self, obj):
+        return len(obj.headings) if obj.headings else 0
+    headings_count.short_description = 'Headings'
+    
+    def lists_count(self, obj):
+        return len(obj.lists) if obj.lists else 0
+    lists_count.short_description = 'Lists'
+    
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(KnowledgeBlock)
 class KnowledgeBlockAdmin(admin.ModelAdmin):
     list_display = ['name', 'client', 'description', 'entries_count', 'is_active', 'is_permanent', 'created_at']
@@ -521,6 +549,7 @@ class KnowledgeBlockAdmin(admin.ModelAdmin):
     ordering = ['client', 'is_permanent', 'name']
     list_editable = ['is_active']
     readonly_fields = ['entries_count', 'created_at', 'updated_at']
+    inlines = [ExtensionPageInline]
     
     fieldsets = (
         ('Basic Info', {
@@ -560,6 +589,86 @@ class KnowledgeBlockAdmin(admin.ModelAdmin):
         except Exception:
             pretty = str(obj.metadata)
         return format_html('<pre style="max-height:400px; overflow:auto;">{}</pre>', pretty)
+
+
+@admin.register(ExtensionPage)
+class ExtensionPageAdmin(admin.ModelAdmin):
+    """Admin для перегляду зіскрапленого контенту з розширення"""
+    list_display = ['title', 'site_name', 'client', 'knowledge_block', 'headings_count', 'lists_count', 'created_at']
+    list_filter = ['site_name', 'created_at', 'client', 'knowledge_block']
+    search_fields = ['title', 'url', 'site_name', 'full_text', 'client__company_name']
+    ordering = ['-created_at']
+    readonly_fields = ['created_at', 'full_text_display', 'headings_display', 'lists_display', 'tables_display', 'quotes_display']
+    
+    fieldsets = (
+        ('Page Information', {
+            'fields': ('client', 'knowledge_block', 'url', 'site_name', 'title', 'created_at')
+        }),
+        ('Structured Content', {
+            'fields': ('headings_display', 'lists_display', 'tables_display', 'quotes_display'),
+            'classes': ('collapse',)
+        }),
+        ('Full Text', {
+            'fields': ('full_text_display',),
+        }),
+    )
+    
+    def headings_count(self, obj):
+        return len(obj.headings) if obj.headings else 0
+    headings_count.short_description = 'Headings'
+    
+    def lists_count(self, obj):
+        return len(obj.lists) if obj.lists else 0
+    lists_count.short_description = 'Lists'
+    
+    def full_text_display(self, obj):
+        if obj.full_text:
+            return format_html('<pre style="max-height:500px; overflow:auto; white-space:pre-wrap; font-size:12px;">{}</pre>', obj.full_text)
+        return '-'
+    full_text_display.short_description = 'Full Text Content'
+    
+    def headings_display(self, obj):
+        if obj.headings:
+            import json
+            pretty = json.dumps(obj.headings, ensure_ascii=False, indent=2)
+            return format_html('<pre style="max-height:300px; overflow:auto; font-size:11px;">{}</pre>', pretty)
+        return '-'
+    headings_display.short_description = 'Headings (H1-H6)'
+    
+    def lists_display(self, obj):
+        if obj.lists:
+            import json
+            pretty = json.dumps(obj.lists, ensure_ascii=False, indent=2)
+            return format_html('<pre style="max-height:300px; overflow:auto; font-size:11px;">{}</pre>', pretty)
+        return '-'
+    lists_display.short_description = 'Lists (UL/OL)'
+    
+    def tables_display(self, obj):
+        if obj.tables:
+            import json
+            pretty = json.dumps(obj.tables, ensure_ascii=False, indent=2)
+            return format_html('<pre style="max-height:300px; overflow:auto; font-size:11px;">{}</pre>', pretty)
+        return '-'
+    tables_display.short_description = 'Tables'
+    
+    def quotes_display(self, obj):
+        if obj.quotes:
+            import json
+            pretty = json.dumps(obj.quotes, ensure_ascii=False, indent=2)
+            return format_html('<pre style="max-height:300px; overflow:auto; font-size:11px;">{}</pre>', pretty)
+        return '-'
+    quotes_display.short_description = 'Quotes / Highlights'
+
+
+@admin.register(ExtensionEntity)
+class ExtensionEntityAdmin(admin.ModelAdmin):
+    """Admin для перегляду витягнутих сутностей (emails, phones, addresses)"""
+    list_display = ['entity_type', 'value', 'client', 'page', 'created_at']
+    list_filter = ['entity_type', 'created_at', 'client', 'site_name']
+    search_fields = ['value', 'client__company_name', 'url', 'site_name']
+    ordering = ['-created_at']
+    readonly_fields = ['created_at']
+
 
 @admin.register(WebParsingRequest)
 class WebParsingRequestAdmin(admin.ModelAdmin):
