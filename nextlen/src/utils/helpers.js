@@ -86,3 +86,44 @@ export const storage = {
     }
   },
 };
+
+// Browser branding helpers (tab title + favicon) based on client data
+export const updateBrandingFromClient = (client, options = {}) => {
+  if (typeof document === 'undefined') return;
+
+  const { context = 'portal' } = options;
+
+  // Для white label (якщо є company_name) - показуємо company_name
+  // Для звичайних клієнтів - показуємо просто "NEXELIN"
+  const name = client?.company_name || 'NEXELIN';
+
+  if (context === 'webchat') {
+    document.title = `${name} – AI Chat`;
+  } else {
+    // Для portal не додаємо " – Nexelin Client Portal"
+    document.title = name;
+  }
+
+  const logoUrl = client?.logo_url || client?.logo;
+  if (!logoUrl) return;
+
+  const ensureLink = (rel, extraAttrs = {}) => {
+    let link = document.querySelector(`link[rel="${rel}"]`);
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = rel;
+      document.head.appendChild(link);
+    }
+    Object.entries(extraAttrs).forEach(([key, value]) => {
+      if (value) {
+        link.setAttribute(key, value);
+      }
+    });
+    return link;
+  };
+
+  // Basic favicon
+  ensureLink('icon', { href: logoUrl, type: 'image/png' });
+  // Apple touch icon for iOS / PWA
+  ensureLink('apple-touch-icon', { href: logoUrl });
+};
