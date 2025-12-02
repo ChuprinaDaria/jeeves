@@ -36,7 +36,12 @@ const ExtensionData = () => {
     setError('');
     try {
       const res = await api.get('/clients/extension/data/');
-      setData(res.data || { enabled: false, sites: [] });
+      const responseData = res.data || { enabled: false, sites: [] };
+      // Debug: log first site data to verify structure
+      if (responseData.sites && responseData.sites.length > 0) {
+        console.log('Extension data - first site:', responseData.sites[0]);
+      }
+      setData(responseData);
       // Якщо редагуємо, оновлюємо драфти з актуальних даних
       if (editingSite && res.data?.sites) {
         const updated = res.data.sites.find((s) => s.site === editingSite);
@@ -208,24 +213,24 @@ const ExtensionData = () => {
           <table className="min-w-full text-left text-sm">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-700">
-                <th className="py-2 pr-4 text-gray-700 dark:text-gray-300">Site</th>
-                <th className="py-2 pr-4 text-gray-700 dark:text-gray-300">Pages</th>
-                <th className="py-2 pr-4 text-gray-700 dark:text-gray-300">
-                  <span className="inline-flex items-center gap-1">
+                <th className="py-3 pr-4 text-left text-gray-700 dark:text-gray-300 font-semibold">Site</th>
+                <th className="py-3 pr-4 text-center text-gray-700 dark:text-gray-300 font-semibold">Pages</th>
+                <th className="py-3 pr-4 text-left text-gray-700 dark:text-gray-300 font-semibold">
+                  <span className="inline-flex items-center gap-1.5">
                     <Mail size={14} /> Emails
                   </span>
                 </th>
-                <th className="py-2 pr-4 text-gray-700 dark:text-gray-300">
-                  <span className="inline-flex items-center gap-1">
+                <th className="py-3 pr-4 text-left text-gray-700 dark:text-gray-300 font-semibold">
+                  <span className="inline-flex items-center gap-1.5">
                     <Phone size={14} /> Phones
                   </span>
                 </th>
-                <th className="py-2 pr-4 text-gray-700 dark:text-gray-300">
-                  <span className="inline-flex items-center gap-1">
+                <th className="py-3 pr-4 text-left text-gray-700 dark:text-gray-300 font-semibold">
+                  <span className="inline-flex items-center gap-1.5">
                     <MapPin size={14} /> Addresses
                   </span>
                 </th>
-                <th className="py-2 text-gray-700 dark:text-gray-300">Last updated</th>
+                <th className="py-3 pr-4 text-left text-gray-700 dark:text-gray-300 font-semibold">Last updated</th>
               </tr>
             </thead>
             <tbody>
@@ -234,45 +239,22 @@ const ExtensionData = () => {
                 return (
                   <tr
                     key={site.site}
-                    className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/60 align-top"
+                    className={`border-t border-gray-100 dark:border-gray-800 align-top transition-colors ${
+                      isEditing
+                        ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-800/60'
+                    }`}
                   >
-                    <td className="py-2 pr-4 font-medium text-gray-900 dark:text-gray-100">
-                      <div className="flex items-center justify-between gap-2">
-                        <span>{site.site}</span>
-                        <div className="flex items-center gap-1">
-                          {!isEditing && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => startEdit(site)}
-                                className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300"
-                                title="Edit"
-                              >
-                                <Pencil size={14} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => deleteSite(site)}
-                                className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/30 text-red-500 dark:text-red-400"
-                                title="Delete all data for this site"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
+                    <td className="py-3 pr-4">
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{site.site}</span>
                     </td>
-                  <td className="py-2 pr-4 text-gray-700 dark:text-gray-300">
-                    {site.pages_count || site.urls?.length || 0}
-                  </td>
-                    <td className="py-2 pr-4 text-gray-700 dark:text-gray-300">
+                    <td className="py-3 pr-4 text-gray-700 dark:text-gray-300 text-center">
                       {site.pages_count || site.urls?.length || 0}
                     </td>
-                    <td className="py-2 pr-4 align-top">
+                    <td className="py-3 pr-4">
                       {isEditing ? (
                         <textarea
-                          className="w-full text-xs rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-1 resize-y min-h-[60px]"
+                          className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 resize-y min-h-[80px] max-h-[200px]"
                           value={draftEmails}
                           onChange={(e) => setDraftEmails(e.target.value)}
                           placeholder="One email per line"
@@ -283,7 +265,7 @@ const ExtensionData = () => {
                             site.emails.map((e) => (
                               <div
                                 key={e}
-                                className="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-xs text-blue-800 dark:text-blue-200 truncate"
+                                className="px-2 py-1 rounded bg-blue-50 dark:bg-blue-900/30 text-xs text-blue-800 dark:text-blue-200 truncate"
                                 title={e}
                               >
                                 {e}
@@ -295,10 +277,10 @@ const ExtensionData = () => {
                         </div>
                       )}
                     </td>
-                    <td className="py-2 pr-4 align-top">
+                    <td className="py-3 pr-4">
                       {isEditing ? (
                         <textarea
-                          className="w-full text-xs rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-1 resize-y min-h-[60px]"
+                          className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 resize-y min-h-[80px] max-h-[200px]"
                           value={draftPhones}
                           onChange={(e) => setDraftPhones(e.target.value)}
                           placeholder="One phone per line"
@@ -309,7 +291,7 @@ const ExtensionData = () => {
                             site.phones.map((p) => (
                               <div
                                 key={p}
-                                className="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-900/30 text-xs text-emerald-800 dark:text-emerald-200 truncate"
+                                className="px-2 py-1 rounded bg-emerald-50 dark:bg-emerald-900/30 text-xs text-emerald-800 dark:text-emerald-200 truncate"
                                 title={p}
                               >
                                 {p}
@@ -321,10 +303,10 @@ const ExtensionData = () => {
                         </div>
                       )}
                     </td>
-                    <td className="py-2 pr-4 align-top">
+                    <td className="py-3 pr-4">
                       {isEditing ? (
                         <textarea
-                          className="w-full text-xs rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-1 resize-y min-h-[60px]"
+                          className="w-full text-sm px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 resize-y min-h-[80px] max-h-[200px]"
                           value={draftAddresses}
                           onChange={(e) => setDraftAddresses(e.target.value)}
                           placeholder="One address per line"
@@ -335,7 +317,7 @@ const ExtensionData = () => {
                             site.addresses.map((a) => (
                               <div
                                 key={a}
-                                className="px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-900/30 text-xs text-purple-800 dark:text-purple-200 truncate"
+                                className="px-2 py-1 rounded bg-purple-50 dark:bg-purple-900/30 text-xs text-purple-800 dark:text-purple-200 truncate"
                                 title={a}
                               >
                                 {a}
@@ -347,35 +329,65 @@ const ExtensionData = () => {
                         </div>
                       )}
                     </td>
-                    <td className="py-2 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap align-top">
-                      <div className="flex flex-col items-end gap-1">
-                        <span>
+                    <td className="py-3 pr-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                           {site.last_seen
                             ? new Date(site.last_seen).toLocaleString()
                             : t('extensionData.never') || '—'}
                         </span>
-                        {isEditing && (
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              disabled={savingSite}
-                              onClick={() => saveEdit(site)}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded bg-emerald-600 text-white text-xs hover:bg-emerald-700 disabled:opacity-60"
-                            >
-                              <Check size={12} />
-                              {savingSite ? t('common.save') || 'Save' : t('common.save') || 'Save'}
-                            </button>
-                            <button
-                              type="button"
-                              disabled={savingSite}
-                              onClick={cancelEdit}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-60"
-                            >
-                              <X size={12} />
-                              {t('common.cancel') || 'Cancel'}
-                            </button>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1">
+                          {isEditing ? (
+                            <>
+                              <button
+                                type="button"
+                                disabled={savingSite}
+                                onClick={() => saveEdit(site)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-500 hover:bg-primary-600 active:bg-primary-700 text-white text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+                              >
+                                {savingSite ? (
+                                  <>
+                                    <Loader2 className="animate-spin" size={14} />
+                                    {t('common.loading') || 'Saving...'}
+                                  </>
+                                ) : (
+                                  <>
+                                    <Check size={14} />
+                                    {t('common.save') || 'Save'}
+                                  </>
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={savingSite}
+                                onClick={cancelEdit}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 active:bg-gray-400 dark:active:bg-gray-500 text-gray-800 dark:text-gray-200 text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+                              >
+                                <X size={14} />
+                                {t('common.cancel') || 'Cancel'}
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => startEdit(site)}
+                                className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                                title="Edit"
+                              >
+                                <Pencil size={16} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deleteSite(site)}
+                                className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors"
+                                title="Delete all data for this site"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </td>
                   </tr>
