@@ -486,9 +486,16 @@ class PublicRAGChatView(APIView):
                 f"Classifying email intent via LLM: provider={provider_name}, model={model_name}, lang={lang}"
             )
 
-            # 1) Якщо провайдер OpenAI — пробуємо прямий виклик з response_format=json_object
+            # 1) Якщо провайдер OpenAI і модель OpenAI — пробуємо прямий виклик з response_format=json_object
             used_direct_openai = False
-            if provider_name == 'openai':
+            # Перевіряємо, що це дійсно OpenAI модель (не Claude, не інші)
+            is_openai_model = (
+                provider_name == 'openai' 
+                and model_name 
+                and ('gpt' in model_name.lower() or 'o1' in model_name.lower())
+            )
+            
+            if is_openai_model:
                 try:
                     from openai import OpenAI  # type: ignore[import-not-found]
 
