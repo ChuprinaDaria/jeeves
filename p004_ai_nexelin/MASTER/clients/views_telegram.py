@@ -56,7 +56,10 @@ def set_telegram_webhook(bot_token: str, webhook_url: str) -> bool:
     try:
         url = f"{TELEGRAM_API_URL}{bot_token}/setWebhook"
         payload = {
-            "url": webhook_url
+            "url": webhook_url,
+            # Використовуємо secret_token, щоб однозначно визначати клієнта по запиту
+            # На стороні webhook ми зможемо знайти Client за цим значенням
+            "secret_token": bot_token,
         }
         
         response = requests.post(url, json=payload, timeout=10)
@@ -110,6 +113,9 @@ class TelegramWebhookView(View):
             data = json.loads(body)
             
             logger.info(f"Telegram webhook received: {data}")
+
+            # Визначаємо клієнта за secret_token з webhook-запиту
+            client_hint = self._get_client_from_request(request)
             
             # Перевіряємо, чи це оновлення повідомлення
             if 'message' not in data:
@@ -132,10 +138,10 @@ class TelegramWebhookView(View):
             
             # Обробляємо START2 команду
             if message_text.startswith('START2'):
-                return self.handle_start2_command(chat_id, message_text, username, first_name)
+                return self.handle_start2_command(chat_id, message_text, username, first_name, client_hint)
             
             # Обробляємо звичайні повідомлення
-            return self.handle_regular_message(chat_id, message_text, username, first_name)
+            return self.handle_regular_message(chat_id, message_text, username, first_name, client_hint)
             
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON in Telegram webhook: {e}")
@@ -144,7 +150,7 @@ class TelegramWebhookView(View):
             logger.error(f"Telegram webhook error: {str(e)}", exc_info=True)
             return HttpResponse("Internal server error", status=500)
     
-    def handle_start2_command(self, chat_id: int, message_text: str, username: str, first_name: str):
+    def handle_start2_command(self, chat_id: int, message_text: str, username: str, first_name: str, client_hint=None):
         """
         Обробляє START2 команду з QR-коду
         """
@@ -297,7 +303,7 @@ class TelegramWebhookView(View):
             send_telegram_message(self._get_bot_token_for_chat(chat_id), chat_id, "Вибачте, виникла помилка. Спробуйте пізніше.")
             return HttpResponse("Error processing START2", status=500)
     
-    def handle_regular_message(self, chat_id: int, message_text: str, username: str, first_name: str):
+    def handle_regular_message(self, chat_id: int, message_text: str, username: str, first_name: str, client_hint=None):
         """
         Обробляє звичайні повідомлення з RAG логікою
         """
@@ -309,8 +315,8 @@ class TelegramWebhookView(View):
             ).first()
             
             if not conversation:
-                # Якщо немає активної розмови, використовуємо RAG з першим доступним клієнтом
-                response_text = self.generate_rag_response_without_conversation(message_text, chat_id)
+                # Якщо немає активної розмови, пробуємо використати клієнта з webhook-запиту
+                response_text = self.generate_rag_response_without_conversation(message_text, chat_id, client_hint)
             else:
                 # Оновлюємо context_metadata для Telegram conversations (якщо не встановлено)
                 if not conversation.context_metadata:
@@ -325,7 +331,14 @@ class TelegramWebhookView(View):
             logger.info(f"Regular message processed: chat_id={chat_id}, message={message_text[:100]}")
             
             # Відправляємо повідомлення
-            bot_token = conversation.client.telegram_bot_token if conversation else self._get_bot_token_for_chat(chat_id)
+            if conversation and conversation.client.telegram_bot_token:
+                bot_token = conversation.client.telegram_bot_token
+            elif client_hint and getattr(client_hint, "telegram_bot_token", None):
+                # Якщо є підказка по клієнту з webhook (secret_token)
+                bot_token = client_hint.telegram_bot_token
+            else:
+                # Фолбек на стару логіку
+                bot_token = self._get_bot_token_for_chat(chat_id)
             if bot_token:
                 send_telegram_message(bot_token, chat_id, response_text)
             
@@ -336,20 +349,21 @@ class TelegramWebhookView(View):
             send_telegram_message(self._get_bot_token_for_chat(chat_id), chat_id, "Вибачте, виникла помилка. Спробуйте пізніше.")
             return HttpResponse("Error processing message", status=500)
     
-    def generate_rag_response_without_conversation(self, message_body: str, chat_id: int) -> str:
+    def generate_rag_response_without_conversation(self, message_body: str, chat_id: int, client=None) -> str:
         """
         Генерує відповідь за допомогою RAG без активної розмови
         """
         try:
-            # Знаходимо першого клієнта з даними
-            client = Client.objects.filter(
-                telegram_enabled=True,
-                telegram_bot_token__isnull=False
-            ).exclude(
-                embeddings__isnull=True
-            ).first()
+            # Якщо клієнт не переданий з webhook, знаходимо першого клієнта з даними
+            if client is None:
+                client = Client.objects.filter(
+                    telegram_enabled=True,
+                    telegram_bot_token__isnull=False
+                ).exclude(
+                    embeddings__isnull=True
+                ).first()
             
-            if not client:
+            if client is None:
                 client = Client.objects.filter(telegram_enabled=True).first()
             
             if not client:
@@ -473,6 +487,26 @@ class TelegramWebhookView(View):
         except Exception as e:
             logger.error(f"Error verifying signature: {str(e)}", exc_info=True)
             return False
+    
+    def _get_client_from_request(self, request):
+        """
+        Витягує Client з webhook-запиту за допомогою secret_token.
+        Ми зберігаємо в secret_token сам telegram_bot_token клієнта.
+        """
+        try:
+            # Django 3.2+ має request.headers, але залишимо і META для надійності
+            secret_token = getattr(request, "headers", {}).get("X-Telegram-Bot-Api-Secret-Token") or request.META.get(
+                "HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN"
+            )
+            if not secret_token:
+                return None
+            client = Client.objects.filter(telegram_bot_token=secret_token).first()
+            if not client:
+                logger.warning(f"Telegram webhook: client not found for secret_token")
+            return client
+        except Exception as e:
+            logger.error(f"Error getting client from request: {str(e)}", exc_info=True)
+            return None
     
     def _get_bot_token_for_chat(self, chat_id: int) -> str:
         """

@@ -153,6 +153,74 @@ class PublicRAGChatView(APIView):
     Response: { "response": "...", "sources": [...], "num_chunks": N, "total_tokens": N }
     """
     permission_classes = [AllowAny]
+    # Простий кеш для результатів класифікації email-інтентів (у межах процесу)
+    _email_intent_cache: dict[str, dict] = {}
+    # Константи для промпту класифікації email-інтенту
+    EMAIL_INTENT_JSON_SCHEMA: str = (
+        "{\n"
+        '  "intent": "send" | "analyze" | "find" | "recent" | "none",\n'
+        "  \"confidence\": float between 0.0 and 1.0,\n"
+        "  \"extracted_data\": {\n"
+        "    # for 'send':\n"
+        "    \"to_address\": string | null,\n"
+        "    \"cc\": list of strings (email) or null,\n"
+        "    \"bcc\": list of strings (email) or null,\n"
+        "    \"subject\": string or null,\n"
+        "    \"body\": string or null,\n"
+        "    \"is_html\": boolean or null,\n"
+        "    # optional aliases for send:\n"
+        "    \"to\": string | null,\n"
+        "    \"recipient\": string | null,\n"
+        "    \"recipient_email\": string | null,\n"
+        "    \"email\": string | null,\n"
+        "    \"title\": string | null,\n"
+        "    \"topic\": string | null,\n"
+        "    \"text\": string | null,\n"
+        "    \"content\": string | null,\n"
+        "    \"message_body\": string | null,\n"
+        "    # for 'analyze':\n"
+        "    \"days\": integer or null,\n"
+        "    # optional aliases for days:\n"
+        "    \"days_back\": integer | null,\n"
+        "    \"period_days\": integer | null,\n"
+        "    \"timeframe_days\": integer | null,\n"
+        "    # for 'find':\n"
+        "    \"from_address\": string or null,\n"
+        "    \"subject_filter\": string or null,\n"
+        "    \"days\": integer or null,\n"
+        "    \"limit\": integer or null,\n"
+        "    # optional aliases for find:\n"
+        "    \"sender\": string | null,\n"
+        "    # for 'recent':\n"
+        "    \"days\": integer or null,\n"
+        "    \"limit\": integer or null,\n"
+        "    # optional aliases for limit:\n"
+        "    \"max_results\": integer | null,\n"
+        "    \"count\": integer | null\n"
+        "  }\n"
+        "}\n"
+    )
+    EMAIL_INTENT_SYSTEM_PROMPT: str = (
+        "You are an intent classifier for email-related commands.\n"
+        "User messages can be in: Ukrainian, English, German, French, Spanish, "
+        "Italian, Dutch, Danish, or Russian.\n"
+        "Your task:\n"
+        "1) Decide if the user wants to work with EMAIL.\n"
+        "2) Classify the intent into one of:\n"
+        "   - 'send'   : user wants to send a new email\n"
+        "   - 'analyze': user wants an analysis/summary of recent emails\n"
+        "   - 'find'   : user wants to find/search emails by sender/subject\n"
+        "   - 'recent' : user wants a simple list of recent emails\n"
+        "   - 'none'   : message is NOT about email actions\n"
+        "3) Extract structured data into 'extracted_data'.\n\n"
+        "JSON schema (single JSON object):\n"
+        "{JSON_SCHEMA}\n\n"
+        "IMPORTANT RULES:\n"
+        "- Always return a SINGLE valid JSON object.\n"
+        "- Do NOT wrap JSON in markdown or any extra text.\n"
+        "- If you are not sure, use 'intent': 'none' and low confidence.\n"
+        "- Prefer higher confidence (>= 0.6) only when the intent is clear.\n"
+    )
 
     def post(self, request):
         import logging
@@ -352,6 +420,184 @@ class PublicRAGChatView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
+    def _classify_email_intent(self, message: str, language: str = 'en', client=None) -> dict:
+        """
+        Використовує LLM (з урахуванням вибраного клієнтом провайдера) для класифікації email-інтенту.
+        
+        Повертає dict:
+        {
+            "intent": "send" | "analyze" | "find" | "recent" | "none",
+            "confidence": float,
+            "extracted_data": {...}
+        }
+        """
+        import json
+        import hashlib
+        import logging
+        from django.conf import settings
+        from MASTER.rag.llm_client import LLMClient
+
+        logger = logging.getLogger(__name__)
+
+        text = (message or '').strip()
+        if not text:
+            return {
+                'intent': 'none',
+                'confidence': 0.0,
+                'extracted_data': {},
+            }
+
+        lang = (language or 'en').strip().lower()
+
+        # Ключ для кешу (уникаємо збереження сирого тексту в ключі)
+        cache_key_src = f"{lang}:{text}"
+        cache_key = hashlib.sha256(cache_key_src.encode('utf-8')).hexdigest()
+        cache = getattr(PublicRAGChatView, '_email_intent_cache', {})
+        if cache_key in cache:
+            logger.info(f"Email intent cache hit for key={cache_key}")
+            return cache[cache_key]
+
+        # System-промпт: мультимовний, тільки JSON, описаний у константі класу
+        system_prompt = self.EMAIL_INTENT_SYSTEM_PROMPT.replace(
+            "{JSON_SCHEMA}", self.EMAIL_INTENT_JSON_SCHEMA
+        )
+
+        user_content = (
+            f"language: {lang}\n"
+            f"message: {text}\n\n"
+            "Return ONLY the JSON object described above."
+        )
+
+        raw_response_text = ""
+
+        try:
+            # Визначаємо бажаного провайдера: спочатку з клієнта, потім з LLM_CONFIG
+            provider_name = None
+            model_name = None
+            if client is not None:
+                provider_name = (getattr(client, 'llm_provider', None) or '').strip().lower() or None
+                model_name = (getattr(client, 'llm_model_name', None) or '').strip() or None
+            if not provider_name:
+                provider_name = settings.LLM_CONFIG.get('provider', 'openai').lower()
+            if not model_name:
+                model_name = settings.LLM_CONFIG.get('model', 'gpt-4o-mini')
+
+            logger.info(
+                f"Classifying email intent via LLM: provider={provider_name}, model={model_name}, lang={lang}"
+            )
+
+            # 1) Якщо провайдер OpenAI — пробуємо прямий виклик з response_format=json_object
+            used_direct_openai = False
+            if provider_name == 'openai':
+                try:
+                    from openai import OpenAI  # type: ignore[import-not-found]
+
+                    api_key = getattr(settings, 'OPENAI_API_KEY', '').strip()
+                    if api_key:
+                        openai_client = OpenAI(api_key=api_key)
+                        response = openai_client.chat.completions.create(
+                            model=model_name or 'gpt-4o-mini',
+                            response_format={"type": "json_object"},
+                            temperature=0,
+                            max_tokens=300,
+                            messages=[
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": user_content},
+                            ],
+                        )
+                        raw_response_text = response.choices[0].message.content or ""
+                        used_direct_openai = True
+                        logger.info(
+                            f"Email intent classified via direct OpenAI model={model_name}"
+                        )
+                    else:
+                        logger.warning(
+                            "OPENAI_API_KEY not configured for email intent classification; "
+                            "falling back to generic LLMClient provider."
+                        )
+                except Exception as e:
+                    logger.error(
+                        f"Direct OpenAI email intent classification failed: {e}",
+                        exc_info=True,
+                    )
+                    raw_response_text = ""
+
+            # 2) Fallback: використовуємо універсальний LLMClient (OpenAI/Ollama/Kimi/Anthropic)
+            if not raw_response_text:
+                try:
+                    llm_client = LLMClient()
+                    provider = llm_client._get_provider(client)  # type: ignore[attr-defined]
+                    messages = [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_content},
+                    ]
+                    llm_result = provider.generate(
+                        messages=messages,
+                        temperature=0.0,
+                        max_tokens=300,
+                    )
+                    raw_response_text = str(llm_result.get('content', '') or '')
+                    logger.info(
+                        f"Email intent classified via generic provider={getattr(provider, 'model_name', '')}"
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Generic LLM email intent classification failed: {e}",
+                        exc_info=True,
+                    )
+                    return {
+                        'intent': 'none',
+                        'confidence': 0.0,
+                        'extracted_data': {},
+                    }
+
+            logger.debug(
+                f"Email intent LLM raw response (first 500 chars): "
+                f"{raw_response_text[:500]}"
+            )
+
+            # Парсимо JSON-відповідь
+            parsed = json.loads(raw_response_text)
+
+            intent = str(parsed.get('intent', 'none')).lower()
+            if intent not in {'send', 'analyze', 'find', 'recent', 'none'}:
+                intent = 'none'
+
+            conf_raw = parsed.get('confidence', 0.0)
+            try:
+                confidence = float(conf_raw)
+            except (TypeError, ValueError):
+                confidence = 0.0
+            confidence = max(0.0, min(1.0, confidence))
+
+            extracted_data = parsed.get('extracted_data') or {}
+            if not isinstance(extracted_data, dict):
+                extracted_data = {}
+
+            result = {
+                'intent': intent,
+                'confidence': confidence,
+                'extracted_data': extracted_data,
+            }
+
+            # Зберігаємо в кеш
+            cache = getattr(PublicRAGChatView, '_email_intent_cache', {})
+            cache[cache_key] = result
+            setattr(PublicRAGChatView, '_email_intent_cache', cache)
+
+            logger.info(
+                f"Email intent result: intent={intent}, confidence={confidence}, "
+                f"keys={list(extracted_data.keys())}"
+            )
+            return result
+        except Exception as e:
+            logger.error(f"Email intent classification unexpected error: {e}", exc_info=True)
+            return {
+                'intent': 'none',
+                'confidence': 0.0,
+                'extracted_data': {},
+            }
+
     def _process_email_command(self, message: str, client, language: str = 'en') -> dict:
         """
         Process email-related commands from user message.
@@ -377,10 +623,223 @@ class PublicRAGChatView(APIView):
         }
         
         try:
+            # 1) Спочатку пробуємо класифікацію інтенту через LLM
+            llm_intent = None
+            try:
+                llm_intent = self._classify_email_intent(message, language, client)
+            except Exception as e:
+                logger.error(
+                    f"Error in _classify_email_intent: {e}",
+                    exc_info=True,
+                )
+                llm_intent = None
+
+            if llm_intent:
+                intent = (llm_intent.get('intent') or 'none').lower()
+                confidence = float(llm_intent.get('confidence') or 0.0)
+                extracted = llm_intent.get('extracted_data') or {}
+
+                logger.info(
+                    f"LLM email intent: intent={intent}, confidence={confidence}, "
+                    f"keys={list(extracted.keys())}"
+                )
+
+                if intent != 'none' and confidence >= 0.6:
+                    # Intent: SEND
+                    if intent == 'send':
+                        to_address = (
+                            extracted.get('to_address')
+                            or extracted.get('to')
+                            or extracted.get('recipient')
+                            or extracted.get('recipient_email')
+                            or extracted.get('email')
+                            or extracted.get('email_address')
+                        )
+                        subject = (
+                            extracted.get('subject')
+                            or extracted.get('title')
+                            or extracted.get('topic')
+                            or 'Email from AI Assistant'
+                        )
+                        body = (
+                            extracted.get('body')
+                            or extracted.get('text')
+                            or extracted.get('content')
+                            or extracted.get('message_body')
+                            or 'This email was sent by AI Assistant.'
+                        )
+                        is_html = bool(extracted.get('is_html') or False)
+                        cc = extracted.get('cc') or None
+                        bcc = extracted.get('bcc') or None
+
+                        if to_address:
+                            logger.info(
+                                f"Sending email via LLM intent to={to_address}, "
+                                f"subject='{str(subject)[:80]}'"
+                            )
+                            send_result = email_service.send_email(
+                                to_address, subject, body, is_html=is_html, cc=cc, bcc=bcc
+                            )
+                            result['action_taken'] = True
+                            result['command_type'] = 'send'
+                            result['message'] = send_result.get('message', 'Email sent')
+                            result['email_sent'] = send_result.get('success', False)
+                            result['intent_confidence'] = confidence
+                            result['intent_source'] = 'llm'
+                            result['intent_extracted_data'] = extracted
+                            return result
+                        else:
+                            logger.warning(
+                                "LLM classified email intent as 'send' but no to_address found "
+                                "in extracted_data; falling back to regex parser."
+                            )
+
+                    # Intent: ANALYZE
+                    elif intent == 'analyze':
+                        days_raw = (
+                            extracted.get('days')
+                            or extracted.get('days_back')
+                            or extracted.get('period_days')
+                            or extracted.get('timeframe_days')
+                            or 7
+                        )
+                        try:
+                            days = int(days_raw)
+                        except (TypeError, ValueError):
+                            days = 7
+
+                        logger.info(f"Analyzing emails via LLM intent for last {days} days")
+                        analysis = email_service.analyze_recent_emails(days_back=days)
+                        result['action_taken'] = True
+                        result['command_type'] = 'analyze'
+                        result['message'] = (
+                            analysis.get('summary')
+                            or analysis.get('message', 'Email analysis completed')
+                        )
+                        result['analysis'] = analysis
+                        result['intent_confidence'] = confidence
+                        result['intent_source'] = 'llm'
+                        result['intent_extracted_data'] = extracted
+                        return result
+
+                    # Intent: FIND
+                    elif intent == 'find':
+                        from_address = (
+                            extracted.get('from_address')
+                            or extracted.get('sender')
+                            or extracted.get('email')
+                            or extracted.get('email_address')
+                        )
+                        subject_filter = extracted.get('subject_filter') or extracted.get(
+                            'subject'
+                        )
+                        days_raw = (
+                            extracted.get('days')
+                            or extracted.get('days_back')
+                            or extracted.get('period_days')
+                            or extracted.get('timeframe_days')
+                            or 30
+                        )
+                        limit_raw = (
+                            extracted.get('limit')
+                            or extracted.get('max_results')
+                            or extracted.get('count')
+                            or 20
+                        )
+                        try:
+                            days = int(days_raw)
+                        except (TypeError, ValueError):
+                            days = 30
+                        try:
+                            limit = int(limit_raw)
+                        except (TypeError, ValueError):
+                            limit = 20
+
+                        logger.info(
+                            f"Finding emails via LLM intent from={from_address}, "
+                            f"subject_filter='{str(subject_filter)[:80]}', days={days}, limit={limit}"
+                        )
+                        emails = email_service.search_emails(
+                            from_address=from_address,
+                            subject=subject_filter,
+                            days_back=days,
+                            limit=limit,
+                        )
+                        result['action_taken'] = True
+                        result['command_type'] = 'find'
+                        if from_address:
+                            result['message'] = (
+                                f"Found {len(emails)} emails from {from_address}"
+                            )
+                        else:
+                            result['message'] = (
+                                f"Found {len(emails)} emails matching search criteria"
+                            )
+                        result['emails'] = emails
+                        result['intent_confidence'] = confidence
+                        result['intent_source'] = 'llm'
+                        result['intent_extracted_data'] = extracted
+                        return result
+
+                    # Intent: RECENT
+                    elif intent == 'recent':
+                        days_raw = (
+                            extracted.get('days')
+                            or extracted.get('days_back')
+                            or extracted.get('period_days')
+                            or extracted.get('timeframe_days')
+                            or 7
+                        )
+                        limit_raw = (
+                            extracted.get('limit')
+                            or extracted.get('max_results')
+                            or extracted.get('count')
+                            or 10
+                        )
+                        try:
+                            days = int(days_raw)
+                        except (TypeError, ValueError):
+                            days = 7
+                        try:
+                            limit = int(limit_raw)
+                        except (TypeError, ValueError):
+                            limit = 10
+
+                        logger.info(
+                            f"Getting recent emails via LLM intent: days={days}, limit={limit}"
+                        )
+                        emails = email_service.get_recent_emails(
+                            limit=limit,
+                            days_back=days,
+                        )
+                        result['action_taken'] = True
+                        result['command_type'] = 'recent'
+                        result['message'] = (
+                            f"Retrieved {len(emails)} recent emails"
+                        )
+                        result['emails'] = emails
+                        result['intent_confidence'] = confidence
+                        result['intent_source'] = 'llm'
+                        result['intent_extracted_data'] = extracted
+                        return result
+
+                else:
+                    logger.info(
+                        f"LLM email intent has low confidence or 'none': {llm_intent}"
+                    )
+
             # Command: Send/Create email
             send_patterns = [
+                # Класичні команди: "створи мейл", "send email", "напиши лист"
                 r'(?:створи|напиши|відправ|send|create|write)\s+(?:мейл|email|лист)',
+                # Email з прийменниками: "email to", "email для"
                 r'email\s+(?:to|для)\s+([\w\.-]+@[\w\.-]+\.\w+)',
+                # НАТУРАЛЬНА МОВА: будь-який текст + "на/to/для" + email адреса
+                # Приклади: "test test на user@example.com", "hello на email@test.com", "привіт на test@gmail.com"
+                r'.+\s+(?:на|to|для|до)\s+([\w\.-]+@[\w\.-]+\.\w+)',
+                # Просто email адреса в повідомленні (без прийменників, але тоді має бути коротке повідомлення)
+                # Приклад: "test test user@example.com" - якщо повідомлення коротке (< 200 символів)
+                r'^.{1,200}([\w\.-]+@[\w\.-]+\.\w+)',
             ]
             
             for pattern in send_patterns:
@@ -389,13 +848,54 @@ class PublicRAGChatView(APIView):
                     email_match = re.search(r'([\w\.-]+@[\w\.-]+\.\w+)', message)
                     if email_match:
                         to_address = email_match.group(1)
+                        
                         # Try to extract subject and body
+                        # 1) Спочатку шукаємо явні поля "subject:" або "тема:"
                         subject_match = re.search(r'(?:subject|тема)[:\s]+(.+?)(?:\n|body|тіло|$)', message, re.IGNORECASE)
-                        subject = subject_match.group(1).strip() if subject_match else 'Email from AI Assistant'
-                        
                         body_match = re.search(r'(?:body|тіло|message|повідомлення)[:\s]+(.+?)$', message, re.IGNORECASE | re.DOTALL)
-                        body = body_match.group(1).strip() if body_match else 'This email was sent by AI Assistant.'
                         
+                        if subject_match:
+                            subject = subject_match.group(1).strip()
+                        else:
+                            # 2) НАТУРАЛЬНА МОВА: витягуємо текст перед email адресою (та прийменником)
+                            # Приклад: "test test на user@example.com" -> subject та body = "test test"
+                            text_before_email = re.search(
+                                r'^(.+?)\s+(?:на|to|для|до)\s+[\w\.-]+@[\w\.-]+\.\w+',
+                                message,
+                                re.IGNORECASE
+                            )
+                            if text_before_email:
+                                content = text_before_email.group(1).strip()
+                                # Видаляємо ключові слова типу "send", "створи" з початку
+                                content = re.sub(r'^(?:send|create|write|створи|напиши|відправ)\s+(?:email|мейл|лист)\s*', '', content, flags=re.IGNORECASE).strip()
+                                subject = content if content else 'Email from AI Assistant'
+                            else:
+                                # 3) Якщо не знайшли текст перед email, просто беремо перше речення
+                                first_sentence = message.split('.')[0].strip()
+                                # Видаляємо email адресу з subject
+                                subject = re.sub(r'[\w\.-]+@[\w\.-]+\.\w+', '', first_sentence).strip()
+                                subject = subject if subject else 'Email from AI Assistant'
+                        
+                        if body_match:
+                            body = body_match.group(1).strip()
+                        else:
+                            # 2) НАТУРАЛЬНА МОВА: використовуємо той самий текст що і для subject
+                            # Якщо користувач написав коротке повідомлення, використовуємо його як тіло листа
+                            text_before_email = re.search(
+                                r'^(.+?)\s+(?:на|to|для|до)\s+[\w\.-]+@[\w\.-]+\.\w+',
+                                message,
+                                re.IGNORECASE
+                            )
+                            if text_before_email:
+                                content = text_before_email.group(1).strip()
+                                # Видаляємо ключові слова
+                                content = re.sub(r'^(?:send|create|write|створи|напиши|відправ)\s+(?:email|мейл|лист)\s*', '', content, flags=re.IGNORECASE).strip()
+                                body = content if content else 'This email was sent by AI Assistant.'
+                            else:
+                                body = message.replace(to_address, '').strip()
+                                body = body if body else 'This email was sent by AI Assistant.'
+                        
+                        logger.info(f"Sending email to {to_address}, subject: '{subject}', body: '{body[:50]}...'")
                         send_result = email_service.send_email(to_address, subject, body)
                         result['action_taken'] = True
                         result['command_type'] = 'send'
