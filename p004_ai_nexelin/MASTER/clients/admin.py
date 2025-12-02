@@ -663,11 +663,56 @@ class ExtensionPageAdmin(admin.ModelAdmin):
 @admin.register(ExtensionEntity)
 class ExtensionEntityAdmin(admin.ModelAdmin):
     """Admin для перегляду витягнутих сутностей (emails, phones, addresses)"""
-    list_display = ['entity_type', 'value', 'client', 'page', 'created_at']
-    list_filter = ['entity_type', 'created_at', 'client', 'site_name']
-    search_fields = ['value', 'client__company_name', 'url', 'site_name']
+    list_display = ['site_name', 'client', 'emails_count', 'phones_count', 'addresses_count', 'page', 'created_at']
+    list_filter = ['created_at', 'client', 'site_name']
+    search_fields = ['site_name', 'url', 'client__company_name']
     ordering = ['-created_at']
-    readonly_fields = ['created_at']
+    readonly_fields = ['created_at', 'emails_display', 'phones_display', 'addresses_display']
+    
+    fieldsets = (
+        ('Page Information', {
+            'fields': ('client', 'page', 'site_name', 'url', 'created_at')
+        }),
+        ('Extracted Entities', {
+            'fields': ('emails_display', 'phones_display', 'addresses_display'),
+        }),
+    )
+    
+    def emails_count(self, obj):
+        return len(obj.emails) if obj.emails else 0
+    emails_count.short_description = 'Emails'
+    
+    def phones_count(self, obj):
+        return len(obj.phones) if obj.phones else 0
+    phones_count.short_description = 'Phones'
+    
+    def addresses_count(self, obj):
+        return len(obj.addresses) if obj.addresses else 0
+    addresses_count.short_description = 'Addresses'
+    
+    def emails_display(self, obj):
+        if obj.emails:
+            import json
+            pretty = json.dumps(obj.emails, ensure_ascii=False, indent=2)
+            return format_html('<pre style="max-height:300px; overflow:auto; font-size:11px;">{}</pre>', pretty)
+        return '-'
+    emails_display.short_description = 'Emails'
+    
+    def phones_display(self, obj):
+        if obj.phones:
+            import json
+            pretty = json.dumps(obj.phones, ensure_ascii=False, indent=2)
+            return format_html('<pre style="max-height:300px; overflow:auto; font-size:11px;">{}</pre>', pretty)
+        return '-'
+    phones_display.short_description = 'Phone Numbers'
+    
+    def addresses_display(self, obj):
+        if obj.addresses:
+            import json
+            pretty = json.dumps(obj.addresses, ensure_ascii=False, indent=2)
+            return format_html('<pre style="max-height:300px; overflow:auto; font-size:11px;">{}</pre>', pretty)
+        return '-'
+    addresses_display.short_description = 'Addresses'
 
 
 @admin.register(WebParsingRequest)
