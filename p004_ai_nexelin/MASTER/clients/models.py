@@ -1097,6 +1097,15 @@ class ClientWhatsAppConversation(models.Model):
         help_text='Customer phone number in format +380671234567'
     )
     
+    # Для Telegram зберігаємо окремо chat_id, щоб не плутати з номером телефону WhatsApp.
+    # При цьому для сумісності ми все ще можемо зберігати значення виду "telegram_<chat_id>" в customer_phone.
+    telegram_chat_id = models.CharField(
+        max_length=64,
+        blank=True,
+        verbose_name='Telegram Chat ID',
+        help_text='Telegram chat_id for this conversation (used for Telegram integrations)'
+    )
+    
     messages = models.JSONField(
         default=list,
         verbose_name='Messages',
@@ -1167,6 +1176,7 @@ class ClientWhatsAppConversation(models.Model):
             models.Index(fields=['started_at']),
             models.Index(fields=['is_active']),
             models.Index(fields=['session_id', 'created_at']),
+            models.Index(fields=['telegram_chat_id']),
         ]
     
     def __str__(self):

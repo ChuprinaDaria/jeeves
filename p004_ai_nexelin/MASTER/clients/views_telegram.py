@@ -17,6 +17,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.conf import settings
 from django.utils import timezone
+from django.db.models import Q
 
 from .models import Client, ClientWhatsAppConversation, ClientQRCode
 from MASTER.restaurant.models import RestaurantTable, RestaurantConversation
@@ -44,6 +45,11 @@ def send_telegram_message(bot_token: str, chat_id: int, message_text: str) -> bo
     Відправляє повідомлення через Telegram Bot API
     """
     try:
+        # Перевіряємо, чи є bot_token
+        if not bot_token:
+            logger.error(f"Cannot send Telegram message: bot_token is empty for chat_id={chat_id}")
+            return False
+        
         # Обмежуємо довжину повідомлення (Telegram limit: 4096 символів)
         if len(message_text) > 4096:
             logger.warning(f"Message too long ({len(message_text)} chars), truncating to 4096")
@@ -61,8 +67,17 @@ def send_telegram_message(bot_token: str, chat_id: int, message_text: str) -> bo
         
         response = requests.post(url, json=payload, timeout=10)
         
-        # Якщо 400 помилка (Bad Request) - пробуємо без parse_mode і без екранування
+        # Якщо 400 помилка (Bad Request) - перевіряємо причину
         if response.status_code == 400:
+            error_data = response.json()
+            error_description = error_data.get('description', '')
+            
+            # Якщо це помилка "chat not found", логуємо спеціально
+            if 'chat not found' in error_description.lower():
+                logger.warning(f"Chat not found: chat_id={chat_id}. User must start the bot first with /start command.")
+                return False
+            
+            # Інакше пробуємо без parse_mode
             logger.warning(f"HTML parse failed, trying without parse_mode. Error: {response.text}")
             payload = {
                 "chat_id": chat_id,
@@ -76,12 +91,17 @@ def send_telegram_message(bot_token: str, chat_id: int, message_text: str) -> bo
         return True
         
     except requests.exceptions.HTTPError as e:
-        logger.error(f"Failed to send Telegram message: {e}", exc_info=True)
+        logger.error(f"Failed to send Telegram message to chat_id={chat_id}: {e}")
         if e.response:
+            error_data = e.response.json() if e.response.headers.get('content-type') == 'application/json' else {}
             logger.error(f"Telegram API response: {e.response.text}")
+            
+            # Спеціальна обробка для "chat not found"
+            if error_data.get('description') and 'chat not found' in error_data.get('description', '').lower():
+                logger.warning(f"User with chat_id={chat_id} has not started the bot yet. They need to send /start first.")
         return False
     except Exception as e:
-        logger.error(f"Failed to send Telegram message: {e}", exc_info=True)
+        logger.error(f"Failed to send Telegram message to chat_id={chat_id}: {e}", exc_info=True)
         return False
 
 
@@ -186,6 +206,10 @@ class TelegramWebhookView(View):
                 logger.warning("Missing chat_id or message_text")
                 return HttpResponse("Missing required fields", status=400)
             
+            # Обробляємо /start команду
+            if message_text.strip() == '/start':
+                return self.handle_start_command(chat_id, username, first_name, client_hint)
+            
             # Обробляємо START2 команду
             if message_text.startswith('START2'):
                 return self.handle_start2_command(chat_id, message_text, username, first_name, client_hint)
@@ -199,6 +223,47 @@ class TelegramWebhookView(View):
         except Exception as e:
             logger.error(f"Telegram webhook error: {str(e)}", exc_info=True)
             return HttpResponse("Internal server error", status=500)
+    
+    def handle_start_command(self, chat_id: int, username: str, first_name: str, client_hint=None):
+        """
+        Обробляє /start команду
+        """
+        try:
+            logger.info(f"Processing /start command from chat_id={chat_id}, username={username}")
+            
+            # Визначаємо клієнта (з webhook або перший доступний)
+            if client_hint and client_hint.telegram_bot_token:
+                client = client_hint
+            else:
+                client = Client.objects.filter(
+                    telegram_enabled=True,
+                    telegram_bot_token__isnull=False
+                ).first()
+            
+            if not client:
+                logger.warning("No Telegram-enabled client found for /start command")
+                return HttpResponse("No client configured", status=500)
+            
+            # Привітальне повідомлення
+            welcome_text = f"Привіт{', ' + first_name if first_name else ''}! 👋\n\n"
+            welcome_text += f"Вітаємо в {client.company_name}.\n\n"
+            welcome_text += "Для початку роботи, будь ласка:\n"
+            welcome_text += "1. Відскануйте QR-код на вашому столику або в закладі\n"
+            welcome_text += "2. Або надішліть мені будь-яке питання, і я спробую допомогти!\n\n"
+            welcome_text += "Чим можу бути корисним?"
+            
+            success = send_telegram_message(client.telegram_bot_token, chat_id, welcome_text)
+            
+            if success:
+                logger.info(f"Welcome message sent to chat_id={chat_id}")
+            else:
+                logger.warning(f"Failed to send welcome message to chat_id={chat_id}")
+            
+            return HttpResponse("OK")
+            
+        except Exception as e:
+            logger.error(f"Error processing /start command: {str(e)}", exc_info=True)
+            return HttpResponse("Error processing /start", status=500)
     
     def handle_start2_command(self, chat_id: int, message_text: str, username: str, first_name: str, client_hint=None):
         """
@@ -289,23 +354,48 @@ class TelegramWebhookView(View):
                     return HttpResponse("QR code or table not found", status=404)
             
             # Створюємо або оновлюємо розмову
-            # Використовуємо telegram_chat_id замість phone number
-            conversation, created = ClientWhatsAppConversation.objects.get_or_create(
-                customer_phone=f"telegram_{chat_id}",  # Використовуємо telegram_ prefix
-                client=client,
-                qr_code=qr_code,
-                table=table,
-                is_active=True,
-                defaults={
-                    'started_at': timezone.now(),
-                    'messages': [{
+            # 1) Пробуємо знайти існуючу розмову по telegram_chat_id або старому префіксу customer_phone=telegram_<chat_id>
+            conversation = ClientWhatsAppConversation.objects.filter(
+                client=client
+            ).filter(
+                Q(telegram_chat_id=str(chat_id)) | Q(customer_phone=f"telegram_{chat_id}")
+            ).order_by('-started_at').first()
+
+            created = False
+            if not conversation:
+                # 2) Якщо розмови ще немає — створюємо нову
+                conversation = ClientWhatsAppConversation.objects.create(
+                    client=client,
+                    qr_code=qr_code,
+                    table=table,
+                    customer_phone=f"telegram_{chat_id}",  # зберігаємо для сумісності
+                    telegram_chat_id=str(chat_id),
+                    started_at=timezone.now(),
+                    messages=[{
                         'role': 'user',
                         'content': message_text,
                         'timestamp': timezone.now().isoformat()
                     }],
-                    'context_metadata': {'platform': 'telegram'}
-                }
-            )
+                    context_metadata={'platform': 'telegram'}
+                )
+                created = True
+            else:
+                # 3) Якщо розмова є, але ще немає telegram_chat_id — зберігаємо його
+                updated_fields = []
+                if not conversation.telegram_chat_id:
+                    conversation.telegram_chat_id = str(chat_id)
+                    updated_fields.append('telegram_chat_id')
+                if not conversation.customer_phone:
+                    conversation.customer_phone = f"telegram_{chat_id}"
+                    updated_fields.append('customer_phone')
+                if not conversation.context_metadata:
+                    conversation.context_metadata = {}
+                if conversation.context_metadata.get('platform') != 'telegram':
+                    conversation.context_metadata['platform'] = 'telegram'
+                    updated_fields.append('context_metadata')
+                if updated_fields:
+                    updated_fields.append('updated_at')
+                    conversation.save(update_fields=updated_fields)
             
             # Оновлюємо platform в context_metadata якщо не створено
             if not created:
@@ -360,7 +450,7 @@ class TelegramWebhookView(View):
         try:
             # Шукаємо активну розмову
             conversation = ClientWhatsAppConversation.objects.filter(
-                customer_phone=f"telegram_{chat_id}",
+                Q(telegram_chat_id=str(chat_id)) | Q(customer_phone=f"telegram_{chat_id}"),
                 is_active=True
             ).first()
             
@@ -564,11 +654,12 @@ class TelegramWebhookView(View):
         """
         try:
             conversation = ClientWhatsAppConversation.objects.filter(
-                customer_phone=f"telegram_{chat_id}",
+                Q(telegram_chat_id=str(chat_id)) | Q(customer_phone=f"telegram_{chat_id}"),
                 is_active=True
             ).first()
             
             if conversation and conversation.client.telegram_bot_token:
+                logger.info(f"Found bot token for chat_id={chat_id} via conversation")
                 return conversation.client.telegram_bot_token
             
             # Fallback: перший клієнт з увімкненим Telegram
@@ -578,9 +669,12 @@ class TelegramWebhookView(View):
             ).first()
             
             if client:
+                logger.info(f"Using fallback bot token for chat_id={chat_id} from client: {client.company_name}")
                 return client.telegram_bot_token
             
+            logger.warning(f"No bot token found for chat_id={chat_id}")
             return ""
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error finding bot token for chat_id={chat_id}: {e}", exc_info=True)
             return ""
 
