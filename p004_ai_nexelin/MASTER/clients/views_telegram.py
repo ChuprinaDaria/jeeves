@@ -26,26 +26,62 @@ logger = logging.getLogger(__name__)
 TELEGRAM_API_URL = "https://api.telegram.org/bot"
 
 
+def escape_html(text: str) -> str:
+    """
+    Екранує HTML спецсимволи для Telegram parse_mode='HTML'
+    """
+    if not text:
+        return text
+    return (
+        text.replace('&', '&amp;')
+        .replace('<', '&lt;')
+        .replace('>', '&gt;')
+    )
+
+
 def send_telegram_message(bot_token: str, chat_id: int, message_text: str) -> bool:
     """
     Відправляє повідомлення через Telegram Bot API
     """
     try:
+        # Обмежуємо довжину повідомлення (Telegram limit: 4096 символів)
+        if len(message_text) > 4096:
+            logger.warning(f"Message too long ({len(message_text)} chars), truncating to 4096")
+            message_text = message_text[:4093] + "..."
+        
         url = f"{TELEGRAM_API_URL}{bot_token}/sendMessage"
+        
+        # Спочатку пробуємо з HTML parse_mode (екрануємо спецсимволи)
+        escaped_text = escape_html(message_text)
         payload = {
             "chat_id": chat_id,
-            "text": message_text,
+            "text": escaped_text,
             "parse_mode": "HTML"
         }
         
         response = requests.post(url, json=payload, timeout=10)
+        
+        # Якщо 400 помилка (Bad Request) - пробуємо без parse_mode і без екранування
+        if response.status_code == 400:
+            logger.warning(f"HTML parse failed, trying without parse_mode. Error: {response.text}")
+            payload = {
+                "chat_id": chat_id,
+                "text": message_text,  # Оригінальний текст без екранування
+            }
+            response = requests.post(url, json=payload, timeout=10)
+        
         response.raise_for_status()
         
-        logger.info(f"Telegram message sent successfully: chat_id={chat_id}")
+        logger.info(f"Telegram message sent successfully: chat_id={chat_id}, length={len(message_text)}")
         return True
         
+    except requests.exceptions.HTTPError as e:
+        logger.error(f"Failed to send Telegram message: {e}", exc_info=True)
+        if e.response:
+            logger.error(f"Telegram API response: {e.response.text}")
+        return False
     except Exception as e:
-        logger.error(f"Failed to send Telegram message: {str(e)}", exc_info=True)
+        logger.error(f"Failed to send Telegram message: {e}", exc_info=True)
         return False
 
 
