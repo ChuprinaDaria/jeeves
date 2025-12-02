@@ -1,18 +1,101 @@
 {
   "common": { "save": "Save", "cancel": "Cancel", "delete": "Delete", "edit": "Edit", "create": "Create", "update": "Update", "close": "Close", "back": "Back", "next": "Next", "loading": "Loading...", "error": "Error", "success": "Success", "confirm": "Confirm", "search": "Search", "filter": "Filter", "settings": "Settings", "logout": "Logout", "login": "Login", "register": "Register" },
-  "nav": { "dashboard": "Dashboard", "training": "AI trainen", "sandbox": "Test-sandbox", "integrations": "Integraties", "history": "Chatgeschiedenis", "settings": "Instellingen", "billing": "Facturatie" },
+  "nav": { "dashboard": "Dashboard", "training": "AI trainen", "sandbox": "Sandbox", "integrations": "Integraties", "history": "Activiteit", "setup": "Kennisbank", "settings": "Instellingen", "billing": "Facturatie" },
   "auth": { "welcomeBack": "Welcome Back", "createAccount": "Create Your Account", "email": "Email", "password": "Password", "confirmPassword": "Confirm Password", "confirmPasswordRequired": "Please confirm password", "salonName": "Company Name", "forgotPassword": "Forgot password?", "noAccount": "Don't have an account?", "hasAccount": "Already have an account?", "loginButton": "Login", "registerButton": "Start Free Trial", "loggingIn": "Logging in...", "creatingAccount": "Creating account...", "trialNotice": "14-day free trial. No credit card required. Cancel anytime.", "loginFailed": "Login failed", "registrationFailed": "Registration failed", "emailRequired": "Email is required", "passwordRequired": "Password is required", "passwordMin": "Password must be at least 8 characters", "passwordsMustMatch": "Passwords do not match", "salonNameRequired": "Company name is required", "invalidEmail": "Invalid email address" },
-  "dashboard": { "title": "Dashboard", "subtitle": "Overzicht van de prestaties van je AI-assistent", "welcomeBack": "Welkom terug!", "manageAssistant": "Beheer je AI-assistent", "totalChats": "Totaal aantal chats", "activeUsers": "Actieve gebruikers", "bookings": "Boekingen", "messages": "Berichten", "conversion": "Conversie", "fromLastMonth": "t.o.v. vorige maand", "recentActivity": "Recente activiteit", "topServices": "Topdiensten", "topQuestions": "Topvragen", "bookingsCount": "boekingen", "requests": "aanvragen", "noQuestions": "Nog geen vragen", "noActivity": "Geen recente activiteit", "newChatFrom": "Nieuwe chat van", "bookingConfirmed": "Boeking bevestigd voor morgen", "trainingCompleted": "AI-training voltooid", "uploadLogo": "Logo uploaden", "logoDescription": "Upload je bedrijfslogo. Dit wordt gebruikt bij het genereren van QR-codes.", "selectLogo": "Logo selecteren", "changeLogo": "Logo wijzigen", "uploadLogoButton": "Logo uploaden", "uploading": "Uploaden...", "deleting": "Verwijderen...", "deleteLogo": "Logo verwijderen", "cancel": "Annuleren", "logoUploadSuccess": "Logo succesvol geüpload! QR-codes worden opnieuw gegenereerd.", "logoUploadError": "Uploaden van logo mislukt", "logoDeleteError": "Verwijderen van logo mislukt", "logoInvalidType": "Bestand moet een afbeelding zijn", "logoTooLarge": "Bestand moet kleiner zijn dan 5 MB", "deleteLogoConfirm": "Logo verwijderen?", "logoQRInfo": "Je logo wordt gebruikt in alle QR-codes. Bestaande QR's worden automatisch opnieuw gegenereerd." },
-  "training": { "title": "Train je AI", "subtitle": "Upload bestanden en personaliseer je AI‑assistent", "uploadFiles": "Trainingsbestanden uploaden", "uploadedFiles": "Geüploade bestanden", "noFiles": "Nog geen bestanden geüpload", "dragDrop": "Sleep bestanden hierheen of klik om te bladeren", "supportedFormats": "Ondersteund: PDF, DOC, TXT, XLS, JSON (Max. 10 MB)", "chooseFiles": "Bestanden kiezen", "uploadPhotos": "Foto’s uploaden", "uploadedPhotos": "Geüploade foto’s", "noPhotos": "Nog geen foto’s geüpload", "dragDropPhotos": "Sleep foto’s hierheen of klik om te bladeren", "supportedPhotoFormats": "Ondersteund: JPG, PNG, GIF, WEBP (Max. 10 MB)", "choosePhotos": "Foto’s kiezen", "editDescription": "Beschrijving bewerken", "photoDescriptionPlaceholder": "Beschrijving aan foto toevoegen…", "noDescription": "Geen beschrijving", "aiBehavior": "AI‑gedragsprompt", "customizePrompt": "Stel in hoe je AI‑assistent reageert", "promptPlaceholder": "Voer je instructies voor de AI in…", "savePrompt": "Prompt opslaan", "resetDefault": "Standaard herstellen", "trainingStatus": "Trainingsstatus", "uploadAndTrain": "Upload bestanden en klik op trainen om te starten", "startTraining": "Training starten", "trainingInProgress": "Training bezig…", "trainingComplete": "Training voltooid!", "aiReady": "Je AI is klaar" },
-  "sandbox": { "title": "Test‑sandbox", "subtitle": "Test je AI‑assistent voordat je live gaat", "chatTest": "Chat‑test", "typeMessage": "Typ je bericht…", "photoUpload": "Test afbeelding uploaden", "photoSubtitle": "Test hoe de AI op afbeeldingen reageert", "uploadPhoto": "Afbeelding uploaden", "aiResponse": "AI‑reactie:", "testResponse": "Dit is een testreactie van je AI‑assistent. In productie wordt dit een echte AI‑reactie.", "imageAnalysis": "Ik zie dat dit een afbeelding is. In productie analyseert de AI de afbeelding en geeft relevante info.", "helloMessage": "Hallo! Waar kan ik je mee helpen?", "generateQR": "QR genereren", "generatingQR": "Genereren…", "qrCodeGenerated": "QR gegenereerd:", "qrCodeError": "QR genereren mislukt", "qrCodeDescription": "QR gegenereerd via test afbeelding uploaden", "maxQRCodesReached": "Maximaal 10 QR‑codes per klant" },
+  "dashboard": { "title": "Dashboard", "subtitle": "Overzicht van de prestaties van je AI-assistent", "welcomeBack": "Welkom terug!", "manageAssistant": "Beheer je AI-assistent", "totalChats": "Totaal aantal chats", "activeUsers": "Actieve gebruikers", "bookings": "Boekingen", "messages": "Berichten", "conversion": "Conversie", "fromLastMonth": "t.o.v. vorige maand", "recentActivity": "Recente activiteit", "topServices": "Topdiensten", "topQuestions": "Topvragen", "bookingsCount": "boekingen", "requests": "aanvragen", "noQuestions": "Nog geen vragen", "noActivity": "Geen recente activiteit", "newChatFrom": "Nieuwe chat van", "bookingConfirmed": "Boeking bevestigd voor morgen", "trainingCompleted": "AI-training voltooid", "uploadLogo": "Logo uploaden", "logoDescription": "Upload je bedrijfslogo. Dit wordt gebruikt bij het genereren van QR-codes.", "selectLogo": "Logo selecteren", "changeLogo": "Logo wijzigen", "uploadLogoButton": "Logo uploaden", "uploading": "Uploaden...", "deleting": "Verwijderen...", "deleteLogo": "Logo verwijderen", "cancel": "Annuleren", "logoUploadSuccess": "Logo succesvol geüpload! QR-codes worden opnieuw gegenereerd.", "logoUploadError": "Uploaden van logo mislukt", "logoDeleteError": "Verwijderen van logo mislukt", "logoInvalidType": "Bestand moet een afbeelding zijn", "logoTooLarge": "Bestand moet kleiner zijn dan 5 MB", "deleteLogoConfirm": "Logo verwijderen?", "logoQRInfo": "Je logo wordt gebruikt in alle QR-codes. Bestaande QR's worden automatisch opnieuw gegenereerd.", "promptDescription": "Beschrijving", "promptTemplate": "Prompt-sjabloon" },
+  "training": { "title": "Train je AI", "subtitle": "Upload bestanden en personaliseer je AI‑assistent", "uploadFiles": "Trainingsbestanden uploaden", "uploadedFiles": "Geüploade bestanden", "noFiles": "Nog geen bestanden geüpload", "dragDrop": "Sleep bestanden hierheen of klik om te bladeren", "supportedFormats": "Ondersteund: PDF, DOC, TXT, XLS, JSON (Max. 10 MB)", "chooseFiles": "Bestanden kiezen", "uploadPhotos": "Foto’s uploaden", "uploadedPhotos": "Geüploade foto’s", "noPhotos": "Nog geen foto’s geüpload", "dragDropPhotos": "Sleep foto’s hierheen of klik om te bladeren", "supportedPhotoFormats": "Ondersteund: JPG, PNG, GIF, WEBP (Max. 10 MB)", "choosePhotos": "Foto’s kiezen", "editDescription": "Beschrijving bewerken", "photoDescriptionPlaceholder": "Beschrijving aan foto toevoegen…", "noDescription": "Geen beschrijving", "aiBehavior": "AI‑gedragsprompt", "customizePrompt": "Stel in hoe je AI‑assistent reageert", "promptPlaceholder": "Voer je instructies voor de AI in…", "savePrompt": "Prompt opslaan", "resetDefault": "Standaard herstellen", "trainingStatus": "Trainingsstatus", "uploadAndTrain": "Upload bestanden en klik op trainen om te starten", "startTraining": "Training starten", "trainingInProgress": "Training bezig…", "trainingComplete": "Training voltooid!", "aiReady": "Je AI is klaar", "uploadErrorTitle": "Uploaden van {{fileName}} is mislukt", "uploadErrorDetails": "Fout: {{message}}", "uploadErrorSuggestion": "Probeer een ander bestandsformaat (PDF, DOCX, TXT) of verklein het bestand en probeer het opnieuw." },
+  "sandbox": { "title": "Sandbox", "subtitle": "Test je AI‑assistent voordat je live gaat", "chatTest": "Chat‑test", "typeMessage": "Typ je bericht…", "photoUpload": "Test afbeelding uploaden", "photoSubtitle": "Test hoe de AI op afbeeldingen reageert", "uploadPhoto": "Afbeelding uploaden", "aiResponse": "AI‑reactie:", "testResponse": "Dit is een testreactie van je AI‑assistent. In productie wordt dit een echte AI‑reactie.", "imageAnalysis": "Ik zie dat dit een afbeelding is. In productie analyseert de AI de afbeelding en geeft relevante info.", "helloMessage": "Hallo! Waar kan ik je mee helpen?", "generateQR": "QR genereren", "generatingQR": "Genereren…", "qrCodeGenerated": "QR gegenereerd:", "qrCodeError": "QR genereren mislukt", "qrCodeDescription": "QR gegenereerd via test afbeelding uploaden", "maxQRCodesReached": "Maximaal 10 QR‑codes per klant", "clearHistory": "Geschiedenis wissen", "clearHistoryConfirm": "Weet je zeker dat je de chatgeschiedenis wilt wissen? Deze actie kan niet ongedaan worden gemaakt.", "micPermissionError": "Microfoontoestemming geweigerd", "sttError": "Kon audio niet transcriberen", "ttsError": "Kon spraak niet genereren", "playVoice": "Stem afspelen", "startRecording": "Opname starten", "stopRecording": "Opname stoppen" },
   "integrations": { "title": "Integrations", "subtitle": "Connect your AI to messaging platforms", "telegram": "Telegram", "whatsapp": "WhatsApp", "calendar": "Calendar", "telegramDesc": "Connect to Telegram Bot", "whatsappDesc": "Connect to WhatsApp Business", "calendarDesc": "Sync with Google Calendar", "connected": "Connected", "notConnected": "Not connected", "setup": "Setup", "configure": "Configure", "setupTelegram": "Setup Telegram Bot", "setupWhatsApp": "Setup WhatsApp Business", "setupCalendar": "Setup Calendar Integration", "botToken": "Bot Token", "webhookUrl": "Webhook URL", "phoneNumberId": "Phone Number ID", "accessToken": "Access Token", "calendarEmail": "Calendar Email", "connect": "Connect", "connectWithGoogle": "Connect with Google", "telegramInstructions": "1. Open Telegram and search for @BotFather\n2. Send /newbot and follow the instructions\n3. Copy the bot token and paste it below", "whatsappNotice": "WhatsApp Business API integration requires approval from Meta.", "whatsappInstructions": "1. You need a WhatsApp Business Account\n2. Apply for WhatsApp Business API access\n3. Once approved, enter your credentials below", "calendarNotice": "Connect your Google Calendar to enable automatic booking management.", "syncInfo": "What will be synced:", "syncItems": ["New appointments booked by AI", "Available time slots", "Booking confirmations", "Cancellations and rescheduling"], "learnMore": "Learn more about WhatsApp Business API" },
-  "history": { "title": "Chatgeschiedenis", "subtitle": "Bekijk alle gesprekken met je AI", "allConversations": "Alle gesprekken", "selectChat": "Selecteer een chat om details te zien", "lastActive": "Laatst actief:", "noChats": "Nog geen gesprekken", "addToKnowledge": "Aan kennis toevoegen", "adding": "Bezig met toevoegen…", "addedToKnowledge": "Foto toegevoegd aan kennisbank en indexering gestart!", "addToKnowledgeError": "Foto toevoegen aan kennisbank mislukt" },
-  "settings": { "title": "Settings", "subtitle": "Manage your account and preferences", "accountInfo": "Account Information", "salonName": "Company Name", "email": "Email", "phone": "Phone", "address": "Address", "language": "Language", "timezone": "Timezone", "saveChanges": "Save Changes", "languages": { "en": "English", "de": "Deutsch", "fr": "Français", "es": "Español", "it": "Italiano", "nl": "Nederlands", "da": "Dansk" }, "timezones": { "utc": "UTC", "kyiv": "Kyiv", "warsaw": "Warsaw", "berlin": "Berlin", "newYork": "New York" } },
+  "history": { "title": "Activiteit", "subtitle": "Bekijk alle gesprekken met je AI", "allConversations": "Alle gesprekken", "selectChat": "Selecteer een chat om details te zien", "lastActive": "Laatst actief:", "noChats": "Nog geen gesprekken", "addToKnowledge": "Aan kennis toevoegen", "adding": "Bezig met toevoegen…", "addedToKnowledge": "Foto toegevoegd aan kennisbank en indexering gestart!", "addToKnowledgeError": "Foto toevoegen aan kennisbank mislukt" },
+  "settings": { "title": "Instellingen", "subtitle": "Beheer uw accountinstellingen", "accountInfo": "Account Information", "salonName": "Company Name", "email": "Email", "phone": "Phone", "address": "Address", "language": "Language", "timezone": "Timezone", "saveChanges": "Save Changes", "languages": { "en": "English", "de": "Deutsch", "fr": "Français", "es": "Español", "it": "Italiano", "nl": "Nederlands", "da": "Dansk" }, "timezones": { "utc": "UTC", "kyiv": "Kyiv", "warsaw": "Warsaw", "berlin": "Berlin", "newYork": "New York" }, "uploadLogo": "Logo uploaden", "logoDescription": "Upload uw bedrijfslogo. Het wordt gebruikt bij het genereren van QR-codes.", "selectLogo": "Logo selecteren", "changeLogo": "Logo wijzigen", "uploadLogoButton": "Logo uploaden", "deleteLogo": "Logo verwijderen", "uploading": "Uploaden...", "deleting": "Verwijderen...", "logoInvalidType": "Bestand moet een afbeelding zijn", "logoTooLarge": "Bestandsgrootte moet minder dan 5MB zijn", "logoUploadError": "Logo uploaden mislukt", "logoDeleteError": "Logo verwijderen mislukt", "logoUploadSuccess": "Logo succesvol geüpload! QR-codes worden automatisch opnieuw gegenereerd met het nieuwe logo.", "deleteLogoConfirm": "Weet u zeker dat u het logo wilt verwijderen?", "logoQRInfo": "Uw logo wordt gebruikt bij alle QR-code generaties. Bestaande QR-codes worden automatisch opnieuw gegenereerd." },
   "pricing": { "title": "Choose Your Plan", "subtitle": "Select the perfect plan for your salon", "starter": "Starter", "professional": "Professional", "enterprise": "Enterprise", "month": "month", "mostPopular": "Most Popular", "choose": "Choose", "starterDesc": "Perfect for small salons", "professionalDesc": "Best for growing businesses", "enterpriseDesc": "For salon chains", "features": { "conversations": "{{count}} conversations/month", "unlimitedConversations": "Unlimited conversations", "integration": "1 integration (Telegram or WhatsApp)", "allIntegrations": "All integrations (Telegram, WhatsApp, Instagram)", "basicTraining": "Basic AI training", "advancedTraining": "Advanced AI training", "emailSupport": "Email support", "prioritySupport": "Priority support", "phoneSupport": "24/7 phone support", "chatHistory": "Chat history (30 days)", "unlimitedHistory": "Unlimited chat history", "calendarIntegration": "Calendar integration", "customBranding": "Custom branding", "everythingProfessional": "Everything in Professional", "multipleLocations": "Multiple locations", "accountManager": "Dedicated account manager", "customIntegrations": "Custom integrations", "advancedAnalytics": "Advanced analytics", "apiAccess": "API access" } },
   "trial": { "active": "Trial Active", "daysRemaining": "{{days}} days remaining", "upgradeNow": "Upgrade Now" },
   "knowledgeBlocks": { "title": "Knowledge Blocks", "add": "+ Add Block", "entries": "{{count}} entries", "edit": "Edit Block", "addBlock": "Add Knowledge Block", "blockName": "Block Name", "blockNamePlaceholder": "Enter block name", "description": "Description", "descriptionPlaceholder": "Enter block description", "create": "Create Block", "nameRequired": "Block name is required" },
-  "modelStatus": { "title": "Modelstatus", "statusMessage": "Model is actief en reageert", "statusInactive": "Model reageert niet", "checking": "Status controleren…", "error": "Fout", "lastUpdated": "Laatst bijgewerkt", "version": "Versie", "dataSources": "Gegevensbronnen", "knowledgeBlocks": "Kennisblokken", "viewHistory": "Updategeschiedenis bekijken", "embeddingModel": "Embedding‑model", "switchModel": "Model wisselen", "cancel": "Annuleren", "noModelSelected": "Geen model geselecteerd", "local": "Lokaal", "cloud": "Cloud", "hybrid": "Hybride", "dimensions": "dimensies", "switching": "Wisselen…", "unsupported": "Niet ondersteund (max 2000)", "unknown": "Onbekend" },
-  "syncActions": { "sync": "Nieuwe data synchroniseren", "syncing": "Synchroniseren…", "retrain": "Nu hertrainen", "retraining": "Hertraining…" }
+  "modelStatus": { "title": "Modelstatus", "statusMessage": "Model is actief en reageert", "statusInactive": "Model reageert niet", "checking": "Status controleren…", "ok": "Actief", "active": "Actief", "inactive": "Inactief", "error": "Fout", "lastUpdated": "Laatst bijgewerkt", "version": "Versie", "dataSources": "Gegevensbronnen", "knowledgeBlocks": "Kennisblokken", "viewHistory": "Updategeschiedenis bekijken", "embeddingModel": "Embedding‑model", "switchModel": "Model wisselen", "cancel": "Annuleren", "noModelSelected": "Geen model geselecteerd", "local": "Lokaal", "cloud": "Cloud", "hybrid": "Hybride", "dimensions": "dimensies", "switching": "Wisselen…", "unsupported": "Niet ondersteund (max 2000)", "unknown": "Onbekend" },
+  "syncActions": { "sync": "Nieuwe data synchroniseren", "syncing": "Synchroniseren…", "retrain": "Nu hertrainen", "retraining": "Hertraining…" },
+  "webKnowledge": {
+    "title": "Kennis toevoegen van web",
+    "urlLabel": "Website-URL",
+    "urlPlaceholder": "https://example.com",
+    "urlRequired": "URL is verplicht",
+    "descriptionLabel": "Beschrijving",
+    "descriptionPlaceholder": "Beschrijf wat je nodig hebt van deze website...",
+    "submitButton": "Toevoegen van web",
+    "submitting": "Verzenden...",
+    "submitted": "Webkennisverzoek succesvol verzonden!",
+    "submitError": "Fout bij verzenden van webkennisverzoek",
+    "requestsList": "Je verzoeken:",
+    "statusPending": "Toegevoegd",
+    "statusProcessing": "In behandeling",
+    "statusCompleted": "Verwerkt",
+    "statusError": "Fout",
+    "dataLoaded": "Gegevens geladen in kennisblok"
+  },
+  "infoCenter": {
+    "title": "Informatiecentrum",
+    "subtitle": "Laatste updates en nieuws",
+    "readMore": "Lees meer",
+    "noNews": "Er zijn momenteel geen nieuwsitems beschikbaar.",
+    "categories": {
+      "integration": "Integraties",
+      "feature": "Functies & verbeteringen",
+      "model": "AI-modellen",
+      "update": "Productupdates",
+      "announcement": "Aankondigingen",
+      "other": "Overige updates"
+    },
+    "itemsLabel": "items",
+    "badgeFeatured": "Uitgelicht",
+    "news1": {
+      "title": "Nieuwe AI-functies Beschikbaar",
+      "description": "Ontdek onze nieuwste AI-mogelijkheden die de klantervaring zullen verbeteren."
+    },
+    "news2": {
+      "title": "Integratie-updates",
+      "description": "We hebben WhatsApp- en Telegram-integraties verbeterd met nieuwe functies."
+    },
+    "news3": {
+      "title": "Prestatieverbeteringen",
+      "description": "Uw AI-assistent is nu sneller en nauwkeuriger dan ooit."
+    },
+    "news4": {
+      "title": "Trainingsbronnen",
+      "description": "Bekijk onze nieuwe trainingsmaterialen om het meeste uit uw AI te halen."
+    },
+    "news5": {
+      "title": "Community-updates",
+      "description": "Word lid van onze community om ervaringen te delen en ondersteuning te krijgen."
+    }
+  },
+  "webChat": {
+    "title": "Chat met Consultant",
+    "placeholder": "Typ bericht...",
+    "clearHistory": "Geschiedenis wissen",
+    "clearHistoryConfirm": "Weet u zeker dat u de chatgeschiedenis wilt wissen? Deze actie kan niet ongedaan worden gemaakt.",
+    "installApp": "App installeren",
+    "lightMode": "Lichte modus",
+    "darkMode": "Donkere modus",
+    "startRecording": "Start spraakopname",
+    "stopRecording": "Stop opname",
+    "uploadImage": "Afbeelding uploaden",
+    "imageUploaded": "[Afbeelding geüpload]",
+    "errorOccurred": "Sorry, er is een fout opgetreden. Probeer het opnieuw.",
+    "connectionError": "Verbindingsfout. Probeer het later opnieuw.",
+    "missingTag": "Tag-parameter ontbreekt in URL",
+    "welcomeMessage": "Hallo! Ik ben uw AI-assistent. Hoe kan ik u vandaag helpen?",
+    "settings": "Instellingen",
+    "fontSize": "Lettergrootte"
+  },
+  "extensionData": {
+    "loading": "Extensiegegevens laden...",
+    "disabledTitle": "Chrome-extensie is uitgeschakeld voor deze client",
+    "disabledText": "Vraag Nexelin-ondersteuning om de browserextensie voor uw account in te schakelen in het beheerpaneel.",
+    "title": "Extensiegegevens per websites",
+    "subtitle": "Verzamelde e-mails, telefoons en adressen van pagina's die zijn gescraped via de Chrome-extensie.",
+    "refresh": "Vernieuwen",
+    "empty": "Nog geen extensiegegevens. Installeer de extensie, stel uw clienttoken in en klik op \"Tekst scrapen / E-mails verzamelen\" op uw websites.",
+    "never": "Nooit"
+  }
 }
 
 

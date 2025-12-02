@@ -23,10 +23,10 @@
   "nav": {
     "dashboard": "Dashboard",
     "training": "AI Trainieren",
-    "sandbox": "Testen",
+    "sandbox": "Sandbox",
     "integrations": "Integrationen",
-    "history": "Chat-Verlauf",
-    "setup": "Einrichtungsanleitung",
+    "history": "Aktivität",
+    "setup": "Wissensdatenbank",
     "settings": "Einstellungen",
     "billing": "Abrechnung"
   },
@@ -91,7 +91,9 @@
     "logoInvalidType": "Datei muss ein Bild sein",
     "logoTooLarge": "Dateigröße muss weniger als 5MB betragen",
     "deleteLogoConfirm": "Sind Sie sicher, dass Sie das Logo löschen möchten?",
-    "logoQRInfo": "Ihr Logo wird bei allen QR-Code-Generierungen verwendet. Bestehende QR-Codes werden automatisch neu generiert."
+    "logoQRInfo": "Ihr Logo wird bei allen QR-Code-Generierungen verwendet. Bestehende QR-Codes werden automatisch neu generiert.",
+    "promptDescription": "Beschreibung",
+    "promptTemplate": "Prompt-Vorlage"
   },
   "training": {
     "title": "AI Trainieren",
@@ -121,7 +123,10 @@
     "startTraining": "Training starten",
     "trainingInProgress": "Training läuft...",
     "trainingComplete": "Training abgeschlossen!",
-    "aiReady": "Ihre AI ist einsatzbereit"
+    "aiReady": "Ihre AI ist einsatzbereit",
+    "uploadErrorTitle": "Datei {{fileName}} konnte nicht hochgeladen werden",
+    "uploadErrorDetails": "Fehler: {{message}}",
+    "uploadErrorSuggestion": "Versuchen Sie ein anderes Dateiformat (PDF, DOCX, TXT) oder verkleinern Sie die Datei und laden Sie sie erneut hoch."
   },
   "sandbox": {
     "title": "Testen",
@@ -140,7 +145,15 @@
     "qrCodeGenerated": "QR-Code generiert:",
     "qrCodeError": "QR-Code konnte nicht generiert werden",
     "qrCodeDescription": "QR-Code aus Foto-Upload-Test generiert",
-    "maxQRCodesReached": "Maximal 10 QR-Codes pro Kunde erlaubt"
+    "maxQRCodesReached": "Maximal 10 QR-Codes pro Kunde erlaubt",
+    "clearHistory": "Verlauf löschen",
+    "clearHistoryConfirm": "Möchten Sie den Chat-Verlauf wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+    "micPermissionError": "Mikrofonberechtigung verweigert",
+    "sttError": "Audio konnte nicht transkribiert werden",
+    "ttsError": "Sprache konnte nicht generiert werden",
+    "playVoice": "Stimme abspielen",
+    "startRecording": "Aufnahme starten",
+    "stopRecording": "Aufnahme stoppen"
   },
   "integrations": {
     "title": "Integrationen",
@@ -179,7 +192,7 @@
     "learnMore": "Mehr über WhatsApp Business API erfahren"
   },
   "history": {
-    "title": "Chat-Verlauf",
+    "title": "Aktivität",
     "subtitle": "Alle Gespräche mit AI anzeigen",
     "allConversations": "Alle Gespräche",
     "selectChat": "Chat auswählen, um Details anzuzeigen",
@@ -191,7 +204,7 @@
     "addToKnowledgeError": "Fehler beim Hinzufügen des Fotos zur Wissensbasis"
   },
   "setupInstructions": {
-    "title": "Einrichtungsanleitung",
+    "title": "Wissensdatenbank",
     "subtitle": "Schritt-für-Schritt-Anleitung zur Integration von Messaging-Plattformen",
     "whatsappSetup": "WhatsApp Integration einrichten",
     "whatsappIntro": "Folgen Sie diesen Schritten, um Ihr WhatsApp Business-Konto mit Nexelin AI Assistant zu verbinden.",
@@ -205,31 +218,6 @@
     "step4Desc": "Gehen Sie zur Integrationsseite und konfigurieren Sie WhatsApp:",
     "step5Title": "QR-Code generieren",
     "step5Desc": "Erstellen Sie einen QR-Code, damit Kunden Gespräche starten können:"
-  },
-  "settings": {
-    "title": "Einstellungen",
-    "subtitle": "Konto und Präferenzen verwalten",
-    "accountInfo": "Kontoinformationen",
-    "salonName": "Firmenname",
-    "email": "E-Mail",
-    "phone": "Telefon",
-    "address": "Adresse",
-    "language": "Sprache",
-    "timezone": "Zeitzone",
-    "saveChanges": "Änderungen speichern",
-    "languages": {
-      "en": "English",
-      "uk": "Українська",
-      "pl": "Polski",
-      "de": "Deutsch"
-    },
-    "timezones": {
-      "utc": "UTC",
-      "kyiv": "Kiew",
-      "warsaw": "Warschau",
-      "berlin": "Berlin",
-      "newYork": "New York"
-    }
   },
   "pricing": {
     "title": "Plan wählen",
@@ -273,7 +261,8 @@
   "knowledgeBlocks": {
     "title": "Wissensblöcke",
     "add": "+ Block hinzufügen",
-    "entries": "{{count}} Einträge",
+    "entries_one": "{{count}} Eintrag",
+    "entries_other": "{{count}} Einträge",
     "edit": "Block bearbeiten",
     "addBlock": "Wissensblock hinzufügen",
     "blockName": "Block-Name",
@@ -288,6 +277,9 @@
     "statusMessage": "Modell ist live und antwortet",
     "statusInactive": "Modell antwortet nicht",
     "checking": "Status wird überprüft...",
+    "ok": "Aktiv",
+    "active": "Aktiv",
+    "inactive": "Inaktiv",
     "error": "Fehler",
     "lastUpdated": "Zuletzt aktualisiert",
     "version": "Version",
@@ -316,5 +308,128 @@
     "syncing": "Synchronisierung...",
     "retrain": "Jetzt neu trainieren",
     "retraining": "Neu-Training läuft..."
+  },
+  "webKnowledge": {
+    "title": "Wissen aus dem Web hinzufügen",
+    "urlLabel": "Website-URL",
+    "urlPlaceholder": "https://example.com",
+    "urlRequired": "URL ist erforderlich",
+    "descriptionLabel": "Beschreibung",
+    "descriptionPlaceholder": "Beschreiben Sie, was Sie von dieser Website benötigen...",
+    "submitButton": "Aus Web hinzufügen",
+    "submitting": "Wird übermittelt...",
+    "submitted": "Web-Wissensanfrage erfolgreich übermittelt!",
+    "submitError": "Fehler beim Übermitteln der Web-Wissensanfrage",
+    "requestsList": "Ihre Anfragen:",
+    "statusPending": "Hinzugefügt",
+    "statusProcessing": "In Bearbeitung",
+    "statusCompleted": "Verarbeitet",
+    "statusError": "Fehler",
+    "dataLoaded": "Daten in Wissensblock geladen"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "subtitle": "Verwalten Sie Ihre Kontoeinstellungen",
+    "uploadLogo": "Logo hochladen",
+    "logoDescription": "Laden Sie Ihr Firmenlogo hoch. Es wird bei der QR-Code-Generierung verwendet.",
+    "selectLogo": "Logo auswählen",
+    "changeLogo": "Logo ändern",
+    "uploadLogoButton": "Logo hochladen",
+    "deleteLogo": "Logo löschen",
+    "uploading": "Wird hochgeladen...",
+    "deleting": "Wird gelöscht...",
+    "logoInvalidType": "Datei muss ein Bild sein",
+    "logoTooLarge": "Dateigröße muss weniger als 5MB betragen",
+    "logoUploadError": "Logo konnte nicht hochgeladen werden",
+    "logoDeleteError": "Logo konnte nicht gelöscht werden",
+    "logoUploadSuccess": "Logo erfolgreich hochgeladen! QR-Codes werden automatisch mit dem neuen Logo neu generiert.",
+    "deleteLogoConfirm": "Sind Sie sicher, dass Sie das Logo löschen möchten?",
+    "logoQRInfo": "Ihr Logo wird bei allen QR-Code-Generierungen verwendet. Bestehende QR-Codes werden automatisch neu generiert.",
+    "accountInfo": "Kontoinformationen",
+    "salonName": "Firmenname",
+    "email": "E-Mail",
+    "phone": "Telefon",
+    "address": "Adresse",
+    "language": "Sprache",
+    "timezone": "Zeitzone",
+    "saveChanges": "Änderungen speichern",
+    "languages": {
+      "en": "English",
+      "uk": "Українська",
+      "pl": "Polski",
+      "de": "Deutsch"
+    },
+    "timezones": {
+      "utc": "UTC",
+      "kyiv": "Kiew",
+      "warsaw": "Warschau",
+      "berlin": "Berlin",
+      "newYork": "New York"
+    }
+  },
+  "infoCenter": {
+    "title": "Info-Zentrum",
+    "subtitle": "Neueste Updates und Nachrichten",
+    "readMore": "Mehr lesen",
+    "noNews": "Derzeit sind keine Neuigkeiten verfügbar.",
+    "categories": {
+      "integration": "Integrationen",
+      "feature": "Funktionen & Verbesserungen",
+      "model": "KI-Modelle",
+      "update": "Produkt-Updates",
+      "announcement": "Ankündigungen",
+      "other": "Weitere Updates"
+    },
+    "itemsLabel": "Einträge",
+    "badgeFeatured": "Highlight",
+    "news1": {
+      "title": "Neue KI-Funktionen verfügbar",
+      "description": "Entdecken Sie unsere neuesten KI-Fähigkeiten, die Ihr Kundenerlebnis verbessern werden."
+    },
+    "news2": {
+      "title": "Integrations-Updates",
+      "description": "Wir haben WhatsApp- und Telegram-Integrationen mit neuen Funktionen verbessert."
+    },
+    "news3": {
+      "title": "Leistungsverbesserungen",
+      "description": "Ihr KI-Assistent ist jetzt schneller und genauer als je zuvor."
+    },
+    "news4": {
+      "title": "Schulungsressourcen",
+      "description": "Schauen Sie sich unsere neuen Schulungsmaterialien an, um das Beste aus Ihrer KI herauszuholen."
+    },
+    "news5": {
+      "title": "Community-Updates",
+      "description": "Treten Sie unserer Community bei, um Erfahrungen auszutauschen und Unterstützung zu erhalten."
+    }
+  },
+  "webChat": {
+    "title": "Chat mit Berater",
+    "placeholder": "Nachricht eingeben...",
+    "clearHistory": "Verlauf löschen",
+    "clearHistoryConfirm": "Sind Sie sicher, dass Sie den Chat-Verlauf löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+    "installApp": "App installieren",
+    "lightMode": "Hellmodus",
+    "darkMode": "Dunkelmodus",
+    "startRecording": "Sprachaufnahme starten",
+    "stopRecording": "Aufnahme stoppen",
+    "uploadImage": "Bild hochladen",
+    "imageUploaded": "[Bild wurde hochgeladen]",
+    "errorOccurred": "Entschuldigung, ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.",
+    "connectionError": "Verbindungsfehler. Bitte versuchen Sie es später erneut.",
+    "missingTag": "Tag-Parameter in URL fehlt",
+    "welcomeMessage": "Hallo! Ich bin Ihr KI-Assistent. Wie kann ich Ihnen heute helfen?",
+    "settings": "Einstellungen",
+    "fontSize": "Schriftgröße"
+  },
+  "extensionData": {
+    "loading": "Erweiterungsdaten werden geladen...",
+    "disabledTitle": "Chrome-Erweiterung ist für diesen Client deaktiviert",
+    "disabledText": "Bitten Sie den Nexelin-Support, die Browser-Erweiterung für Ihr Konto im Admin-Bereich zu aktivieren.",
+    "title": "Erweiterungsdaten nach Websites",
+    "subtitle": "Gesammelte E-Mails, Telefonnummern und Adressen von Seiten, die über die Chrome-Erweiterung gescrapt wurden.",
+    "refresh": "Aktualisieren",
+    "empty": "Noch keine Erweiterungsdaten. Installieren Sie die Erweiterung, setzen Sie Ihr Client-Token und klicken Sie auf \"Text scrapen / E-Mails sammeln\" auf Ihren Websites.",
+    "never": "Nie"
   }
 }

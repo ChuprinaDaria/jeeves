@@ -23,10 +23,10 @@
   "nav": {
     "dashboard": "Dashboard",
     "training": "Train AI",
-    "sandbox": "Test Sandbox",
+    "sandbox": "Sandbox",
     "integrations": "Integrations",
-    "history": "Chat History",
-    "setup": "Setup Instructions",
+    "history": "Activity",
+    "setup": "Knowledge Base",
     "settings": "Settings",
     "billing": "Billing"
   },
@@ -58,6 +58,9 @@
   "dashboard": {
     "title": "Dashboard",
     "subtitle": "Overview of your AI assistant performance",
+    "topPrompts": "Top Prompts",
+    "topPromptsSubtitle": "Most rated prompts by clients",
+    "noTopPrompts": "No top prompts available yet.",
     "welcomeBack": "Welcome Back!",
     "manageAssistant": "Manage your AI assistant",
     "totalChats": "Total Chats",
@@ -91,7 +94,9 @@
     "logoInvalidType": "File must be an image",
     "logoTooLarge": "File size must be less than 5MB",
     "deleteLogoConfirm": "Are you sure you want to delete the logo?",
-    "logoQRInfo": "Your logo will be used in all QR code generations. Existing QR codes will be regenerated automatically."
+    "logoQRInfo": "Your logo will be used in all QR code generations. Existing QR codes will be regenerated automatically.",
+    "promptDescription": "Description",
+    "promptTemplate": "Prompt Template"
   },
   "training": {
     "title": "Train Your AI",
@@ -121,10 +126,27 @@
     "startTraining": "Start Training",
     "trainingInProgress": "Training in progress...",
     "trainingComplete": "Training Complete!",
-    "aiReady": "Your AI is ready to use"
+    "aiReady": "Your AI is ready to use",
+    "addTextInformation": "Add Text Information",
+    "textDocument": "Text Document",
+    "documentTitle": "Document Title (Optional)",
+    "titlePlaceholder": "Enter a title for this text...",
+    "textContent": "Text Content",
+    "textPlaceholder": "Paste or type your text here...",
+    "textHint": "This text will be processed and added to your knowledge base",
+    "saveText": "Save Text",
+    "saving": "Saving...",
+    "textRequired": "Please enter some text",
+    "text": "Text",
+    "uploading": "Uploading...",
+    "fileProcessing": "Processing...",
+    "fileProcessed": "Processed",
+    "uploadErrorTitle": "Failed to upload {{fileName}}",
+    "uploadErrorDetails": "Error: {{message}}",
+    "uploadErrorSuggestion": "Try a different file format (PDF, DOCX, TXT) or reduce the file size and upload again."
   },
   "sandbox": {
-    "title": "Test Sandbox",
+    "title": "Sandbox",
     "subtitle": "Test your AI assistant before going live",
     "chatTest": "Chat Test",
     "typeMessage": "Type your message...",
@@ -140,7 +162,35 @@
     "qrCodeGenerated": "QR Code Generated:",
     "qrCodeError": "Failed to generate QR code",
     "qrCodeDescription": "QR code generated from Photo Upload Test",
-    "maxQRCodesReached": "Maximum 10 QR codes allowed per client"
+    "maxQRCodesReached": "Maximum 10 QR codes allowed per client",
+    "clearHistory": "Clear History",
+    "clearHistoryConfirm": "Are you sure you want to clear the chat history? This action cannot be undone.",
+    "micPermissionError": "Microphone permission denied",
+    "sttError": "Failed to transcribe audio",
+    "ttsError": "Failed to generate speech",
+    "playVoice": "Play voice",
+    "startRecording": "Start recording",
+    "stopRecording": "Stop recording",
+    "uploadImage": "Upload image",
+    "analyzingImage": "Analyzing image...",
+    "imageAnalysisError": "Failed to analyze image",
+    "saveToKnowledge": "Save to knowledge base",
+    "savedToKnowledge": "Saved to knowledge base",
+    "qaSaved": "Q&A saved to knowledge base!",
+    "qaSaveError": "Failed to save Q&A to knowledge base",
+    "error": "Error",
+    "removeImage": "Remove image",
+    "generateCleanDescription": "Generate Clean Description (without game context)",
+    "generatingClean": "Generating clean description...",
+    "cleanDescription": "Clean Description (without game context)",
+    "cleanDescriptionError": "Failed to generate clean description",
+    "addClean": "Add Clean to Knowledge",
+    "addWithPrompt": "Add with Prompt",
+    "savedWithPrompt": "Saved with game context",
+    "noDescriptionError": "No description available. Please analyze the image first.",
+    "uploadNextImage": "Upload Next Image",
+    "uploadNewImage": "Upload new image",
+    "uploadNew": "New Image"
   },
   "integrations": {
     "title": "Integrations",
@@ -158,8 +208,6 @@
     "setupTelegram": "Setup Telegram Bot",
     "setupWhatsApp": "Setup WhatsApp Business",
     "setupCalendar": "Setup Calendar Integration",
-    "botToken": "Bot Token",
-    "webhookUrl": "Webhook URL",
     "phoneNumber": "WhatsApp Phone Number",
     "phoneNumberHint": "Enter your WhatsApp Business number in E.164 format (e.g. +380671234567 or +14155238886)",
     "phoneNumberId": "Phone Number ID",
@@ -167,7 +215,13 @@
     "calendarEmail": "Calendar Email",
     "connect": "Connect",
     "connectWithGoogle": "Connect with Google",
-    "telegramInstructions": "1. Open Telegram and search for @BotFather\n2. Send /newbot and follow the instructions\n3. Copy the bot token and paste it below",
+    "telegramSetup": "Setup Telegram Bot",
+    "enableTelegram": "Enable Telegram Bot",
+    "webhookHint": "This URL is automatically set when you save the bot token",
+    "telegramInstructions": "Instructions:",
+    "telegramStep1": "Open Telegram and search for @BotFather",
+    "telegramStep2": "Send /newbot and follow the instructions",
+    "telegramStep3": "Copy the bot token and paste it below",
     "whatsappNotice": "WhatsApp Business API integration requires approval from Meta.",
     "whatsappInstructions": "1. You need a WhatsApp Business Account\n2. Apply for WhatsApp Business API access\n3. Once approved, enter your credentials below",
     "calendarNotice": "Connect your Google Calendar to enable automatic booking management.",
@@ -178,10 +232,25 @@
       "Booking confirmations",
       "Cancellations and rescheduling"
     ],
-    "learnMore": "Learn more about WhatsApp Business API"
+    "learnMore": "Learn more about WhatsApp Business API",
+    "emailSetup": "Setup Email SMTP",
+    "enableEmail": "Enable Email SMTP",
+    "smtpHost": "SMTP Host",
+    "smtpPort": "SMTP Port",
+    "useTLS": "Use TLS encryption",
+    "smtpUsername": "SMTP Username (Email)",
+    "smtpPassword": "SMTP Password",
+    "smtpPasswordHint": "For Gmail, use an App Password instead of your regular password",
+    "fromEmail": "From Email Address",
+    "fromName": "From Name",
+    "commonProviders": "Common SMTP Settings:",
+    "testConnection": "Test Connection",
+    "testing": "Testing...",
+    "saving": "Saving...",
+    "save": "Save"
   },
   "history": {
-    "title": "Chat History",
+    "title": "Activity",
     "subtitle": "View all conversations with your AI",
     "allConversations": "All Conversations",
     "selectChat": "Select a chat to view details",
@@ -193,10 +262,21 @@
     "addToKnowledgeError": "Failed to add photo to knowledge base"
   },
   "setupInstructions": {
-    "title": "Setup Instructions",
+    "title": "Knowledge Base",
     "subtitle": "Step-by-step guides for integrating messaging platforms",
+    "integrations": "Integrations",
+    "promptBook": "Prompt Book",
+    "extensionData": "Extension data",
     "whatsappSetup": "WhatsApp Integration Setup",
     "whatsappIntro": "Follow these steps to connect your WhatsApp Business account with Nexelin AI Assistant.",
+    "telegramSetup": "Telegram Bot Integration Setup",
+    "telegramIntro": "Follow these steps to connect your Telegram bot with Nexelin AI Assistant.",
+    "telegramDone": "Done! Your Telegram bot is now connected and can receive messages through Nexelin.",
+    "emailSetup": "Email SMTP Integration Setup",
+    "emailIntro": "Follow these steps to configure email SMTP for your AI assistant to send and receive emails.",
+    "emailDone": "Done! Your email SMTP is now configured. Your AI can now read and send emails from the Sandbox chat.",
+    "emailNoteTitle": "How to use it",
+    "emailNote": "You can talk to your AI in natural language – no special commands needed. For example: \"What new emails did I get this week?\", \"Show me emails from my accountant about invoices\", or \"Reply to John's last email and say I confirm the booking.\"",
     "step1Title": "Create Meta Business Account",
     "step1Desc": "First, you need to have a Meta Business Account with WhatsApp Business API access.",
     "step2Title": "Get Your Credentials",
@@ -207,6 +287,76 @@
     "step4Desc": "Go to Integrations page and configure WhatsApp:",
     "step5Title": "Generate QR Code",
     "step5Desc": "Create a QR code for customers to start conversations:"
+  },
+  "promptBook": {
+    "title": "Prompt Book",
+    "subtitle": "Prompt Engineering Resources by Industry",
+    "searchPlaceholder": "Search prompts...",
+    "category": "Category",
+    "industry": "Industry",
+    "addPrompt": "Add Prompt",
+    "addNewPrompt": "Add New Prompt",
+    "add": "Add",
+    "loading": "Loading...",
+    "description": "Description",
+    "tags": "Tags",
+    "cancel": "Cancel",
+    "allCategories": "All Categories",
+    "allIndustries": "All Industries",
+    "marketing": "Marketing",
+    "sales": "Sales",
+    "hr": "HR / Recruitment",
+    "customerSupport": "Customer Support",
+    "legal": "Legal / Compliance",
+    "finance": "Finance / Analytics",
+    "tech": "Software Development",
+    "content": "Content Creation",
+    "retail": "Retail",
+    "healthcare": "Healthcare",
+    "financeIndustry": "Finance",
+    "techIndustry": "Technology",
+    "education": "Education",
+    "uses": "uses",
+    "copyPrompt": "Copy prompt",
+    "copy": "Copy",
+    "noPrompts": "No prompts found. Try adjusting your filters.",
+    "promptTemplate": "Prompt Template",
+    "variables": "Variables",
+    "resources": "Top Prompt Engineering Resources",
+    "prompts": {
+      "emailCampaign": {
+        "title": "Email Campaign Announcement",
+        "description": "Draft promotional emails with discount offers"
+      },
+      "salesEmail": {
+        "title": "Personalized Sales Email",
+        "description": "Create personalized sales emails for B2B outreach"
+      },
+      "jobDescription": {
+        "title": "Job Description Generator",
+        "description": "Create detailed job descriptions for recruitment"
+      },
+      "customerSupport": {
+        "title": "Customer Complaint Response",
+        "description": "Generate professional responses to customer complaints"
+      },
+      "privacyPolicy": {
+        "title": "Privacy Policy Section",
+        "description": "Draft GDPR-compliant privacy policy sections"
+      },
+      "financialAnalysis": {
+        "title": "Financial Data Analysis",
+        "description": "Analyze financial data and provide insights"
+      },
+      "codeReview": {
+        "title": "Code Security Review",
+        "description": "Review code for security and best practices"
+      },
+      "blogPost": {
+        "title": "Blog Post Generator",
+        "description": "Write comprehensive blog posts with examples"
+      }
+    }
   },
   "settings": {
     "title": "Settings",
@@ -231,7 +381,22 @@
       "warsaw": "Warsaw",
       "berlin": "Berlin",
       "newYork": "New York"
-    }
+    },
+    "uploadLogo": "Upload Logo",
+    "logoDescription": "Upload your company logo. It will be used in QR code generation.",
+    "selectLogo": "Select Logo",
+    "changeLogo": "Change Logo",
+    "uploadLogoButton": "Upload Logo",
+    "deleteLogo": "Delete Logo",
+    "uploading": "Uploading...",
+    "deleting": "Deleting...",
+    "logoInvalidType": "File must be an image",
+    "logoTooLarge": "File size must be less than 5MB",
+    "logoUploadError": "Failed to upload logo",
+    "logoDeleteError": "Failed to delete logo",
+    "logoUploadSuccess": "Logo uploaded successfully! QR codes will be regenerated automatically with the new logo.",
+    "deleteLogoConfirm": "Are you sure you want to delete the logo?",
+    "logoQRInfo": "Your logo will be used in all QR code generations. Existing QR codes will be regenerated automatically."
   },
   "pricing": {
     "title": "Choose Your Plan",
@@ -275,8 +440,16 @@
   "knowledgeBlocks": {
     "title": "Knowledge Blocks",
     "add": "+ Add Block",
-    "entries": "{{count}} entries",
+    "entries_one": "{{count}} entry",
+    "entries_other": "{{count}} entries",
     "edit": "Edit Block",
+    "delete": "Delete",
+    "deleteConfirm": "Are you sure you want to delete this knowledge block?",
+    "deleteError": "Failed to delete knowledge block",
+    "permanent": "Permanent",
+    "permanentNote": "Permanent blocks cannot be edited",
+    "active": "Active",
+    "inactive": "Inactive",
     "addBlock": "Add Knowledge Block",
     "blockName": "Block Name",
     "blockNamePlaceholder": "Enter block name",
@@ -290,6 +463,9 @@
     "statusMessage": "Model is live and responding",
     "statusInactive": "Model is not responding",
     "checking": "Checking status...",
+    "ok": "Active",
+    "active": "Active",
+    "inactive": "Inactive",
     "error": "Error",
     "lastUpdated": "Last Updated",
     "version": "Version",
@@ -337,5 +513,88 @@
     "maxTokens": "Max Tokens",
     "temperature": "Temperature",
     "switching": "Switching..."
+  },
+  "webKnowledge": {
+    "title": "Add Knowledge from Web",
+    "urlLabel": "Website URL",
+    "urlPlaceholder": "https://example.com",
+    "urlRequired": "URL is required",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "Describe what you need from this website...",
+    "submitButton": "Add from Web",
+    "submitting": "Submitting...",
+    "submitted": "Web knowledge request submitted successfully!",
+    "submitError": "Failed to submit web knowledge request",
+    "requestsList": "Your requests:",
+    "statusPending": "Added",
+    "statusProcessing": "In Progress",
+    "statusCompleted": "Processed",
+    "statusError": "Error",
+    "dataLoaded": "Data loaded into knowledge block"
+  },
+  "infoCenter": {
+    "title": "Info Center",
+    "subtitle": "Latest updates and news",
+    "readMore": "Read more",
+    "noNews": "No news available at the moment.",
+    "categories": {
+      "integration": "Integrations",
+      "feature": "Features & improvements",
+      "model": "AI models",
+      "update": "Product updates",
+      "announcement": "Announcements",
+      "other": "Other updates"
+    },
+    "itemsLabel": "items",
+    "badgeFeatured": "Highlight",
+    "news1": {
+      "title": "New AI Features Available",
+      "description": "Discover our latest AI capabilities that will enhance your customer experience."
+    },
+    "news2": {
+      "title": "Integration Updates",
+      "description": "We've improved WhatsApp and Telegram integrations with new features."
+    },
+    "news3": {
+      "title": "Performance Improvements",
+      "description": "Your AI assistant is now faster and more accurate than ever."
+    },
+    "news4": {
+      "title": "Training Resources",
+      "description": "Check out our new training materials to get the most from your AI."
+    },
+    "news5": {
+      "title": "Community Updates",
+      "description": "Join our community to share experiences and get support."
+    }
+  },
+  "webChat": {
+    "title": "Chat with Consultant",
+    "placeholder": "Type message...",
+    "clearHistory": "Clear History",
+    "clearHistoryConfirm": "Are you sure you want to clear the chat history? This action cannot be undone.",
+    "installApp": "Install App",
+    "lightMode": "Light Mode",
+    "darkMode": "Dark Mode",
+    "startRecording": "Start voice recording",
+    "stopRecording": "Stop recording",
+    "uploadImage": "Upload Image",
+    "imageUploaded": "[Image was uploaded]",
+    "errorOccurred": "Sorry, an error occurred. Please try again.",
+    "connectionError": "Connection error. Please try again later.",
+    "missingTag": "Missing tag parameter in URL",
+    "welcomeMessage": "Hello! I am your AI assistant. How can I help you today?",
+    "settings": "Settings",
+    "fontSize": "Font Size"
+  },
+  "extensionData": {
+    "loading": "Loading extension data...",
+    "disabledTitle": "Chrome extension is disabled for this client",
+    "disabledText": "Ask Nexelin support to enable the browser extension for your account in the admin panel.",
+    "title": "Extension data by websites",
+    "subtitle": "Collected emails, phones and addresses from pages scraped via Chrome extension.",
+    "refresh": "Refresh",
+    "empty": "No extension data yet. Install the extension, set your client token and click \"Scrap text / Collect mails\" on your websites.",
+    "never": "Never"
   }
 }

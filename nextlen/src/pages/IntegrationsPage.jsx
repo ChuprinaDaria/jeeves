@@ -6,6 +6,7 @@ import { clientAPI } from '../api/client';
 import WebWidgetSetup from '../components/integrations/WebWidgetSetup';
 import EmailSetup from '../components/integrations/EmailSetup';
 import TelegramSetup from '../components/integrations/TelegramSetup';
+import ChromeExtensionSetup from '../components/integrations/ChromeExtensionSetup';
 
 const IntegrationsPage = () => {
   const { t } = useTranslation();
@@ -32,6 +33,7 @@ const IntegrationsPage = () => {
   const [showWebWidgetModal, setShowWebWidgetModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showTelegramModal, setShowTelegramModal] = useState(false);
+  const [showChromeExtensionModal, setShowChromeExtensionModal] = useState(false);
   const [emailEnabled, setEmailEnabled] = useState(false);
   const [telegramEnabled, setTelegramEnabled] = useState(false);
   const [clientType, setClientType] = useState(null);
@@ -173,10 +175,17 @@ const IntegrationsPage = () => {
       const qrCodes = existingQRCodes.data || [];
       
       // Отримуємо client_tag для формування URL
-      // 1) спершу з localStorage (стандартний шлях)
-      // 2) якщо немає - з clientInfo.tag, який приходить з /clients/me/
+      // 1) спершу з /clients/me/ (актуальний клієнт у порталі)
+      // 2) якщо немає - з localStorage (старий fallback)
       const storedTag = localStorage.getItem('client_tag');
-      const clientTag = storedTag || clientInfo?.tag;
+      let clientTag = clientInfo?.tag || storedTag;
+      
+      // Якщо tag з бекенду відрізняється від збереженого — синхронізуємо localStorage,
+      // щоб уникнути ситуації, коли QR/лінк йде на "старого" клієнта (наприклад, Change Client).
+      if (clientInfo?.tag && storedTag !== clientInfo.tag) {
+        localStorage.setItem('client_tag', clientInfo.tag);
+        clientTag = clientInfo.tag;
+      }
       if (!clientTag) {
         console.error('Client tag not found (neither in localStorage nor in /clients/me/ response)');
         setLoadingWebQR(false);
@@ -348,6 +357,11 @@ const IntegrationsPage = () => {
     }
   };
 
+  const extensionEnabled = clientInfo?.extension_enabled || false;
+  const extensionDownloadUrl =
+    import.meta.env.VITE_EXTENSION_DOWNLOAD_URL ||
+    'https://app.nexelin.com/static/extensions/nexelin-chrome-extension.zip';
+
   return (
     <div className="p-6">
       <h1 className="text-2xl font-semibold mb-2 text-gray-900 dark:text-gray-100">{t('integrations.title')}</h1>
@@ -482,7 +496,7 @@ const IntegrationsPage = () => {
           </button>
         </div>
 
-        {/* Google Calendar */}
+        {/* Google Calendar (Coming Soon) */}
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 opacity-60 hover:opacity-70 transition-opacity">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -498,7 +512,7 @@ const IntegrationsPage = () => {
             </div>
           </div>
           
-          <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 mb-4 inline-block">
+          <span className="px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 mb-4 inline-block">
             Coming Soon
           </span>
         </div>
@@ -537,7 +551,7 @@ const IntegrationsPage = () => {
           </button>
         </div>
 
-        {/* Google Reviews */}
+        {/* Google Reviews (Coming Soon) */}
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 opacity-60 hover:opacity-70 transition-opacity">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -553,12 +567,12 @@ const IntegrationsPage = () => {
             </div>
           </div>
           
-          <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 mb-4 inline-block">
+          <span className="px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 mb-4 inline-block">
             Coming Soon
           </span>
         </div>
 
-        {/* Instagram */}
+        {/* Instagram (Coming Soon) */}
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 opacity-60 hover:opacity-70 transition-opacity">
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -574,9 +588,247 @@ const IntegrationsPage = () => {
             </div>
           </div>
           
-          <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 mb-4 inline-block">
+          <span className="px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 mb-4 inline-block">
             Coming Soon
           </span>
+        </div>
+
+        {/* Google Chrome Extension */}
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 hover:shadow-lg transition-shadow">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-sky-100 dark:bg-sky-900/30 rounded-lg flex items-center justify-center">
+                <svg className="w-7 h-7 text-sky-600 dark:text-sky-400" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M12 2a10 10 0 00-9.32 6.41h7.04A3.5 3.5 0 0113.5 12c0 .6-.15 1.16-.41 1.65l3.5 6.06A10 10 0 0012 2z"
+                    fill="currentColor"
+                    opacity="0.8"
+                  />
+                  <path
+                    d="M4.22 8.41A10 10 0 0011 22a9.96 9.96 0 006.57-2.49l-3.5-6.06A3.5 3.5 0 017.72 8.41H4.22z"
+                    fill="currentColor"
+                    opacity="0.5"
+                  />
+                  <circle cx="12" cy="12" r="2.5" fill="white" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">
+                  Google Chrome Extension
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Web AI Agent for browsing & automation. Scrape pages into Knowledge Blocks and collect contact data.
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between mb-4">
+            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+              extensionEnabled
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+            }`}>
+              {extensionEnabled ? t('integrations.connected') : t('integrations.notConnected')}
+            </span>
+          </div>
+          
+          <button
+            onClick={() => setShowChromeExtensionModal(true)}
+            className="w-full btn-primary"
+          >
+            {t('integrations.configure')}
+          </button>
+        </div>
+
+        {/* AI Video Avatar (Coming Soon) */}
+        <div className="bg-white dark:bg-gray-800 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-6 opacity-80 hover:opacity-100 hover:border-gray-400 dark:hover:border-gray-500 transition-all">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-violet-100 dark:bg-violet-900/30 rounded-lg flex items-center justify-center">
+                <svg className="w-7 h-7 text-violet-600 dark:text-violet-400" viewBox="0 0 24 24" fill="none">
+                  <rect x="4" y="4" width="16" height="12" rx="2" ry="2" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M10 9l4 3-4 3V9z" fill="currentColor" />
+                  <circle cx="8" cy="17.5" r="1" fill="currentColor" />
+                  <circle cx="16" cy="17.5" r="1" fill="currentColor" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">
+                  AI Video Avatar
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Personalized video avatar & cloning
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <span className="px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 mb-4 inline-block">
+            Coming Soon
+          </span>
+        </div>
+
+        {/* Voice AI – Phone RAG (Coming Soon) */}
+        <div className="bg-white dark:bg-gray-800 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-6 opacity-80 hover:opacity-100 hover:border-gray-400 dark:hover:border-gray-500 transition-all">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center">
+                <svg className="w-7 h-7 text-emerald-600 dark:text-emerald-400" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M6.62 5.11l2.2-.73a1 1 0 011.17.45l1.2 2.07a1 1 0 01-.18 1.19l-1.01 1.01a10.05 10.05 0 005.01 5.01l1.01-1.01a1 1 0 011.19-.18l2.07 1.2a1 1 0 01.45 1.17l-.73 2.2A1.5 1.5 0 0117.5 20C10.6 20 5 14.4 5 7.5a1.5 1.5 0 011.62-1.39z"
+                    fill="currentColor"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">
+                  Voice AI – Phone RAG
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Connect AI voice assistant to telephony
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <span className="px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 mb-4 inline-block">
+            Coming Soon
+          </span>
+        </div>
+
+        {/* Make.com (Coming Soon) */}
+        <div className="bg-white dark:bg-gray-800 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-6 opacity-80 hover:opacity-100 hover:border-gray-400 dark:hover:border-gray-500 transition-all">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center">
+                <span className="text-indigo-600 dark:text-indigo-400 font-semibold text-lg">M</span>
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">
+                  Make.com
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  No‑code automation scenarios with Nexelin
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <span className="px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 mb-4 inline-block">
+            Coming Soon
+          </span>
+        </div>
+
+        {/* n8n (Coming Soon) */}
+        <div className="bg-white dark:bg-gray-800 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-6 opacity-80 hover:opacity-100 hover:border-gray-400 dark:hover:border-gray-500 transition-all">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
+                <span className="text-orange-600 dark:text-orange-400 font-semibold text-lg">n8n</span>
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">
+                  n8n
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Self‑hosted workflow automation with Nexelin
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <span className="px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 mb-4 inline-block">
+            Coming Soon
+          </span>
+        </div>
+
+        {/* Custom API (Coming Soon) */}
+        <div className="bg-white dark:bg-gray-800 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-6 opacity-80 hover:opacity-100 hover:border-gray-400 dark:hover:border-gray-500 transition-all">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-slate-100 dark:bg-slate-900/30 rounded-lg flex items-center justify-center">
+                <svg className="w-7 h-7 text-slate-600 dark:text-slate-300" viewBox="0 0 24 24" fill="none">
+                  <rect x="4" y="4" width="16" height="4" rx="1" fill="currentColor" opacity="0.8" />
+                  <rect x="4" y="10" width="10" height="4" rx="1" fill="currentColor" opacity="0.6" />
+                  <rect x="4" y="16" width="7" height="4" rx="1" fill="currentColor" opacity="0.4" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">
+                  Custom API
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Direct API integration with your stack
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <span className="px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 mb-4 inline-block">
+            Coming Soon
+          </span>
+        </div>
+
+        {/* iOS / Android App (Highlighted Coming Soon) */}
+        <div className="relative bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-[1px] shadow-xl col-span-1 md:col-span-2 lg:col-span-3">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 flex items-center justify-center shadow-lg">
+                <svg className="w-9 h-9 text-white" viewBox="0 0 24 24" fill="none">
+                  <rect x="6" y="2" width="7" height="20" rx="2" stroke="currentColor" strokeWidth="1.6" />
+                  <rect x="13" y="4" width="5" height="16" rx="2" fill="currentColor" opacity="0.9" />
+                  <circle cx="9.5" cy="18" r="0.9" fill="currentColor" />
+                </svg>
+              </div>
+              <div>
+                <div className="inline-flex items-center gap-2 mb-1">
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide uppercase bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200">
+                    Coming Soon
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide uppercase bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-200">
+                    Premium
+                  </span>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  iOS / Android App
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 max-w-xl">
+                  Native mobile apps with full Nexelin chat, notifications and on‑device AI assistant for your team.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col items-stretch md:items-end gap-3 w-full md:w-auto">
+              <div className="flex gap-2 justify-center md:justify-end">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-black text-white text-xs font-medium hover:bg-gray-900 transition-colors"
+                >
+                  <span className="text-lg leading-none"></span>
+                  <span className="flex flex-col items-start leading-tight">
+                    <span className="text-[10px] uppercase tracking-wide opacity-70">Soon on</span>
+                    <span className="text-xs">App Store</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0F9D58] text-white text-xs font-medium hover:bg-[#0c7f46] transition-colors"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 512 512" fill="currentColor">
+                    <path d="M325.3 234.3L104.1 18.1C97.7 11.8 89.3 8 80.3 8 63.5 8 50 21.7 50 38.3v435.3C50 490.3 63.5 504 80.3 504c9 0 17.4-3.8 23.8-10.1l221.2-216.2c6.1-6 9.5-14.3 9.5-23s-3.4-17-9.5-23z" />
+                    <path d="M372.1 181.9L288 256l84.1 74.1L430 390.6c7.6 5.3 18 3.5 23.3-4.1 2.1-3 3.2-6.5 3.2-10.1V135.6c0-9.4-7.6-17-17-17-3.6 0-7.1 1.1-10.1 3.2l-57.3 60.1z" />
+                  </svg>
+                  <span className="flex flex-col items-start leading-tight">
+                    <span className="text-[10px] uppercase tracking-wide opacity-80">Soon on</span>
+                    <span className="text-xs">Google Play</span>
+                  </span>
+                </button>
+              </div>
+              <span className="text-[11px] text-gray-500 dark:text-gray-400 text-center md:text-right">
+                Mobile apps are in active development. Contact us if you want early access.
+              </span>
+            </div>
+          </div>
         </div>
 
       </div>
@@ -795,6 +1047,14 @@ const IntegrationsPage = () => {
         />
       )}
 
+      {showChromeExtensionModal && (
+        <ChromeExtensionSetup 
+          onClose={() => {
+            setShowChromeExtensionModal(false);
+          }} 
+        />
+      )}
+
       {showWebModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -845,9 +1105,13 @@ const IntegrationsPage = () => {
                       </p>
                       {(() => {
                         // Той самий підхід, що й у loadOrCreateWebQR:
-                        // спершу беремо tag з localStorage, потім з clientInfo.tag
+                        // спершу беремо актуальний tag з clientInfo.tag, потім fallback на localStorage
                         const storedTag = localStorage.getItem('client_tag');
-                        const clientTag = storedTag || clientInfo?.tag;
+                        let clientTag = clientInfo?.tag || storedTag;
+                        if (clientInfo?.tag && storedTag !== clientInfo.tag) {
+                          localStorage.setItem('client_tag', clientInfo.tag);
+                          clientTag = clientInfo.tag;
+                        }
                         // Для white label використовуємо webchat_domain
                         let baseUrl = window.location.origin;
                         if (clientInfo?.webchat_domain) {

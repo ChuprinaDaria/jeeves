@@ -23,9 +23,10 @@
   "nav": {
     "dashboard": "Tableau de bord",
     "training": "Former l'IA",
-    "sandbox": "Bac à sable de test",
+    "sandbox": "Sandbox",
     "integrations": "Intégrations",
-    "history": "Historique des conversations",
+    "history": "Activité",
+    "setup": "Base de connaissances",
     "settings": "Paramètres",
     "billing": "Facturation"
   },
@@ -90,7 +91,9 @@
     "logoInvalidType": "Le fichier doit être une image",
     "logoTooLarge": "La taille du fichier doit être inférieure à 5 Mo",
     "deleteLogoConfirm": "Supprimer le logo ?",
-    "logoQRInfo": "Votre logo sera utilisé pour tous les QR code. Les QR existants seront régénérés automatiquement."
+    "logoQRInfo": "Votre logo sera utilisé pour tous les QR code. Les QR existants seront régénérés automatiquement.",
+    "promptDescription": "Description",
+    "promptTemplate": "Modèle de prompt"
   },
   "training": {
     "title": "Former votre IA",
@@ -120,26 +123,37 @@
     "startTraining": "Lancer l’entraînement",
     "trainingInProgress": "Entraînement en cours…",
     "trainingComplete": "Entraînement terminé !",
-    "aiReady": "Votre IA est prête"
+    "aiReady": "Votre IA est prête",
+    "uploadErrorTitle": "Échec du téléversement de {{fileName}}",
+    "uploadErrorDetails": "Erreur : {{message}}",
+    "uploadErrorSuggestion": "Essayez un autre format de fichier (PDF, DOCX, TXT) ou réduisez la taille du fichier puis réessayez."
   },
   "sandbox": {
-    "title": "Bac à sable de test",
+    "title": "Sandbox",
     "subtitle": "Testez votre assistant IA avant la mise en production",
     "chatTest": "Test de chat",
     "typeMessage": "Saisissez votre message…",
-    "photoUpload": "Test d’import d’image",
-    "photoSubtitle": "Testez la réaction de l’IA aux images",
+    "photoUpload": "Test d'import d'image",
+    "photoSubtitle": "Testez la réaction de l'IA aux images",
     "uploadPhoto": "Importer une image",
-    "aiResponse": "Réponse de l’IA :",
+    "aiResponse": "Réponse de l'IA :",
     "testResponse": "Ceci est une réponse de test de votre assistant IA. En production, ce sera une véritable réponse IA.",
-    "imageAnalysis": "Je vois qu’il s’agit d’une image. En production, l’IA analysera l’image et fournira des informations pertinentes.",
-    "helloMessage": "Bonjour ! Comment puis‑je vous aider aujourd’hui ?",
+    "imageAnalysis": "Je vois qu'il s'agit d'une image. En production, l'IA analysera l'image et fournira des informations pertinentes.",
+    "helloMessage": "Bonjour ! Comment puis‑je vous aider aujourd'hui ?",
     "generateQR": "Générer un QR",
     "generatingQR": "Génération…",
     "qrCodeGenerated": "QR code généré :",
     "qrCodeError": "Échec de la génération du QR code",
-    "qrCodeDescription": "QR code généré à partir du test d’import d’image",
-    "maxQRCodesReached": "Maximum 10 QR codes autorisés par client"
+    "qrCodeDescription": "QR code généré à partir du test d'import d'image",
+    "maxQRCodesReached": "Maximum 10 QR codes autorisés par client",
+    "clearHistory": "Effacer l'historique",
+    "clearHistoryConfirm": "Voulez-vous vraiment effacer l'historique du chat ? Cette action ne peut pas être annulée.",
+    "micPermissionError": "Permission du microphone refusée",
+    "sttError": "Échec de la transcription audio",
+    "ttsError": "Échec de la génération de la parole",
+    "playVoice": "Lire la voix",
+    "startRecording": "Démarrer l'enregistrement",
+    "stopRecording": "Arrêter l'enregistrement"
   },
   "integrations": {
     "title": "Integrations",
@@ -178,7 +192,7 @@
     "learnMore": "Learn more about WhatsApp Business API"
   },
   "history": {
-    "title": "Historique des conversations",
+    "title": "Activité",
     "subtitle": "Consultez toutes les conversations avec votre IA",
     "allConversations": "Toutes les conversations",
     "selectChat": "Sélectionnez une conversation pour voir les détails",
@@ -187,35 +201,7 @@
     "addToKnowledge": "Ajouter à la base de connaissances",
     "adding": "Ajout…",
     "addedToKnowledge": "Photo ajoutée à la base de connaissances et indexation démarrée !",
-    "addToKnowledgeError": "Échec de l’ajout de la photo à la base de connaissances"
-  },
-  "settings": {
-    "title": "Settings",
-    "subtitle": "Manage your account and preferences",
-    "accountInfo": "Account Information",
-    "salonName": "Company Name",
-    "email": "Email",
-    "phone": "Phone",
-    "address": "Address",
-    "language": "Language",
-    "timezone": "Timezone",
-    "saveChanges": "Save Changes",
-    "languages": {
-      "en": "English",
-      "de": "Deutsch",
-      "fr": "Français",
-      "es": "Español",
-      "it": "Italiano",
-      "nl": "Nederlands",
-      "da": "Dansk"
-    },
-    "timezones": {
-      "utc": "UTC",
-      "kyiv": "Kyiv",
-      "warsaw": "Warsaw",
-      "berlin": "Berlin",
-      "newYork": "New York"
-    }
+    "addToKnowledgeError": "Échec de l'ajout de la photo à la base de connaissances"
   },
   "pricing": {
     "title": "Choose Your Plan",
@@ -274,6 +260,9 @@
     "statusMessage": "Le modèle est actif et répond",
     "statusInactive": "Le modèle ne répond pas",
     "checking": "Vérification du statut…",
+    "ok": "Actif",
+    "active": "Actif",
+    "inactive": "Inactif",
     "error": "Erreur",
     "lastUpdated": "Dernière mise à jour",
     "version": "Version",
@@ -297,6 +286,108 @@
     "syncing": "Synchronisation…",
     "retrain": "Réentraîner maintenant",
     "retraining": "Réentraînement…"
+  },
+  "webKnowledge": {
+    "title": "Ajouter des connaissances depuis le Web",
+    "urlLabel": "URL du site web",
+    "urlPlaceholder": "https://example.com",
+    "urlRequired": "L'URL est requise",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "Décrivez ce dont vous avez besoin de ce site web...",
+    "submitButton": "Ajouter depuis le Web",
+    "submitting": "Envoi en cours...",
+    "submitted": "Demande de connaissances web soumise avec succès !",
+    "submitError": "Échec de l'envoi de la demande de connaissances web",
+    "requestsList": "Vos demandes :",
+    "statusPending": "Ajouté",
+    "statusProcessing": "En cours",
+    "statusCompleted": "Traité",
+    "statusError": "Erreur",
+    "dataLoaded": "Données chargées dans le bloc de connaissances"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "subtitle": "Gérez les paramètres de votre compte",
+    "uploadLogo": "Télécharger le Logo",
+    "logoDescription": "Téléchargez le logo de votre entreprise. Il sera utilisé dans la génération de codes QR.",
+    "selectLogo": "Sélectionner le Logo",
+    "changeLogo": "Changer le Logo",
+    "uploadLogoButton": "Télécharger le Logo",
+    "deleteLogo": "Supprimer le Logo",
+    "uploading": "Téléchargement...",
+    "deleting": "Suppression...",
+    "logoInvalidType": "Le fichier doit être une image",
+    "logoTooLarge": "La taille du fichier doit être inférieure à 5MB",
+    "logoUploadError": "Échec du téléchargement du logo",
+    "logoDeleteError": "Échec de la suppression du logo",
+    "logoUploadSuccess": "Logo téléchargé avec succès ! Les codes QR seront régénérés automatiquement avec le nouveau logo.",
+    "deleteLogoConfirm": "Êtes-vous sûr de vouloir supprimer le logo ?",
+    "logoQRInfo": "Votre logo sera utilisé dans toutes les générations de codes QR. Les codes QR existants seront régénérés automatiquement."
+  },
+  "infoCenter": {
+    "title": "Centre d'Information",
+    "subtitle": "Dernières mises à jour et actualités",
+    "readMore": "Lire la suite",
+    "noNews": "Aucune actualité disponible pour le moment.",
+    "categories": {
+      "integration": "Intégrations",
+      "feature": "Fonctionnalités & améliorations",
+      "model": "Modèles IA",
+      "update": "Mises à jour produit",
+      "announcement": "Annonces",
+      "other": "Autres mises à jour"
+    },
+    "itemsLabel": "éléments",
+    "badgeFeatured": "À la une",
+    "news1": {
+      "title": "Nouvelles Fonctionnalités IA Disponibles",
+      "description": "Découvrez nos dernières capacités IA qui amélioreront l'expérience de vos clients."
+    },
+    "news2": {
+      "title": "Mises à Jour d'Intégration",
+      "description": "Nous avons amélioré les intégrations WhatsApp et Telegram avec de nouvelles fonctionnalités."
+    },
+    "news3": {
+      "title": "Améliorations des Performances",
+      "description": "Votre assistant IA est maintenant plus rapide et plus précis que jamais."
+    },
+    "news4": {
+      "title": "Ressources de Formation",
+      "description": "Consultez nos nouveaux matériels de formation pour tirer le meilleur parti de votre IA."
+    },
+    "news5": {
+      "title": "Mises à Jour de la Communauté",
+      "description": "Rejoignez notre communauté pour partager des expériences et obtenir du soutien."
+    }
+  },
+  "webChat": {
+    "title": "Chat avec Consultant",
+    "placeholder": "Tapez un message...",
+    "clearHistory": "Effacer l'historique",
+    "clearHistoryConfirm": "Êtes-vous sûr de vouloir effacer l'historique de la conversation ? Cette action ne peut pas être annulée.",
+    "installApp": "Installer l'application",
+    "lightMode": "Mode clair",
+    "darkMode": "Mode sombre",
+    "startRecording": "Démarrer l'enregistrement vocal",
+    "stopRecording": "Arrêter l'enregistrement",
+    "uploadImage": "Télécharger une image",
+    "imageUploaded": "[Image téléchargée]",
+    "errorOccurred": "Désolé, une erreur s'est produite. Veuillez réessayer.",
+    "connectionError": "Erreur de connexion. Veuillez réessayer plus tard.",
+    "missingTag": "Paramètre tag manquant dans l'URL",
+    "welcomeMessage": "Bonjour ! Je suis votre assistant IA. Comment puis-je vous aider aujourd'hui ?",
+    "settings": "Paramètres",
+    "fontSize": "Taille de police"
+  },
+  "extensionData": {
+    "loading": "Chargement des données d'extension...",
+    "disabledTitle": "L'extension Chrome est désactivée pour ce client",
+    "disabledText": "Demandez au support Nexelin d'activer l'extension de navigateur pour votre compte dans le panneau d'administration.",
+    "title": "Données d'extension par sites web",
+    "subtitle": "E-mails, téléphones et adresses collectés à partir de pages extraites via l'extension Chrome.",
+    "refresh": "Actualiser",
+    "empty": "Aucune donnée d'extension pour le moment. Installez l'extension, définissez votre jeton client et cliquez sur \"Extraire le texte / Collecter les e-mails\" sur vos sites web.",
+    "never": "Jamais"
   }
 }
 

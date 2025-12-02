@@ -1,18 +1,101 @@
 {
   "common": { "save": "Save", "cancel": "Cancel", "delete": "Delete", "edit": "Edit", "create": "Create", "update": "Update", "close": "Close", "back": "Back", "next": "Next", "loading": "Loading...", "error": "Error", "success": "Success", "confirm": "Confirm", "search": "Search", "filter": "Filter", "settings": "Settings", "logout": "Logout", "login": "Login", "register": "Register" },
-  "nav": { "dashboard": "Dashboard", "training": "Addestra IA", "sandbox": "Sandbox di test", "integrations": "Integrazioni", "history": "Cronologia chat", "settings": "Impostazioni", "billing": "Fatturazione" },
+  "nav": { "dashboard": "Dashboard", "training": "Addestra IA", "sandbox": "Sandbox", "integrations": "Integrazioni", "history": "Attività", "setup": "Base di conoscenza", "settings": "Impostazioni", "billing": "Fatturazione" },
   "auth": { "welcomeBack": "Welcome Back", "createAccount": "Create Your Account", "email": "Email", "password": "Password", "confirmPassword": "Confirm Password", "confirmPasswordRequired": "Please confirm password", "salonName": "Company Name", "forgotPassword": "Forgot password?", "noAccount": "Don't have an account?", "hasAccount": "Already have an account?", "loginButton": "Login", "registerButton": "Start Free Trial", "loggingIn": "Logging in...", "creatingAccount": "Creating account...", "trialNotice": "14-day free trial. No credit card required. Cancel anytime.", "loginFailed": "Login failed", "registrationFailed": "Registration failed", "emailRequired": "Email is required", "passwordRequired": "Password is required", "passwordMin": "Password must be at least 8 characters", "passwordsMustMatch": "Passwords do not match", "salonNameRequired": "Company name is required", "invalidEmail": "Invalid email address" },
-  "dashboard": { "title": "Dashboard", "subtitle": "Panoramica delle prestazioni del tuo assistente IA", "welcomeBack": "Bentornato!", "manageAssistant": "Gestisci il tuo assistente IA", "totalChats": "Chat totali", "activeUsers": "Utenti attivi", "bookings": "Prenotazioni", "messages": "Messaggi", "conversion": "Conversione", "fromLastMonth": "rispetto al mese scorso", "recentActivity": "Attività recente", "topServices": "Servizi principali", "topQuestions": "Domande principali", "bookingsCount": "prenotazioni", "requests": "richieste", "noQuestions": "Nessuna domanda", "noActivity": "Nessuna attività recente", "newChatFrom": "Nuova chat da", "bookingConfirmed": "Prenotazione confermata per domani", "trainingCompleted": "Addestramento IA completato", "uploadLogo": "Carica logo", "logoDescription": "Carica il logo della tua azienda. Sarà usato per generare il QR code.", "selectLogo": "Seleziona logo", "changeLogo": "Cambia logo", "uploadLogoButton": "Carica logo", "uploading": "Caricamento...", "deleting": "Eliminazione...", "deleteLogo": "Elimina logo", "cancel": "Annulla", "logoUploadSuccess": "Logo caricato con successo! I codici QR saranno rigenerati.", "logoUploadError": "Errore nel caricamento del logo", "logoDeleteError": "Errore nell'eliminazione del logo", "logoInvalidType": "Il file deve essere un'immagine", "logoTooLarge": "Il file deve essere inferiore a 5 MB", "deleteLogoConfirm": "Eliminare il logo?", "logoQRInfo": "Il tuo logo sarà utilizzato per tutti i QR. Quelli esistenti saranno rigenerati automaticamente." },
-  "training": { "title": "Addestra la tua IA", "subtitle": "Carica file e personalizza il tuo assistente IA", "uploadFiles": "Carica file di addestramento", "uploadedFiles": "File caricati", "noFiles": "Nessun file caricato", "dragDrop": "Trascina e rilascia i file qui o clicca per sfogliare", "supportedFormats": "Supportati: PDF, DOC, TXT, XLS, JSON (Max 10 MB)", "chooseFiles": "Scegli file", "uploadPhotos": "Carica foto", "uploadedPhotos": "Foto caricate", "noPhotos": "Nessuna foto caricata", "dragDropPhotos": "Trascina e rilascia le foto qui o clicca per sfogliare", "supportedPhotoFormats": "Supportati: JPG, PNG, GIF, WEBP (Max 10 MB)", "choosePhotos": "Scegli foto", "editDescription": "Modifica descrizione", "photoDescriptionPlaceholder": "Aggiungi descrizione alla foto…", "noDescription": "Nessuna descrizione", "aiBehavior": "Prompt di comportamento IA", "customizePrompt": "Personalizza come risponde il tuo assistente IA", "promptPlaceholder": "Inserisci le istruzioni per l’IA…", "savePrompt": "Salva prompt", "resetDefault": "Ripristina predefiniti", "trainingStatus": "Stato addestramento", "uploadAndTrain": "Carica i file e clicca su addestra per iniziare", "startTraining": "Avvia addestramento", "trainingInProgress": "Addestramento in corso…", "trainingComplete": "Addestramento completato!", "aiReady": "La tua IA è pronta" },
-  "sandbox": { "title": "Sandbox di test", "subtitle": "Prova il tuo assistente IA prima del go‑live", "chatTest": "Test chat", "typeMessage": "Scrivi il tuo messaggio…", "photoUpload": "Test caricamento immagine", "photoSubtitle": "Prova come l’IA risponde alle immagini", "uploadPhoto": "Carica immagine", "aiResponse": "Risposta IA:", "testResponse": "Questa è una risposta di prova del tuo assistente IA. In produzione sarà una risposta reale.", "imageAnalysis": "Vedo che è un’immagine. In produzione l’IA la analizzerà e fornirà informazioni rilevanti.", "helloMessage": "Ciao! Come posso aiutarti oggi?", "generateQR": "Genera QR", "generatingQR": "Generazione…", "qrCodeGenerated": "QR generato:", "qrCodeError": "Impossibile generare il QR", "qrCodeDescription": "QR generato dal test di caricamento immagine", "maxQRCodesReached": "Massimo 10 QR per cliente" },
+  "dashboard": { "title": "Dashboard", "subtitle": "Panoramica delle prestazioni del tuo assistente IA", "welcomeBack": "Bentornato!", "manageAssistant": "Gestisci il tuo assistente IA", "totalChats": "Chat totali", "activeUsers": "Utenti attivi", "bookings": "Prenotazioni", "messages": "Messaggi", "conversion": "Conversione", "fromLastMonth": "rispetto al mese scorso", "recentActivity": "Attività recente", "topServices": "Servizi principali", "topQuestions": "Domande principali", "bookingsCount": "prenotazioni", "requests": "richieste", "noQuestions": "Nessuna domanda", "noActivity": "Nessuna attività recente", "newChatFrom": "Nuova chat da", "bookingConfirmed": "Prenotazione confermata per domani", "trainingCompleted": "Addestramento IA completato", "uploadLogo": "Carica logo", "logoDescription": "Carica il logo della tua azienda. Sarà usato per generare il QR code.", "selectLogo": "Seleziona logo", "changeLogo": "Cambia logo", "uploadLogoButton": "Carica logo", "uploading": "Caricamento...", "deleting": "Eliminazione...", "deleteLogo": "Elimina logo", "cancel": "Annulla", "logoUploadSuccess": "Logo caricato con successo! I codici QR saranno rigenerati.", "logoUploadError": "Errore nel caricamento del logo", "logoDeleteError": "Errore nell'eliminazione del logo", "logoInvalidType": "Il file deve essere un'immagine", "logoTooLarge": "Il file deve essere inferiore a 5 MB", "deleteLogoConfirm": "Eliminare il logo?", "logoQRInfo": "Il tuo logo sarà utilizzato per tutti i QR. Quelli esistenti saranno rigenerati automaticamente.", "promptDescription": "Descrizione", "promptTemplate": "Modello di prompt" },
+  "training": { "title": "Addestra la tua IA", "subtitle": "Carica file e personalizza il tuo assistente IA", "uploadFiles": "Carica file di addestramento", "uploadedFiles": "File caricati", "noFiles": "Nessun file caricato", "dragDrop": "Trascina e rilascia i file qui o clicca per sfogliare", "supportedFormats": "Supportati: PDF, DOC, TXT, XLS, JSON (Max 10 MB)", "chooseFiles": "Scegli file", "uploadPhotos": "Carica foto", "uploadedPhotos": "Foto caricate", "noPhotos": "Nessuna foto caricata", "dragDropPhotos": "Trascina e rilascia le foto qui o clicca per sfogliare", "supportedPhotoFormats": "Supportati: JPG, PNG, GIF, WEBP (Max 10 MB)", "choosePhotos": "Scegli foto", "editDescription": "Modifica descrizione", "photoDescriptionPlaceholder": "Aggiungi descrizione alla foto…", "noDescription": "Nessuna descrizione", "aiBehavior": "Prompt di comportamento IA", "customizePrompt": "Personalizza come risponde il tuo assistente IA", "promptPlaceholder": "Inserisci le istruzioni per l’IA…", "savePrompt": "Salva prompt", "resetDefault": "Ripristina predefiniti", "trainingStatus": "Stato addestramento", "uploadAndTrain": "Carica i file e clicca su addestra per iniziare", "startTraining": "Avvia addestramento", "trainingInProgress": "Addestramento in corso…", "trainingComplete": "Addestramento completato!", "aiReady": "La tua IA è pronta", "uploadErrorTitle": "Caricamento di {{fileName}} non riuscito", "uploadErrorDetails": "Errore: {{message}}", "uploadErrorSuggestion": "Prova un altro formato di file (PDF, DOCX, TXT) oppure riduci le dimensioni del file e riprova." },
+  "sandbox": { "title": "Sandbox", "subtitle": "Prova il tuo assistente IA prima del go‑live", "chatTest": "Test chat", "typeMessage": "Scrivi il tuo messaggio…", "photoUpload": "Test caricamento immagine", "photoSubtitle": "Prova come l'IA risponde alle immagini", "uploadPhoto": "Carica immagine", "aiResponse": "Risposta IA:", "testResponse": "Questa è una risposta di prova del tuo assistente IA. In produzione sarà una risposta reale.", "imageAnalysis": "Vedo che è un'immagine. In produzione l'IA la analizzerà e fornirà informazioni rilevanti.", "helloMessage": "Ciao! Come posso aiutarti oggi?", "generateQR": "Genera QR", "generatingQR": "Generazione…", "qrCodeGenerated": "QR generato:", "qrCodeError": "Impossibile generare il QR", "qrCodeDescription": "QR generato dal test di caricamento immagine", "maxQRCodesReached": "Massimo 10 QR per cliente", "clearHistory": "Cancella cronologia", "clearHistoryConfirm": "Sei sicuro di voler cancellare la cronologia della chat? Questa azione non può essere annullata.", "micPermissionError": "Permesso microfono negato", "sttError": "Impossibile trascrivere l'audio", "ttsError": "Impossibile generare il parlato", "playVoice": "Riproduci voce", "startRecording": "Avvia registrazione", "stopRecording": "Ferma registrazione" },
   "integrations": { "title": "Integrations", "subtitle": "Connect your AI to messaging platforms", "telegram": "Telegram", "whatsapp": "WhatsApp", "calendar": "Calendar", "telegramDesc": "Connect to Telegram Bot", "whatsappDesc": "Connect to WhatsApp Business", "calendarDesc": "Sync with Google Calendar", "connected": "Connected", "notConnected": "Not connected", "setup": "Setup", "configure": "Configure", "setupTelegram": "Setup Telegram Bot", "setupWhatsApp": "Setup WhatsApp Business", "setupCalendar": "Setup Calendar Integration", "botToken": "Bot Token", "webhookUrl": "Webhook URL", "phoneNumberId": "Phone Number ID", "accessToken": "Access Token", "calendarEmail": "Calendar Email", "connect": "Connect", "connectWithGoogle": "Connect with Google", "telegramInstructions": "1. Open Telegram and search for @BotFather\n2. Send /newbot and follow the instructions\n3. Copy the bot token and paste it below", "whatsappNotice": "WhatsApp Business API integration requires approval from Meta.", "whatsappInstructions": "1. You need a WhatsApp Business Account\n2. Apply for WhatsApp Business API access\n3. Once approved, enter your credentials below", "calendarNotice": "Connect your Google Calendar to enable automatic booking management.", "syncInfo": "What will be synced:", "syncItems": ["New appointments booked by AI", "Available time slots", "Booking confirmations", "Cancellations and rescheduling"], "learnMore": "Learn more about WhatsApp Business API" },
-  "history": { "title": "Cronologia chat", "subtitle": "Visualizza tutte le conversazioni con la tua IA", "allConversations": "Tutte le conversazioni", "selectChat": "Seleziona una chat per vedere i dettagli", "lastActive": "Ultima attività:", "noChats": "Ancora nessuna conversazione", "addToKnowledge": "Aggiungi alla knowledge base", "adding": "Aggiunta in corso…", "addedToKnowledge": "Foto aggiunta alla knowledge base e indicizzazione avviata!", "addToKnowledgeError": "Impossibile aggiungere la foto alla knowledge base" },
-  "settings": { "title": "Settings", "subtitle": "Manage your account and preferences", "accountInfo": "Account Information", "salonName": "Company Name", "email": "Email", "phone": "Phone", "address": "Address", "language": "Language", "timezone": "Timezone", "saveChanges": "Save Changes", "languages": { "en": "English", "de": "Deutsch", "fr": "Français", "es": "Español", "it": "Italiano", "nl": "Nederlands", "da": "Dansk" }, "timezones": { "utc": "UTC", "kyiv": "Kyiv", "warsaw": "Warsaw", "berlin": "Berlin", "newYork": "New York" } },
+  "history": { "title": "Attività", "subtitle": "Visualizza tutte le conversazioni con la tua IA", "allConversations": "Tutte le conversazioni", "selectChat": "Seleziona una chat per vedere i dettagli", "lastActive": "Ultima attività:", "noChats": "Ancora nessuna conversazione", "addToKnowledge": "Aggiungi alla knowledge base", "adding": "Aggiunta in corso…", "addedToKnowledge": "Foto aggiunta alla knowledge base e indicizzazione avviata!", "addToKnowledgeError": "Impossibile aggiungere la foto alla knowledge base" },
+  "settings": { "title": "Impostazioni", "subtitle": "Gestisci le impostazioni del tuo account", "accountInfo": "Account Information", "salonName": "Company Name", "email": "Email", "phone": "Phone", "address": "Address", "language": "Language", "timezone": "Timezone", "saveChanges": "Save Changes", "languages": { "en": "English", "de": "Deutsch", "fr": "Français", "es": "Español", "it": "Italiano", "nl": "Nederlands", "da": "Dansk" }, "timezones": { "utc": "UTC", "kyiv": "Kyiv", "warsaw": "Warsaw", "berlin": "Berlin", "newYork": "New York" }, "uploadLogo": "Carica Logo", "logoDescription": "Carica il logo della tua azienda. Sarà utilizzato nella generazione di codici QR.", "selectLogo": "Seleziona Logo", "changeLogo": "Cambia Logo", "uploadLogoButton": "Carica Logo", "deleteLogo": "Elimina Logo", "uploading": "Caricamento...", "deleting": "Eliminazione...", "logoInvalidType": "Il file deve essere un'immagine", "logoTooLarge": "La dimensione del file deve essere inferiore a 5MB", "logoUploadError": "Errore nel caricamento del logo", "logoDeleteError": "Errore nell'eliminazione del logo", "logoUploadSuccess": "Logo caricato con successo! I codici QR saranno rigenerati automaticamente con il nuovo logo.", "deleteLogoConfirm": "Sei sicuro di voler eliminare il logo?", "logoQRInfo": "Il tuo logo sarà utilizzato in tutte le generazioni di codici QR. I codici QR esistenti saranno rigenerati automaticamente." },
   "pricing": { "title": "Choose Your Plan", "subtitle": "Select the perfect plan for your salon", "starter": "Starter", "professional": "Professional", "enterprise": "Enterprise", "month": "month", "mostPopular": "Most Popular", "choose": "Choose", "starterDesc": "Perfect for small salons", "professionalDesc": "Best for growing businesses", "enterpriseDesc": "For salon chains", "features": { "conversations": "{{count}} conversations/month", "unlimitedConversations": "Unlimited conversations", "integration": "1 integration (Telegram or WhatsApp)", "allIntegrations": "All integrations (Telegram, WhatsApp, Instagram)", "basicTraining": "Basic AI training", "advancedTraining": "Advanced AI training", "emailSupport": "Email support", "prioritySupport": "Priority support", "phoneSupport": "24/7 phone support", "chatHistory": "Chat history (30 days)", "unlimitedHistory": "Unlimited chat history", "calendarIntegration": "Calendar integration", "customBranding": "Custom branding", "everythingProfessional": "Everything in Professional", "multipleLocations": "Multiple locations", "accountManager": "Dedicated account manager", "customIntegrations": "Custom integrations", "advancedAnalytics": "Advanced analytics", "apiAccess": "API access" } },
   "trial": { "active": "Trial Active", "daysRemaining": "{{days}} days remaining", "upgradeNow": "Upgrade Now" },
   "knowledgeBlocks": { "title": "Knowledge Blocks", "add": "+ Add Block", "entries": "{{count}} entries", "edit": "Edit Block", "addBlock": "Add Knowledge Block", "blockName": "Block Name", "blockNamePlaceholder": "Enter block name", "description": "Description", "descriptionPlaceholder": "Enter block description", "create": "Create Block", "nameRequired": "Block name is required" },
-  "modelStatus": { "title": "Stato del modello", "statusMessage": "Il modello è attivo e risponde", "statusInactive": "Il modello non risponde", "checking": "Verifica dello stato…", "error": "Errore", "lastUpdated": "Ultimo aggiornamento", "version": "Versione", "dataSources": "Sorgenti dati", "knowledgeBlocks": "Blocchi di conoscenza", "viewHistory": "Vedi cronologia aggiornamenti", "embeddingModel": "Modello di embedding", "switchModel": "Cambia modello", "cancel": "Annulla", "noModelSelected": "Nessun modello selezionato", "local": "Locale", "cloud": "Cloud", "hybrid": "Ibrido", "dimensions": "dimensioni", "switching": "Cambio in corso…", "unsupported": "Non supportato (max 2000)", "unknown": "Sconosciuto" },
-  "syncActions": { "sync": "Sincronizza nuovi dati", "syncing": "Sincronizzazione…", "retrain": "Riaddestra ora", "retraining": "Riaddestramento…" }
+  "modelStatus": { "title": "Stato del modello", "statusMessage": "Il modello è attivo e risponde", "statusInactive": "Il modello non risponde", "checking": "Verifica dello stato…", "ok": "Attivo", "active": "Attivo", "inactive": "Inattivo", "error": "Errore", "lastUpdated": "Ultimo aggiornamento", "version": "Versione", "dataSources": "Sorgenti dati", "knowledgeBlocks": "Blocchi di conoscenza", "viewHistory": "Vedi cronologia aggiornamenti", "embeddingModel": "Modello di embedding", "switchModel": "Cambia modello", "cancel": "Annulla", "noModelSelected": "Nessun modello selezionato", "local": "Locale", "cloud": "Cloud", "hybrid": "Ibrido", "dimensions": "dimensioni", "switching": "Cambio in corso…", "unsupported": "Non supportato (max 2000)", "unknown": "Sconosciuto" },
+  "syncActions": { "sync": "Sincronizza nuovi dati", "syncing": "Sincronizzazione…", "retrain": "Riaddestra ora", "retraining": "Riaddestramento…" },
+  "webKnowledge": {
+    "title": "Aggiungi conoscenza dal web",
+    "urlLabel": "URL del sito web",
+    "urlPlaceholder": "https://example.com",
+    "urlRequired": "L'URL è obbligatorio",
+    "descriptionLabel": "Descrizione",
+    "descriptionPlaceholder": "Descrivi cosa ti serve da questo sito web...",
+    "submitButton": "Aggiungi dal web",
+    "submitting": "Invio in corso...",
+    "submitted": "Richiesta di conoscenza web inviata con successo!",
+    "submitError": "Errore nell'invio della richiesta di conoscenza web",
+    "requestsList": "Le tue richieste:",
+    "statusPending": "Aggiunto",
+    "statusProcessing": "In elaborazione",
+    "statusCompleted": "Elaborato",
+    "statusError": "Errore",
+    "dataLoaded": "Dati caricati nel blocco di conoscenza"
+  },
+  "infoCenter": {
+    "title": "Centro Informazioni",
+    "subtitle": "Ultimi aggiornamenti e notizie",
+    "readMore": "Leggi di più",
+    "noNews": "Nessuna notizia disponibile al momento.",
+    "categories": {
+      "integration": "Integrazioni",
+      "feature": "Funzionalità e miglioramenti",
+      "model": "Modelli IA",
+      "update": "Aggiornamenti del prodotto",
+      "announcement": "Annunci",
+      "other": "Altri aggiornamenti"
+    },
+    "itemsLabel": "elementi",
+    "badgeFeatured": "In evidenza",
+    "news1": {
+      "title": "Nuove Funzionalità IA Disponibili",
+      "description": "Scopri le nostre ultime capacità IA che miglioreranno l'esperienza dei tuoi clienti."
+    },
+    "news2": {
+      "title": "Aggiornamenti Integrazione",
+      "description": "Abbiamo migliorato le integrazioni WhatsApp e Telegram con nuove funzionalità."
+    },
+    "news3": {
+      "title": "Miglioramenti delle Prestazioni",
+      "description": "Il tuo assistente IA è ora più veloce e preciso che mai."
+    },
+    "news4": {
+      "title": "Risorse di Formazione",
+      "description": "Consulta i nostri nuovi materiali di formazione per ottenere il massimo dalla tua IA."
+    },
+    "news5": {
+      "title": "Aggiornamenti della Comunità",
+      "description": "Unisciti alla nostra comunità per condividere esperienze e ottenere supporto."
+    }
+  },
+  "webChat": {
+    "title": "Chat con Consulente",
+    "placeholder": "Scrivi un messaggio...",
+    "clearHistory": "Cancella cronologia",
+    "clearHistoryConfirm": "Sei sicuro di voler cancellare la cronologia della chat? Questa azione non può essere annullata.",
+    "installApp": "Installa app",
+    "lightMode": "Modalità chiara",
+    "darkMode": "Modalità scura",
+    "startRecording": "Inizia registrazione vocale",
+    "stopRecording": "Ferma registrazione",
+    "uploadImage": "Carica immagine",
+    "imageUploaded": "[Immagine caricata]",
+    "errorOccurred": "Spiacenti, si è verificato un errore. Riprova.",
+    "connectionError": "Errore di connessione. Riprova più tardi.",
+    "missingTag": "Parametro tag mancante nell'URL",
+    "welcomeMessage": "Ciao! Sono il tuo assistente IA. Come posso aiutarti oggi?",
+    "settings": "Impostazioni",
+    "fontSize": "Dimensione carattere"
+  },
+  "extensionData": {
+    "loading": "Caricamento dati estensione...",
+    "disabledTitle": "L'estensione Chrome è disabilitata per questo cliente",
+    "disabledText": "Chiedi al supporto Nexelin di abilitare l'estensione del browser per il tuo account nel pannello di amministrazione.",
+    "title": "Dati estensione per siti web",
+    "subtitle": "Email, telefoni e indirizzi raccolti da pagine estratte tramite l'estensione Chrome.",
+    "refresh": "Aggiorna",
+    "empty": "Nessun dato estensione ancora. Installa l'estensione, imposta il tuo token cliente e clicca su \"Estrai testo / Raccogli email\" sui tuoi siti web.",
+    "never": "Mai"
+  }
 }
 
 
