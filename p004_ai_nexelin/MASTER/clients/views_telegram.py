@@ -176,6 +176,14 @@ class TelegramWebhookView(View):
     Webhook для обробки повідомлень від Telegram Bot
     """
     
+    def get(self, request):
+        """Telegram перевіряє webhook через GET - відповідаємо OK"""
+        return HttpResponse("Telegram webhook is active", status=200)
+    
+    def head(self, request):
+        """Telegram перевіряє webhook через HEAD - відповідаємо OK"""
+        return HttpResponse("", status=200)
+    
     def post(self, request):
         try:
             # Отримуємо дані з Telegram
