@@ -327,11 +327,11 @@ class KnowledgeBlockViewSet(viewsets.ModelViewSet):
         return client
     
     def get_queryset(self):
-        """Повертає тільки блоки поточного клієнта."""
+        """Повертає тільки активні блоки поточного клієнта."""
         client = self.get_client_from_request_or_api_key()
         if not client:
             return KnowledgeBlock.objects.none()
-        return KnowledgeBlock.objects.filter(client=client)
+        return KnowledgeBlock.objects.filter(client=client, is_active=True)
     
     def create(self, request, *args, **kwargs):
         """Override create to ensure it's available"""
@@ -1262,8 +1262,8 @@ class ClientExtensionPageView(APIView):
         raw_site_name = data.get('site_name') or parsed.netloc or ''
         site_name = raw_site_name.lower().lstrip('www.') or 'unknown'
 
-        # Create/get per-site knowledge block
-        kb_name = f"Extension ({site_name})"
+        # Create/get per-site knowledge block (named by site name)
+        kb_name = site_name
         knowledge_block, _ = KnowledgeBlock.objects.get_or_create(
             client=client,
             name=kb_name,
@@ -1521,6 +1521,106 @@ class ClientExtensionDataView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+    def patch(self, request):
+        """
+        PATCH /api/clients/extension/data/
+
+        Body:
+        {
+            "site": "lazysoft.pl",
+            "emails": [...],
+            "phones": [...],
+            "addresses": [...]
+        }
+
+        Оновлює зібрані сутності для конкретного сайту (ручне очищення / редагування на фронті).
+        """
+        client = get_client_from_request(request)
+        if not client:
+            return Response({'error': 'Client not found'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        if not getattr(client, 'extension_enabled', False):
+            return Response({'error': 'Extension is not enabled for this client'}, status=status.HTTP_403_FORBIDDEN)
+
+        data = request.data or {}
+        site = (data.get('site') or '').strip().lower()
+        if not site:
+            return Response({'error': 'site is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Normalize lists
+        def _normalize_list(value):
+            if value is None:
+                return []
+            if isinstance(value, str):
+                items = [v.strip() for v in value.split('\n')]
+            elif isinstance(value, list):
+                items = [str(v).strip() for v in value]
+            else:
+                return []
+            # Remove empties and duplicates while preserving order
+            seen = set()
+            result = []
+            for item in items:
+                if not item:
+                    continue
+                if item in seen:
+                    continue
+                seen.add(item)
+                result.append(item)
+            return result
+
+        emails = _normalize_list(data.get('emails'))
+        phones = _normalize_list(data.get('phones'))
+        addresses = _normalize_list(data.get('addresses'))
+
+        qs = ExtensionEntity.objects.filter(client=client, site_name=site)
+        if not qs.exists():
+            return Response({'error': 'No extension entities found for this site'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Зберігаємо всі відредаговані значення в першому записі, інші зачищаємо
+        primary = qs.order_by('id').first()
+        primary.emails = emails
+        primary.phones = phones
+        primary.addresses = addresses
+        primary.save(update_fields=['emails', 'phones', 'addresses'])
+
+        # Для всіх інших записів цього сайту очищаємо сутності, щоб не дублювати
+        qs.exclude(id=primary.id).update(emails=[], phones=[], addresses=[])
+
+        # Повертаємо оновлений агрегований список сайтів
+        return self.get(request)
+
+    def delete(self, request):
+        """
+        DELETE /api/clients/extension/data/
+
+        Body:
+        {
+            "site": "lazysoft.pl"
+        }
+
+        Повністю видаляє дані розширення для конкретного сайту.
+        """
+        client = get_client_from_request(request)
+        if not client:
+            return Response({'error': 'Client not found'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        if not getattr(client, 'extension_enabled', False):
+            return Response({'error': 'Extension is not enabled for this client'}, status=status.HTTP_403_FORBIDDEN)
+
+        data = request.data or {}
+        site = (data.get('site') or '').strip().lower()
+        if not site:
+            return Response({'error': 'site is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        qs = ExtensionEntity.objects.filter(client=client, site_name=site)
+        deleted_count = qs.count()
+        if deleted_count == 0:
+            return Response({'error': 'No extension entities found for this site'}, status=status.HTTP_404_NOT_FOUND)
+
+        qs.delete()
+        return Response({'success': True, 'deleted': deleted_count}, status=status.HTTP_200_OK)
 
 
 class KnowledgeBlockDocumentsView(APIView):
