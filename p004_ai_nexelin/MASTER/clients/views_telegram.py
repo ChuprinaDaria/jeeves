@@ -244,6 +244,63 @@ class TelegramWebhookView(View):
                 logger.warning("No Telegram-enabled client found for /start command")
                 return HttpResponse("No client configured", status=500)
             
+            # Створюємо або оновлюємо розмову при /start
+            # Це важливо для збереження telegram_chat_id
+            conversation = ClientWhatsAppConversation.objects.filter(
+                client=client
+            ).filter(
+                Q(telegram_chat_id=str(chat_id)) | Q(customer_phone=f"telegram_{chat_id}")
+            ).order_by('-started_at').first()
+            
+            created = False
+            if not conversation:
+                conversation = ClientWhatsAppConversation.objects.create(
+                    client=client,
+                    customer_phone=f"telegram_{chat_id}",
+                    telegram_chat_id=str(chat_id),
+                    started_at=timezone.now(),
+                    messages=[{
+                        'role': 'user',
+                        'content': '/start',
+                        'timestamp': timezone.now().isoformat()
+                    }],
+                    context_metadata={'platform': 'telegram', 'username': username, 'first_name': first_name}
+                )
+                created = True
+                logger.info(f"Created new conversation for /start: chat_id={chat_id}, conversation_id={conversation.id}")
+            else:
+                # Оновлюємо існуючу розмову
+                updated_fields = []
+                if not conversation.telegram_chat_id:
+                    conversation.telegram_chat_id = str(chat_id)
+                    updated_fields.append('telegram_chat_id')
+                if not conversation.customer_phone:
+                    conversation.customer_phone = f"telegram_{chat_id}"
+                    updated_fields.append('customer_phone')
+                if not conversation.context_metadata:
+                    conversation.context_metadata = {}
+                if conversation.context_metadata.get('platform') != 'telegram':
+                    conversation.context_metadata['platform'] = 'telegram'
+                    updated_fields.append('context_metadata')
+                if not conversation.is_active:
+                    conversation.is_active = True
+                    updated_fields.append('is_active')
+                
+                # Додаємо /start повідомлення до історії
+                if not conversation.messages:
+                    conversation.messages = []
+                conversation.messages.append({
+                    'role': 'user',
+                    'content': '/start',
+                    'timestamp': timezone.now().isoformat()
+                })
+                conversation.total_messages = len(conversation.messages)
+                updated_fields.extend(['messages', 'total_messages', 'updated_at'])
+                
+                if updated_fields:
+                    conversation.save(update_fields=updated_fields)
+                logger.info(f"Updated existing conversation for /start: chat_id={chat_id}, conversation_id={conversation.id}")
+            
             # Привітальне повідомлення
             welcome_text = f"Привіт{', ' + first_name if first_name else ''}! 👋\n\n"
             welcome_text += f"Вітаємо в {client.company_name}.\n\n"
@@ -252,10 +309,21 @@ class TelegramWebhookView(View):
             welcome_text += "2. Або надішліть мені будь-яке питання, і я спробую допомогти!\n\n"
             welcome_text += "Чим можу бути корисним?"
             
+            # Відправляємо welcome message
             success = send_telegram_message(client.telegram_bot_token, chat_id, welcome_text)
             
             if success:
                 logger.info(f"Welcome message sent to chat_id={chat_id}")
+                # Додаємо welcome message до розмови
+                if not conversation.messages:
+                    conversation.messages = []
+                conversation.messages.append({
+                    'role': 'assistant',
+                    'content': welcome_text,
+                    'timestamp': timezone.now().isoformat()
+                })
+                conversation.total_messages = len(conversation.messages)
+                conversation.save(update_fields=['messages', 'total_messages', 'updated_at'])
             else:
                 logger.warning(f"Failed to send welcome message to chat_id={chat_id}")
             
@@ -448,37 +516,80 @@ class TelegramWebhookView(View):
         Обробляє звичайні повідомлення з RAG логікою
         """
         try:
+            # Визначаємо клієнта
+            if client_hint and client_hint.telegram_bot_token:
+                client = client_hint
+            else:
+                client = Client.objects.filter(
+                    telegram_enabled=True,
+                    telegram_bot_token__isnull=False
+                ).first()
+            
+            if not client:
+                logger.warning(f"No Telegram-enabled client found for chat_id={chat_id}")
+                return HttpResponse("No client configured", status=500)
+            
             # Шукаємо активну розмову
             conversation = ClientWhatsAppConversation.objects.filter(
-                Q(telegram_chat_id=str(chat_id)) | Q(customer_phone=f"telegram_{chat_id}"),
-                is_active=True
-            ).first()
+                client=client
+            ).filter(
+                Q(telegram_chat_id=str(chat_id)) | Q(customer_phone=f"telegram_{chat_id}")
+            ).order_by('-started_at').first()
             
+            # Якщо розмови немає, створюємо її
             if not conversation:
-                # Якщо немає активної розмови, пробуємо використати клієнта з webhook-запиту
-                response_text = self.generate_rag_response_without_conversation(message_text, chat_id, client_hint)
+                logger.info(f"Creating new conversation for regular message: chat_id={chat_id}")
+                conversation = ClientWhatsAppConversation.objects.create(
+                    client=client,
+                    customer_phone=f"telegram_{chat_id}",
+                    telegram_chat_id=str(chat_id),
+                    started_at=timezone.now(),
+                    messages=[{
+                        'role': 'user',
+                        'content': message_text,
+                        'timestamp': timezone.now().isoformat()
+                    }],
+                    context_metadata={'platform': 'telegram', 'username': username, 'first_name': first_name}
+                )
             else:
                 # Оновлюємо context_metadata для Telegram conversations (якщо не встановлено)
+                updated_fields = []
+                if not conversation.telegram_chat_id:
+                    conversation.telegram_chat_id = str(chat_id)
+                    updated_fields.append('telegram_chat_id')
+                if not conversation.customer_phone:
+                    conversation.customer_phone = f"telegram_{chat_id}"
+                    updated_fields.append('customer_phone')
                 if not conversation.context_metadata:
                     conversation.context_metadata = {}
                 if conversation.context_metadata.get('platform') != 'telegram':
                     conversation.context_metadata['platform'] = 'telegram'
-                    conversation.save(update_fields=['context_metadata', 'updated_at'])
+                    updated_fields.append('context_metadata')
+                if not conversation.is_active:
+                    conversation.is_active = True
+                    updated_fields.append('is_active')
                 
-                # Використовуємо RAG для генерації відповіді
-                response_text = self.generate_rag_response(message_text, conversation, chat_id)
+                # Додаємо повідомлення користувача до історії
+                if not conversation.messages:
+                    conversation.messages = []
+                conversation.messages.append({
+                    'role': 'user',
+                    'content': message_text,
+                    'timestamp': timezone.now().isoformat()
+                })
+                conversation.total_messages = len(conversation.messages)
+                updated_fields.extend(['messages', 'total_messages', 'updated_at'])
+                
+                if updated_fields:
+                    conversation.save(update_fields=updated_fields)
+            
+            # Використовуємо RAG для генерації відповіді
+            response_text = self.generate_rag_response(message_text, conversation, chat_id)
             
             logger.info(f"Regular message processed: chat_id={chat_id}, message={message_text[:100]}")
             
             # Відправляємо повідомлення
-            if conversation and conversation.client.telegram_bot_token:
-                bot_token = conversation.client.telegram_bot_token
-            elif client_hint and getattr(client_hint, "telegram_bot_token", None):
-                # Якщо є підказка по клієнту з webhook (secret_token)
-                bot_token = client_hint.telegram_bot_token
-            else:
-                # Фолбек на стару логіку
-                bot_token = self._get_bot_token_for_chat(chat_id)
+            bot_token = conversation.client.telegram_bot_token
             if bot_token:
                 send_telegram_message(bot_token, chat_id, response_text)
             
