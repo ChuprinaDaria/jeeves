@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.renderers import JSONRenderer
 from django.db.models import Q
 from urllib.parse import urlparse
 import logging
@@ -1198,9 +1199,16 @@ class ClientExtensionPageView(APIView):
     permission_classes = []  # Публічний, ідентифікація через tag / X-Client-Token / X-API-Key
 
     def post(self, request):
-        client = get_client_from_request(request)
-        if not client:
-            return Response({'error': 'Client not found'}, status=status.HTTP_401_UNAUTHORIZED)
+        # Force JSON response for Chrome Extension
+        request.accepted_renderer = request.accepted_renderer or JSONRenderer()
+        
+        try:
+            client = get_client_from_request(request)
+            if not client:
+                return Response({'error': 'Client not found'}, status=status.HTTP_401_UNAUTHORIZED)
+        except Exception as e:
+            logger.error(f"Error in ClientExtensionPageView.get_client_from_request: {e}", exc_info=True)
+            return Response({'error': 'Failed to authenticate client'}, status=status.HTTP_401_UNAUTHORIZED)
 
         if not getattr(client, 'extension_enabled', False):
             return Response(
@@ -1311,16 +1319,23 @@ class ClientExtensionPageView(APIView):
             except Exception as e:
                 logger.warning(f"Failed to extract entities for extension page {page.id}: {e}", exc_info=True)
 
-        return Response(
-            {
-                'success': True,
-                'page_id': page.id,
-                'site_name': site_name,
-                'knowledge_block_id': knowledge_block.id if knowledge_block else None,
-                'entities': entities_payload,
-            },
-            status=status.HTTP_201_CREATED,
-        )
+        try:
+            return Response(
+                {
+                    'success': True,
+                    'page_id': page.id,
+                    'site_name': site_name,
+                    'knowledge_block_id': knowledge_block.id if knowledge_block else None,
+                    'entities': entities_payload,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+        except Exception as e:
+            logger.error(f"Error in ClientExtensionPageView.post: {e}", exc_info=True)
+            return Response(
+                {'error': f'Internal server error: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class ClientExtensionDataView(APIView):
