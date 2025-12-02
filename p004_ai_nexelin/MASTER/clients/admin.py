@@ -2,7 +2,19 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.conf import settings
 from django.urls import reverse
-from .models import Client, ClientAPIKey, ClientDocument, ClientAPIConfig, ClientEmbedding, ClientZeroConfig, KnowledgeBlock, WebParsingRequest, News
+from .models import (
+    Client,
+    ClientAPIKey,
+    ClientDocument,
+    ClientAPIConfig,
+    ClientEmbedding,
+    ClientZeroConfig,
+    KnowledgeBlock,
+    WebParsingRequest,
+    News,
+    ExtensionPage,
+    ExtensionEntity,
+)
 from django.shortcuts import render
 from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from django.contrib import messages
@@ -14,7 +26,25 @@ from MASTER.accounts.models import Roles, User
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
-    list_display = ['user', 'tag', 'webchat_domain', 'specialization', 'company_name', 'client_type', 'llm_provider', 'llm_model_name', 'is_active', 'telegram_enabled', 'logo_preview', 'api_keys_count', 'zero_status', 'api_docs_link', 'created_by_display', 'created_at']
+    list_display = [
+        'user',
+        'tag',
+        'webchat_domain',
+        'specialization',
+        'company_name',
+        'client_type',
+        'llm_provider',
+        'llm_model_name',
+        'is_active',
+        'telegram_enabled',
+        'extension_enabled',
+        'logo_preview',
+        'api_keys_count',
+        'zero_status',
+        'api_docs_link',
+        'created_by_display',
+        'created_at',
+    ]
     list_display_links = ['user', 'tag']  # Поля, які будуть посиланнями на детальну сторінку
     list_filter = ['client_type', 'llm_provider', 'specialization__branch', 'specialization', 'is_active', 'created_by', 'created_at']
     search_fields = ['user', 'tag', 'company_name', 'description']
@@ -65,11 +95,22 @@ class ClientAdmin(admin.ModelAdmin):
             'classes': ('collapse',),
             'description': 'Telegram Bot configuration for this client. Set bot token from @BotFather and enable integration.'
         }),
-        ('Features Configuration', {
-            'fields': ('features',),
-            'classes': ('collapse',),
-            'description': 'Enable specific features for this client (e.g., restaurant menu, chat, ordering)'
-        }),
+        (
+            'Features Configuration',
+            {
+                'fields': ('features',),
+                'classes': ('collapse',),
+                'description': 'Enable specific features for this client (e.g., restaurant menu, chat, ordering)',
+            },
+        ),
+        (
+            'Browser Extension',
+            {
+                'fields': ('extension_enabled',),
+                'classes': ('collapse',),
+                'description': 'Enable Google Chrome extension (web scraping & semantic data collection) for this client',
+            },
+        ),
         ('AI Configuration', {
             'fields': ('embedding_model', 'llm_provider', 'llm_model_name', 'custom_system_prompt',),
             'classes': ('collapse',),

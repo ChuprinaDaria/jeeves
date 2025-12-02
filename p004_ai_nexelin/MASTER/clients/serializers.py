@@ -1,5 +1,15 @@
 from rest_framework import serializers
-from MASTER.clients.models import Client, ClientDocument, ClientAPIKey, KnowledgeBlock, ClientQRCode, WebParsingRequest, Prompt, PromptVote, News
+from MASTER.clients.models import (
+    Client,
+    ClientDocument,
+    ClientAPIKey,
+    KnowledgeBlock,
+    ClientQRCode,
+    WebParsingRequest,
+    Prompt,
+    PromptVote,
+    News,
+)
 
 
 class ClientSerializer(serializers.ModelSerializer):
@@ -33,6 +43,8 @@ class ClientSerializer(serializers.ModelSerializer):
             'custom_system_prompt',
             'embedding_model',
             'embedding_model_name',
+            # Browser extension
+            'extension_enabled',
             # Meta WhatsApp config (non-sensitive read)
             'whatsapp_meta_enabled',
             'meta_waba_id',

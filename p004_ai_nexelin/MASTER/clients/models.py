@@ -180,6 +180,12 @@ class Client(models.Model):
     # Web Widget configuration (only for white label clients)
     widget_enabled = models.BooleanField(default=False, help_text="Enable web widget for white label clients")
 
+    # Browser extension (Chrome) configuration
+    extension_enabled = models.BooleanField(
+        default=False,
+        help_text="Enable Google Chrome extension for web scraping & semantic analysis"
+    )
+
     # Usage statistics sync configuration
     sync_usage_stats = models.BooleanField(
         default=True,
@@ -1402,3 +1408,115 @@ class News(models.Model):
     
     def __str__(self):
         return f"{self.title} ({self.news_type})"
+
+
+class ExtensionPage(models.Model):
+    """Single web page captured by the browser extension."""
+
+    id = models.AutoField(primary_key=True)
+
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.CASCADE,
+        related_name='extension_pages',
+        verbose_name='Client',
+    )
+
+    url = models.URLField(
+        max_length=1000,
+        verbose_name='Page URL',
+        help_text='Exact URL of the page where the extension was used',
+    )
+    site_name = models.CharField(
+        max_length=255,
+        verbose_name='Site',
+        help_text='Domain of the website (example.com)',
+    )
+    title = models.CharField(
+        max_length=500,
+        blank=True,
+        verbose_name='Page title',
+    )
+
+    # Structured content captured from DOM
+    headings = models.JSONField(default=list, blank=True, help_text="List of headings with levels and text")
+    lists = models.JSONField(default=list, blank=True, help_text="Lists (ul/ol) with items")
+    tables = models.JSONField(default=list, blank=True, help_text="Tables with header/rows")
+    quotes = models.JSONField(default=list, blank=True, help_text="Quotes / highlighted text blocks")
+
+    # Raw visible text (flattened)
+    full_text = models.TextField(blank=True, help_text="Raw visible text content of the page")
+
+    # Knowledge block this page belongs to (per site)
+    knowledge_block = models.ForeignKey(
+        'KnowledgeBlock',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='extension_pages',
+        help_text='Per-site knowledge block created for extension content',
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Extension Page'
+        verbose_name_plural = 'Extension Pages'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['client', 'site_name']),
+            models.Index(fields=['client', 'url']),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.client.company_name} - {self.site_name} - {self.title or self.url}"
+
+
+class ExtensionEntity(models.Model):
+    """Structured entities (emails/phones/addresses) extracted from extension pages."""
+
+    id = models.AutoField(primary_key=True)
+
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.CASCADE,
+        related_name='extension_entities',
+        verbose_name='Client',
+    )
+
+    page = models.ForeignKey(
+        ExtensionPage,
+        on_delete=models.CASCADE,
+        related_name='entities',
+        null=True,
+        blank=True,
+        verbose_name='Extension Page',
+    )
+
+    site_name = models.CharField(
+        max_length=255,
+        verbose_name='Site',
+        help_text='Domain of the website (example.com)',
+    )
+    url = models.URLField(
+        max_length=1000,
+        blank=True,
+        verbose_name='Page URL',
+    )
+
+    emails = models.JSONField(default=list, blank=True, help_text='List of unique emails found on the page/site')
+    phones = models.JSONField(default=list, blank=True, help_text='List of unique phone numbers')
+    addresses = models.JSONField(default=list, blank=True, help_text='List of detected postal addresses')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Extension Entity'
+        verbose_name_plural = 'Extension Entities'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['client', 'site_name']),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.client.company_name} - {self.site_name} entities"

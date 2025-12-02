@@ -10,11 +10,29 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.exceptions import PermissionDenied
 from django.db.models import Q
+from urllib.parse import urlparse
 import logging
 import hashlib
+import re
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
-from MASTER.clients.models import Client, ClientDocument, ClientAPIKey, ClientAPIConfig, KnowledgeBlock, ClientQRCode, ClientWhatsAppConversation, WebParsingRequest, Prompt, PromptVote, News
+from MASTER.clients.models import (
+    Client,
+    ClientDocument,
+    ClientAPIKey,
+    ClientAPIConfig,
+    KnowledgeBlock,
+    ClientQRCode,
+    ClientWhatsAppConversation,
+    WebParsingRequest,
+    Prompt,
+    PromptVote,
+    News,
+    ClientEmbedding,
+    ExtensionPage,
+    ExtensionEntity,
+)
 from MASTER.clients.serializers import (
     ClientSerializer,
     ClientDocumentSerializer,
@@ -101,6 +119,57 @@ def get_client_from_request(request):
         pass
 
     return None
+
+
+# --- Helpers for extension semantic analysis ---
+
+EMAIL_RE = re.compile(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}')
+PHONE_RE = re.compile(r'\+?\d[\d\s\-\(\)]{7,}\d')
+ADDRESS_HINT_WORDS = [
+    'street',
+    'st.',
+    'str.',
+    'road',
+    'rd',
+    'avenue',
+    'ave',
+    'boulevard',
+    'blvd',
+    'площа',
+    'проспект',
+    'пр.',
+    'вул.',
+    'улица',
+    'ул.',
+]
+
+
+def _extract_entities_from_text(text: str) -> dict:
+    """Extract emails, phones, and address-like lines from raw text."""
+    if not text:
+        return {'emails': [], 'phones': [], 'addresses': []}
+
+    emails = set(EMAIL_RE.findall(text))
+
+    phones = set()
+    for match in PHONE_RE.findall(text):
+        normalized = ' '.join(match.split())
+        phones.add(normalized)
+
+    addresses = set()
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        lower = line.lower()
+        if any(hint in lower for hint in ADDRESS_HINT_WORDS):
+            addresses.add(line)
+
+    return {
+        'emails': sorted(emails),
+        'phones': sorted(phones),
+        'addresses': sorted(addresses),
+    }
 
 
 def health(_request):
@@ -1103,6 +1172,240 @@ class ClientEmailSMTPConfigView(APIView):
             'email_smtp_enabled': client.email_smtp_enabled,
             'test_passed': test_connection if 'test_connection' in data else None,
         })
+
+
+class ClientExtensionPageView(APIView):
+    """
+    API endpoint for Google Chrome extension.
+
+    POST /api/clients/extension/page/
+    Headers:
+        X-Client-Token: <client_tag or API key>
+
+    Body (JSON):
+        {
+            "url": "...",
+            "title": "...",
+            "headings": [...],
+            "lists": [...],
+            "tables": [...],
+            "quotes": [...],
+            "full_text": "...",
+            "mode": "scrap" | "collect" | "both"
+        }
+    """
+
+    permission_classes = []  # Публічний, ідентифікація через tag / X-Client-Token / X-API-Key
+
+    def post(self, request):
+        client = get_client_from_request(request)
+        if not client:
+            return Response({'error': 'Client not found'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        if not getattr(client, 'extension_enabled', False):
+            return Response(
+                {'error': 'Extension is not enabled for this client'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        data = request.data or {}
+        url = data.get('url') or ''
+        if not url:
+            return Response({'error': 'url is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        title = data.get('title') or ''
+        headings = data.get('headings') or []
+        lists_data = data.get('lists') or []
+        tables = data.get('tables') or []
+        quotes = data.get('quotes') or []
+        full_text = data.get('full_text') or ''
+
+        mode = (data.get('mode') or 'both').lower()
+        if mode not in ('scrap', 'collect', 'both'):
+            mode = 'both'
+
+        parsed = urlparse(url)
+        raw_site_name = data.get('site_name') or parsed.netloc or ''
+        site_name = raw_site_name.lower().lstrip('www.') or 'unknown'
+
+        # Create/get per-site knowledge block
+        kb_name = f"Extension ({site_name})"
+        knowledge_block, _ = KnowledgeBlock.objects.get_or_create(
+            client=client,
+            name=kb_name,
+            defaults={
+                'description': f'Content from {site_name} collected via browser extension',
+                'is_active': True,
+                'is_permanent': False,
+            },
+        )
+
+        page = ExtensionPage.objects.create(
+            client=client,
+            url=url,
+            site_name=site_name,
+            title=title,
+            headings=headings,
+            lists=lists_data,
+            tables=tables,
+            quotes=quotes,
+            full_text=full_text,
+            knowledge_block=knowledge_block,
+        )
+
+        entities_payload = {'emails': [], 'phones': [], 'addresses': []}
+
+        # Create embeddings for this page if requested
+        if mode in ('scrap', 'both') and full_text:
+            try:
+                from MASTER.EmbeddingModel.models import EmbeddingModel  # Local import to avoid circular deps
+
+                embedding_model = getattr(client, 'embedding_model', None)
+                if embedding_model is None:
+                    embedding_model = EmbeddingModel.objects.filter(
+                        is_default=True,
+                        is_active=True,
+                    ).first()
+
+                if embedding_model is not None:
+                    ClientEmbedding.objects.create(
+                        client=client,
+                        document=None,
+                        embedding_model=embedding_model,
+                        content=full_text,
+                        metadata={
+                            'source': 'extension',
+                            'site_name': site_name,
+                            'url': url,
+                            'extension_page_id': page.id,
+                        },
+                    )
+            except Exception as e:
+                logger.warning(f"Failed to create embedding for extension page {page.id}: {e}", exc_info=True)
+
+        # Semantic extraction of entities (emails/phones/addresses)
+        if mode in ('collect', 'both') and full_text:
+            try:
+                entities = _extract_entities_from_text(full_text)
+                emails = entities.get('emails') or []
+                phones = entities.get('phones') or []
+                addresses = entities.get('addresses') or []
+
+                entities_payload = {
+                    'emails': emails,
+                    'phones': phones,
+                    'addresses': addresses,
+                }
+
+                # Save only if we actually found something
+                if emails or phones or addresses:
+                    ExtensionEntity.objects.create(
+                        client=client,
+                        page=page,
+                        site_name=site_name,
+                        url=url,
+                        emails=emails,
+                        phones=phones,
+                        addresses=addresses,
+                    )
+            except Exception as e:
+                logger.warning(f"Failed to extract entities for extension page {page.id}: {e}", exc_info=True)
+
+        return Response(
+            {
+                'success': True,
+                'page_id': page.id,
+                'site_name': site_name,
+                'knowledge_block_id': knowledge_block.id if knowledge_block else None,
+                'entities': entities_payload,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ClientExtensionDataView(APIView):
+    """
+    Aggregated semantic data from extension (emails/phones/addresses grouped by site).
+
+    GET /api/clients/extension/data/
+    """
+
+    permission_classes = []  # Публічний, ідентифікація через tag / X-Client-Token / X-API-Key
+
+    def get(self, request):
+        client = get_client_from_request(request)
+        if not client:
+            return Response({'error': 'Client not found'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        if not getattr(client, 'extension_enabled', False):
+            return Response(
+                {
+                    'enabled': False,
+                    'sites': [],
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        qs = ExtensionEntity.objects.filter(client=client)
+        if not qs.exists():
+            return Response(
+                {
+                    'enabled': True,
+                    'sites': [],
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        sites = {}
+        for row in qs:
+            key = row.site_name or 'unknown'
+            if key not in sites:
+                sites[key] = {
+                    'site': key,
+                    '_urls': set(),
+                    '_emails': set(),
+                    '_phones': set(),
+                    '_addresses': set(),
+                    'last_seen': row.created_at,
+                }
+            info = sites[key]
+            if row.url:
+                info['_urls'].add(row.url)
+
+            for val in row.emails or []:
+                info['_emails'].add(val)
+            for val in row.phones or []:
+                info['_phones'].add(val)
+            for val in row.addresses or []:
+                info['_addresses'].add(val)
+
+            if row.created_at and row.created_at > info['last_seen']:
+                info['last_seen'] = row.created_at
+
+        result = []
+        for _, info in sites.items():
+            result.append(
+                {
+                    'site': info['site'],
+                    'pages_count': len(info['_urls']),
+                    'urls': sorted(info['_urls']),
+                    'emails': sorted(info['_emails']),
+                    'phones': sorted(info['_phones']),
+                    'addresses': sorted(info['_addresses']),
+                    'last_seen': info['last_seen'].isoformat() if info['last_seen'] else None,
+                }
+            )
+
+        # Sort sites by most recently updated
+        result.sort(key=lambda x: x['last_seen'] or '', reverse=True)
+
+        return Response(
+            {
+                'enabled': True,
+                'sites': result,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class KnowledgeBlockDocumentsView(APIView):

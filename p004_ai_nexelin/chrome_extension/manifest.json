@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Nexelin Web Agent",
+  "version": "0.1.0",
+  "description": "Chrome extension for Nexelin clients: scrape structured page content and collect contact data into Knowledge Blocks.",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": [
+    "*://*/"
+  ],
+  "action": {
+    "default_title": "Nexelin Web Agent",
+    "default_popup": "popup.html"
+  },
+  "icons": {
+    "16": "icon-16.png",
+    "48": "icon-48.png",
+    "128": "icon-128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["contentScript.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
+
+
