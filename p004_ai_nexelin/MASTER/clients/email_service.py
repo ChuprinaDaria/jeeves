@@ -185,7 +185,8 @@ class EmailService:
                 'success': True,
                 'message': f'Email sent successfully to {to_address}',
                 'to': to_address,
-                'subject': subject
+                'subject': subject,
+                'body': body  # Додаємо body для показу користувачу
             }
         except Exception as e:
             logger.error(f"Failed to send email: {e}")

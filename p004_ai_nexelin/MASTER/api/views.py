@@ -203,23 +203,29 @@ class PublicRAGChatView(APIView):
     EMAIL_INTENT_SYSTEM_PROMPT: str = (
         "You are an intent classifier for email-related commands.\n"
         "User messages can be in: Ukrainian, English, German, French, Spanish, "
-        "Italian, Dutch, Danish, or Russian.\n"
+        "Italian, Dutch, Danish, or Russian.\n\n"
         "Your task:\n"
-        "1) Decide if the user wants to work with EMAIL.\n"
+        "1) Decide if the user EXPLICITLY wants to work with EMAIL.\n"
         "2) Classify the intent into one of:\n"
-        "   - 'send'   : user wants to send a new email\n"
-        "   - 'analyze': user wants an analysis/summary of recent emails\n"
-        "   - 'find'   : user wants to find/search emails by sender/subject\n"
-        "   - 'recent' : user wants a simple list of recent emails\n"
-        "   - 'none'   : message is NOT about email actions\n"
+        "   - 'send'   : user EXPLICITLY wants to send a new email (must contain email address)\n"
+        "   - 'analyze': user EXPLICITLY asks for email analysis/summary (must mention 'email', 'mail', 'мейл', 'лист')\n"
+        "   - 'find'   : user EXPLICITLY wants to search emails (must mention 'email', 'mail', 'мейл', 'лист')\n"
+        "   - 'recent' : user EXPLICITLY asks for list of recent emails (must mention 'email', 'mail', 'мейл', 'лист')\n"
+        "   - 'none'   : message is NOT about email actions OR is unclear\n\n"
         "3) Extract structured data into 'extracted_data'.\n\n"
+        "CRITICAL: Return 'none' with confidence < 0.5 for:\n"
+        "- General conversation (\"як справи\", \"hello\", \"how are you\")\n"
+        "- Questions about anything else (games, weather, code, etc.)\n"
+        "- Messages that don't explicitly mention email/mail/мейл/лист\n"
+        "- Ambiguous requests without clear email keywords\n\n"
+        "Return email intent ONLY if user EXPLICITLY mentions email/mail/мейл/лист in their request!\n\n"
         "JSON schema (single JSON object):\n"
         "{JSON_SCHEMA}\n\n"
         "IMPORTANT RULES:\n"
         "- Always return a SINGLE valid JSON object.\n"
         "- Do NOT wrap JSON in markdown or any extra text.\n"
-        "- If you are not sure, use 'intent': 'none' and low confidence.\n"
-        "- Prefer higher confidence (>= 0.6) only when the intent is clear.\n"
+        "- If message doesn't mention email/mail/мейл/лист, use 'intent': 'none' and confidence < 0.3.\n"
+        "- Use confidence >= 0.75 ONLY when email intent is EXPLICIT and CLEAR.\n"
     )
 
     def post(self, request):
@@ -698,7 +704,7 @@ class PublicRAGChatView(APIView):
                     f"keys={list(extracted.keys())}"
                 )
 
-                if intent != 'none' and confidence >= 0.6:
+                if intent != 'none' and confidence >= 0.75:
                     # Intent: SEND
                     if intent == 'send':
                         to_address = (
@@ -736,7 +742,17 @@ class PublicRAGChatView(APIView):
                             )
                             result['action_taken'] = True
                             result['command_type'] = 'send'
-                            result['message'] = send_result.get('message', 'Email sent')
+                            
+                            # Формуємо детальну відповідь з повним текстом листа
+                            if send_result.get('success'):
+                                detailed_message = f"✉️ Email sent successfully:\n\n"
+                                detailed_message += f"📧 To: {to_address}\n"
+                                detailed_message += f"📝 Subject: {subject}\n\n"
+                                detailed_message += f"💬 Content:\n{send_result.get('body', body)}"
+                                result['message'] = detailed_message
+                            else:
+                                result['message'] = send_result.get('message', 'Email sending failed')
+                            
                             result['email_sent'] = send_result.get('success', False)
                             result['intent_confidence'] = confidence
                             result['intent_source'] = 'llm'
@@ -953,7 +969,17 @@ class PublicRAGChatView(APIView):
                         send_result = email_service.send_email(to_address, subject, body)
                         result['action_taken'] = True
                         result['command_type'] = 'send'
-                        result['message'] = send_result.get('message', 'Email sent')
+                        
+                        # Формуємо детальну відповідь з повним текстом листа
+                        if send_result.get('success'):
+                            detailed_message = f"✉️ Email sent successfully:\n\n"
+                            detailed_message += f"📧 To: {to_address}\n"
+                            detailed_message += f"📝 Subject: {subject}\n\n"
+                            detailed_message += f"💬 Content:\n{send_result.get('body', body)}"
+                            result['message'] = detailed_message
+                        else:
+                            result['message'] = send_result.get('message', 'Email sending failed')
+                        
                         result['email_sent'] = send_result.get('success', False)
                         return result
             
