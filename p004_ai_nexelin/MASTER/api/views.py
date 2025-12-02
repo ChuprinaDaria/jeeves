@@ -623,6 +623,53 @@ class PublicRAGChatView(APIView):
         }
         
         try:
+            # Локальний хелпер для формування зрозумілого тексту з останніх мейлів
+            def _format_recent_emails_message(emails, limit_value=None, days_value=None) -> str:
+                total = len(emails)
+                if total == 0:
+                    if days_value:
+                        return f"No recent emails found for the last {days_value} days."
+                    return "No recent emails found."
+                
+                shown = total if limit_value is None else min(total, int(limit_value))
+                header_parts = []
+                if days_value:
+                    header_parts.append(f"last {days_value} days")
+                header_text = ""
+                if header_parts:
+                    header_text = f" from the {', '.join(header_parts)}"
+                
+                lines: list[str] = []
+                for idx, email in enumerate(emails[:shown], start=1):
+                    subject = (email.get('subject') or '(No Subject)').strip()
+                    sender = (email.get('from') or email.get('from_name') or '').strip()
+                    date_raw = (email.get('date') or '').strip()
+                    # Робимо дату трохи читабельнішою, якщо це ISO-рядок
+                    date_short = ""
+                    if date_raw:
+                        try:
+                            # 2025-12-02T09:51:47+00:00 -> 2025-12-02 09:51
+                            date_short = date_raw.split('.')[0].replace('T', ' ')[:16]
+                        except Exception:
+                            date_short = date_raw
+                    
+                    parts: list[str] = []
+                    if date_short:
+                        parts.append(f"[{date_short}]")
+                    if sender:
+                        parts.append(f"from {sender}")
+                    
+                    # Обрізаємо дуже довгу тему
+                    subj_short = subject[:120] + ("…" if len(subject) > 120 else "")
+                    main_text = " ".join(parts).strip()
+                    if main_text:
+                        line = f"{idx}. {main_text}: {subj_short}"
+                    else:
+                        line = f"{idx}. {subj_short}"
+                    lines.append(line)
+                
+                return f"Here are your last {shown} emails{header_text}:\n" + "\n".join(lines)
+
             # 1) Спочатку пробуємо класифікацію інтенту через LLM
             llm_intent = None
             try:
@@ -814,8 +861,8 @@ class PublicRAGChatView(APIView):
                         )
                         result['action_taken'] = True
                         result['command_type'] = 'recent'
-                        result['message'] = (
-                            f"Retrieved {len(emails)} recent emails"
+                        result['message'] = _format_recent_emails_message(
+                            emails, limit_value=limit, days_value=days
                         )
                         result['emails'] = emails
                         result['intent_confidence'] = confidence
@@ -1033,7 +1080,9 @@ class PublicRAGChatView(APIView):
                     emails = email_service.get_recent_emails(limit=limit)
                     result['action_taken'] = True
                     result['command_type'] = 'recent'
-                    result['message'] = f'Retrieved {len(emails)} recent emails'
+                    result['message'] = _format_recent_emails_message(
+                        emails, limit_value=limit, days_value=None
+                    )
                     result['emails'] = emails
                     logger.info(f"Retrieved {len(emails)} recent emails")
                     return result
