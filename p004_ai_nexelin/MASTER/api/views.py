@@ -782,10 +782,18 @@ class PublicRAGChatView(APIView):
                         analysis = email_service.analyze_recent_emails(days_back=days, language=language)
                         result['action_taken'] = True
                         result['command_type'] = 'analyze'
-                        result['message'] = (
-                            analysis.get('summary')
-                            or analysis.get('message', 'Email analysis completed')
-                        )
+                        
+                        # Показуємо LLM summary замість статистичного
+                        llm_summary = analysis.get('llm_summary', '')
+                        statistical_summary = analysis.get('statistical_summary', '')
+                        
+                        if llm_summary:
+                            result['message'] = llm_summary
+                        elif statistical_summary:
+                            result['message'] = statistical_summary
+                        else:
+                            result['message'] = analysis.get('message', 'Email analysis completed')
+                        
                         result['analysis'] = analysis
                         result['intent_confidence'] = confidence
                         result['intent_source'] = 'llm'
@@ -1037,10 +1045,20 @@ class PublicRAGChatView(APIView):
                     analysis = email_service.analyze_recent_emails(days_back=days, language=language)
                     result['action_taken'] = True
                     result['command_type'] = 'analyze'
-                    # Використовуємо summary якщо є, інакше message, інакше загальне повідомлення
-                    result['message'] = analysis.get('summary') or analysis.get('message', 'Email analysis completed')
+                    
+                    # Показуємо LLM summary замість статистичного
+                    llm_summary = analysis.get('llm_summary', '')
+                    statistical_summary = analysis.get('statistical_summary', '')
+                    
+                    if llm_summary:
+                        result['message'] = llm_summary
+                    elif statistical_summary:
+                        result['message'] = statistical_summary
+                    else:
+                        result['message'] = analysis.get('message', 'Email analysis completed')
+                    
                     result['analysis'] = analysis
-                    logger.info(f"Email analysis completed: {len(analysis.get('emails', []))} emails found, message: {result['message'][:100]}")
+                    logger.info(f"Email analysis completed: {len(analysis.get('emails', []))} emails found, message: {result['message'][:100] if result['message'] else 'no message'}")
                     return result
             
             logger.info("No analyze pattern matched")
