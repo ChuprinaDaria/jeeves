@@ -291,6 +291,38 @@ document.addEventListener('DOMContentLoaded', async () => {
    * Get current page context from active tab content script
    * @returns {Promise<Object|null>} Page context with url, title, headings, full_text etc.
    */
+  async function getCurrentPageContext() {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab || !tab.id) {
+        return null;
+      }
+
+      // Check if we can access this tab (chrome:// pages, extension pages etc. are restricted)
+      if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
+        return null;
+      }
+
+      try {
+        // Request page context from content script with timeout
+        const response = await Promise.race([
+          chrome.tabs.sendMessage(tab.id, { type: 'GET_PAGE_CONTEXT' }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 1000))
+        ]);
+        return response;
+      } catch (err) {
+        // Content script not loaded or page not accessible - that's okay, continue without context
+        // eslint-disable-next-line no-console
+        console.info('Page context not available, continuing without it');
+        return null;
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('Failed to get page context:', err);
+      return null;
+    }
+  }
+
   chatMicBtn?.addEventListener('click', () => {
     if (!isSpeechRecognitionSupported() || !chatInputEl) return;
 
