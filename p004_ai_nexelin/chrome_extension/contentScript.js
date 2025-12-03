@@ -194,6 +194,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   const { type, clientToken } = message;
+  
+  // Handle GET_PAGE_CONTEXT request from popup for chat
+  if (type === 'GET_PAGE_CONTEXT') {
+    try {
+      const pageData = collectStructuredContent();
+      sendResponse(pageData);
+    } catch (err) {
+      console.error('Failed to collect page context:', err);
+      sendResponse(null);
+    }
+    return;
+  }
+  
   if (!clientToken) {
     sendResponse({ success: false, error: 'Client token is missing.' });
     return;

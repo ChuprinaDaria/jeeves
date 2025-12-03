@@ -112,9 +112,10 @@ async function doJsonRequest(path, options) {
  * @param {string} [params.sessionId] - Optional session identifier
  * @param {string} [params.language] - Optional language code (en, de, it, etc.)
  * @param {string} [params.clientToken] - Optional client token override
+ * @param {Object} [params.pageContext] - Optional page context (url, title, headings, full_text)
  * @returns {Promise<{ response: string, sources?: any[], num_chunks?: number, total_tokens?: number }>}
  */
-export async function sendChatMessage({ message, sessionId, language, clientToken }) {
+export async function sendChatMessage({ message, sessionId, language, clientToken, pageContext }) {
   if (!message || typeof message !== 'string') {
     throw new Error('Message is required');
   }
@@ -137,6 +138,35 @@ export async function sendChatMessage({ message, sessionId, language, clientToke
   }
   if (language) {
     body.language = language;
+  }
+  
+  // Add page context if available (url, title, headings, full_text)
+  if (pageContext && typeof pageContext === 'object') {
+    // Build context string from page data
+    const contextParts = [];
+    
+    if (pageContext.url) {
+      contextParts.push(`Page URL: ${pageContext.url}`);
+    }
+    if (pageContext.title) {
+      contextParts.push(`Page title: ${pageContext.title}`);
+    }
+    if (pageContext.headings && Array.isArray(pageContext.headings) && pageContext.headings.length > 0) {
+      const headingsText = pageContext.headings
+        .slice(0, 20) // First 20 headings
+        .map(h => `${h.level}: ${h.text}`)
+        .join('\n');
+      contextParts.push(`Headings:\n${headingsText}`);
+    }
+    if (pageContext.full_text) {
+      // Truncate full text to ~2000 chars to avoid huge payloads
+      const truncated = pageContext.full_text.slice(0, 2000);
+      contextParts.push(`Page content (excerpt):\n${truncated}`);
+    }
+    
+    if (contextParts.length > 0) {
+      body.context = contextParts.join('\n\n');
+    }
   }
 
   return doJsonRequest('/api/rag/chat/', { headers, body });
