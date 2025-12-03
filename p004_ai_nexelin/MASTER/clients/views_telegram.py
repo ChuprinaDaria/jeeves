@@ -309,13 +309,8 @@ class TelegramWebhookView(View):
                     conversation.save(update_fields=updated_fields)
                 logger.info(f"Updated existing conversation for /start: chat_id={chat_id}, conversation_id={conversation.id}")
             
-            # Привітальне повідомлення
-            welcome_text = f"Привіт{', ' + first_name if first_name else ''}! 👋\n\n"
-            welcome_text += f"Вітаємо в {client.company_name}.\n\n"
-            welcome_text += "Для початку роботи, будь ласка:\n"
-            welcome_text += "1. Відскануйте QR-код на вашому столику або в закладі\n"
-            welcome_text += "2. Або надішліть мені будь-яке питання, і я спробую допомогти!\n\n"
-            welcome_text += "Чим можу бути корисним?"
+            # Генеруємо привітальне повідомлення з використанням промпту клієнта
+            welcome_text = self._generate_welcome_message(client, first_name)
             
             # Відправляємо welcome message
             success = send_telegram_message(client.telegram_bot_token, chat_id, welcome_text)
@@ -490,14 +485,8 @@ class TelegramWebhookView(View):
                 })
                 conversation.save()
             
-            # Створюємо відповідь
-            if qr_code:
-                location_name = qr_code.name or qr_code.location or "цей QR код"
-                response_text = f"Привіт! Ви зайшли через {location_name} в {client.company_name}. Чим можу допомогти?"
-            elif table:
-                response_text = f"Привіт! Ви зайшли до столика {table_number} в {client.company_name}. Чим можу допомогти?"
-            else:
-                response_text = f"Привіт! Вітаємо в {client.company_name}. Чим можу допомогти?"
+            # Генеруємо привітання через RAG і промпт клієнта
+            response_text = self._generate_welcome_message(client, first_name)
             
             # Додаємо відповідь до розмови
             if not conversation.messages:
@@ -678,6 +667,20 @@ class TelegramWebhookView(View):
                 'content': message_body
             })
             
+            # Визначаємо мову повідомлення (простий метод за ключовими словами)
+            language = 'uk'  # За замовчуванням українська
+            message_lower = message_body.lower()
+            
+            # Англійська: перевіряємо наявність англійських слів
+            eng_words = ['hello', 'hi', 'who', 'are', 'you', 'what', 'how', 'can', 'help', 'please', 'thank']
+            if any(word in message_lower for word in eng_words):
+                language = 'en'
+            # Українська/Російська
+            elif any(char in message_lower for char in ['і', 'ї', 'є', 'ґ', 'привіт', 'допомога']):
+                language = 'uk'
+            
+            logger.info(f"Detected language for message '{message_body[:30]}...': {language}")
+            
             # Використовуємо RAG API для генерації відповіді
             try:
                 from MASTER.rag.response_generator import ResponseGenerator, RAGResponse
@@ -686,19 +689,20 @@ class TelegramWebhookView(View):
                 rag_response = generator.generate(
                     query=message_body,
                     client=client,  # type: ignore
-                    stream=False
+                    stream=False,
+                    language=language
                 )
                 
                 if isinstance(rag_response, RAGResponse):
                     response_text = rag_response.answer
-                    logger.info(f"RAG response generated: {len(response_text)} chars, {rag_response.num_chunks} chunks")
+                    logger.info(f"RAG response generated: {len(response_text)} chars, {rag_response.num_chunks} chunks, language={language}")
                 else:
                     logger.error("Unexpected generator response when stream=False")
-                    response_text = "Вибачте, виникла помилка при генерації відповіді."
+                    response_text = "Вибачте, виникла помилка при генерації відповіді." if language == 'uk' else "Sorry, an error occurred while generating the response."
                 
             except Exception as e:
                 logger.error(f"RAG generation failed: {str(e)}", exc_info=True)
-                response_text = "Дякую за повідомлення! Як можу допомогти?"
+                response_text = "Дякую за повідомлення! Як можу допомогти?" if language == 'uk' else "Thank you for your message! How can I help you?"
             
             # Зберігаємо повідомлення в розмову
             conversation.add_message('user', message_body)
@@ -796,4 +800,61 @@ class TelegramWebhookView(View):
         except Exception as e:
             logger.error(f"Error finding bot token for chat_id={chat_id}: {e}", exc_info=True)
             return ""
+    
+    def _generate_welcome_message(self, client: Client, first_name: str = None) -> str:
+        """
+        Генерує привітальне повідомлення з використанням промпту клієнта через RAG і LLM.
+        Починається з вітання з first_name, решта генерується через LLM на основі промпту клієнта.
+        Використовує тільки RAG і промпт, без додаткового контексту про QR-коди або столики.
+        """
+        try:
+            # Початок вітання з first_name
+            greeting_start = f"Привіт{', ' + first_name if first_name else ''}! 👋\n\n"
+            
+            # Генеруємо решту вітання через LLM з використанням промпту клієнта
+            try:
+                from MASTER.rag.llm_client import LLMClient
+                
+                llm_client = LLMClient()
+                
+                # Створюємо запит для генерації вітання
+                welcome_query = "Створи коротке привітальне повідомлення для нового користувача. Повідомлення має бути дружнім, професійним та відповідати твоїй особистості та стилю спілкування згідно з твоїм промптом. Включи інформацію про те, як користувач може почати роботу."
+                
+                # Генеруємо відповідь через LLM з використанням промпту клієнта
+                llm_result = llm_client.generate_response(
+                    user_query=welcome_query,
+                    context="",  # Для вітання контекст не потрібен
+                    client=client,
+                    specialization=client.specialization if hasattr(client, 'specialization') else None,
+                    branch=client.branch if hasattr(client, 'branch') else None,
+                    stream=False
+                )
+                
+                # Обробляємо результат (може бути dict або str)
+                if isinstance(llm_result, dict):
+                    welcome_body = llm_result.get('content', '')
+                else:
+                    welcome_body = str(llm_result)
+                
+                if welcome_body:
+                    # Об'єднуємо вітання з first_name та згенерований текст
+                    welcome_text = greeting_start + welcome_body.strip()
+                    logger.info(f"Generated welcome message via LLM for client: {client.company_name}")
+                    return welcome_text
+                
+            except Exception as e:
+                logger.warning(f"Failed to generate welcome message via LLM: {e}", exc_info=True)
+            
+            # Fallback: якщо LLM не спрацював, використовуємо мінімальне вітання
+            fallback_text = greeting_start + f"Вітаємо в {client.company_name}!\n\n"
+            fallback_text += "Чим можу допомогти?"
+            
+            logger.info(f"Using fallback welcome message for client: {client.company_name}")
+            return fallback_text
+            
+        except Exception as e:
+            logger.error(f"Error generating welcome message: {e}", exc_info=True)
+            # Останній fallback
+            greeting = f"Привіт{', ' + first_name if first_name else ''}! 👋\n\n"
+            return greeting + f"Вітаємо в {client.company_name}. Чим можу допомогти?"
 

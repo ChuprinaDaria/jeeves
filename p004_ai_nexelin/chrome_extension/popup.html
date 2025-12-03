@@ -232,8 +232,61 @@
       <div id="status" class="status small"></div>
     </div>
 
-    <script src="popup.js"></script>
+    <div class="card" style="margin-top: 12px;">
+      <div class="section-title">Assistant chat</div>
+      <p class="secondary-text">
+        Ask your Nexelin AI assistant about the current page, products, prices or forms. The assistant uses your
+        existing client prompt and knowledge.
+      </p>
+
+      <div
+        id="chatMessages"
+        style="
+          margin-top: 8px;
+          max-height: 220px;
+          overflow-y: auto;
+          padding: 8px 10px;
+          border-radius: 10px;
+          border: 1px solid rgba(55, 65, 81, 0.9);
+          background: rgba(15, 23, 42, 0.85);
+          font-size: 12px;
+          line-height: 1.4;
+        "
+      ></div>
+
+      <div style="margin-top: 8px;">
+        <label for="chatInput" class="small">Message</label>
+        <textarea
+          id="chatInput"
+          rows="2"
+          placeholder="Ask anything about this page, your data or tasks…"
+          style="
+            width: 100%;
+            box-sizing: border-box;
+            padding: 6px 8px;
+            border-radius: 8px;
+            border: 1px solid #4b5563;
+            background: #020617;
+            color: #e5e7eb;
+            font-size: 12px;
+            resize: vertical;
+          "
+        ></textarea>
+      </div>
+
+      <div class="buttons" style="margin-top: 8px;">
+        <button id="chatSend" class="btn btn-primary">Send</button>
+        <button id="chatMic" class="btn btn-secondary">
+          <span id="chatMicLabel">Voice</span>
+        </button>
+        <button id="chatSpeak" class="btn btn-secondary">Read last</button>
+      </div>
+
+      <p class="muted" style="margin-top: 6px;" id="chatHints">
+        The extension remembers your chat for this browser and can later suggest similar actions automatically.
+      </p>
+    </div>
+
+    <script type="module" src="popup.js"></script>
   </body>
 </html>
-
-

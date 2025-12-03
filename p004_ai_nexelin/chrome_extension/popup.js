@@ -1,3 +1,16 @@
+import { sendChatMessage, logWebConversation } from './lib/api-client.js';
+import {
+  getOrCreateSessionId,
+  loadMessages,
+  appendMessage,
+} from './lib/memory-manager.js';
+import {
+  isSpeechRecognitionSupported,
+  isSpeechSynthesisSupported,
+  startSpeechRecognition,
+  speakText,
+} from './lib/speech-handler.js';
+
 const STATUS_OK_CLASS = 'ok';
 const STATUS_ERROR_CLASS = 'error';
 
@@ -39,7 +52,7 @@ function updateCurrentDomainLabel() {
   if (!domainEl) return;
 
   getCurrentTab().then((tab) => {
-    if (!tab?.url) {
+    if (!tab || !tab.url) {
       domainEl.textContent = 'Current page: unknown';
       return;
     }
@@ -52,12 +65,43 @@ function updateCurrentDomainLabel() {
   });
 }
 
+function renderMessages(container, messages) {
+  if (!container) return;
+  container.innerHTML = '';
+  if (!Array.isArray(messages) || messages.length === 0) {
+    const emptyEl = document.createElement('div');
+    emptyEl.className = 'secondary-text';
+    emptyEl.textContent = 'No messages yet. Start a conversation with your assistant.';
+    container.appendChild(emptyEl);
+    return;
+  }
+
+  messages.forEach((msg) => {
+    const row = document.createElement('div');
+    row.style.marginBottom = '6px';
+    const roleLabel = msg.role === 'assistant' ? 'Assistant' : 'You';
+    const roleColor = msg.role === 'assistant' ? '#93c5fd' : '#bbf7d0';
+    row.innerHTML = `<div style="font-size:11px;color:${roleColor};font-weight:500;margin-bottom:1px;">${roleLabel}</div>
+      <div style="white-space:pre-wrap;">${msg.content}</div>`;
+    container.appendChild(row);
+  });
+
+  container.scrollTop = container.scrollHeight;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   const tokenInput = document.getElementById('clientToken');
   const saveBtn = document.getElementById('saveToken');
   const scrapBtn = document.getElementById('scrapText');
   const collectBtn = document.getElementById('collectMails');
   const autoModeCheckbox = document.getElementById('autoMode');
+
+  const chatMessagesEl = document.getElementById('chatMessages');
+  const chatInputEl = document.getElementById('chatInput');
+  const chatSendBtn = document.getElementById('chatSend');
+  const chatMicBtn = document.getElementById('chatMic');
+  const chatMicLabel = document.getElementById('chatMicLabel');
+  const chatSpeakBtn = document.getElementById('chatSpeak');
 
   updateCurrentDomainLabel();
 
@@ -75,7 +119,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   saveBtn?.addEventListener('click', () => {
-    const token = tokenInput.value.trim();
+    const token = (tokenInput && tokenInput.value ? tokenInput.value : '').trim();
     chrome.storage.sync.set({ clientToken: token }, () => {
       setStatus(token ? 'Token saved.' : 'Token cleared.', 'ok');
       setConnectionStatus(token ? 'READY' : 'NO TOKEN');
@@ -103,14 +147,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function sendAction(action) {
     setStatus('');
-    const token = tokenInput.value.trim();
+    const token = (tokenInput && tokenInput.value ? tokenInput.value : '').trim();
     if (!token) {
       setStatus('Client token is required. Paste it from Nexelin portal.', 'error');
       return;
     }
 
     const tab = await getCurrentTab();
-    if (!tab?.id) {
+    if (!tab || !tab.id) {
       setStatus('No active tab.', 'error');
       return;
     }
@@ -143,5 +187,138 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   scrapBtn?.addEventListener('click', () => sendAction('SCRAP_TEXT'));
   collectBtn?.addEventListener('click', () => sendAction('COLLECT_MAILS'));
+
+  // --- Chat logic ---
+  let currentSessionId = await getOrCreateSessionId();
+  let currentMessages = await loadMessages(currentSessionId);
+  let isSending = false;
+  let recognitionController = null;
+
+  renderMessages(chatMessagesEl, currentMessages);
+
+  // Voice feature availability
+  if (!isSpeechRecognitionSupported() && chatMicBtn) {
+    chatMicBtn.disabled = true;
+    if (chatMicLabel) chatMicLabel.textContent = 'Voice (N/A)';
+  }
+  if (!isSpeechSynthesisSupported() && chatSpeakBtn) {
+    chatSpeakBtn.disabled = true;
+  }
+
+  async function sendChat() {
+    if (!chatInputEl) return;
+    const text = chatInputEl.value.trim();
+    if (!text || isSending) return;
+
+    const token = (tokenInput && tokenInput.value ? tokenInput.value : '').trim();
+    if (!token) {
+      setStatus('Client token is required for chat. Paste it from Nexelin portal.', 'error');
+      return;
+    }
+
+    isSending = true;
+    if (chatSendBtn) chatSendBtn.disabled = true;
+    if (chatMicBtn) chatMicBtn.disabled = true;
+
+    const userMessage = {
+      id: `u_${Date.now()}`,
+      role: 'user',
+      content: text,
+      timestamp: new Date().toISOString(),
+    };
+
+    currentMessages.push(userMessage);
+    await appendMessage(currentSessionId, userMessage);
+    renderMessages(chatMessagesEl, currentMessages);
+    chatInputEl.value = '';
+
+    try {
+      const apiResult = await sendChatMessage({
+        message: text,
+        sessionId: currentSessionId,
+        clientToken: token,
+      });
+      const assistantText =
+        (apiResult && (apiResult.response || apiResult.answer || apiResult.content)) ||
+        'No response from server.';
+
+      const assistantMessage = {
+        id: `a_${Date.now()}`,
+        role: 'assistant',
+        content: assistantText,
+        timestamp: new Date().toISOString(),
+      };
+
+      currentMessages.push(assistantMessage);
+      await appendMessage(currentSessionId, assistantMessage);
+      renderMessages(chatMessagesEl, currentMessages);
+
+      // Fire-and-forget logging to backend
+      await logWebConversation({
+        sessionId: currentSessionId,
+        message: text,
+        response: assistantText,
+        platform: 'chrome_extension',
+        clientToken: token,
+      });
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('Nexelin extension chat error:', e);
+      setStatus(e && e.message ? e.message : 'Failed to send chat message.', 'error');
+    } finally {
+      isSending = false;
+      if (chatSendBtn) chatSendBtn.disabled = false;
+      if (chatMicBtn && isSpeechRecognitionSupported()) chatMicBtn.disabled = false;
+    }
+  }
+
+  chatSendBtn?.addEventListener('click', () => {
+    sendChat();
+  });
+
+  chatInputEl?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendChat();
+    }
+  });
+
+  chatMicBtn?.addEventListener('click', () => {
+    if (!isSpeechRecognitionSupported() || !chatInputEl) return;
+
+    if (recognitionController) {
+      recognitionController.stop();
+      recognitionController = null;
+      if (chatMicLabel) chatMicLabel.textContent = 'Voice';
+      return;
+    }
+
+    recognitionController = startSpeechRecognition({
+      lang: 'en-US',
+      onResult: (text) => {
+        if (!chatInputEl) return;
+        const existing = chatInputEl.value.trim();
+        chatInputEl.value = existing ? `${existing} ${text}` : text;
+      },
+      onError: () => {
+        recognitionController = null;
+        if (chatMicLabel) chatMicLabel.textContent = 'Voice';
+      },
+      onEnd: () => {
+        recognitionController = null;
+        if (chatMicLabel) chatMicLabel.textContent = 'Voice';
+      },
+    });
+
+    if (chatMicLabel) chatMicLabel.textContent = 'Listening…';
+  });
+
+  chatSpeakBtn?.addEventListener('click', () => {
+    if (!isSpeechSynthesisSupported()) return;
+    if (!currentMessages || currentMessages.length === 0) return;
+    const lastAssistant = [...currentMessages].reverse().find((m) => m.role === 'assistant');
+    if (!lastAssistant) return;
+    speakText(lastAssistant.content || '', { lang: 'en-US' });
+  });
 });
 
