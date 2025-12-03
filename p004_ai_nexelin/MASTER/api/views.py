@@ -202,8 +202,8 @@ class PublicRAGChatView(APIView):
     )
     EMAIL_INTENT_SYSTEM_PROMPT: str = (
         "You are an intent classifier for email-related commands.\n"
-        "User messages can be in: Ukrainian, English, German, French, Spanish, "
-        "Italian, Dutch, Danish, or Russian.\n\n"
+        "User messages can be in: English, German, French, Spanish, "
+        "Italian, Dutch, Danish, or other languages.\n\n"
         "Your task:\n"
         "1) Decide if the user EXPLICITLY wants to work with EMAIL.\n"
         "2) Classify the intent into one of:\n"
@@ -247,31 +247,29 @@ class PublicRAGChatView(APIView):
             if not message and not image_file:
                 return Response({'error': 'message or image is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Мова: підтримуємо явний набір для UX: it, nl, de, en, fr + ru (тільки якщо справді вказана/прийшла)
-            # 1) language з body (якщо є)
+            # Language detection: support explicit language from body or Accept-Language header
+            # Default to 'en' if not provided
+            # LLM will automatically respond in user's language based on their question
             language = ''
             try:
                 if isinstance(request.data, dict):
                     language = str(request.data.get('language') or '').strip().lower()
             except Exception:
                 language = ''
-            # 2) Якщо не передали явно — пробуємо з Accept-Language
+            # If not provided explicitly, try Accept-Language header
             if not language:
                 accept_lang = request.headers.get('Accept-Language') or ''
                 if accept_lang:
-                    # Беремо першу мову з заголовка, без регіону (it-IT -> it)
+                    # Take first language from header, without region (it-IT -> it)
                     language = accept_lang.split(',')[0].split(';')[0].strip().split('-')[0].lower()
-            # 3) Нормалізація до підтримуваного списку
-            supported_langs = {'en', 'de', 'fr', 'it', 'nl', 'ru'}
+            # Normalize to supported languages
+            supported_langs = {'en', 'de', 'fr', 'it', 'nl', 'da', 'es'}
             if not language:
                 language = 'en'
             elif language not in supported_langs:
-                # Якщо явно прийшла російська локаль — залишаємо 'ru'
-                if language.startswith('ru'):
-                    language = 'ru'
-                else:
-                    # Інші мови мапимо на англійську як дефолт
-                    language = 'en'
+                # Map unsupported languages to English as fallback
+                # LLM will still respond in user's actual language automatically
+                language = 'en'
 
             # Якщо є зображення — аналізуємо його за допомогою vision моделі
             image_analysis = ''
@@ -1167,18 +1165,9 @@ class PublicRAGChatView(APIView):
         # TODO: В майбутньому можна додати підтримку інших vision провайдерів
         openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
         
-        # Формуємо промпт залежно від мови
+        # Vision prompt: use English as base, LLM will respond in user's language automatically
+        # based on the context and user's question language
         vision_prompt = message if message else "Describe what you see in this image in detail."
-        if language == 'ru':
-            vision_prompt = message if message else "Опиши детально, что ты видишь на этом изображении."
-        elif language == 'de':
-            vision_prompt = message if message else "Beschreibe detailliert, was du auf diesem Bild siehst."
-        elif language == 'fr':
-            vision_prompt = message if message else "Décris en détail ce que tu vois sur cette image."
-        elif language == 'it':
-            vision_prompt = message if message else "Descrivi in dettaglio cosa vedi in questa immagine."
-        elif language == 'nl':
-            vision_prompt = message if message else "Beschrijf gedetailleerd wat je op deze afbeelding ziet."
         
         # Викликаємо vision API
         response = openai_client.chat.completions.create(
