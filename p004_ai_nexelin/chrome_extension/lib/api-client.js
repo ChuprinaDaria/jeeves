@@ -139,7 +139,7 @@ export async function sendChatMessage({ message, sessionId, language, clientToke
     body.language = language;
   }
 
-  return doJsonRequest('/api/chat/', { headers, body });
+  return doJsonRequest('/api/rag/chat/', { headers, body });
 }
 
 /**
