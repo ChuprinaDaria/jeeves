@@ -120,6 +120,23 @@ class ClientAdmin(admin.ModelAdmin):
             'fields': ('sync_usage_stats',),
             'description': 'Control whether usage statistics are sent to MG for this client'
         }),
+        ('Dashboard Configuration', {
+            'fields': (
+                'dashboard_layout',
+                'dashboard_show_info_center',
+                'dashboard_show_top_prompts',
+                'dashboard_custom_widgets',
+                'dashboard_custom_style',
+            ),
+            'classes': ('collapse',),
+            'description': '''
+                Configure dashboard layout and widgets for this client.
+                - Layout: Choose between default, minimal, white_label (custom only), or hybrid
+                - Show/Hide: Toggle standard widgets (Info Center, Top Prompts)
+                - Custom Widgets: JSON config for white label widgets (html_block, iframe, video, etc.)
+                - Custom Style: JSON config for branding (colors, logo, CSS)
+            '''
+        }),
         ('Metadata', {
             'fields': ('created_by', 'created_at', 'updated_at', 'api_keys_count', 'api_docs_link', 'client_portal_link'),
             'classes': ('collapse',)

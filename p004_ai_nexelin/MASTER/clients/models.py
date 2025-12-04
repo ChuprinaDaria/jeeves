@@ -202,6 +202,75 @@ class Client(models.Model):
     email_from_address = models.EmailField(blank=True, help_text="From email address for sending emails")
     email_from_name = models.CharField(max_length=255, blank=True, help_text="From name for sending emails")
 
+    # Dashboard visibility settings
+    dashboard_show_info_center = models.BooleanField(
+        default=True,
+        help_text="Show Info Center widget in client dashboard"
+    )
+    dashboard_show_top_prompts = models.BooleanField(
+        default=True,
+        help_text="Show Top Prompts widget in client dashboard"
+    )
+    
+    # Dashboard layout configuration for White Label
+    DASHBOARD_LAYOUT_CHOICES = [
+        ('default', 'Default (Stats + InfoCenter + TopPrompts)'),
+        ('minimal', 'Minimal (Stats only)'),
+        ('white_label', 'White Label (Custom widgets only)'),
+        ('hybrid', 'Hybrid (Standard + Custom widgets)'),
+    ]
+    dashboard_layout = models.CharField(
+        max_length=20,
+        choices=DASHBOARD_LAYOUT_CHOICES,
+        default='default',
+        help_text="Dashboard layout type for this client"
+    )
+    
+    # Custom widgets configuration (JSON)
+    dashboard_custom_widgets = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="""
+        Custom dashboard widgets configuration. Example:
+        {
+            "widgets": [
+                {
+                    "type": "html_block",
+                    "title": "Welcome",
+                    "content": "<h3>Welcome!</h3>",
+                    "order": 1,
+                    "enabled": true
+                },
+                {
+                    "type": "iframe",
+                    "title": "Analytics",
+                    "url": "https://example.com/embed",
+                    "height": 400,
+                    "order": 2,
+                    "enabled": true
+                }
+            ]
+        }
+        Supported types: html_block, markdown_block, iframe, video, image_banner, quick_links, announcement
+        """
+    )
+    
+    # Custom styling for White Label (JSON)
+    dashboard_custom_style = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="""
+        Custom dashboard styling for white label clients. Example:
+        {
+            "primary_color": "#4F46E5",
+            "secondary_color": "#10B981",
+            "logo_url": "https://example.com/logo.png",
+            "background_gradient": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            "custom_css": ".dashboard-card { border-radius: 16px; }"
+        }
+        """
+    )
+
     class Meta:
         verbose_name = 'Client'
         verbose_name_plural = 'Clients'

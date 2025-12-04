@@ -2,20 +2,14 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import StatsCard from '../components/dashboard/StatsCard';
-import ActivityFeed from '../components/dashboard/ActivityFeed';
-import { MessageSquare, Users, TrendingUp, Percent, Upload, X, Loader2 } from 'lucide-react';
+import InfoCenter from '../components/dashboard/InfoCenter';
+import { MessageSquare, Users, TrendingUp, Percent, Loader2, Sparkles, ThumbsUp, X } from 'lucide-react';
 import { clientAPI } from '../api/client';
+import api from '../api/axios';
 
 const DashboardPage = () => {
   const { t } = useTranslation();
   const { isAuthenticated, loading: authLoading } = useAuth();
-  const [logo, setLogo] = useState(null);
-  const [logoUrl, setLogoUrl] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
-  const [topQuestions, setTopQuestions] = useState([]);
-  const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [stats, setStats] = useState([
     { label: t('dashboard.totalChats'), value: '0', icon: MessageSquare, change: '+0%', color: 'primary' },
     { label: t('dashboard.activeUsers'), value: '0', icon: Users, change: '+0%', color: 'accent' },
@@ -24,6 +18,16 @@ const DashboardPage = () => {
   ]);
   const [loadingStats, setLoadingStats] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [topPrompts, setTopPrompts] = useState([]);
+  const [loadingPrompts, setLoadingPrompts] = useState(false);
+  const [selectedPrompt, setSelectedPrompt] = useState(null);
+  const [dashboardConfig, setDashboardConfig] = useState({
+    layout: 'default',
+    showInfoCenter: true,
+    showTopPrompts: true,
+    customWidgets: null,
+    customStyle: null,
+  });
 
   // Завантажити поточний логотип клієнта, топ питання та статистику
   // Тільки після того як автентифікація завершена
@@ -41,9 +45,9 @@ const DashboardPage = () => {
     // Невелика затримка для гарантії що токен встановлений
     const timer = setTimeout(() => {
       if (!dataLoaded) {
-        loadClientLogo();
-        loadTopQuestions();
+        loadDashboardConfig();
         loadStats();
+        loadTopPrompts();
         setDataLoaded(true);
       }
     }, 200);
@@ -51,120 +55,21 @@ const DashboardPage = () => {
     return () => clearTimeout(timer);
   }, [authLoading, isAuthenticated, dataLoaded]);
 
-  const loadClientLogo = async () => {
+  const loadDashboardConfig = async () => {
     try {
       const response = await clientAPI.getMe();
-      // Перевіряємо різні можливі поля для logo URL
-      const logoUrlFromAPI = response.data?.logo_url || response.data?.logo;
-      if (logoUrlFromAPI) {
-        // Якщо це відносний шлях, додаємо base URL
-        if (logoUrlFromAPI.startsWith('/')) {
-          const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-          setLogoUrl(`${baseURL}${logoUrlFromAPI}`);
-        } else {
-          setLogoUrl(logoUrlFromAPI);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to load client logo:', err);
-    }
-  };
-
-  const handleLogoSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Перевірка типу файлу
-      if (!file.type.startsWith('image/')) {
-        setError(t('dashboard.logoInvalidType') || 'File must be an image');
-        return;
-      }
-
-      // Перевірка розміру (макс 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setError(t('dashboard.logoTooLarge') || 'File size must be less than 5MB');
-        return;
-      }
-
-      setError(null);
-      setLogo(file);
-
-      // Показати preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLogoUrl(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleLogoUpload = async () => {
-    if (!logo) return;
-
-    setUploading(true);
-    setError(null);
-    setSuccess(false);
-
-    try {
-      const response = await clientAPI.uploadLogo(logo);
-      const uploadedLogoUrl = response.data?.logo_url;
+      const client = response.data;
       
-      if (uploadedLogoUrl) {
-        setLogoUrl(uploadedLogoUrl);
-      }
-      
-      setSuccess(true);
-      setLogo(null);
-      setTimeout(() => setSuccess(false), 3000);
+      setDashboardConfig({
+        layout: client.dashboard_layout || 'default',
+        showInfoCenter: client.dashboard_show_info_center !== false,
+        showTopPrompts: client.dashboard_show_top_prompts !== false,
+        customWidgets: client.dashboard_custom_widgets || null,
+        customStyle: client.dashboard_custom_style || null,
+      });
     } catch (err) {
-      console.error('Failed to upload logo:', err);
-      setError(t('dashboard.logoUploadError') || 'Failed to upload logo');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleLogoDelete = async () => {
-    if (!confirm(t('dashboard.deleteLogoConfirm') || 'Are you sure you want to delete the logo?')) {
-      return;
-    }
-
-    setUploading(true);
-    setError(null);
-
-    try {
-      // Видалення логотипу через окремий endpoint
-      await clientAPI.deleteLogo();
-      setLogoUrl(null);
-      setLogo(null);
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (err) {
-      console.error('Failed to delete logo:', err);
-      setError(t('dashboard.logoDeleteError') || 'Failed to delete logo');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleCancel = () => {
-    setLogo(null);
-    setError(null);
-    // Відновити оригінальний логотип
-    loadClientLogo();
-  };
-
-  const loadTopQuestions = async () => {
-    setLoadingQuestions(true);
-    try {
-      const response = await clientAPI.getTopQuestions();
-      const questions = response.data?.top_questions || [];
-      setTopQuestions(questions);
-    } catch (err) {
-      console.error('Failed to load top questions:', err);
-      // Fallback на порожній список
-      setTopQuestions([]);
-    } finally {
-      setLoadingQuestions(false);
+      console.error('Failed to load dashboard config:', err);
+      // Fallback на дефолтну конфігурацію
     }
   };
 
@@ -218,13 +123,26 @@ const DashboardPage = () => {
     }
   };
 
+  const loadTopPrompts = async () => {
+    setLoadingPrompts(true);
+    try {
+      const response = await api.get('/clients/top-prompts/');
+      setTopPrompts(response.data.top_prompts || []);
+    } catch (err) {
+      console.error('Failed to load top prompts:', err);
+      setTopPrompts([]);
+    } finally {
+      setLoadingPrompts(false);
+    }
+  };
+
   // Показуємо loading поки автентифікація не завершена
   if (authLoading || !isAuthenticated) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-primary-500 mx-auto mb-4" />
-          <p className="text-gray-600">Завантаження...</p>
+          <Loader2 className="w-12 h-12 animate-spin text-primary-500 dark:text-primary-400 mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">{t('common.loading') || 'Loading...'}</p>
         </div>
       </div>
     );
@@ -233,14 +151,14 @@ const DashboardPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">{t('dashboard.title')}</h1>
-        <p className="text-gray-600">{t('dashboard.subtitle')}</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('dashboard.title')}</h1>
+        <p className="text-gray-600 dark:text-gray-400">{t('dashboard.subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {loadingStats ? (
           <div className="col-span-4 flex items-center justify-center py-8">
-            <Loader2 className="animate-spin text-primary-500" size={24} />
+            <Loader2 className="animate-spin text-primary-500 dark:text-primary-400" size={24} />
           </div>
         ) : (
           stats.map((stat, index) => (
@@ -249,145 +167,161 @@ const DashboardPage = () => {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card">
-          <h3 className="text-lg font-semibold mb-4">{t('dashboard.recentActivity')}</h3>
-          <ActivityFeed />
-        </div>
-
-        <div className="card">
-          <h3 className="text-lg font-semibold mb-4">{t('dashboard.topQuestions') || t('dashboard.topServices')}</h3>
-          {loadingQuestions ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="animate-spin text-primary-500" size={24} />
+      {/* Conditional widgets based on dashboard layout */}
+      {dashboardConfig.layout === 'minimal' ? (
+        // Minimal layout: only stats, nothing else
+        null
+      ) : dashboardConfig.layout === 'white_label' ? (
+        // White Label: only custom widgets (if configured)
+        dashboardConfig.customWidgets && dashboardConfig.customWidgets.widgets ? (
+          <div className="space-y-6">
+            {/* TODO: Render custom widgets here */}
+            <div className="card">
+              <p className="text-gray-600 dark:text-gray-400">
+                Custom widgets coming soon...
+              </p>
             </div>
-          ) : topQuestions.length === 0 || topQuestions.every(q => !q.question) ? (
-            <div className="text-center text-gray-500 py-8">
-              <p>{t('dashboard.noQuestions') || 'No questions yet'}</p>
-            </div>
-          ) : (
-          <div className="space-y-3">
-              {topQuestions.filter(q => q.question).map((item, index) => (
-                <div key={index} className="flex items-start justify-between gap-3">
-                  <span className="text-gray-700 text-sm flex-1 line-clamp-2">{item.question}</span>
-                  <span className="font-semibold text-primary-600 whitespace-nowrap">{item.count} {t('dashboard.requests') || t('dashboard.bookingsCount')}</span>
-              </div>
-            ))}
+          </div>
+        ) : null
+      ) : (
+        // Default or Hybrid: show standard widgets
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Info Center - conditionally rendered */}
+          {dashboardConfig.showInfoCenter && (
+            <div className="lg:col-span-2">
+              <InfoCenter />
             </div>
           )}
-        </div>
-      </div>
 
-      {/* Logo Upload Section */}
-      <div className="card">
-        <h3 className="text-lg font-semibold mb-4">{t('dashboard.uploadLogo')}</h3>
-        <p className="text-sm text-gray-600 mb-4">
-          {t('dashboard.logoDescription')}
-        </p>
+          {/* Top Prompts - conditionally rendered */}
+          {dashboardConfig.showTopPrompts && (
+            <div className="card">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                  <Sparkles size={20} className="text-primary-600 dark:text-primary-400" />
+                  {t('dashboard.topPrompts') || 'Top Prompts'}
+                </h3>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {t('dashboard.topPromptsSubtitle') || 'Most rated prompts by clients'}
+                </span>
+              </div>
 
-        <div className="space-y-4">
-          {/* Current Logo Preview */}
-          {logoUrl && (
-            <div className="relative inline-block">
-              <img
-                src={logoUrl}
-                alt="Company Logo"
-                className="max-w-xs max-h-32 object-contain border border-gray-200 rounded-lg p-2 bg-white"
-              />
-              {logo && (
-                <button
-                  onClick={handleCancel}
-                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition"
-                  title={t('dashboard.cancel') || 'Cancel'}
-                >
-                  <X size={16} />
-                </button>
+              {loadingPrompts ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="animate-spin text-primary-500 dark:text-primary-400" size={24} />
+                </div>
+              ) : topPrompts.length > 0 ? (
+                <div className="space-y-3">
+                  {topPrompts.map((prompt, index) => (
+                    <div
+                      key={prompt.id}
+                      onClick={() => setSelectedPrompt(prompt)}
+                      className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs font-semibold text-primary-600 dark:text-primary-400">
+                              #{index + 1}
+                            </span>
+                            <span className="text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                              {prompt.category}
+                            </span>
+                          </div>
+                          <h4 className="font-semibold text-sm text-gray-900 dark:text-gray-100 mb-1">
+                            {prompt.title}
+                          </h4>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mb-2">
+                            {prompt.description}
+                          </p>
+                          <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                            <div className="flex items-center gap-1">
+                              <ThumbsUp size={14} />
+                              <span>{prompt.likes_count || 0}</span>
+                            </div>
+                            <span>
+                              {prompt.like_ratio ? `${Math.round(prompt.like_ratio * 100)}%` : '0%'} positive
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm">
+                  {t('dashboard.noTopPrompts') || 'No top prompts available yet.'}
+                </div>
               )}
             </div>
           )}
 
-          {/* Error/Success Messages */}
-          {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-              {error}
-            </div>
-          )}
-
-          {success && (
-            <div className="p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
-              {t('dashboard.logoUploadSuccess') || 'Logo uploaded successfully! QR codes will be regenerated with the new logo.'}
-            </div>
-          )}
-
-          {/* Upload Controls */}
-          <div className="flex items-center gap-3">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleLogoSelect}
-              className="hidden"
-              id="logo-input"
-              disabled={uploading}
-            />
-            <label
-              htmlFor="logo-input"
-              className={`btn-secondary flex items-center gap-2 cursor-pointer ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              <Upload size={16} />
-              {logoUrl ? t('dashboard.changeLogo') : t('dashboard.selectLogo')}
-            </label>
-
-            {logo && (
-              <>
-                <button
-                  onClick={handleLogoUpload}
-                  disabled={uploading}
-                  className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {uploading ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      {t('dashboard.uploading') || 'Uploading...'}
-                    </>
-                  ) : (
-                    <>
-                      <Upload size={16} />
-                      {t('dashboard.uploadLogoButton') || 'Upload Logo'}
-                    </>
-                  )}
-                </button>
-              </>
-            )}
-
-            {logoUrl && !logo && (
-              <button
-                onClick={handleLogoDelete}
-                disabled={uploading}
-                className="btn-danger flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {uploading ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    {t('dashboard.deleting') || 'Deleting...'}
-                  </>
-                ) : (
-                  <>
-                    <X size={16} />
-                    {t('dashboard.deleteLogo') || 'Delete Logo'}
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-
-          {/* Info about QR codes */}
-          {logoUrl && (
-            <div className="text-xs text-gray-500 bg-blue-50 border border-blue-200 rounded p-2">
-              {t('dashboard.logoQRInfo') || 'Your logo will be used in all QR code generations. Existing QR codes will be regenerated automatically.'}
+          {/* Custom widgets for hybrid layout */}
+          {dashboardConfig.layout === 'hybrid' && dashboardConfig.customWidgets && dashboardConfig.customWidgets.widgets && (
+            <div className="lg:col-span-2">
+              {/* TODO: Render custom widgets here */}
+              <div className="card">
+                <p className="text-gray-600 dark:text-gray-400">
+                  Custom widgets for hybrid layout coming soon...
+                </p>
+              </div>
             </div>
           )}
         </div>
-      </div>
+      )}
+
+      {selectedPrompt && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedPrompt(null);
+          }}
+        >
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl max-w-lg w-full mx-4 p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                {selectedPrompt.category && (
+                  <p className="text-xs uppercase tracking-wide text-primary-600 dark:text-primary-400 mb-1">
+                    {selectedPrompt.category}
+                  </p>
+                )}
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  {selectedPrompt.title}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedPrompt(null)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {selectedPrompt.description && (
+              <div className="mb-4">
+                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
+                  {t('dashboard.promptDescription') || 'Description'}
+                </h4>
+                <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">
+                  {selectedPrompt.description}
+                </p>
+              </div>
+            )}
+
+            {selectedPrompt.prompt_template && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
+                  {t('dashboard.promptTemplate') || 'Prompt Template'}
+                </h4>
+                <pre className="text-xs text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-800 rounded-lg p-3 overflow-auto max-h-64 whitespace-pre-wrap">
+                  {selectedPrompt.prompt_template}
+                </pre>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

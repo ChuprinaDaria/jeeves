@@ -54,6 +54,12 @@ class ClientSerializer(serializers.ModelSerializer):
             # Sensitive write-only
             'meta_app_secret',
             'meta_access_token',
+            # Dashboard configuration
+            'dashboard_layout',
+            'dashboard_show_info_center',
+            'dashboard_show_top_prompts',
+            'dashboard_custom_widgets',
+            'dashboard_custom_style',
             'created_by',
             'created_at',
             'updated_at',
