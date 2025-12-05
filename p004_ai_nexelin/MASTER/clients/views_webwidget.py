@@ -191,11 +191,29 @@ class WebWidgetScriptView(View):
         if not getattr(client, 'widget_enabled', False):
             return HttpResponse("Widget is not enabled for this client", status=403)
         
-        # Генеруємо JavaScript код віджета
-        base_url = request.build_absolute_uri('/').rstrip('/')
-        chat_url = f"{base_url}/webchat?tag={tag}"
+        # Читаємо статичний JavaScript файл віджета
+        import os
+        from django.conf import settings
         
-        js_code = f'''(function() {{
+        # Шлях до статичного файлу віджета
+        widget_js_path = os.path.join(
+            settings.BASE_DIR.parent,  # Виходимо з p004_ai_nexelin
+            'nextlen',
+            'public',
+            'static',
+            'widget',
+            'chat.js'
+        )
+        
+        try:
+            with open(widget_js_path, 'r', encoding='utf-8') as f:
+                js_code = f.read()
+        except FileNotFoundError:
+            # Fallback на динамічну генерацію, якщо файл не знайдено
+            logger.error(f"Widget JS file not found at {widget_js_path}")
+            base_url = request.build_absolute_uri('/').rstrip('/')
+            chat_url = f"{base_url}/webchat?tag={tag}"
+            js_code = f'''(function() {{
   'use strict';
   
   // Конфігурація
