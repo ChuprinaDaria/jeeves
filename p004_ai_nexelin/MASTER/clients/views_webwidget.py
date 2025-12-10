@@ -95,7 +95,8 @@ class WebWidgetConfigView(APIView):
 <script>
   (function() {{
     var script = document.createElement('script');
-    script.src = '{widget_url}?tag={tag}';
+    // v=2 – параметр версії, щоб завжди підхоплювати останню версію віджета
+    script.src = '{widget_url}?tag={tag}&v=2';
     script.async = true;
     document.head.appendChild(script);
   }})();
@@ -137,7 +138,7 @@ class WebWidgetChatIframeView(View):
         
         # Рендеримо HTML сторінку для iframe
         base_url = request.build_absolute_uri('/').rstrip('/')
-        chat_url = f"{base_url}/webchat?tag={tag}"
+        chat_url = f"{base_url}/client?tag={tag}"
         
         html = f'''<!DOCTYPE html>
 <html lang="uk">
