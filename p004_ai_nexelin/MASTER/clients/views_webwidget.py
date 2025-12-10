@@ -38,15 +38,27 @@ class WebWidgetConfigView(APIView):
             return Response({'error': 'Web widget is only available for white label clients'}, status=403)
         
         # Формуємо URL для віджета та iframe
-        base_url = getattr(settings, 'WEB_WIDGET_BASE_URL', request.build_absolute_uri('/').rstrip('/'))
-        widget_url = f"{base_url}/widget/chat.js"
-        iframe_url = f"{base_url}/widget/chat?tag={client.tag}"
+        # Скрипт віджета завжди з app.nexelin.com
+        default_frontend = getattr(settings, 'CLIENT_PORTAL_BASE_URL', 'https://app.nexelin.com')
+        widget_url = f"{default_frontend}/static/widget/chat.js"
+        
+        # Для white label з власним доменом - використовуємо їхній домен для чату
+        custom_domain = getattr(client, 'webchat_domain', '') or ''
+        if custom_domain:
+            # Прибираємо протокол якщо є
+            custom_domain = custom_domain.replace('https://', '').replace('http://', '').strip('/')
+            chat_base_url = f"https://{custom_domain}"
+        else:
+            chat_base_url = default_frontend
+        
+        iframe_url = f"{chat_base_url}/client?tag={client.tag}"
         
         data = {
             'widget_enabled': getattr(client, 'widget_enabled', False),
             'widget_url': widget_url,
             'iframe_url': iframe_url,
-            'widget_code_html': self._generate_widget_code(client.tag, widget_url) if getattr(client, 'widget_enabled', False) else None,
+            'custom_domain': custom_domain if custom_domain else None,
+            'widget_code_html': self._generate_widget_code(client.tag, widget_url, custom_domain) if getattr(client, 'widget_enabled', False) else None,
             'iframe_code_html': self._generate_iframe_code(iframe_url) if getattr(client, 'widget_enabled', False) else None,
         }
         return Response(data)
@@ -76,27 +88,43 @@ class WebWidgetConfigView(APIView):
             # Новіни про інтеграції створюються тільки через адмін-панель, не автоматично
         
         # Повертаємо оновлені дані
-        base_url = getattr(settings, 'WEB_WIDGET_BASE_URL', request.build_absolute_uri('/').rstrip('/'))
-        widget_url = f"{base_url}/widget/chat.js"
-        iframe_url = f"{base_url}/widget/chat?tag={client.tag}"
+        # Скрипт віджета завжди з app.nexelin.com
+        default_frontend = getattr(settings, 'CLIENT_PORTAL_BASE_URL', 'https://app.nexelin.com')
+        widget_url = f"{default_frontend}/static/widget/chat.js"
+        
+        # Для white label з власним доменом - використовуємо їхній домен для чату
+        custom_domain = getattr(client, 'webchat_domain', '') or ''
+        if custom_domain:
+            custom_domain = custom_domain.replace('https://', '').replace('http://', '').strip('/')
+            chat_base_url = f"https://{custom_domain}"
+        else:
+            chat_base_url = default_frontend
+        
+        iframe_url = f"{chat_base_url}/client?tag={client.tag}"
         
         return Response({
             'success': True,
             'widget_enabled': client.widget_enabled,
             'widget_url': widget_url,
             'iframe_url': iframe_url,
-            'widget_code_html': self._generate_widget_code(client.tag, widget_url) if client.widget_enabled else None,
+            'custom_domain': custom_domain if custom_domain else None,
+            'widget_code_html': self._generate_widget_code(client.tag, widget_url, custom_domain) if client.widget_enabled else None,
             'iframe_code_html': self._generate_iframe_code(iframe_url) if client.widget_enabled else None,
         })
 
-    def _generate_widget_code(self, tag: str, widget_url: str) -> str:
+    def _generate_widget_code(self, tag: str, widget_url: str, custom_domain: str = None) -> str:
         """Генерує HTML код для вставки віджета"""
-        return f'''<!-- Nexelin AI Chat Widget -->
+        # Якщо є власний домен - додаємо його як параметр
+        if custom_domain:
+            src = f"{widget_url}?tag={tag}&domain={custom_domain}"
+        else:
+            src = f"{widget_url}?tag={tag}"
+        
+        return f'''<!-- AI Chat Widget -->
 <script>
   (function() {{
     var script = document.createElement('script');
-    // v=2 – параметр версії, щоб завжди підхоплювати останню версію віджета
-    script.src = '{widget_url}?tag={tag}&v=2';
+    script.src = '{src}';
     script.async = true;
     document.head.appendChild(script);
   }})();
@@ -104,7 +132,7 @@ class WebWidgetConfigView(APIView):
 
     def _generate_iframe_code(self, iframe_url: str) -> str:
         """Генерує HTML код для вставки iframe"""
-        return f'''<!-- Nexelin AI Chat Iframe -->
+        return f'''<!-- AI Chat Iframe -->
 <iframe 
   src="{iframe_url}" 
   width="100%" 
