@@ -112,7 +112,11 @@
     "missingTag": "Falta el parámetro tag en la URL",
     "welcomeMessage": "¡Hola! Soy su asistente de IA. ¿Cómo puedo ayudarle hoy?",
     "settings": "Configuración",
-    "fontSize": "Tamaño de fuente"
+    "fontSize": "Tamaño de fuente",
+    "ratePositive": "👍 Positivo",
+    "rateNegative": "👎 Negativo",
+    "ratingThankYouPositive": "¡Gracias por su evaluación positiva! 👍",
+    "ratingThankYouNegative": "¡Gracias por sus comentarios! 👎"
   },
   "extensionData": {
     "loading": "Cargando datos de extensión...",

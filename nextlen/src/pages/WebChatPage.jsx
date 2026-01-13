@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Send, Loader2, Image, Moon, Sun, Download, Trash2, Mic, Menu, X } from 'lucide-react';
+import { Send, Loader2, Image, Moon, Sun, Download, Trash2, Mic, Menu, X, ThumbsUp, ThumbsDown } from 'lucide-react';
 import api from '../api/axios';
 import { ragAPI } from '../api/agent';
 import { clientAPI } from '../api/client';
@@ -15,8 +15,10 @@ const WebChatPage = () => {
   const [inputMessage, setInputMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [conversationId, setConversationId] = useState(null);
+  const [conversationDbId, setConversationDbId] = useState(null); // ID з бази даних для оцінки
   const [selectedImage, setSelectedImage] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [showRatingButtons, setShowRatingButtons] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('web_chat_dark_mode');
     return saved ? saved === 'true' : false;
@@ -218,6 +220,12 @@ const WebChatPage = () => {
       }
       
       setConversationId(sessionId);
+      
+      // Відновлюємо conversation_id з бази даних з localStorage якщо є
+      const savedDbId = localStorage.getItem(`web_chat_conversation_db_id_${sessionId}`);
+      if (savedDbId) {
+        setConversationDbId(parseInt(savedDbId));
+      }
     } catch (error) {
       console.error('Failed to initialize conversation:', error);
       setMessages([{
@@ -407,12 +415,26 @@ const WebChatPage = () => {
       }
 
       if (response.data?.response) {
+        const responseText = response.data.response || '';
+        const isRatingRequest = responseText.includes('оцініть') || 
+                                 responseText.includes('👍') || 
+                                 responseText.includes('👎') ||
+                                 responseText.toLowerCase().includes('rate') ||
+                                 responseText.toLowerCase().includes('оцен');
+        
         const assistantMessage = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: response.data.response,
+          content: responseText,
           timestamp: new Date().toISOString(),
+          isRatingRequest: isRatingRequest,
         };
+        
+        // Показуємо кнопки оцінки якщо це запит на оцінку
+        if (isRatingRequest) {
+          setShowRatingButtons(true);
+        }
+        
         setMessages(prev => {
           const updatedMessages = [...prev, assistantMessage];
           // Save to localStorage (without images to save space)
@@ -436,12 +458,19 @@ const WebChatPage = () => {
           const isWidget = window.location.pathname.includes('/widget') || isInIframe;
           const platform = isWidget ? 'web_widget' : 'web';
           
-          await api.post('/clients/web-conversations/', {
+          const saveResponse = await api.post('/clients/web-conversations/', {
             session_id: conversationId,
             message: messageText || 'Image analysis',
             response: response.data.response,
             platform: platform,
           });
+          
+          // Зберігаємо conversation_id з бази даних для оцінки
+          if (saveResponse.data?.conversation_id) {
+            setConversationDbId(saveResponse.data.conversation_id);
+            // Зберігаємо в localStorage для відновлення при перезавантаженні
+            localStorage.setItem(`web_chat_conversation_db_id_${conversationId}`, saveResponse.data.conversation_id.toString());
+          }
         } catch (saveError) {
           console.error('Failed to save conversation:', saveError);
         }
@@ -493,6 +522,30 @@ const WebChatPage = () => {
   const handleFontSizeChange = (size) => {
     if (size === 'sm' || size === 'md' || size === 'lg') {
       setFontSize(size);
+    }
+  };
+
+  const handleRate = async (rating) => {
+    if (!conversationDbId) {
+      console.error('No conversation ID for rating');
+      return;
+    }
+
+    try {
+      await clientAPI.rateConversation(conversationDbId, rating);
+      setShowRatingButtons(false);
+      // Додаємо повідомлення про успішну оцінку
+      const ratingMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: rating === 'positive' 
+          ? (t('webChat.ratingThankYouPositive') || 'Дякуємо за позитивну оцінку! 👍')
+          : (t('webChat.ratingThankYouNegative') || 'Дякуємо за відгук! 👎'),
+        timestamp: new Date().toISOString(),
+      };
+      setMessages(prev => [...prev, ratingMessage]);
+    } catch (error) {
+      console.error('Failed to save rating:', error);
     }
   };
 
@@ -782,6 +835,25 @@ const WebChatPage = () => {
               )}
               {message.content && (
                 <p className={`${messageFontClass} whitespace-pre-wrap`}>{message.content}</p>
+              )}
+              {/* Rating buttons for rating request messages */}
+              {message.isRatingRequest && showRatingButtons && (
+                <div className="flex gap-2 mt-3 pt-3 border-t border-gray-300 dark:border-gray-600">
+                  <button
+                    onClick={() => handleRate('positive')}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors text-sm"
+                  >
+                    <ThumbsUp size={16} />
+                    <span>{t('webChat.ratePositive') || '👍'}</span>
+                  </button>
+                  <button
+                    onClick={() => handleRate('negative')}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors text-sm"
+                  >
+                    <ThumbsDown size={16} />
+                    <span>{t('webChat.rateNegative') || '👎'}</span>
+                  </button>
+                </div>
               )}
             </div>
           </div>

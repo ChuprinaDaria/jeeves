@@ -202,9 +202,13 @@ class TelegramWebhookView(View):
             # Визначаємо клієнта за secret_token з webhook-запиту
             client_hint = self._get_client_from_request(request)
             
+            # Перевіряємо, чи це callback_query (натискання на кнопки)
+            if 'callback_query' in data:
+                return self.handle_callback_query(data['callback_query'])
+            
             # Перевіряємо, чи це оновлення повідомлення
             if 'message' not in data:
-                # Може бути інші типи оновлень (callback_query, etc.)
+                # Може бути інші типи оновлень
                 logger.debug(f"Received non-message update: {data}")
                 return HttpResponse("OK")
             
@@ -603,6 +607,68 @@ class TelegramWebhookView(View):
             logger.error(f"Error processing regular message: {str(e)}", exc_info=True)
             send_telegram_message(self._get_bot_token_for_chat(chat_id), chat_id, "Вибачте, виникла помилка. Спробуйте пізніше.")
             return HttpResponse("Error processing message", status=500)
+    
+    def handle_callback_query(self, callback_query):
+        """
+        Обробляє callback_query від Telegram (натискання на кнопки)
+        """
+        try:
+            from django.utils import timezone
+            from MASTER.clients.models import ClientWhatsAppConversation
+            import requests
+            
+            callback_data = callback_query.get('data', '')
+            chat_id = callback_query.get('message', {}).get('chat', {}).get('id')
+            message_id = callback_query.get('message', {}).get('message_id')
+            
+            logger.info(f"Telegram callback_query: chat_id={chat_id}, data={callback_data}")
+            
+            # Обробляємо оцінку: rate_{conversation_id}_{rating}
+            if callback_data.startswith('rate_'):
+                parts = callback_data.split('_')
+                if len(parts) == 3:
+                    conversation_id = int(parts[1])
+                    rating = parts[2]  # 'positive' or 'negative'
+                    
+                    try:
+                        conversation = ClientWhatsAppConversation.objects.get(id=conversation_id)
+                        
+                        # Оновлюємо оцінку
+                        conversation.user_rating = rating
+                        conversation.rating_timestamp = timezone.now()
+                        conversation.save(update_fields=['user_rating', 'rating_timestamp'])
+                        
+                        # Відправляємо підтвердження користувачу
+                        bot_token = conversation.client.telegram_bot_token
+                        if bot_token:
+                            rating_text = "👍 Дякуємо за позитивну оцінку!" if rating == 'positive' else "👎 Дякуємо за відгук!"
+                            url = f"https://api.telegram.org/bot{bot_token}/answerCallbackQuery"
+                            requests.post(url, json={
+                                "callback_query_id": callback_query.get('id'),
+                                "text": rating_text,
+                                "show_alert": False
+                            }, timeout=10)
+                            
+                            # Оновлюємо повідомлення з оцінкою
+                            url = f"https://api.telegram.org/bot{bot_token}/editMessageText"
+                            requests.post(url, json={
+                                "chat_id": chat_id,
+                                "message_id": message_id,
+                                "text": f"✅ Ви оцінили розмову: {'👍' if rating == 'positive' else '👎'}",
+                            }, timeout=10)
+                        
+                        logger.info(f"Rating saved: conversation_id={conversation_id}, rating={rating}")
+                        return HttpResponse("OK")
+                        
+                    except ClientWhatsAppConversation.DoesNotExist:
+                        logger.error(f"Conversation {conversation_id} not found for callback")
+                        return HttpResponse("Conversation not found", status=404)
+            
+            return HttpResponse("OK")
+            
+        except Exception as e:
+            logger.error(f"Error handling callback_query: {str(e)}", exc_info=True)
+            return HttpResponse("Error", status=500)
     
     def generate_rag_response_without_conversation(self, message_body: str, chat_id: int, client=None) -> str:
         """

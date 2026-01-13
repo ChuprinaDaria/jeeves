@@ -126,7 +126,11 @@
     "missingTag": "Tag-parameter mangler i URL",
     "welcomeMessage": "Hej! Jeg er din AI-assistent. Hvordan kan jeg hjælpe dig i dag?",
     "settings": "Indstillinger",
-    "fontSize": "Skriftstørrelse"
+    "fontSize": "Skriftstørrelse",
+    "ratePositive": "👍 Positiv",
+    "rateNegative": "👎 Negativ",
+    "ratingThankYouPositive": "Tak for din positive vurdering! 👍",
+    "ratingThankYouNegative": "Tak for din feedback! 👎"
   },
   "extensionData": {
     "loading": "Indlæser udvidelsesdata...",

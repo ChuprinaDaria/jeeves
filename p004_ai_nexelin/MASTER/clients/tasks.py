@@ -416,15 +416,21 @@ def check_inactive_chat_sessions():
         last_activity_at__lte=twenty_minutes_ago
     )
     
-    # Auto-rate after 5 minutes
+    # Send rating request after 5 minutes
     for conversation in inactive_5min:
-        if not conversation.user_rating and not conversation.ai_rating:
-            auto_rate_conversation.delay(conversation.id)
+        if not conversation.user_rating and not conversation.rating_request_sent:
+            send_rating_request.delay(conversation.id)
     
     # Close and send email after 20 minutes
     for conversation in inactive_20min:
         if not conversation.email_sent:
-            close_session_and_send_email.delay(conversation.id)
+            # Auto-rate if user hasn't rated yet (after 20 minutes of inactivity)
+            if not conversation.user_rating and not conversation.ai_rating:
+                # Call auto_rate synchronously first, then send email
+                auto_rate_and_close_session.delay(conversation.id)
+            else:
+                # User already rated, just close and send email
+                close_session_and_send_email.delay(conversation.id)
     
     logger.info(f"Found {inactive_5min.count()} conversations inactive for 5+ min, {inactive_20min.count()} for 20+ min")
     return {
@@ -435,9 +441,107 @@ def check_inactive_chat_sessions():
 
 
 @shared_task(bind=True, max_retries=3)
+def send_rating_request(self, conversation_id: int):
+    """
+    Send rating request message to user after 5 minutes of inactivity.
+    Works for Web Chat, Telegram, and WhatsApp.
+    """
+    from django.utils import timezone
+    from MASTER.clients.models import ClientWhatsAppConversation
+    
+    try:
+        conversation = ClientWhatsAppConversation.objects.select_related('client').get(id=conversation_id)
+        
+        # Skip if already rated or request already sent
+        if conversation.user_rating or conversation.rating_request_sent:
+            return {"status": "skipped", "message": "Already rated or request sent"}
+        
+        if not conversation.messages:
+            return {"status": "skipped", "message": "No messages"}
+        
+        # Determine platform from context_metadata
+        platform = conversation.context_metadata.get('platform', 'whatsapp') if conversation.context_metadata else 'whatsapp'
+        
+        # Get rating request message based on client language or default
+        rating_message = "Будь ласка, оцініть нашу розмову: 👍 або 👎"
+        # TODO: Add i18n support for rating messages
+        
+        # Send rating request based on platform
+        if platform == 'web' or platform == 'web_widget' or platform == 'iframe':
+            # For Web Chat - add message to conversation
+            conversation.add_message('assistant', rating_message)
+            conversation.rating_request_sent = True
+            conversation.rating_request_sent_at = timezone.now()
+            conversation.save(update_fields=['rating_request_sent', 'rating_request_sent_at', 'messages', 'total_messages', 'updated_at', 'last_activity_at'])
+            logger.info(f"Rating request added to web chat conversation {conversation_id}")
+            
+        elif platform == 'telegram':
+            # For Telegram - send message with inline keyboard
+            from MASTER.clients.views_telegram import send_telegram_message
+            import json
+            
+            if conversation.telegram_chat_id and conversation.client.telegram_bot_token:
+                chat_id = int(conversation.telegram_chat_id)
+                bot_token = conversation.client.telegram_bot_token
+                
+                # Create inline keyboard with rating buttons
+                keyboard = {
+                    "inline_keyboard": [[
+                        {"text": "👍", "callback_data": f"rate_{conversation.id}_positive"},
+                        {"text": "👎", "callback_data": f"rate_{conversation.id}_negative"}
+                    ]]
+                }
+                
+                # Send message with keyboard
+                url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+                payload = {
+                    "chat_id": chat_id,
+                    "text": rating_message,
+                    "reply_markup": json.dumps(keyboard)
+                }
+                import requests
+                response = requests.post(url, json=payload, timeout=10)
+                
+                if response.status_code == 200:
+                    conversation.rating_request_sent = True
+                    conversation.rating_request_sent_at = timezone.now()
+                    conversation.save(update_fields=['rating_request_sent', 'rating_request_sent_at'])
+                    logger.info(f"Rating request sent to Telegram chat {chat_id} for conversation {conversation_id}")
+                else:
+                    logger.error(f"Failed to send Telegram rating request: {response.text}")
+            
+        else:
+            # For WhatsApp - send text message
+            from MASTER.clients.views_meta_whatsapp import send_whatsapp_text
+            
+            if conversation.customer_phone:
+                success = send_whatsapp_text(
+                    conversation.customer_phone,
+                    rating_message,
+                    client=conversation.client
+                )
+                
+                if success:
+                    conversation.rating_request_sent = True
+                    conversation.rating_request_sent_at = timezone.now()
+                    conversation.save(update_fields=['rating_request_sent', 'rating_request_sent_at'])
+                    logger.info(f"Rating request sent to WhatsApp {conversation.customer_phone} for conversation {conversation_id}")
+        
+        return {"status": "success", "platform": platform}
+        
+    except ClientWhatsAppConversation.DoesNotExist:
+        logger.error(f"Conversation {conversation_id} not found")
+        return {"status": "error", "message": "Conversation not found"}
+    except Exception as e:
+        logger.error(f"Failed to send rating request for conversation {conversation_id}: {str(e)}", exc_info=True)
+        raise self.retry(exc=e, countdown=60)
+
+
+@shared_task(bind=True, max_retries=3)
 def auto_rate_conversation(self, conversation_id: int):
     """
-    Auto-rate conversation using AI after 5 minutes of inactivity.
+    Auto-rate conversation using AI after 5 minutes of inactivity (fallback if user doesn't rate).
+    This is now a fallback - primary is send_rating_request.
     """
     from django.utils import timezone
     from MASTER.clients.models import ClientWhatsAppConversation
@@ -452,6 +556,9 @@ def auto_rate_conversation(self, conversation_id: int):
         
         if not conversation.messages:
             return {"status": "skipped", "message": "No messages"}
+        
+        # Auto-rate if rating request was sent OR if called from auto_rate_and_close_session (20+ min)
+        # Remove the check for rating_request_sent to allow auto-rating after 20 minutes
         
         # Generate rating using LLM
         messages_text = "\n".join([
@@ -503,6 +610,45 @@ Rating:"""
 
 
 @shared_task(bind=True, max_retries=3)
+def auto_rate_and_close_session(self, conversation_id: int):
+    """
+    Auto-rate conversation and then close session and send email.
+    Called after 20 minutes of inactivity if user hasn't rated.
+    """
+    from django.utils import timezone
+    from MASTER.clients.models import ClientWhatsAppConversation
+    
+    try:
+        conversation = ClientWhatsAppConversation.objects.select_related('client').get(id=conversation_id)
+        
+        # Skip if already rated
+        if conversation.user_rating or conversation.ai_rating:
+            # Already rated, just close and send email
+            close_session_and_send_email.delay(conversation_id)
+            return {"status": "skipped", "message": "Already rated"}
+        
+        # Auto-rate first (call synchronously to ensure rating is saved before email)
+        # We use .apply() instead of .delay() to ensure sequential execution
+        rating_result = auto_rate_conversation.apply(args=[conversation_id])
+        
+        # Reload conversation to get updated rating
+        conversation.refresh_from_db()
+        
+        # Then close and send email
+        close_session_and_send_email.delay(conversation_id)
+        
+        logger.info(f"Auto-rated and closing session {conversation_id}: {rating_result}")
+        return {"status": "success", "rating_result": rating_result}
+        
+    except ClientWhatsAppConversation.DoesNotExist:
+        logger.error(f"Conversation {conversation_id} not found")
+        return {"status": "error", "message": "Conversation not found"}
+    except Exception as e:
+        logger.error(f"Failed to auto-rate and close session {conversation_id}: {str(e)}", exc_info=True)
+        raise self.retry(exc=e, countdown=300)
+
+
+@shared_task(bind=True, max_retries=3)
 def close_session_and_send_email(self, conversation_id: int):
     """
     Close chat session and send summary email to client after 20 minutes of inactivity.
@@ -525,6 +671,22 @@ def close_session_and_send_email(self, conversation_id: int):
             conversation.ended_at = timezone.now()
             conversation.save(update_fields=['is_active', 'ended_at'])
             return {"status": "skipped", "message": "Email reports disabled"}
+        
+        # Check if SMTP is configured for the client
+        if not conversation.client.email_smtp_enabled:
+            logger.warning(f"SMTP not enabled for client {conversation.client.id}, cannot send email")
+            conversation.is_active = False
+            conversation.ended_at = timezone.now()
+            conversation.save(update_fields=['is_active', 'ended_at'])
+            return {"status": "skipped", "message": "SMTP not enabled. Check email settings."}
+        
+        # Check if SMTP settings are complete
+        if not conversation.client.email_smtp_host or not conversation.client.email_smtp_username or not conversation.client.email_smtp_password:
+            logger.warning(f"Incomplete SMTP settings for client {conversation.client.id}: host={bool(conversation.client.email_smtp_host)}, username={bool(conversation.client.email_smtp_username)}, password={bool(conversation.client.email_smtp_password)}")
+            conversation.is_active = False
+            conversation.ended_at = timezone.now()
+            conversation.save(update_fields=['is_active', 'ended_at'])
+            return {"status": "skipped", "message": "Incomplete SMTP settings. Check email settings."}
         
         # Check if there are recipients
         recipients = conversation.client.email_report_recipients
@@ -550,12 +712,20 @@ def close_session_and_send_email(self, conversation_id: int):
         # Update conversation
         conversation.is_active = False
         conversation.ended_at = timezone.now()
-        conversation.email_sent = True
-        conversation.email_sent_at = timezone.now()
+        
+        # Only mark as sent if email was actually sent successfully
+        if email_result.get("success") and email_result.get("sent_count", 0) > 0:
+            conversation.email_sent = True
+            conversation.email_sent_at = timezone.now()
+            logger.info(f"Closed session {conversation_id} and sent email successfully: {email_result}")
+        else:
+            # Email failed to send, log error but still close session
+            logger.error(f"Failed to send email for conversation {conversation_id}: {email_result}")
+            conversation.email_sent = False
+        
         conversation.save(update_fields=['is_active', 'ended_at', 'email_sent', 'email_sent_at'])
         
-        logger.info(f"Closed session {conversation_id} and sent email: {email_result}")
-        return {"status": "success", "email_result": email_result}
+        return {"status": "success" if email_result.get("success") else "partial", "email_result": email_result}
         
     except ClientWhatsAppConversation.DoesNotExist:
         logger.error(f"Conversation {conversation_id} not found")
@@ -677,7 +847,21 @@ def send_chat_summary_email(conversation, chat_text):
     import smtplib
     
     if not conversation.client.email_smtp_enabled:
-        return {"success": False, "error": "SMTP not enabled"}
+        logger.error(f"SMTP not enabled for client {conversation.client.id}")
+        return {"success": False, "error": "SMTP not enabled", "message": "Email not sent. Check email settings."}
+    
+    # Validate SMTP settings
+    if not conversation.client.email_smtp_host:
+        logger.error(f"SMTP host not configured for client {conversation.client.id}")
+        return {"success": False, "error": "SMTP host not configured", "message": "Email not sent. Check email settings."}
+    
+    if not conversation.client.email_smtp_username:
+        logger.error(f"SMTP username not configured for client {conversation.client.id}")
+        return {"success": False, "error": "SMTP username not configured", "message": "Email not sent. Check email settings."}
+    
+    if not conversation.client.email_smtp_password:
+        logger.error(f"SMTP password not configured for client {conversation.client.id}")
+        return {"success": False, "error": "SMTP password not configured", "message": "Email not sent. Check email settings."}
     
     try:
         email_service = EmailService(conversation.client)

@@ -1302,6 +1302,19 @@ class ClientWhatsAppConversation(models.Model):
         help_text='When the summary email was sent'
     )
     
+    rating_request_sent = models.BooleanField(
+        default=False,
+        verbose_name='Rating Request Sent',
+        help_text='Whether rating request message was sent to user'
+    )
+    
+    rating_request_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Rating Request Sent At',
+        help_text='When the rating request was sent'
+    )
+    
     summary = models.TextField(
         blank=True,
         verbose_name='Chat Summary',

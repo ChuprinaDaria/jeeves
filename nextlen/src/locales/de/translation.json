@@ -438,7 +438,11 @@
     "missingTag": "Tag-Parameter in URL fehlt",
     "welcomeMessage": "Hallo! Ich bin Ihr KI-Assistent. Wie kann ich Ihnen heute helfen?",
     "settings": "Einstellungen",
-    "fontSize": "Schriftgröße"
+    "fontSize": "Schriftgröße",
+    "ratePositive": "👍 Positiv",
+    "rateNegative": "👎 Negativ",
+    "ratingThankYouPositive": "Vielen Dank für Ihre positive Bewertung! 👍",
+    "ratingThankYouNegative": "Vielen Dank für Ihr Feedback! 👎"
   },
   "extensionData": {
     "loading": "Erweiterungsdaten werden geladen...",

@@ -395,7 +395,11 @@
     "missingTag": "Paramètre tag manquant dans l'URL",
     "welcomeMessage": "Bonjour ! Je suis votre assistant IA. Comment puis-je vous aider aujourd'hui ?",
     "settings": "Paramètres",
-    "fontSize": "Taille de police"
+    "fontSize": "Taille de police",
+    "ratePositive": "👍 Positif",
+    "rateNegative": "👎 Négatif",
+    "ratingThankYouPositive": "Merci pour votre évaluation positive ! 👍",
+    "ratingThankYouNegative": "Merci pour vos commentaires ! 👎"
   },
   "extensionData": {
     "loading": "Chargement des données d'extension...",

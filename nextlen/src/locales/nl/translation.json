@@ -84,7 +84,11 @@
     "missingTag": "Tag-parameter ontbreekt in URL",
     "welcomeMessage": "Hallo! Ik ben uw AI-assistent. Hoe kan ik u vandaag helpen?",
     "settings": "Instellingen",
-    "fontSize": "Lettergrootte"
+    "fontSize": "Lettergrootte",
+    "ratePositive": "👍 Positief",
+    "rateNegative": "👎 Negatief",
+    "ratingThankYouPositive": "Bedankt voor uw positieve beoordeling! 👍",
+    "ratingThankYouNegative": "Bedankt voor uw feedback! 👎"
   },
   "extensionData": {
     "loading": "Extensiegegevens laden...",
