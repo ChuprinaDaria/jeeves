@@ -98,20 +98,7 @@ if ! command -v lftp &> /dev/null; then
     fi
 fi
 
-# Create backup of current deployment (if possible)
-log_info "Attempting to backup current deployment..."
-BACKUP_FILE="/tmp/ftp-backup-$(date +%Y%m%d-%H%M%S).tar.gz"
-
-lftp -c "
-set ftp:ssl-allow no
-set ssl:verify-certificate no
-set ftp:passive-mode yes
-open -u $FTP_USER,$FTP_PASS $FTP_HOST
-cd $FTP_DIR
-mirror -R . $BACKUP_FILE --only-newer --parallel=1 || true
-quit
-" 2>/dev/null || log_warning "Backup failed (may be first deployment)"
-
+# Skip backup for faster deployment
 # Deploy to FTP
 log_info "Uploading files to FTP..."
 cd dist
