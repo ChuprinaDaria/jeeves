@@ -747,17 +747,35 @@ def close_session_and_send_email(self, conversation_id: int):
 def generate_chat_summary(conversation):
     """
     Generate AI summary of the conversation.
+    Returns a fallback summary if LLM generation fails.
     """
     from MASTER.rag.llm_client import LLMClient
     
+    # Check if messages exist
     if not conversation.messages:
         return "No messages in this conversation."
     
+    # Validate messages format
+    if not isinstance(conversation.messages, list):
+        logger.warning(f"Conversation {conversation.id} has invalid messages format: {type(conversation.messages)}")
+        return "Unable to generate summary: invalid message format."
+    
+    if len(conversation.messages) == 0:
+        return "No messages in this conversation."
+    
     # Format messages for summary
-    messages_text = "\n".join([
-        f"{msg.get('role', 'unknown').upper()}: {msg.get('content', '')}"
-        for msg in conversation.messages
-    ])
+    try:
+        messages_text = "\n".join([
+            f"{msg.get('role', 'unknown').upper()}: {msg.get('content', '')}"
+            for msg in conversation.messages
+            if isinstance(msg, dict) and msg.get('content')
+        ])
+        
+        if not messages_text or len(messages_text.strip()) < 10:
+            return "Unable to generate summary: insufficient message content."
+    except Exception as e:
+        logger.error(f"Error formatting messages for conversation {conversation.id}: {str(e)}", exc_info=True)
+        return "Unable to generate summary: error processing messages."
     
     language = conversation.language or 'uk'
     lang_map = {
@@ -788,10 +806,37 @@ Summary ({lang_name}):"""
     
     try:
         llm_client = LLMClient()
+        
+        # For Ollama, limit message length to avoid timeout issues
+        # Truncate messages_text if too long (keep last 2000 chars for context)
+        max_context_length = 2000
+        if len(messages_text) > max_context_length:
+            logger.info(f"Truncating messages for summary generation (conversation {conversation.id}): {len(messages_text)} -> {max_context_length} chars")
+            messages_text = "..." + messages_text[-max_context_length:]
+        
+        # Update prompt with truncated messages
+        prompt = f"""Generate a concise summary of this customer support conversation in {lang_name} language.
+
+Conversation:
+{messages_text}
+
+Provide a summary that includes:
+1. Main topic/issue discussed
+2. Key points covered
+3. Resolution or outcome
+4. Customer satisfaction (if evident)
+
+Summary ({lang_name}):"""
+        
+        # Log which model will be used for summary generation
+        client = conversation.client
+        provider_info = f"{getattr(client, 'llm_provider', 'unknown')}/{getattr(client, 'llm_model_name', 'unknown')}"
+        logger.info(f"Generating summary for conversation {conversation.id} using client model: {provider_info}")
+        
         result = llm_client.generate_response(
             user_query=prompt,
             context="",
-            client=conversation.client,
+            client=client,  # Use client's configured model (e.g., ollama_light/qwen2.5:1.5b)
             stream=False
         )
         # Handle dict response (new format) or string (old format)
@@ -799,10 +844,59 @@ Summary ({lang_name}):"""
             summary = result.get('content', '')
         else:
             summary = str(result)
-        return summary.strip() if summary else "Summary generation failed."
+        
+        if summary and summary.strip():
+            return summary.strip()
+        else:
+            logger.warning(f"LLM returned empty summary for conversation {conversation.id} (provider: {getattr(conversation.client, 'llm_provider', 'unknown')})")
+            # Fallback to basic summary
+            return _generate_fallback_summary(conversation, messages_text, lang_name)
+            
     except Exception as e:
-        logger.error(f"Failed to generate summary: {str(e)}", exc_info=True)
-        return "Summary generation failed due to an error."
+        error_msg = str(e)
+        logger.error(f"Failed to generate summary for conversation {conversation.id} (provider: {getattr(conversation.client, 'llm_provider', 'unknown')}): {error_msg}", exc_info=True)
+        
+        # Check if it's a timeout or connection error (common with Ollama)
+        if "timeout" in error_msg.lower() or "connection" in error_msg.lower() or "read timed out" in error_msg.lower():
+            logger.warning(f"Ollama timeout/connection error for conversation {conversation.id}, using fallback summary")
+        
+        # Fallback to basic summary instead of error message
+        return _generate_fallback_summary(conversation, messages_text, lang_name)
+
+
+def _generate_fallback_summary(conversation, messages_text, lang_name):
+    """
+    Generate a basic fallback summary when LLM generation fails.
+    """
+    try:
+        # Count messages by role
+        user_messages = [msg for msg in conversation.messages if isinstance(msg, dict) and msg.get('role') == 'user']
+        assistant_messages = [msg for msg in conversation.messages if isinstance(msg, dict) and msg.get('role') == 'assistant']
+        
+        # Get first and last user messages
+        first_user_msg = user_messages[0].get('content', '')[:100] if user_messages else ''
+        last_user_msg = user_messages[-1].get('content', '')[:100] if user_messages else ''
+        
+        # Basic summary
+        summary_parts = []
+        if lang_name == 'Ukrainian':
+            summary_parts.append(f"Розмова містить {len(user_messages)} повідомлень від клієнта та {len(assistant_messages)} відповідей.")
+            if first_user_msg:
+                summary_parts.append(f"Перше питання: {first_user_msg}...")
+            if last_user_msg and last_user_msg != first_user_msg:
+                summary_parts.append(f"Останнє повідомлення: {last_user_msg}...")
+        else:
+            summary_parts.append(f"Conversation contains {len(user_messages)} customer messages and {len(assistant_messages)} assistant responses.")
+            if first_user_msg:
+                summary_parts.append(f"First question: {first_user_msg}...")
+            if last_user_msg and last_user_msg != first_user_msg:
+                summary_parts.append(f"Last message: {last_user_msg}...")
+        
+        return " ".join(summary_parts) if summary_parts else f"Conversation with {conversation.total_messages} messages."
+        
+    except Exception as e:
+        logger.error(f"Error generating fallback summary: {str(e)}", exc_info=True)
+        return f"Conversation summary: {conversation.total_messages} messages exchanged."
 
 
 def format_chat_as_text(conversation):
