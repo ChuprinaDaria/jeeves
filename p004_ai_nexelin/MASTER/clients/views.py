@@ -2656,6 +2656,7 @@ class ManualReportView(APIView):
     permission_classes = []
     
     def post(self, request, conversation_id):
+        import traceback
         from MASTER.clients.models import ClientWhatsAppConversation
         from MASTER.clients.tasks import generate_chat_summary, format_chat_as_text, send_chat_summary_email
         
@@ -2677,35 +2678,44 @@ class ManualReportView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        # Generate summary if not exists
-        if not conversation.summary:
-            summary = generate_chat_summary(conversation)
-            conversation.summary = summary
-            conversation.save(update_fields=['summary'])
-        
-        # Format chat text
-        chat_text = format_chat_as_text(conversation)
-        
-        # Send email if enabled and SMTP configured
-        email_result = None
-        if (conversation.client.email_report_enabled and 
-            conversation.client.email_smtp_enabled and
-            conversation.client.email_smtp_host and
-            conversation.client.email_smtp_username and
-            conversation.client.email_smtp_password):
-            # Check if recipient email is available (email_from_address or email_smtp_username)
-            recipient_email = conversation.client.email_from_address or conversation.client.email_smtp_username
-            if recipient_email:
-                email_result = send_chat_summary_email(conversation, chat_text)
-        
-        return Response({
-            'success': True,
-            'conversation_id': conversation.id,
-            'summary': conversation.summary,
-            'chat_text': chat_text,
-            'email_sent': email_result.get('success', False) if email_result else False,
-            'email_result': email_result
-        })
+        try:
+            # Generate summary if not exists
+            if not conversation.summary:
+                summary = generate_chat_summary(conversation)
+                conversation.summary = summary
+                conversation.save(update_fields=['summary'])
+            
+            # Format chat text
+            chat_text = format_chat_as_text(conversation)
+            
+            # Send email if enabled and SMTP configured
+            email_result = None
+            if (conversation.client.email_report_enabled and 
+                conversation.client.email_smtp_enabled and
+                conversation.client.email_smtp_host and
+                conversation.client.email_smtp_username and
+                conversation.client.email_smtp_password):
+                # Check if recipient email is available (email_from_address or email_smtp_username)
+                recipient_email = conversation.client.email_from_address or conversation.client.email_smtp_username
+                if recipient_email:
+                    email_result = send_chat_summary_email(conversation, chat_text)
+            
+            return Response({
+                'success': True,
+                'conversation_id': conversation.id,
+                'summary': conversation.summary,
+                'chat_text': chat_text,
+                'email_sent': email_result.get('success', False) if email_result else False,
+                'email_result': email_result
+            })
+        except Exception as e:
+            # Print full traceback to console for debugging in docker logs
+            traceback.print_exc()
+            return Response({
+                'success': False,
+                'error': str(e),
+                'message': 'Email not sent. Check email settings.'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ConversationNotesView(APIView):
