@@ -105,9 +105,14 @@ def send_telegram_message(bot_token: str, chat_id: int, message_text: str) -> bo
         return False
 
 
-def set_telegram_webhook(bot_token: str, webhook_url: str) -> bool:
+def set_telegram_webhook(bot_token: str, webhook_url: str, secret_token: str = None) -> bool:
     """
     Встановлює webhook для Telegram бота
+    
+    Args:
+        bot_token: Telegram Bot Token
+        webhook_url: Webhook URL (може містити ?tag= для ідентифікації клієнта)
+        secret_token: Secret token для безпеки (опціонально, використовується client.tag)
     """
     try:
         # Спочатку видаляємо старий webhook
@@ -116,9 +121,11 @@ def set_telegram_webhook(bot_token: str, webhook_url: str) -> bool:
         url = f"{TELEGRAM_API_URL}{bot_token}/setWebhook"
         payload = {
             "url": webhook_url,
-            # Не використовуємо secret_token, щоб уникнути конфліктів
-            # Клієнта визначаємо через URL параметр або інші методи
         }
+        
+        # Додаємо secret_token якщо він переданий (для безпеки та ідентифікації клієнта)
+        if secret_token:
+            payload["secret_token"] = secret_token
         
         response = requests.post(url, json=payload, timeout=10)
         
@@ -753,20 +760,48 @@ class TelegramWebhookView(View):
     
     def _get_client_from_request(self, request):
         """
-        Витягує Client з webhook-запиту за допомогою secret_token.
-        Ми зберігаємо в secret_token сам telegram_bot_token клієнта.
+        Витягує Client з webhook-запиту.
+        
+        Пріоритет:
+        1. secret_token з заголовка X-Telegram-Bot-Api-Secret-Token (client.tag)
+        2. tag параметр з URL query string
+        3. Fallback: перший клієнт з увімкненим Telegram (для сумісності)
         """
         try:
-            # Django 3.2+ має request.headers, але залишимо і META для надійності
+            # Спробуємо отримати secret_token з заголовка (Telegram передає його якщо встановлено)
             secret_token = getattr(request, "headers", {}).get("X-Telegram-Bot-Api-Secret-Token") or request.META.get(
                 "HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN"
             )
-            if not secret_token:
-                return None
-            client = Client.objects.filter(telegram_bot_token=secret_token).first()
-            if not client:
-                logger.warning(f"Telegram webhook: client not found for secret_token")
-            return client
+            
+            if secret_token:
+                # secret_token = client.tag
+                client = Client.objects.filter(tag=secret_token).first()
+                if client:
+                    logger.info(f"Found client via secret_token (tag): {client.tag}")
+                    return client
+                logger.warning(f"Telegram webhook: client not found for secret_token (tag): {secret_token}")
+            
+            # Fallback: отримуємо tag з URL параметрів
+            tag = request.GET.get('tag') or request.GET.get('client_tag')
+            if tag:
+                client = Client.objects.filter(tag=tag).first()
+                if client:
+                    logger.info(f"Found client via URL tag parameter: {tag}")
+                    return client
+                logger.warning(f"Telegram webhook: client not found for tag: {tag}")
+            
+            # Останній fallback: перший клієнт з увімкненим Telegram (для сумісності)
+            # Це не ідеально, але забезпечує роботу якщо tag не передано
+            fallback_client = Client.objects.filter(
+                telegram_enabled=True,
+                telegram_bot_token__isnull=False
+            ).first()
+            
+            if fallback_client:
+                logger.warning(f"Using fallback client (no tag found in request): {fallback_client.id}")
+            
+            return fallback_client
+            
         except Exception as e:
             logger.error(f"Error getting client from request: {str(e)}", exc_info=True)
             return None

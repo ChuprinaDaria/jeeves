@@ -1093,11 +1093,17 @@ class ClientTelegramConfigView(APIView):
             
             # Встановлюємо новий webhook якщо увімкнено і є токен
             if client.telegram_enabled and client.telegram_bot_token:
-                # Формуємо webhook URL
+                # Формуємо webhook URL з унікальним tag клієнта
                 base_url = getattr(settings, 'TELEGRAM_WEBHOOK_BASE_URL', request.build_absolute_uri('/').rstrip('/'))
-                webhook_url = f"{base_url}/api/clients/telegram/webhook/"
                 
-                if set_telegram_webhook(client.telegram_bot_token, webhook_url):
+                # Використовуємо client.tag для унікальної ідентифікації клієнта в webhook URL
+                client_tag = client.tag if hasattr(client, 'tag') and client.tag else f"client-{client.id}"
+                webhook_url = f"{base_url}/api/clients/telegram/webhook/?tag={client_tag}"
+                
+                # Використовуємо client.tag як secret_token для безпеки
+                secret_token = client.tag if hasattr(client, 'tag') and client.tag else None
+                
+                if set_telegram_webhook(client.telegram_bot_token, webhook_url, secret_token=secret_token):
                     client.telegram_webhook_url = webhook_url
                     changed.append('telegram_webhook_url')
                 else:
