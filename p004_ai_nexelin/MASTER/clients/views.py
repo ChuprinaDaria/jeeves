@@ -2688,17 +2688,31 @@ class ManualReportView(APIView):
             # Format chat text
             chat_text = format_chat_as_text(conversation)
             
-            # Send email if enabled and SMTP configured
+            # For manual trigger: ignore email_report_enabled flag (force send)
+            # Check if SMTP is configured
             email_result = None
-            if (conversation.client.email_report_enabled and 
-                conversation.client.email_smtp_enabled and
+            if (conversation.client.email_smtp_enabled and
                 conversation.client.email_smtp_host and
                 conversation.client.email_smtp_username and
                 conversation.client.email_smtp_password):
-                # Check if recipient email is available (email_from_address or email_smtp_username)
+                
+                # Always use email_from_address as recipient
                 recipient_email = conversation.client.email_from_address or conversation.client.email_smtp_username
                 if recipient_email:
-                    email_result = send_chat_summary_email(conversation, chat_text)
+                    email_result = send_chat_summary_email(conversation, chat_text, recipients=[recipient_email])
+                else:
+                    email_result = {
+                        "success": False,
+                        "error": "No email recipient configured",
+                        "message": "Email not sent. Configure email_from_address in Email Setup."
+                    }
+            else:
+                # SMTP not configured
+                email_result = {
+                    "success": False,
+                    "error": "SMTP not configured",
+                    "message": "Email not sent. Please configure SMTP settings in Integrations → Email Setup."
+                }
             
             return Response({
                 'success': True,

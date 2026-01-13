@@ -134,14 +134,57 @@ const ChatDetail = ({ chat }) => {
 
     try {
       const response = await clientAPI.sendConversationEmail(chat.conversation_id);
-      if (response.data?.email_sent) {
+      
+      // Логуємо повну відповідь для діагностики
+      console.log('📧 Email send response:', response.data);
+      
+      // Перевіряємо, чи є помилка в відповіді (HTTP помилка або success: false)
+      if (response.data?.error || response.data?.success === false) {
+        const errorMessage = response.data?.message || response.data?.error || (t('history.emailNotSent') || 'Email not sent. Check email settings.');
+        console.error('❌ Email send error:', errorMessage);
+        alert(errorMessage);
+        return;
+      }
+      
+      // Перевіряємо, чи email був відправлений
+      if (response.data?.email_sent === true) {
+        console.log('✅ Email sent successfully');
         alert(t('history.emailSent') || 'Email sent successfully!');
       } else {
-        alert(t('history.emailNotSent') || 'Email not sent. Check email settings.');
+        // Якщо email не був відправлений, показуємо детальне повідомлення
+        const emailResult = response.data?.email_result;
+        let message = t('history.emailNotSent') || 'Email not sent. Check email settings.';
+        
+        // Намагаємося отримати детальне повідомлення з email_result
+        if (emailResult) {
+          if (emailResult.message) {
+            message = emailResult.message;
+          } else if (emailResult.error) {
+            message = emailResult.error;
+          }
+        } else {
+          // Якщо email_result є null, це означає, що email навіть не намагався відправлятися
+          // Можливі причини: email_report_enabled=false, email_smtp_enabled=false, 
+          // або не налаштовані SMTP параметри (host, username, password, recipient email)
+          message = 'Email not sent. Email SMTP is not configured. Please go to Integrations → Email Setup to configure SMTP settings.';
+        }
+        
+        console.warn('⚠️ Email not sent:', { 
+          email_sent: response.data?.email_sent, 
+          email_result: emailResult,
+          reason: emailResult ? 'Email sending attempted but failed' : 'Email sending not attempted (SMTP not configured)'
+        });
+        alert(message);
       }
     } catch (error) {
-      console.error('Error sending email:', error);
-      alert(t('history.emailError') || 'Failed to send email');
+      console.error('❌ Error sending email:', error);
+      console.error('Error response:', error.response?.data);
+      
+      // Спробуємо отримати повідомлення про помилку з відповіді сервера
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          (t('history.emailError') || 'Failed to send email');
+      alert(errorMessage);
     } finally {
       setUploading(prev => ({ ...prev, email: false }));
     }

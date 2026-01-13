@@ -697,10 +697,10 @@ def close_session_and_send_email(self, conversation_id: int):
             conversation.save(update_fields=['is_active', 'ended_at'])
             return {"status": "skipped", "message": "Incomplete SMTP settings. Check email settings."}
         
-        # Get recipient email (use email_from_address or email_smtp_username)
+        # Always use email_from_address as recipient
         recipient_email = conversation.client.email_from_address or conversation.client.email_smtp_username
         if not recipient_email:
-            logger.warning(f"No email recipient configured for client {conversation.client.id} (email_from_address or email_smtp_username required)")
+            logger.warning(f"No email recipient configured for client {conversation.client.id} (email_from_address required)")
             conversation.is_active = False
             conversation.ended_at = timezone.now()
             conversation.save(update_fields=['is_active', 'ended_at'])
@@ -715,8 +715,8 @@ def close_session_and_send_email(self, conversation_id: int):
         # Generate full chat text
         chat_text = format_chat_as_text(conversation)
         
-        # Send email
-        email_result = send_chat_summary_email(conversation, chat_text)
+        # Send email to email_from_address
+        email_result = send_chat_summary_email(conversation, chat_text, recipients=[recipient_email])
         
         # Update conversation
         conversation.is_active = False
@@ -855,10 +855,15 @@ def format_chat_as_text(conversation):
     return "\n".join(lines)
 
 
-def send_chat_summary_email(conversation, chat_text):
+def send_chat_summary_email(conversation, chat_text, recipients=None):
     """
     Send chat summary email to client recipients with attachment.
     Uses Django's get_connection with client-specific SMTP settings.
+    
+    Args:
+        conversation: ClientWhatsAppConversation instance
+        chat_text: Formatted chat text to attach
+        recipients: Optional list of email addresses. If None, uses email_from_address or email_smtp_username
     """
     from django.core.mail import get_connection, EmailMultiAlternatives
     
@@ -957,44 +962,61 @@ Summary:
 Full conversation transcript is attached as a text file.
         """
         
-        # Get recipient email (use email_from_address or email_smtp_username)
-        recipient_email = conversation.client.email_from_address or conversation.client.email_smtp_username
-        if not recipient_email:
-            logger.error(f"No email recipient configured for client {conversation.client.id}")
-            return {"success": False, "error": "No email recipient configured", "message": "Email not sent. Configure email_from_address or email_smtp_username."}
+        # Determine recipient emails
+        if recipients is None:
+            # Always use email_from_address as recipient
+            recipient_email = conversation.client.email_from_address or conversation.client.email_smtp_username
+            if recipient_email:
+                recipients = [recipient_email]
+            else:
+                logger.error(f"No email recipient configured for client {conversation.client.id}")
+                return {"success": False, "error": "No email recipient configured", "message": "Email not sent. Configure email_from_address in Email Setup."}
+        
+        # Ensure recipients is a list
+        if not isinstance(recipients, list):
+            recipients = [recipients] if recipients else []
+        
+        if not recipients:
+            logger.error(f"No email recipients provided for client {conversation.client.id}")
+            return {"success": False, "error": "No email recipients provided", "message": "Email not sent. No recipients specified."}
         
         results = []
         
         # Attachment filename
         filename = f"chat_session_{conversation.id}_{conversation.session_id or 'unknown'}.txt"
         
-        try:
-            # Create EmailMultiAlternatives for HTML + plain text
-            email = EmailMultiAlternatives(
-                subject=subject,
-                body=body_text,
-                from_email=from_address,
-                to=[recipient_email],
-                connection=connection,
-            )
-            # Attach HTML alternative
-            email.attach_alternative(body_html, "text/html")
-            
-            # Add attachment
-            email.attach(
-                filename=filename,
-                content=chat_text.encode('utf-8'),
-                mimetype='text/plain'
-            )
-            
-            # Send email with fail_silently=False to see errors in Celery logs
-            email.send(fail_silently=False)
-            
-            results.append({"recipient": recipient_email, "success": True})
-            logger.info(f"Sent chat summary email to {recipient_email} for conversation {conversation.id}")
-        except Exception as e:
-            logger.error(f"Failed to send email to {recipient_email}: {str(e)}", exc_info=True)
-            results.append({"recipient": recipient_email, "success": False, "error": str(e)})
+        # Send email to all recipients
+        for recipient_email in recipients:
+            if not recipient_email:
+                continue
+                
+            try:
+                # Create EmailMultiAlternatives for HTML + plain text
+                email = EmailMultiAlternatives(
+                    subject=subject,
+                    body=body_text,
+                    from_email=from_address,
+                    to=[recipient_email],
+                    connection=connection,
+                )
+                # Attach HTML alternative
+                email.attach_alternative(body_html, "text/html")
+                
+                # Add attachment
+                email.attach(
+                    filename=filename,
+                    content=chat_text.encode('utf-8'),
+                    mimetype='text/plain'
+                )
+                
+                # Send email with fail_silently=False to see errors in Celery logs
+                email.send(fail_silently=False)
+                
+                results.append({"recipient": recipient_email, "success": True})
+                logger.info(f"Sent chat summary email to {recipient_email} for conversation {conversation.id}")
+            except Exception as e:
+                logger.error(f"Failed to send email to {recipient_email}: {str(e)}", exc_info=True)
+                results.append({"recipient": recipient_email, "success": False, "error": str(e)})
         
         return {
             "success": True,
