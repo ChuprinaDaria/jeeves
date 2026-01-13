@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('clients', '0033_clientwhatsappconversation_telegram_chat_id'),
+        ('clients', '0032_remove_client_llm_provider_fk_and_more'),
     ]
 
     operations = [
