@@ -15,16 +15,26 @@ def _resolve_uid(usage: UsageStats) -> str:
     """
     Generate unique identifier for usage record.
     Returns string with max 255 characters (API requirement).
+    
+    IMPORTANT: uid must be unique for each usage record to avoid "Existed report id" errors.
+    We use usage.id to ensure uniqueness.
     """
-    uid = None
-    if usage.client_id:
-        uid = f"client-{usage.client_id}"
-    elif usage.branch_id:
-        uid = f"branch-{usage.branch_id}"
-    elif usage.specialization_id:
-        uid = f"spec-{usage.specialization_id}"
+    # Use usage.id to ensure uniqueness for each record
+    # Format: "client-{client_id}-{usage_id}" or fallback to just usage_id
+    usage_id = getattr(usage, 'id', None) or getattr(usage, 'pk', None)
+    
+    if usage.client_id and usage_id:
+        uid = f"client-{usage.client_id}-{usage_id}"
+    elif usage.branch_id and usage_id:
+        uid = f"branch-{usage.branch_id}-{usage_id}"
+    elif usage.specialization_id and usage_id:
+        uid = f"spec-{usage.specialization_id}-{usage_id}"
+    elif usage_id:
+        uid = f"usage-{usage_id}"
     else:
-        uid = "unknown"
+        # Fallback: generate from timestamp if no ID available
+        import time
+        uid = f"usage-{int(time.time() * 1000)}"
     
     # Ensure uid doesn't exceed 255 characters (API requirement)
     if len(uid) > 255:
@@ -70,21 +80,33 @@ def _resolve_access_token(usage: UsageStats) -> Optional[str]:
 def _resolve_ai_model(usage: UsageStats) -> str:
     """
     Resolve AI model GUID identifier for mg.nexelin API.
-    Priority: metadata['ai_model_guid'] → metadata['llm_model_guid'] → model id as fallback
+    
+    Priority:
+    1. metadata['ai_model_guid'] or metadata['llm_model_guid'] (preferred - GUID format)
+    2. EmbeddingModel.external_guid if exists (GUID from mg.nexelin)
+    3. EmbeddingModel.id as fallback (API accepts ID if GUID not available)
+    
+    Note: API expects GUID, but accepts ID as fallback per developer note.
     """
     metadata = getattr(usage, 'metadata', {}) or {}
     if isinstance(metadata, dict):
         # Try to get GUID from metadata (preferred)
         ai_model_guid = metadata.get('ai_model_guid') or metadata.get('llm_model_guid')
         if ai_model_guid:
-            return str(ai_model_guid)
+            return str(ai_model_guid).strip()
     
-    # Fallback: use model id (may need to be converted to GUID format if required)
+    # Try to get GUID from EmbeddingModel
     model = usage.embedding_model
     if not model:
         return "unknown"
     
-    # Try to get model id as GUID (assuming id might be GUID or can be used as identifier)
+    # Check if model has external_guid field (GUID from mg.nexelin)
+    # This would need to be added to EmbeddingModel if not exists
+    if hasattr(model, 'external_guid') and model.external_guid:
+        return str(model.external_guid).strip()
+    
+    # Fallback: use model id (API accepts ID if GUID not available)
+    # Per developer: "we waiting GUID, no esli hochesh mogu zamenit' na ID"
     model_id = getattr(model, 'pk', None) or getattr(model, 'id', None)
     if model_id:
         return str(model_id)

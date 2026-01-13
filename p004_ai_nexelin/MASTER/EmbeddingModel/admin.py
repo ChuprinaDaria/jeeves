@@ -7,9 +7,9 @@ from django.conf import settings
 
 @admin.register(EmbeddingModel)
 class EmbeddingModelAdmin(admin.ModelAdmin):
-    list_display = ['name', 'provider', 'model_name', 'dimensions', 'dimensions_status', 'is_local', 'server_type', 'api_endpoint', 'is_active', 'is_default', 'reindex_required', 'created_at']
+    list_display = ['name', 'provider', 'model_name', 'dimensions', 'dimensions_status', 'external_guid', 'is_local', 'server_type', 'api_endpoint', 'is_active', 'is_default', 'reindex_required', 'created_at']
     list_filter = ['provider', 'is_local', 'server_type', 'is_active', 'is_default', 'reindex_required', 'created_at']
-    search_fields = ['name', 'model_name', 'slug']
+    search_fields = ['name', 'model_name', 'slug', 'external_guid']
     ordering = ['provider', 'name']
     list_editable = ['is_active', 'is_default']
     actions = [
@@ -31,7 +31,7 @@ class EmbeddingModelAdmin(admin.ModelAdmin):
             'fields': ('name', 'slug', 'provider', 'model_name')
         }),
         ('Configuration', {
-            'fields': ('dimensions', 'cost_per_1k_tokens', 'is_local', 'server_type', 'api_endpoint', 'api_key')
+            'fields': ('dimensions', 'cost_per_1k_tokens', 'external_guid', 'is_local', 'server_type', 'api_endpoint', 'api_key')
         }),
         ('Status', {
             'fields': ('is_active', 'is_default', 'reindex_required')

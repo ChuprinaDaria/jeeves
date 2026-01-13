@@ -41,6 +41,12 @@ class EmbeddingModel(models.Model):
         help_text='API key for third-party services (Kimi, etc.)'
     )
     cost_per_1k_tokens = models.DecimalField(max_digits=10, decimal_places=6, default=0)
+    external_guid = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text='GUID from mg.nexelin.com for AI model identification in usage stats API'
+    )
     is_active = models.BooleanField(default=True)
     is_default = models.BooleanField(default=False)
     reindex_required = models.BooleanField(default=False)
