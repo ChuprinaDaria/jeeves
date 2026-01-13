@@ -2686,10 +2686,17 @@ class ManualReportView(APIView):
         # Format chat text
         chat_text = format_chat_as_text(conversation)
         
-        # Send email if enabled
+        # Send email if enabled and SMTP configured
         email_result = None
-        if conversation.client.email_report_enabled and conversation.client.email_report_recipients:
-            email_result = send_chat_summary_email(conversation, chat_text)
+        if (conversation.client.email_report_enabled and 
+            conversation.client.email_smtp_enabled and
+            conversation.client.email_smtp_host and
+            conversation.client.email_smtp_username and
+            conversation.client.email_smtp_password):
+            # Check if recipient email is available (email_from_address or email_smtp_username)
+            recipient_email = conversation.client.email_from_address or conversation.client.email_smtp_username
+            if recipient_email:
+                email_result = send_chat_summary_email(conversation, chat_text)
         
         return Response({
             'success': True,
