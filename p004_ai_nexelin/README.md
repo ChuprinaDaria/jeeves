@@ -469,6 +469,10 @@ The AI Nexelin platform is built on a microservices architecture with the follow
    ```bash
    python manage.py runserver 0.0.0.0:8000
    ```
+   
+   Backend буде доступний на: `http://localhost:8000`
+   Django Admin: `http://localhost:8000/admin/`
+   API: `http://localhost:8000/api/`
 
 ### Option 3: Zero Email Integration
 
@@ -533,6 +537,8 @@ VECTOR_SEARCH_CONFIG_EXPLAIN_QUERIES=True
 
 ### Frontend Setup
 
+#### Client Portal (React + Vite) - `MASTER/client_portal/`
+
 1. **Install Node.js dependencies**
    ```bash
    cd MASTER/client_portal
@@ -544,11 +550,45 @@ VECTOR_SEARCH_CONFIG_EXPLAIN_QUERIES=True
    # Create .env file
    echo "VITE_API_BASE_URL=http://localhost:8000" > .env
    ```
+   
+   Або створіть файл `.env.development`:
+   ```env
+   VITE_API_BASE_URL=http://localhost:8000
+   ```
 
 3. **Start development server**
    ```bash
    npm run dev
    ```
+   
+   Фронтенд буде доступний на: `http://localhost:5173`
+
+#### Nextlen Frontend (React) - `nextlen/`
+
+Якщо ви працюєте з Nextlen фронтендом:
+
+1. **Navigate to nextlen directory**
+   ```bash
+   cd ../nextlen  # або абсолютний шлях до nextlen
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Configure environment**
+   Створіть `.env.local` файл:
+   ```env
+   REACT_APP_API_BASE_URL=http://localhost:8000
+   ```
+
+4. **Start development server**
+   ```bash
+   npm start
+   ```
+   
+   Фронтенд буде доступний на: `http://localhost:3000`
 
 ### Database Setup
 
@@ -585,10 +625,308 @@ VECTOR_SEARCH_CONFIG_EXPLAIN_QUERIES=True
    # Access at http://localhost:5555
    ```
 
+## Локальний запуск та тестування
+
+### Швидкий старт для локальної розробки
+
+#### 1. Запуск Backend (Django)
+
+**Варіант A: Без Docker (рекомендовано для розробки)**
+
+1. **Підготовка середовища**
+   ```bash
+   # Активуйте віртуальне середовище
+   python3 -m venv venv
+   source venv/bin/activate  # Linux/Mac
+   # або
+   venv\Scripts\activate  # Windows
+   
+   # Встановіть залежності
+   pip install -r requirements.txt
+   ```
+
+2. **Налаштування бази даних**
+   ```bash
+   # Запустіть PostgreSQL (має бути встановлений з pgvector)
+   sudo systemctl start postgresql  # Linux
+   
+   # Створіть базу даних
+   sudo -u postgres createdb ai_nexelin_db
+   sudo -u postgres psql -d ai_nexelin_db -c "CREATE EXTENSION vector;"
+   ```
+
+3. **Налаштування Redis**
+   ```bash
+   # Запустіть Redis
+   sudo systemctl start redis  # Linux
+   # або
+   redis-server  # Якщо встановлено локально
+   ```
+
+4. **Налаштування змінних середовища**
+   
+   Створіть файл `.env` в корені проекту:
+   ```env
+   SECRET_KEY=your-secret-key-here
+   DEBUG=True
+   ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+   
+   DB_NAME=ai_nexelin_db
+   DB_USER=postgres
+   DB_PASS=your-postgres-password
+   DB_HOST=localhost
+   DB_PORT=5432
+   
+   CELERY_BROKER_URL=redis://localhost:6379/0
+   CELERY_RESULT_BACKEND=redis://localhost:6379/0
+   
+   OPENAI_API_KEY=sk-your-openai-api-key
+   
+   CLIENT_PORTAL_BASE_URL=http://localhost:5173
+   ```
+
+5. **Запуск міграцій**
+   ```bash
+   cd MASTER
+   python manage.py migrate
+   python manage.py createsuperuser  # Створіть адміністратора
+   ```
+
+6. **Запуск Django сервера**
+   ```bash
+   python manage.py runserver 0.0.0.0:8000
+   ```
+   
+   Backend буде доступний на:
+   - API: `http://localhost:8000/api/`
+   - Admin: `http://localhost:8000/admin/`
+   - Health check: `http://localhost:8000/`
+
+7. **Запуск Celery (опціонально, для фонових задач)**
+   
+   В окремому терміналі:
+   ```bash
+   # Celery Worker
+   celery -A MASTER worker --loglevel=info
+   
+   # Celery Beat (планувальник задач)
+   celery -A MASTER beat --loglevel=info
+   ```
+
+**Варіант B: З Docker Compose**
+
+```bash
+# Запуск всіх сервісів
+docker-compose up -d
+
+# Перевірка статусу
+docker-compose ps
+
+# Перегляд логів
+docker-compose logs -f web
+
+# Запуск міграцій
+docker-compose exec web python manage.py migrate
+
+# Створення суперкористувача
+docker-compose exec web python manage.py createsuperuser
+```
+
+#### 2. Запуск Frontend
+
+**Client Portal (MASTER/client_portal/)**
+
+1. **Встановіть залежності**
+   ```bash
+   cd MASTER/client_portal
+   npm install
+   ```
+
+2. **Налаштуйте змінні середовища**
+   
+   Створіть `.env.development`:
+   ```env
+   VITE_API_BASE_URL=http://localhost:8000
+   ```
+
+3. **Запустіть dev сервер**
+   ```bash
+   npm run dev
+   ```
+   
+   Фронтенд буде доступний на: `http://localhost:5173`
+
+**Nextlen Frontend (nextlen/)**
+
+Якщо ви працюєте з Nextlen фронтендом:
+
+```bash
+cd ../nextlen  # або абсолютний шлях
+npm install
+npm start
+```
+
+Фронтенд буде доступний на: `http://localhost:3000`
+
+### Тестування
+
+#### 1. Тестування Backend API
+
+**Базове тестування з curl:**
+
+```bash
+# Health check
+curl http://localhost:8000/
+
+# Створення суперкористувача (якщо ще не створено)
+python MASTER/manage.py createsuperuser
+
+# Логін через admin
+curl -X POST http://localhost:8000/admin/login/ \
+  -d "username=admin&password=yourpassword" \
+  -c cookies.txt
+
+# Тест API endpoints
+curl http://localhost:8000/api/branches/list/ -b cookies.txt
+```
+
+**Використання тестових скриптів:**
+
+```bash
+# Базове тестування API
+chmod +x test_api.sh
+./test_api.sh
+
+# Повне тестування ланцюжка
+chmod +x test_full_chain.sh
+./test_full_chain.sh
+```
+
+**Тестування через Django shell:**
+
+```bash
+cd MASTER
+python manage.py shell
+
+# Приклад тестування
+from branches.models import Branch
+from clients.models import Client
+
+# Перевірка моделей
+Branch.objects.all()
+Client.objects.all()
+```
+
+#### 2. Тестування Frontend
+
+**Client Portal:**
+
+1. Відкрийте браузер: `http://localhost:5173`
+2. Перевірте консоль браузера на помилки
+3. Перевірте Network tab для API запитів
+
+**Тестування інтеграції Frontend-Backend:**
+
+1. Запустіть обидва сервери (Backend на 8000, Frontend на 5173)
+2. Перевірте CORS налаштування в `MASTER/settings.py`
+3. Перевірте що `VITE_API_BASE_URL` вказує на правильний backend URL
+
+#### 3. Тестування RAG функціональності
+
+```bash
+# Через Django shell
+cd MASTER
+python manage.py shell
+
+from rag.response_generator import RAGResponseGenerator
+from clients.models import Client
+
+client = Client.objects.first()
+generator = RAGResponseGenerator(client)
+response = generator.generate("Тестове питання")
+print(response)
+```
+
+Або через API:
+
+```bash
+# Отримайте API ключ з адмін панелі або через API
+API_KEY="your-api-key-here"
+
+curl -X POST http://localhost:8000/api/rag/chat/ \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Що таке ваші послуги?", "stream": false}'
+```
+
+#### 4. Тестування через Django Admin
+
+1. Відкрийте: `http://localhost:8000/admin/`
+2. Увійдіть з обліковими даними суперкористувача
+3. Перевірте всі моделі:
+   - Branches
+   - Specializations
+   - Clients
+   - Embedding Models
+   - Documents
+
+#### 5. Перевірка логів
+
+**Django логи:**
+```bash
+# Якщо використовуєте Docker
+docker-compose logs -f web
+
+# Якщо локально
+# Логи відображаються в терміналі де запущено runserver
+```
+
+**Celery логи:**
+```bash
+# Якщо використовуєте Docker
+docker-compose logs -f celery_worker
+
+# Якщо локально
+# Логи відображаються в терміналі де запущено celery worker
+```
+
+### Типові проблеми та рішення
+
+**Проблема: CORS помилки**
+- Перевірте `CORS_ALLOWED_ORIGINS` в `MASTER/settings.py`
+- Додайте `http://localhost:5173` до дозволених джерел
+
+**Проблема: Підключення до бази даних**
+- Перевірте що PostgreSQL запущений: `sudo systemctl status postgresql`
+- Перевірте налаштування в `.env` файлі
+- Перевірте що pgvector встановлений: `psql -d ai_nexelin_db -c "SELECT * FROM pg_extension WHERE extname = 'vector';"`
+
+**Проблема: Redis не підключається**
+- Перевірте що Redis запущений: `redis-cli ping`
+- Перевірте URL в `.env`: `CELERY_BROKER_URL=redis://localhost:6379/0`
+
+**Проблема: Frontend не підключається до Backend**
+- Перевірте що Backend запущений на порту 8000
+- Перевірте `VITE_API_BASE_URL` в `.env.development`
+- Перезапустіть dev сервер після зміни змінних середовища
+
+**Проблема: Міграції не застосовуються**
+```bash
+# Перевірте статус міграцій
+python MASTER/manage.py showmigrations
+
+# Застосуйте міграції
+python MASTER/manage.py migrate
+
+# Якщо є проблеми, створіть міграції заново
+python MASTER/manage.py makemigrations
+python MASTER/manage.py migrate
+```
+
 ## Usage
 
 ### Admin Panel Access
-- URL: `http://127.0.0.1:8000/admin/`
+- URL: `http://localhost:8000/admin/`
 - Login with superuser credentials
 
 ### Available Models in Admin
