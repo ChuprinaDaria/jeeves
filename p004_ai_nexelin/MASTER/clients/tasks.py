@@ -892,6 +892,13 @@ def send_chat_summary_email(conversation, chat_text):
         from_address = f"{from_name} <{from_email}>"
         
         # Create SMTP connection with client-specific settings
+        # Using exact field names from Client model:
+        # - client.email_smtp_host
+        # - client.email_smtp_port
+        # - client.email_smtp_username
+        # - client.email_smtp_password
+        # - client.email_smtp_use_tls
+        # - client.email_from_address
         connection = get_connection(
             backend='django.core.mail.backends.smtp.EmailBackend',
             host=conversation.client.email_smtp_host,
@@ -980,8 +987,8 @@ Full conversation transcript is attached as a text file.
                 mimetype='text/plain'
             )
             
-            # Send email
-            email.send()
+            # Send email with fail_silently=False to see errors in Celery logs
+            email.send(fail_silently=False)
             
             results.append({"recipient": recipient_email, "success": True})
             logger.info(f"Sent chat summary email to {recipient_email} for conversation {conversation.id}")
