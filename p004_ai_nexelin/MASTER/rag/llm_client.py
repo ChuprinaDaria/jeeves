@@ -335,13 +335,26 @@ Commands you can understand:
 Always confirm email actions and provide clear feedback about what was done."""
     
     def _get_client_custom_prompt(self, client: Client) -> str | None:
-        """Get custom prompt from client metadata."""
-        # Check if client has custom_system_prompt field (could be added to Client model)
+        """Get custom prompt from client.
+        
+        Priority:
+        1. active_custom_prompt (if using custom prompts system)
+        2. custom_system_prompt (legacy field)
+        3. metadata['system_prompt'] (if exists)
+        """
+        # Priority 1: Check active_custom_prompt
+        active_custom_prompt = getattr(client, 'active_custom_prompt', None)
+        if active_custom_prompt:
+            prompt_text = getattr(active_custom_prompt, 'prompt_text', None)
+            if isinstance(prompt_text, str) and prompt_text:
+                return prompt_text
+        
+        # Priority 2: Check custom_system_prompt field (legacy)
         custom_prompt = getattr(client, 'custom_system_prompt', None)
         if isinstance(custom_prompt, str) and custom_prompt:
             return custom_prompt
         
-        # Or check metadata JSON field
+        # Priority 3: Check metadata JSON field
         metadata = getattr(client, 'metadata', None)
         if isinstance(metadata, dict):
             value = metadata.get('system_prompt')

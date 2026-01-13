@@ -44,6 +44,7 @@ from MASTER.clients.serializers import (
     PromptSerializer,
     NewsSerializer,
     PromptVoteSerializer,
+    ClientCustomPromptSerializer,
 )
 from MASTER.clients.permissions import IsAdminOrReadOnly, IsClientOwner
 from django.views.decorators.http import require_POST
@@ -518,6 +519,169 @@ class PromptViewSet(viewsets.ModelViewSet):
             'dislikes_count': prompt.dislikes_count,
             'like_ratio': prompt.get_like_ratio(),
         })
+
+
+class ClientCustomPromptViewSet(viewsets.ModelViewSet):
+    """Custom prompts management for clients"""
+    serializer_class = ClientCustomPromptSerializer
+    permission_classes = []
+    
+    def get_queryset(self):
+        """Return custom prompts for the current client"""
+        client = get_client_from_request(self.request)
+        if not client:
+            return ClientCustomPrompt.objects.none()
+        return ClientCustomPrompt.objects.filter(client=client)
+    
+    def perform_create(self, serializer):
+        """Set client automatically"""
+        client = get_client_from_request(self.request)
+        if not client:
+            raise PermissionDenied("Client not found")
+        serializer.save(client=client)
+    
+    def perform_update(self, serializer):
+        """Ensure client can only update their own prompts"""
+        instance = serializer.instance
+        client = get_client_from_request(self.request)
+        
+        if not client:
+            raise PermissionDenied("Client not found")
+        
+        if instance.client != client:
+            raise PermissionDenied("You can only update your own prompts")
+        
+        # Ensure source_prompt is not changed (it's read-only)
+        if 'source_prompt' in serializer.validated_data:
+            if serializer.validated_data['source_prompt'] != instance.source_prompt:
+                raise PermissionDenied("Cannot change source_prompt. This is a read-only field.")
+        
+        serializer.save()
+    
+    def perform_destroy(self, instance):
+        """Ensure client can only delete their own prompts"""
+        client = get_client_from_request(self.request)
+        
+        if not client:
+            raise PermissionDenied("Client not found")
+        
+        if instance.client != client:
+            raise PermissionDenied("You can only delete your own prompts")
+        
+        # If this was the active prompt, clear it from client
+        if client.active_custom_prompt == instance:
+            client.active_custom_prompt = None
+            client.save(update_fields=['active_custom_prompt'])
+        
+        # Delete only the ClientCustomPrompt, NOT the source Prompt from Prompt Book
+        instance.delete()
+    
+    @action(detail=True, methods=['post'])
+    def activate(self, request, pk=None):
+        """Activate a custom prompt"""
+        client = get_client_from_request(request)
+        if not client:
+            return Response(
+                {'error': 'Client not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        custom_prompt = self.get_object()
+        if custom_prompt.client != client:
+            return Response(
+                {'error': 'Permission denied'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Deactivate all other prompts
+        ClientCustomPrompt.objects.filter(client=client).update(is_active=False)
+        
+        # Activate this prompt
+        custom_prompt.is_active = True
+        custom_prompt.save()
+        
+        # Update client's active_custom_prompt
+        client.active_custom_prompt = custom_prompt
+        client.save(update_fields=['active_custom_prompt'])
+        
+        return Response({
+            'success': True,
+            'message': f'Prompt "{custom_prompt.title}" activated',
+            'prompt': ClientCustomPromptSerializer(custom_prompt).data
+        })
+    
+    @action(detail=False, methods=['post'], url_path='add-from-library/(?P<prompt_id>[^/.]+)', url_name='add-from-library')
+    def add_from_library(self, request, prompt_id=None):
+        """Add a prompt from Prompt Book to client's custom prompts"""
+        client = get_client_from_request(request)
+        if not client:
+            return Response(
+                {'error': 'Client not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Get prompt_id from URL or request data
+        prompt_id = prompt_id or request.data.get('prompt_id')
+        if not prompt_id:
+            return Response(
+                {'error': 'prompt_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            prompt_id = int(prompt_id)
+        except (ValueError, TypeError):
+            return Response(
+                {'error': 'Invalid prompt_id'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            source_prompt = Prompt.objects.get(id=prompt_id, is_public=True)
+        except Prompt.DoesNotExist:
+            return Response(
+                {'error': 'Prompt not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check if already exists
+        existing = ClientCustomPrompt.objects.filter(
+            client=client,
+            source_prompt=source_prompt
+        ).first()
+        
+        if existing:
+            # Update existing LOCAL copy (not the original Prompt Book prompt)
+            # This updates only the client's copy, not the global Prompt Book entry
+            existing.prompt_text = source_prompt.prompt_template
+            existing.title = source_prompt.title
+            existing.description = source_prompt.description
+            existing.save()
+            
+            return Response({
+                'success': True,
+                'message': 'Your local prompt copy updated from library (original Prompt Book entry unchanged)',
+                'prompt': ClientCustomPromptSerializer(existing).data
+            })
+        
+        # Create new LOCAL copy of the prompt
+        # This creates a ClientCustomPrompt instance that references the source_prompt
+        # but stores its own copy of the text. Editing this will NOT affect the original Prompt Book entry.
+        custom_prompt = ClientCustomPrompt.objects.create(
+            client=client,
+            source_prompt=source_prompt,  # Reference to original (read-only)
+            title=source_prompt.title,  # Copy of title
+            prompt_text=source_prompt.prompt_template,  # Copy of prompt text
+            description=source_prompt.description,  # Copy of description
+            is_active=False,
+            order=0
+        )
+        
+        return Response({
+            'success': True,
+            'message': 'Prompt added from library',
+            'prompt': ClientCustomPromptSerializer(custom_prompt).data
+        }, status=status.HTTP_201_CREATED)
 
 
 class PromptVoteView(APIView):
@@ -1137,6 +1301,8 @@ class ClientEmailSMTPConfigView(APIView):
             'email_smtp_password': '',  # Не повертаємо пароль
             'email_from_address': getattr(client, 'email_from_address', ''),
             'email_from_name': getattr(client, 'email_from_name', ''),
+            'email_report_enabled': getattr(client, 'email_report_enabled', False),
+            'email_report_recipients': getattr(client, 'email_report_recipients', []),
         }
         return Response(data)
 
@@ -1165,6 +1331,8 @@ class ClientEmailSMTPConfigView(APIView):
             'email_smtp_password',
             'email_from_address',
             'email_from_name',
+            'email_report_enabled',
+            'email_report_recipients',
         }
         
         changed = []
@@ -2277,15 +2445,17 @@ class ClientWebConversationView(APIView):
         short_phone = f"web_{session_id[-16:]}" if len(session_id) > 16 else f"web_{session_id}"
         short_phone = short_phone[:20]  # Гарантуємо макс 20 символів
         
+        now = timezone.now()
         conversation, created = ClientWhatsAppConversation.objects.get_or_create(
             session_id=session_id,
             client=client,
             is_active=True,
             defaults={
                 'customer_phone': short_phone,
-                'started_at': timezone.now(),
+                'started_at': now,
                 'messages': [],
                 'context_metadata': {'platform': platform},
+                'last_activity_at': now,
             }
         )
         
@@ -2302,25 +2472,228 @@ class ClientWebConversationView(APIView):
         if not conversation.messages:
             conversation.messages = []
         
+        now = timezone.now()
         conversation.messages.append({
             'role': 'user',
             'content': message,
-            'timestamp': timezone.now().isoformat()
+            'timestamp': now.isoformat()
         })
         
         conversation.messages.append({
             'role': 'assistant',
             'content': response_text,
-            'timestamp': timezone.now().isoformat()
+            'timestamp': now.isoformat()
         })
         
         conversation.total_messages = len(conversation.messages)
-        conversation.save(update_fields=['messages', 'total_messages', 'updated_at'])
+        conversation.last_activity_at = now
+        conversation.save(update_fields=['messages', 'total_messages', 'updated_at', 'last_activity_at'])
         
         return Response({
             'success': True,
             'conversation_id': conversation.id,
             'total_messages': conversation.total_messages
+        })
+
+
+class ConversationRatingView(APIView):
+    """
+    API endpoint for rating conversations (thumbs up/down)
+    POST /api/clients/conversations/{conversation_id}/rate/
+    Body: { "rating": "positive" | "negative" }
+    """
+    permission_classes = []
+    
+    def post(self, request, conversation_id):
+        from django.utils import timezone
+        from MASTER.clients.models import ClientWhatsAppConversation
+        
+        client = get_client_from_request(request)
+        if not client:
+            return Response(
+                {'error': 'Client not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        try:
+            conversation = ClientWhatsAppConversation.objects.get(
+                id=conversation_id,
+                client=client
+            )
+        except ClientWhatsAppConversation.DoesNotExist:
+            return Response(
+                {'error': 'Conversation not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        rating = request.data.get('rating', '').lower()
+        if rating not in ['positive', 'negative']:
+            return Response(
+                {'error': 'Rating must be "positive" or "negative"'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Update rating
+        conversation.user_rating = rating
+        conversation.rating_timestamp = timezone.now()
+        conversation.save(update_fields=['user_rating', 'rating_timestamp'])
+        
+        return Response({
+            'success': True,
+            'conversation_id': conversation.id,
+            'rating': rating,
+            'message': 'Rating saved successfully'
+        })
+
+
+class ConversationStatisticsView(APIView):
+    """
+    API endpoint for getting conversation statistics
+    GET /api/clients/conversations/statistics/
+    Query params: ?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD
+    """
+    permission_classes = []
+    
+    def get(self, request):
+        from django.utils import timezone
+        from datetime import datetime, timedelta
+        from django.db.models import Count, Q, Avg
+        from MASTER.clients.models import ClientWhatsAppConversation
+        
+        client = get_client_from_request(request)
+        if not client:
+            return Response(
+                {'error': 'Client not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Parse date range
+        start_date_str = request.query_params.get('start_date')
+        end_date_str = request.query_params.get('end_date')
+        
+        try:
+            if start_date_str:
+                start_date = datetime.fromisoformat(start_date_str).date()
+            else:
+                start_date = (timezone.now() - timedelta(days=30)).date()
+            
+            if end_date_str:
+                end_date = datetime.fromisoformat(end_date_str).date()
+            else:
+                end_date = timezone.now().date()
+        except ValueError:
+            return Response(
+                {'error': 'Invalid date format. Use YYYY-MM-DD'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Filter conversations
+        conversations = ClientWhatsAppConversation.objects.filter(
+            client=client,
+            started_at__date__gte=start_date,
+            started_at__date__lte=end_date
+        )
+        
+        # Calculate statistics
+        total_conversations = conversations.count()
+        active_conversations = conversations.filter(is_active=True).count()
+        closed_conversations = total_conversations - active_conversations
+        
+        # Ratings
+        positive_ratings = conversations.filter(
+            Q(user_rating='positive') | Q(ai_rating='positive')
+        ).count()
+        negative_ratings = conversations.filter(
+            Q(user_rating='negative') | Q(ai_rating='negative')
+        ).count()
+        unrated = conversations.filter(
+            user_rating__isnull=True,
+            ai_rating__isnull=True
+        ).count()
+        
+        # Satisfaction rate
+        total_rated = positive_ratings + negative_ratings
+        satisfaction_rate = (positive_ratings / total_rated * 100) if total_rated > 0 else 0
+        
+        # Average messages per conversation
+        avg_messages = conversations.aggregate(
+            avg=Avg('total_messages')
+        )['avg'] or 0
+        
+        # Email reports sent
+        emails_sent = conversations.filter(email_sent=True).count()
+        
+        return Response({
+            'period': {
+                'start_date': start_date.isoformat(),
+                'end_date': end_date.isoformat()
+            },
+            'conversations': {
+                'total': total_conversations,
+                'active': active_conversations,
+                'closed': closed_conversations
+            },
+            'ratings': {
+                'positive': positive_ratings,
+                'negative': negative_ratings,
+                'unrated': unrated,
+                'satisfaction_rate': round(satisfaction_rate, 2)
+            },
+            'average_messages_per_conversation': round(avg_messages, 2),
+            'emails_sent': emails_sent
+        })
+
+
+class ManualReportView(APIView):
+    """
+    API endpoint for manual report generation (admin)
+    POST /api/clients/conversations/{conversation_id}/generate-report/
+    """
+    permission_classes = []
+    
+    def post(self, request, conversation_id):
+        from MASTER.clients.models import ClientWhatsAppConversation
+        from MASTER.clients.tasks import generate_chat_summary, format_chat_as_text, send_chat_summary_email
+        
+        client = get_client_from_request(request)
+        if not client:
+            return Response(
+                {'error': 'Client not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        try:
+            conversation = ClientWhatsAppConversation.objects.get(
+                id=conversation_id,
+                client=client
+            )
+        except ClientWhatsAppConversation.DoesNotExist:
+            return Response(
+                {'error': 'Conversation not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Generate summary if not exists
+        if not conversation.summary:
+            summary = generate_chat_summary(conversation)
+            conversation.summary = summary
+            conversation.save(update_fields=['summary'])
+        
+        # Format chat text
+        chat_text = format_chat_as_text(conversation)
+        
+        # Send email if enabled
+        email_result = None
+        if conversation.client.email_report_enabled and conversation.client.email_report_recipients:
+            email_result = send_chat_summary_email(conversation, chat_text)
+        
+        return Response({
+            'success': True,
+            'conversation_id': conversation.id,
+            'summary': conversation.summary,
+            'chat_text': chat_text,
+            'email_sent': email_result.get('success', False) if email_result else False,
+            'email_result': email_result
         })
 
 

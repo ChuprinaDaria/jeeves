@@ -12,6 +12,9 @@ urlpatterns = [
     path('logo/', views.ClientLogoUploadView.as_view(), name='client-logo-upload'),
     path('conversations/', views.ClientConversationsView.as_view(), name='client-conversations'),
     path('conversations/<int:conversation_id>/', views.ClientConversationDetailView.as_view(), name='client-conversation-detail'),
+    path('conversations/<int:conversation_id>/rate/', views.ConversationRatingView.as_view(), name='conversation-rate'),
+    path('conversations/<int:conversation_id>/generate-report/', views.ManualReportView.as_view(), name='conversation-generate-report'),
+    path('conversations/statistics/', views.ConversationStatisticsView.as_view(), name='conversation-statistics'),
     path('web-conversations/', views.ClientWebConversationView.as_view(), name='client-web-conversations'),
     path('web-knowledge/', views.ClientWebKnowledgeView.as_view(), name='client-web-knowledge'),
     path('top-questions/', views.ClientTopQuestionsView.as_view(), name='client-top-questions'),
@@ -43,6 +46,11 @@ urlpatterns = [
     path('prompts/', views.PromptViewSet.as_view({'get': 'list', 'post': 'create'}), name='prompt-list'),
     path('prompts/<int:pk>/', views.PromptViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='prompt-detail'),
     path('prompts/<int:pk>/vote/', views.PromptVoteView.as_view(), name='prompt-vote'),
+    # Custom prompts management
+    path('custom-prompts/', views.ClientCustomPromptViewSet.as_view({'get': 'list', 'post': 'create'}), name='custom-prompt-list'),
+    path('custom-prompts/<int:pk>/', views.ClientCustomPromptViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='custom-prompt-detail'),
+    path('custom-prompts/<int:pk>/activate/', views.ClientCustomPromptViewSet.as_view({'post': 'activate'}), name='custom-prompt-activate'),
+    path('custom-prompts/add-from-library/<int:prompt_id>/', views.ClientCustomPromptViewSet.as_view({'post': 'add_from_library'}), name='custom-prompt-add-from-library'),
     path('news/', views.NewsViewSet.as_view({'get': 'list'}), name='news-list'),
     path('news/<int:pk>/', views.NewsViewSet.as_view({'get': 'retrieve'}), name='news-detail'),
     

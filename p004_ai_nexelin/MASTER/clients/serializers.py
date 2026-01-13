@@ -8,6 +8,7 @@ from MASTER.clients.models import (
     WebParsingRequest,
     Prompt,
     PromptVote,
+    ClientCustomPrompt,
     News,
 )
 
@@ -330,6 +331,59 @@ class PromptVoteSerializer(serializers.ModelSerializer):
         model = PromptVote
         fields = ['id', 'prompt', 'vote', 'created_at']
         read_only_fields = ['id', 'created_at']
+
+
+class ClientCustomPromptSerializer(serializers.ModelSerializer):
+    """
+    Serializer for ClientCustomPrompt.
+    
+    Important:
+    - source_prompt is read-only and cannot be changed after creation
+    - Editing ClientCustomPrompt only affects the client's local copy
+    - The original Prompt from Prompt Book remains unchanged
+    - Deleting ClientCustomPrompt does NOT delete the source Prompt
+    """
+    source_prompt_title = serializers.CharField(source='source_prompt.title', read_only=True, allow_null=True)
+    source_prompt_id = serializers.IntegerField(source='source_prompt.id', read_only=True, allow_null=True)
+    source_prompt = serializers.PrimaryKeyRelatedField(read_only=True, help_text="Reference to Prompt Book entry (read-only)")
+    
+    class Meta:
+        model = ClientCustomPrompt
+        fields = [
+            'id',
+            'client',
+            'source_prompt',
+            'source_prompt_id',
+            'source_prompt_title',
+            'title',
+            'prompt_text',
+            'description',
+            'is_active',
+            'order',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['client', 'source_prompt', 'created_at', 'updated_at']
+    
+    def validate(self, attrs):
+        """Ensure source_prompt cannot be changed after creation"""
+        if self.instance and 'source_prompt' in attrs:
+            # Prevent changing source_prompt after creation
+            if attrs['source_prompt'] != self.instance.source_prompt:
+                raise serializers.ValidationError({
+                    'source_prompt': 'Cannot change source_prompt after creation. This is a read-only field.'
+                })
+        return attrs
+    
+    def create(self, validated_data):
+        # Set client from request context
+        from MASTER.clients.views import get_client_from_request
+        request = self.context.get('request')
+        if request:
+            client = get_client_from_request(request)
+            if client:
+                validated_data['client'] = client
+        return super().create(validated_data)
 
 
 class NewsSerializer(serializers.ModelSerializer):

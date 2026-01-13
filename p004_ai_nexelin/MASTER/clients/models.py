@@ -150,7 +150,18 @@ class Client(models.Model):
     # Custom system prompt for AI responses
     custom_system_prompt = models.TextField(
         blank=True,
-        help_text="Custom system prompt for this client's AI assistant. Leave empty to use default."
+        help_text="Custom system prompt for this client's AI assistant. Leave empty to use default. Note: Use custom_prompts for multiple prompts management."
+    )
+    
+    # Active custom prompt (reference to ClientCustomPrompt)
+    active_custom_prompt = models.ForeignKey(
+        'ClientCustomPrompt',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='active_for_clients',
+        verbose_name='Active Custom Prompt',
+        help_text='Currently active custom prompt (if using custom prompts system)'
     )
     
     created_by = models.ForeignKey(
@@ -201,6 +212,17 @@ class Client(models.Model):
     email_smtp_password = models.CharField(max_length=255, blank=True, help_text="SMTP password or app password")
     email_from_address = models.EmailField(blank=True, help_text="From email address for sending emails")
     email_from_name = models.CharField(max_length=255, blank=True, help_text="From name for sending emails")
+    
+    # Email report configuration for chat summaries
+    email_report_enabled = models.BooleanField(
+        default=False,
+        help_text="Enable automatic email reports for closed chat sessions"
+    )
+    email_report_recipients = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of email addresses to receive chat summary reports. Example: ['owner@example.com', 'support@example.com']"
+    )
 
     # Dashboard visibility settings
     dashboard_show_info_center = models.BooleanField(
@@ -1240,6 +1262,59 @@ class ClientWhatsAppConversation(models.Model):
         verbose_name='Updated At'
     )
     
+    # Rating and satisfaction fields
+    user_rating = models.CharField(
+        max_length=10,
+        blank=True,
+        null=True,
+        choices=[('positive', '👍 Positive'), ('negative', '👎 Negative')],
+        verbose_name='User Rating',
+        help_text='Rating given by user (👍 or 👎)'
+    )
+    
+    ai_rating = models.CharField(
+        max_length=10,
+        blank=True,
+        null=True,
+        choices=[('positive', '👍 Positive'), ('negative', '👎 Negative')],
+        verbose_name='AI Rating',
+        help_text='Auto-rating by AI after 5 minutes of inactivity if user did not rate'
+    )
+    
+    rating_timestamp = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Rating Timestamp',
+        help_text='When the rating was given (user or AI)'
+    )
+    
+    # Email report fields
+    email_sent = models.BooleanField(
+        default=False,
+        verbose_name='Email Sent',
+        help_text='Whether summary email was sent to client'
+    )
+    
+    email_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Email Sent At',
+        help_text='When the summary email was sent'
+    )
+    
+    summary = models.TextField(
+        blank=True,
+        verbose_name='Chat Summary',
+        help_text='AI-generated summary of the conversation'
+    )
+    
+    last_activity_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Last Activity',
+        help_text='Timestamp of last message in conversation'
+    )
+    
     class Meta:
         verbose_name = 'Client WhatsApp Conversation'
         verbose_name_plural = 'Client WhatsApp Conversations'
@@ -1263,14 +1338,16 @@ class ClientWhatsAppConversation(models.Model):
         if not self.messages:
             self.messages = []
         
+        now = timezone.now()
         self.messages.append({
             'role': role,
             'content': content,
-            'timestamp': timezone.now().isoformat()
+            'timestamp': now.isoformat()
         })
         
         self.total_messages = len(self.messages)
-        self.save(update_fields=['messages', 'total_messages', 'updated_at'])
+        self.last_activity_at = now
+        self.save(update_fields=['messages', 'total_messages', 'updated_at', 'last_activity_at'])
     
     def end_conversation(self):
         """Ends the conversation"""
@@ -1424,6 +1501,91 @@ class PromptVote(models.Model):
     def __str__(self):
         user_str = self.user.username if self.user else self.user_identifier
         return f"{user_str} - {self.vote} on {self.prompt.title}"
+
+
+class ClientCustomPrompt(models.Model):
+    """Custom prompts saved by clients for their AI training"""
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.CASCADE,
+        related_name='custom_prompts',
+        verbose_name='Client'
+    )
+    
+    # Reference to Prompt Book (optional - if added from library)
+    source_prompt = models.ForeignKey(
+        Prompt,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='client_customizations',
+        verbose_name='Source Prompt',
+        help_text='Original prompt from Prompt Book (if added from library)'
+    )
+    
+    # Prompt content
+    title = models.CharField(
+        max_length=200,
+        verbose_name='Title',
+        help_text='Name of this prompt'
+    )
+    
+    prompt_text = models.TextField(
+        verbose_name='Prompt Text',
+        help_text='The actual prompt/system message for AI'
+    )
+    
+    description = models.TextField(
+        blank=True,
+        verbose_name='Description',
+        help_text='Optional description of what this prompt does'
+    )
+    
+    # Metadata
+    is_active = models.BooleanField(
+        default=False,
+        verbose_name='Active',
+        help_text='Whether this is the currently active prompt for the client'
+    )
+    
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Created At'
+    )
+    
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name='Updated At'
+    )
+    
+    # Order for display
+    order = models.IntegerField(
+        default=0,
+        verbose_name='Order',
+        help_text='Display order (lower numbers appear first)'
+    )
+    
+    class Meta:
+        verbose_name = 'Client Custom Prompt'
+        verbose_name_plural = 'Client Custom Prompts'
+        ordering = ['order', '-created_at']
+        indexes = [
+            models.Index(fields=['client', 'is_active']),
+            models.Index(fields=['client', 'order']),
+        ]
+    
+    def __str__(self):
+        active_status = " (Active)" if self.is_active else ""
+        return f"{self.client.company_name} - {self.title}{active_status}"
+    
+    def save(self, *args, **kwargs):
+        # Ensure only one active prompt per client
+        if self.is_active:
+            ClientCustomPrompt.objects.filter(
+                client=self.client,
+                is_active=True
+            ).exclude(id=self.id).update(is_active=False)
+        super().save(*args, **kwargs)
 
 
 class News(models.Model):

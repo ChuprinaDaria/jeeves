@@ -232,6 +232,15 @@ CELERY_TASK_ANNOTATIONS = {
 }
 CELERY_WORKER_CONCURRENCY = env.int("CELERY_WORKER_CONCURRENCY", default=1)
 
+# Celery Beat schedule for periodic tasks
+from celery.schedules import crontab
+CELERY_BEAT_SCHEDULE = {
+    'check-inactive-chat-sessions': {
+        'task': 'MASTER.clients.tasks.check_inactive_chat_sessions',
+        'schedule': 60.0,  # Run every 60 seconds (1 minute)
+    },
+}
+
 # === RAG CONFIGS (SHORTENED) ===
 VECTOR_SEARCH_CONFIG = { 'ivfflat_probes': 10 }
 RAG_CONFIG = {
