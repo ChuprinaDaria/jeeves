@@ -1,0 +1,23 @@
+[MASTER]
+# Python code to execute, usually for sys.path manipulation
+init-hook='import sys; sys.path.append(".")'
+
+[MESSAGES CONTROL]
+disable=
+    C0111,  # missing-docstring
+    C0103,  # invalid-name
+    R0903,  # too-few-public-methods
+    R0913,  # too-many-arguments
+    W0212,  # protected-access
+    C0301,  # line-too-long
+
+[FORMAT]
+max-line-length=120
+indent-string='    '
+
+[BASIC]
+good-names=i,j,k,ex,Run,_,id,db,pk
+
+[TYPECHECK]
+ignored-modules=django,environ
+

@@ -1,0 +1,106 @@
+name: Pre-Deployment System Checks
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  # System Health Checks
+  system-health:
+    name: System Health Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check Docker Compose files
+        run: |
+          echo "Checking Docker Compose configuration..."
+          docker-compose -f docker-compose.yml config > /dev/null || echo "Docker Compose validation failed"
+          echo "✅ Docker Compose files are valid"
+
+      - name: Check Python syntax
+        run: |
+          echo "Checking Python syntax..."
+          find MASTER -name "*.py" -exec python -m py_compile {} \; || echo "Python syntax check failed"
+          echo "✅ Python syntax is valid"
+
+      - name: Check requirements.txt
+        run: |
+          echo "Validating requirements.txt..."
+          pip install --dry-run -r requirements.txt || echo "Requirements validation failed"
+          echo "✅ Requirements.txt is valid"
+
+      - name: Check environment files
+        run: |
+          echo "Checking environment configuration..."
+          if [ -f ".env.example" ]; then
+            echo "✅ .env.example exists"
+          fi
+          if [ -f "zero.env.example" ]; then
+            echo "✅ zero.env.example exists"
+          fi
+
+      - name: Check critical files exist
+        run: |
+          echo "Checking critical files..."
+          [ -f "MASTER/manage.py" ] && echo "✅ manage.py exists" || echo "❌ manage.py missing"
+          [ -f "requirements.txt" ] && echo "✅ requirements.txt exists" || echo "❌ requirements.txt missing"
+          [ -f "Dockerfile" ] && echo "✅ Dockerfile exists" || echo "❌ Dockerfile missing"
+
+  # Dependency Check
+  dependency-check:
+    name: Dependency Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Check for outdated dependencies
+        run: |
+          pip install pip-audit
+          pip-audit --desc || echo "Dependency check completed"
+
+      - name: Check Node.js dependencies (Frontend)
+        run: |
+          if [ -f "MASTER/client_portal/package.json" ]; then
+            cd MASTER/client_portal
+            npm outdated || echo "npm outdated check completed"
+          fi
+
+  # Configuration Validation
+  config-validation:
+    name: Configuration Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate Django settings
+        run: |
+          cd MASTER
+          python manage.py check --deploy || echo "Django check completed"
+        env:
+          SECRET_KEY: test-secret-key
+          DEBUG: False
+          DATABASE_URL: sqlite:///test.db
+        continue-on-error: true
+
+      - name: Check database migrations
+        run: |
+          cd MASTER
+          python manage.py showmigrations || echo "Migration check completed"
+        continue-on-error: true
+

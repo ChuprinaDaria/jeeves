@@ -2,6 +2,19 @@
 
 A Django-based admin panel with pgvector support for AI-powered document management and vector search capabilities.
 
+## 🚀 CI/CD Pipeline
+
+This project includes a comprehensive CI/CD pipeline using GitHub Actions:
+
+- **Frontend CI/CD**: Automated linting, security scanning, building, and FTP deployment
+- **Backend CI/CD**: Code quality checks, security scanning, testing, Docker building, and VPS deployment
+- **Pre-Deployment Checks**: System health checks, dependency validation, configuration validation
+- **Error Logging**: Automatic error logging and artifact archiving
+
+**Workflows trigger on push to `main` branch only.**
+
+For detailed CI/CD setup instructions, see [CI/CD Setup Documentation](docs/CI_CD_SETUP.md).
+
 ## RAG Overview (High Level)
 
 This project includes a comprehensive Retrieval-Augmented Generation (RAG) pipeline located in `MASTER/rag/`:

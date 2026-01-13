@@ -1,0 +1,56 @@
+[tool.black]
+line-length = 120
+target-version = ['py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | venv
+  | env
+  | _build
+  | buck-out
+  | build
+  | dist
+  | migrations
+  | node_modules
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 120
+skip = ["migrations", "venv", "env", ".venv", "node_modules"]
+known_django = "django"
+known_first_party = ["MASTER"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+exclude = [
+    "migrations",
+    "venv",
+    "env",
+    ".venv",
+    "node_modules",
+]
+
+[tool.bandit]
+exclude_dirs = ["migrations", "venv", "env", ".venv", "tests", "test"]
+skips = ["B101", "B601"]
+
+[tool.pytest.ini_options]
+testpaths = ["MASTER"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+DJANGO_SETTINGS_MODULE = "MASTER.settings"
+
