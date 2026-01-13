@@ -579,8 +579,18 @@ Consider:
 
 Rating:"""
         
-        llm_client = LLMClient(conversation.client)
-        response = llm_client.generate(prompt, temperature=0.3, max_tokens=10)
+        llm_client = LLMClient()
+        result = llm_client.generate_response(
+            user_query=prompt,
+            context="",
+            client=conversation.client,
+            stream=False
+        )
+        # Handle dict response (new format) or string (old format)
+        if isinstance(result, dict):
+            response = result.get('content', '')
+        else:
+            response = str(result)
         
         rating = None
         if response:
@@ -655,7 +665,6 @@ def close_session_and_send_email(self, conversation_id: int):
     """
     from django.utils import timezone
     from MASTER.clients.models import ClientWhatsAppConversation
-    from MASTER.clients.email_service import EmailService
     
     try:
         conversation = ClientWhatsAppConversation.objects.select_related('client').get(id=conversation_id)
@@ -688,14 +697,14 @@ def close_session_and_send_email(self, conversation_id: int):
             conversation.save(update_fields=['is_active', 'ended_at'])
             return {"status": "skipped", "message": "Incomplete SMTP settings. Check email settings."}
         
-        # Check if there are recipients
-        recipients = conversation.client.email_report_recipients
-        if not recipients or not isinstance(recipients, list) or len(recipients) == 0:
-            logger.warning(f"No email recipients configured for client {conversation.client.id}")
+        # Get recipient email (use email_from_address or email_smtp_username)
+        recipient_email = conversation.client.email_from_address or conversation.client.email_smtp_username
+        if not recipient_email:
+            logger.warning(f"No email recipient configured for client {conversation.client.id} (email_from_address or email_smtp_username required)")
             conversation.is_active = False
             conversation.ended_at = timezone.now()
             conversation.save(update_fields=['is_active', 'ended_at'])
-            return {"status": "skipped", "message": "No email recipients"}
+            return {"status": "skipped", "message": "No email recipient configured"}
         
         # Generate summary if not exists
         if not conversation.summary:
@@ -778,8 +787,18 @@ Provide a summary that includes:
 Summary ({lang_name}):"""
     
     try:
-        llm_client = LLMClient(conversation.client)
-        summary = llm_client.generate(prompt, temperature=0.3, max_tokens=300)
+        llm_client = LLMClient()
+        result = llm_client.generate_response(
+            user_query=prompt,
+            context="",
+            client=conversation.client,
+            stream=False
+        )
+        # Handle dict response (new format) or string (old format)
+        if isinstance(result, dict):
+            summary = result.get('content', '')
+        else:
+            summary = str(result)
         return summary.strip() if summary else "Summary generation failed."
     except Exception as e:
         logger.error(f"Failed to generate summary: {str(e)}", exc_info=True)
@@ -839,12 +858,9 @@ def format_chat_as_text(conversation):
 def send_chat_summary_email(conversation, chat_text):
     """
     Send chat summary email to client recipients with attachment.
+    Uses Django's get_connection with client-specific SMTP settings.
     """
-    from email.mime.text import MIMEText
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.base import MIMEBase
-    from email import encoders
-    import smtplib
+    from django.core.mail import get_connection, EmailMultiAlternatives
     
     if not conversation.client.email_smtp_enabled:
         logger.error(f"SMTP not enabled for client {conversation.client.id}")
@@ -864,7 +880,27 @@ def send_chat_summary_email(conversation, chat_text):
         return {"success": False, "error": "SMTP password not configured", "message": "Email not sent. Check email settings."}
     
     try:
-        email_service = EmailService(conversation.client)
+        # Determine use_tls and use_ssl based on client settings
+        # If use_tls is True, use STARTTLS (port 587)
+        # If use_tls is False and port is 465, use SSL
+        use_tls = conversation.client.email_smtp_use_tls
+        use_ssl = not use_tls and conversation.client.email_smtp_port == 465
+        
+        # Get from_email address
+        from_email = conversation.client.email_from_address or conversation.client.email_smtp_username
+        from_name = conversation.client.email_from_name or conversation.client.company_name or "AI Assistant"
+        from_address = f"{from_name} <{from_email}>"
+        
+        # Create SMTP connection with client-specific settings
+        connection = get_connection(
+            backend='django.core.mail.backends.smtp.EmailBackend',
+            host=conversation.client.email_smtp_host,
+            port=conversation.client.email_smtp_port,
+            username=conversation.client.email_smtp_username,
+            password=conversation.client.email_smtp_password,
+            use_tls=use_tls,
+            use_ssl=use_ssl,
+        )
         
         # Prepare email
         subject = f"Chat Session Summary - {conversation.client.company_name}"
@@ -914,54 +950,44 @@ Summary:
 Full conversation transcript is attached as a text file.
         """
         
-        # Send to all recipients
-        recipients = conversation.client.email_report_recipients
+        # Get recipient email (use email_from_address or email_smtp_username)
+        recipient_email = conversation.client.email_from_address or conversation.client.email_smtp_username
+        if not recipient_email:
+            logger.error(f"No email recipient configured for client {conversation.client.id}")
+            return {"success": False, "error": "No email recipient configured", "message": "Email not sent. Configure email_from_address or email_smtp_username."}
+        
         results = []
         
-        for recipient in recipients:
-            if not recipient or not isinstance(recipient, str):
-                continue
+        # Attachment filename
+        filename = f"chat_session_{conversation.id}_{conversation.session_id or 'unknown'}.txt"
+        
+        try:
+            # Create EmailMultiAlternatives for HTML + plain text
+            email = EmailMultiAlternatives(
+                subject=subject,
+                body=body_text,
+                from_email=from_address,
+                to=[recipient_email],
+                connection=connection,
+            )
+            # Attach HTML alternative
+            email.attach_alternative(body_html, "text/html")
             
-            try:
-                # Create message with attachment for each recipient
-                msg = MIMEMultipart('mixed')  # Use 'mixed' to support attachments
-                msg['From'] = f"{email_service.from_name} <{email_service.from_address}>"
-                msg['To'] = recipient
-                msg['Subject'] = subject
-                
-                # Create alternative part for text/html
-                msg_alternative = MIMEMultipart('alternative')
-                msg_alternative.attach(MIMEText(body_text, 'plain'))
-                msg_alternative.attach(MIMEText(body_html, 'html'))
-                msg.attach(msg_alternative)
-                
-                # Add attachment
-                attachment = MIMEBase('application', 'octet-stream')
-                attachment.set_payload(chat_text.encode('utf-8'))
-                encoders.encode_base64(attachment)
-                filename = f"chat_session_{conversation.id}_{conversation.session_id or 'unknown'}.txt"
-                attachment.add_header(
-                    'Content-Disposition',
-                    f'attachment; filename="{filename}"'
-                )
-                msg.attach(attachment)
-                
-                # Connect and send
-                if email_service.smtp_use_tls:
-                    server = smtplib.SMTP(email_service.smtp_host, email_service.smtp_port)
-                    server.starttls()
-                else:
-                    server = smtplib.SMTP_SSL(email_service.smtp_host, email_service.smtp_port)
-                
-                server.login(email_service.smtp_username, email_service.smtp_password)
-                server.sendmail(email_service.from_address, [recipient], msg.as_string())
-                server.quit()
-                
-                results.append({"recipient": recipient, "success": True})
-                logger.info(f"Sent chat summary email to {recipient} for conversation {conversation.id}")
-            except Exception as e:
-                logger.error(f"Failed to send email to {recipient}: {str(e)}", exc_info=True)
-                results.append({"recipient": recipient, "success": False, "error": str(e)})
+            # Add attachment
+            email.attach(
+                filename=filename,
+                content=chat_text.encode('utf-8'),
+                mimetype='text/plain'
+            )
+            
+            # Send email
+            email.send()
+            
+            results.append({"recipient": recipient_email, "success": True})
+            logger.info(f"Sent chat summary email to {recipient_email} for conversation {conversation.id}")
+        except Exception as e:
+            logger.error(f"Failed to send email to {recipient_email}: {str(e)}", exc_info=True)
+            results.append({"recipient": recipient_email, "success": False, "error": str(e)})
         
         return {
             "success": True,
