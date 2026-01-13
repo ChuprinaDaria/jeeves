@@ -14,6 +14,7 @@ urlpatterns = [
     path('conversations/<int:conversation_id>/', views.ClientConversationDetailView.as_view(), name='client-conversation-detail'),
     path('conversations/<int:conversation_id>/rate/', views.ConversationRatingView.as_view(), name='conversation-rate'),
     path('conversations/<int:conversation_id>/generate-report/', views.ManualReportView.as_view(), name='conversation-generate-report'),
+    path('conversations/<int:conversation_id>/notes/', views.ConversationNotesView.as_view(), name='conversation-notes'),
     path('conversations/statistics/', views.ConversationStatisticsView.as_view(), name='conversation-statistics'),
     path('web-conversations/', views.ClientWebConversationView.as_view(), name='client-web-conversations'),
     path('web-knowledge/', views.ClientWebKnowledgeView.as_view(), name='client-web-knowledge'),

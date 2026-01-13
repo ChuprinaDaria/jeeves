@@ -2334,7 +2334,11 @@ class ClientConversationDetailView(APIView):
                 'total_messages': conversation.total_messages,
                 'qr_code_name': conversation.qr_code.name if conversation.qr_code else None,
                 'messages': messages,
-                'source': source
+                'source': source,
+                'notes': conversation.notes or '',
+                'user_rating': conversation.user_rating,
+                'ai_rating': conversation.ai_rating,
+                'summary': conversation.summary or ''
             })
             
         except ClientWhatsAppConversation.DoesNotExist:
@@ -2694,6 +2698,49 @@ class ManualReportView(APIView):
             'chat_text': chat_text,
             'email_sent': email_result.get('success', False) if email_result else False,
             'email_result': email_result
+        })
+
+
+class ConversationNotesView(APIView):
+    """
+    API endpoint for adding/updating notes for a conversation
+    POST /api/clients/conversations/{conversation_id}/notes/
+    Body: { "notes": "text" }
+    """
+    permission_classes = []
+    
+    def post(self, request, conversation_id):
+        from MASTER.clients.models import ClientWhatsAppConversation
+        
+        client = get_client_from_request(request)
+        if not client:
+            return Response(
+                {'error': 'Client not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        try:
+            conversation = ClientWhatsAppConversation.objects.get(
+                id=conversation_id,
+                client=client
+            )
+        except ClientWhatsAppConversation.DoesNotExist:
+            return Response(
+                {'error': 'Conversation not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        notes = request.data.get('notes', '')
+        
+        # Update notes
+        conversation.notes = notes
+        conversation.save(update_fields=['notes'])
+        
+        return Response({
+            'success': True,
+            'conversation_id': conversation.id,
+            'notes': conversation.notes,
+            'message': 'Notes saved successfully'
         })
 
 

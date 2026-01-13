@@ -1308,6 +1308,12 @@ class ClientWhatsAppConversation(models.Model):
         help_text='AI-generated summary of the conversation'
     )
     
+    notes = models.TextField(
+        blank=True,
+        verbose_name='Notes',
+        help_text='Manual notes or comments about this conversation'
+    )
+    
     last_activity_at = models.DateTimeField(
         null=True,
         blank=True,

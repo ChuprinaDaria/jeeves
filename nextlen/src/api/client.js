@@ -91,6 +91,9 @@ export const clientAPI = {
   // WhatsApp Conversations API
   getConversations: () => api.get('/clients/conversations/'),
   getConversationDetail: (conversationId) => api.get(`/clients/conversations/${conversationId}/`),
+  rateConversation: (conversationId, rating) => api.post(`/clients/conversations/${conversationId}/rate/`, { rating }),
+  sendConversationEmail: (conversationId) => api.post(`/clients/conversations/${conversationId}/generate-report/`),
+  updateConversationNotes: (conversationId, notes) => api.post(`/clients/conversations/${conversationId}/notes/`, { notes }),
   
   // QR Codes API
   getQRCodes: () => api.get('/clients/qr-codes/'),
