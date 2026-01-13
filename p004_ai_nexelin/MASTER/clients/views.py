@@ -2713,6 +2713,7 @@ class ManualReportView(APIView):
             traceback.print_exc()
             return Response({
                 'success': False,
+                'email_sent': False,
                 'error': str(e),
                 'message': 'Email not sent. Check email settings.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
