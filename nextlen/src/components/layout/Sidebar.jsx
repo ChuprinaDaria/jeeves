@@ -15,15 +15,56 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { clientAPI } from '../../api/client';
+import { ensureSupportWidgetForClientType } from '../../utils/supportWidget';
 
 const Sidebar = () => {
   const { t } = useTranslation();
   const { isAuthenticated, user } = useAuth();
   const [searchParams] = useSearchParams();
   const [isOpen, setIsOpen] = useState(false);
-  // Базове значення, поки не підтягнемо дані користувача/клієнта
-  const [clientName, setClientName] = useState('User');
-  const [clientLogo, setClientLogo] = useState(null);
+  
+  // Функція для визначення назви клієнта
+  const getClientName = (clientData) => {
+    // Тільки для white_label клієнтів показуємо назву компанії
+    const isWhiteLabel = clientData?.client_type === 'white_label';
+    const hasCompanyName = !!clientData?.company_name;
+    
+    console.log('getClientName check:', {
+      client_type: clientData?.client_type,
+      company_name: clientData?.company_name,
+      isWhiteLabel,
+      hasCompanyName,
+      willReturn: isWhiteLabel && hasCompanyName ? clientData.company_name : 'NEXELIN'
+    });
+    
+    if (isWhiteLabel && hasCompanyName) {
+      return clientData.company_name;
+    }
+    // Для всіх інших клієнтів (включаючи тих, хто має company_name, але не white_label) - NEXELIN
+    return 'NEXELIN';
+  };
+  
+  // Ініціалізуємо назву з user контексту, якщо він вже є і містить всі потрібні дані
+  const [clientName, setClientName] = useState(() => {
+    // Для залогінованих користувачів використовуємо дані з контексту
+    if (user?.client_type === 'white_label' && user?.company_name) {
+      return user.company_name;
+    }
+    // Для клієнтів з тегом буде завантажено через API, поки що показуємо NEXELIN
+    return 'NEXELIN';
+  });
+  
+  const [clientLogo, setClientLogo] = useState(() => {
+    if (user?.logo_url || user?.logo) {
+      const logoUrl = user.logo_url || user.logo;
+      if (logoUrl.startsWith('/')) {
+        const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+        return `${baseURL}${logoUrl}`;
+      }
+      return logoUrl;
+    }
+    return null;
+  });
   
   // Зберігаємо тег з URL для навігації
   const tag = searchParams.get('tag');
@@ -38,54 +79,85 @@ const Sidebar = () => {
     { to: '/settings', icon: Settings, label: t('nav.settings') || 'Settings' },
   ];
   
-  // Debug для діагностики
-  console.log('=== SIDEBAR DEBUG ===');
-  console.log('isAuthenticated:', isAuthenticated);
-  console.log('user:', user);
-  console.log('navItems count:', navItems.length);
-  console.log('navItems:', navItems);
-  console.log('Settings label:', navItems.find(item => item.to === '/settings')?.label);
-
+  // Завантажуємо дані клієнта завжди для клієнтів з тегом, або якщо user контекст порожній/неповний
   useEffect(() => {
-    if (!isAuthenticated) return;
-
-    // Завантажуємо дані клієнта (назву і логотип)
-    loadClientData();
-  }, [isAuthenticated]);
-
-  const loadClientData = async () => {
-    try {
-      const response = await clientAPI.getMe();
-      const data = response.data;
-
-      // Для white label клієнтів (коли є description - назва пакета) показуємо description
-      // Для звичайних клієнтів показуємо "NEXELIN"
-      if (data?.description) {
-        // White label - показуємо назву пакета (наприклад "Test Pack #22")
-        setClientName(data.description);
-      } else {
-        // Звичайний клієнт - показуємо "NEXELIN"
-        setClientName('NEXELIN');
-      }
-
-      // Встановлюємо логотип
-      const logoUrl = data?.logo_url || data?.logo;
+    if (!isAuthenticated) {
+      // Якщо не авторизовано, показуємо NEXELIN і не прив'язуємо віджет до конкретного клієнта
+      setClientName('NEXELIN');
+      setClientLogo(null);
+      return;
+    }
+    
+    // Для клієнтів з тегом завжди завантажуємо дані через API
+    // Для залогінованих користувачів також завантажуємо, якщо user контекст не містить потрібних полів
+    const shouldLoadData = tag || !user || !user.client_type;
+    
+    if (!shouldLoadData && user) {
+      // Якщо user вже містить всі дані (є client_type), використовуємо їх
+      const name = getClientName(user);
+      setClientName(name);
+      
+      const logoUrl = user.logo_url || user.logo;
       if (logoUrl) {
-        // Якщо це відносний шлях, додаємо base URL
         if (logoUrl.startsWith('/')) {
           const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
           setClientLogo(`${baseURL}${logoUrl}`);
         } else {
           setClientLogo(logoUrl);
         }
+      } else {
+        setClientLogo(null);
       }
-    } catch (err) {
-      console.error('Failed to load client data:', err);
-      // Якщо помилка завантаження - показуємо NEXELIN
-      setClientName('NEXELIN');
-      console.log('API Error details:', err.response?.data || err.message);
+
+      // Налаштовуємо віджет підтримки для поточного типу клієнта
+      ensureSupportWidgetForClientType(user.client_type);
+      return;
     }
-  };
+    
+    // Завантажуємо дані клієнта для логотипа і назви
+    const loadClientData = async () => {
+      try {
+        const response = await clientAPI.getMe();
+        const data = response.data;
+
+        // Логуємо дані для дебагу
+        console.log('Sidebar - Client data loaded:', {
+          client_type: data?.client_type,
+          company_name: data?.company_name,
+          tag: tag,
+          hasTag: !!tag
+        });
+
+        // Встановлюємо назву: для white label — назва компанії, для інших — NEXELIN
+        const name = getClientName(data);
+        console.log('Sidebar - Setting client name to:', name, 'because client_type is:', data?.client_type);
+        setClientName(name);
+        
+        // Встановлюємо логотип
+        const logoUrl = data?.logo_url || data?.logo;
+        if (logoUrl) {
+          if (logoUrl.startsWith('/')) {
+            const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+            setClientLogo(`${baseURL}${logoUrl}`);
+          } else {
+            setClientLogo(logoUrl);
+          }
+        } else {
+          setClientLogo(null);
+        }
+
+        // Налаштовуємо віджет підтримки для поточного типу клієнта
+        ensureSupportWidgetForClientType(data?.client_type);
+      } catch (err) {
+        console.error('Failed to load client data:', err);
+        // При помилці завантаження показуємо NEXELIN
+        setClientName('NEXELIN');
+        setClientLogo(null);
+      }
+    };
+
+    loadClientData();
+  }, [isAuthenticated, user, tag]);
 
   const closeSidebar = () => setIsOpen(false);
 
@@ -124,19 +196,19 @@ const Sidebar = () => {
                 alt={clientName}
                 className="w-8 h-8 object-contain rounded"
                 onError={(e) => {
-                  // Якщо логотип не завантажився, приховуємо його
                   e.target.style.display = 'none';
                 }}
               />
             )}
-            <h1 className="text-xl font-bold text-primary-600 dark:text-primary-400">{clientName}</h1>
+            <h1 className="text-xl font-bold text-primary-600 dark:text-primary-400">
+              {clientName}
+            </h1>
           </div>
         </div>
 
         {/* Navigation */}
         <nav className="flex-1 p-4 overflow-y-auto">
           {navItems.map((item) => {
-            // Додаємо тег до URL якщо він є
             const to = tag ? `${item.to}?tag=${tag}` : item.to;
             return (
               <NavLink
@@ -157,10 +229,11 @@ const Sidebar = () => {
             );
           })}
         </nav>
-
       </div>
     </>
   );
 };
 
 export default Sidebar;
+
+

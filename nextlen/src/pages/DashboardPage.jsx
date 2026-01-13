@@ -23,8 +23,8 @@ const DashboardPage = () => {
   const [selectedPrompt, setSelectedPrompt] = useState(null);
   const [dashboardConfig, setDashboardConfig] = useState({
     layout: 'default',
-    showInfoCenter: true,
-    showTopPrompts: true,
+    showInfoCenter: false,
+    showTopPrompts: false,
     customWidgets: null,
     customStyle: null,
   });

@@ -93,27 +93,40 @@ export const updateBrandingFromClient = (client, options = {}) => {
 
   const { context = 'portal' } = options;
 
-  // Для white label (якщо є company_name) - показуємо company_name
-  // Для звичайних клієнтів - показуємо просто "NEXELIN"
-  const name = client?.company_name || 'NEXELIN';
+  // Назва вкладки завжди базується на назві клієнта (company_name або user)
+  const name =
+    client?.company_name ||
+    client?.user ||
+    'NEXELIN';
 
   if (context === 'webchat') {
     document.title = `${name} – AI Chat`;
   } else {
-    // Для portal не додаємо " – Nexelin Client Portal"
+    // Для portal показуємо лише назву клієнта / організації
     document.title = name;
   }
 
+  // Оновлюємо favicon тільки якщо є логотип
   const logoUrl = client?.logo_url || client?.logo;
-  if (!logoUrl) return;
+  if (!logoUrl) {
+    return;
+  }
 
   const ensureLink = (rel, extraAttrs = {}) => {
-    let link = document.querySelector(`link[rel="${rel}"]`);
-    if (!link) {
-      link = document.createElement('link');
-      link.rel = rel;
-      document.head.appendChild(link);
-    }
+    // Прибираємо всі існуючі favicon цього типу (включно з дефолтними vite.svg/icon.svg)
+    const existing = document.querySelectorAll(`link[rel="${rel}"]`);
+    existing.forEach((link) => {
+      try {
+        link.parentNode?.removeChild(link);
+      } catch {
+        // ignore
+      }
+    });
+
+    const link = document.createElement('link');
+    link.rel = rel;
+    document.head.appendChild(link);
+
     Object.entries(extraAttrs).forEach(([key, value]) => {
       if (value) {
         link.setAttribute(key, value);
@@ -122,8 +135,10 @@ export const updateBrandingFromClient = (client, options = {}) => {
     return link;
   };
 
-  // Basic favicon
+  // Basic favicon - використовуємо логотип клієнта
   ensureLink('icon', { href: logoUrl, type: 'image/png' });
   // Apple touch icon for iOS / PWA
   ensureLink('apple-touch-icon', { href: logoUrl });
 };
+
+

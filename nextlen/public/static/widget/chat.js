@@ -2,11 +2,8 @@
   'use strict';
   
   // Перевірка на повторне завантаження
-  if (window.NexelinWidgetLoaded) {
-    console.warn('Nexelin Widget already loaded');
-    return;
-  }
-  window.NexelinWidgetLoaded = true;
+  if (window.ChatWidgetLoaded) return;
+  window.ChatWidgetLoaded = true;
   
   // Отримуємо параметри з URL скрипта
   const currentScript = document.currentScript || (function() {
@@ -17,398 +14,162 @@
   const scriptSrc = currentScript ? currentScript.src : '';
   const urlParams = new URLSearchParams(scriptSrc.split('?')[1] || '');
   const tag = urlParams.get('tag');
+  // Для white label можна передати власний домен через параметр domain
+  const customDomain = urlParams.get('domain');
   
   if (!tag) {
-    console.error('Nexelin Widget: Missing tag parameter');
+    console.error('Widget: Missing tag parameter');
     return;
   }
   
-  // Конфігурація віджета
-  const config = {
-    tag: tag,
-    // Визначаємо базовий URL (продакшн або локальний)
-    baseUrl: scriptSrc.includes('localhost') || scriptSrc.includes('127.0.0.1') 
-      ? 'http://localhost:5173'  // Для розробки
-      : 'https://app.nexelin.com', // Для продакшна
-    position: 'bottom-right',
-    primaryColor: '#3b82f6',
-    buttonIcon: '💬',
-    closeIcon: '✕',
-    buttonSize: '60px',
-    zIndex: 999999
-  };
+  // URL чату - власний домен або app.nexelin.com
+  const baseUrl = customDomain ? ('https://' + customDomain) : 'https://app.nexelin.com';
+  const chatUrl = baseUrl + '/client?tag=' + tag;
   
-  // Формуємо URL чату
-  const chatUrl = `${config.baseUrl}/client?tag=${tag}`;
-  
-  // Створюємо стилі
+  // Стилі
   const style = document.createElement('style');
-  style.id = 'nexelin-widget-styles';
   style.textContent = `
-    /* Контейнер віджета */
-    .nexelin-widget-container {
+    .chat-widget-btn {
       position: fixed;
-      bottom: 20px;
-      right: 20px;
-      z-index: ${config.zIndex};
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    }
-    
-    /* Кнопка відкриття чату */
-    .nexelin-widget-button {
-      width: ${config.buttonSize};
-      height: ${config.buttonSize};
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
       border-radius: 50%;
-      background: linear-gradient(135deg, ${config.primaryColor} 0%, #2563eb 100%);
+      background: #1f2937;
       color: white;
       border: none;
       cursor: pointer;
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      font-size: 24px;
+      z-index: 99999;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 28px;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      position: relative;
-      overflow: hidden;
+      transition: transform 0.2s, background 0.2s;
     }
-    
-    .nexelin-widget-button::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      border-radius: 50%;
-      padding: 2px;
-      background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0));
-      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-      -webkit-mask-composite: xor;
-      mask-composite: exclude;
+    .chat-widget-btn:hover {
+      transform: scale(1.08);
+      background: #374151;
     }
-    
-    .nexelin-widget-button:hover {
-      transform: scale(1.05);
-      box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
-    }
-    
-    .nexelin-widget-button:active {
-      transform: scale(0.95);
-    }
-    
-    /* Анімація пульсації для кнопки (опціонально) */
-    @keyframes pulse {
-      0%, 100% {
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-      }
-      50% {
-        box-shadow: 0 4px 20px rgba(59, 130, 246, 0.7);
-      }
-    }
-    
-    .nexelin-widget-button.pulse {
-      animation: pulse 2s infinite;
-    }
-    
-    /* Вікно чату */
-    .nexelin-widget-chat {
+    .chat-widget-popup {
+      display: none;
       position: fixed;
-      bottom: 100px;
-      right: 20px;
+      bottom: 96px;
+      right: 24px;
       width: 400px;
-      height: 650px;
-      max-width: calc(100vw - 40px);
+      height: 600px;
+      max-width: calc(100vw - 48px);
       max-height: calc(100vh - 120px);
       border-radius: 16px;
-      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.25);
-      background: white;
-      display: none;
       overflow: hidden;
-      z-index: ${config.zIndex + 1};
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      opacity: 0;
-      transform: translateY(20px) scale(0.95);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+      z-index: 99998;
+      background: white;
     }
-    
-    .nexelin-widget-chat.active {
-      display: block;
-      animation: chatAppear 0.3s forwards;
-    }
-    
-    @keyframes chatAppear {
-      to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-      }
-    }
-    
-    .nexelin-widget-chat.closing {
-      animation: chatDisappear 0.2s forwards;
-    }
-    
-    @keyframes chatDisappear {
-      to {
-        opacity: 0;
-        transform: translateY(20px) scale(0.95);
-      }
-    }
-    
-    .nexelin-widget-chat iframe {
+    .chat-widget-popup.open { display: block; }
+    .chat-widget-popup iframe {
       width: 100%;
       height: 100%;
       border: none;
-      border-radius: 16px;
     }
-    
-    /* Overlay для затемнення фону (опціонально на мобільних) */
-    .nexelin-widget-overlay {
+    /* Кнопка закриття для мобільного */
+    .chat-widget-close {
       display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.3);
-      z-index: ${config.zIndex - 1};
-      opacity: 0;
-      transition: opacity 0.3s;
-    }
-    
-    .nexelin-widget-overlay.active {
-      display: block;
-      opacity: 1;
-    }
-    
-    /* Badge з непрочитаними повідомленнями (опціонально) */
-    .nexelin-widget-badge {
       position: absolute;
-      top: -4px;
-      right: -4px;
-      background: #ef4444;
+      top: 12px;
+      right: 12px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.6);
       color: white;
-      border-radius: 10px;
-      min-width: 20px;
-      height: 20px;
-      display: none;
+      border: none;
+      cursor: pointer;
+      font-size: 20px;
+      z-index: 10;
       align-items: center;
       justify-content: center;
-      font-size: 11px;
-      font-weight: 600;
-      padding: 0 6px;
-      border: 2px solid white;
     }
-    
-    .nexelin-widget-badge.visible {
-      display: flex;
-    }
-    
-    /* Адаптивність для мобільних */
-    @media (max-width: 768px) {
-      .nexelin-widget-container {
-        bottom: 16px;
-        right: 16px;
-      }
-      
-      .nexelin-widget-button {
-        width: 56px;
-        height: 56px;
-        font-size: 24px;
-      }
-      
-      .nexelin-widget-chat {
+    @media (max-width: 480px) {
+      .chat-widget-btn.hidden { display: none; }
+      .chat-widget-popup {
         width: 100%;
         height: 100%;
         max-width: 100%;
         max-height: 100%;
         bottom: 0;
         right: 0;
-        left: 0;
         top: 0;
+        left: 0;
         border-radius: 0;
       }
-      
-      .nexelin-widget-chat iframe {
-        border-radius: 0;
+      .chat-widget-close {
+        display: flex;
       }
-      
-      .nexelin-widget-overlay.active {
-        display: none;
-      }
-    }
-    
-    /* Анімація для завантаження */
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-    
-    .nexelin-widget-loading {
-      position: absolute;
-      inset: 0;
-      background: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
-      color: #666;
-    }
-    
-    .nexelin-widget-loading::after {
-      content: '';
-      width: 24px;
-      height: 24px;
-      border: 3px solid #e5e7eb;
-      border-top-color: ${config.primaryColor};
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin-left: 8px;
     }
   `;
   document.head.appendChild(style);
   
-  // Створюємо HTML структуру
-  const container = document.createElement('div');
-  container.className = 'nexelin-widget-container';
-  container.setAttribute('data-nexelin-widget', 'true');
-  
   // Кнопка відкриття
-  const button = document.createElement('button');
-  button.className = 'nexelin-widget-button';
-  button.innerHTML = config.buttonIcon;
-  button.setAttribute('aria-label', 'Open chat');
-  button.setAttribute('title', 'Chat with us');
+  const btn = document.createElement('button');
+  btn.className = 'chat-widget-btn';
+  btn.innerHTML = '💬';
+  btn.title = 'Chat';
   
-  // Badge (непрочитані повідомлення)
-  const badge = document.createElement('span');
-  badge.className = 'nexelin-widget-badge';
-  badge.textContent = '1';
-  button.appendChild(badge);
+  // Popup з iframe
+  const popup = document.createElement('div');
+  popup.className = 'chat-widget-popup';
   
-  // Overlay
-  const overlay = document.createElement('div');
-  overlay.className = 'nexelin-widget-overlay';
+  // Кнопка закриття (для мобільного)
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'chat-widget-close';
+  closeBtn.innerHTML = '✕';
+  closeBtn.title = 'Close';
   
-  // Вікно чату
-  const chatContainer = document.createElement('div');
-  chatContainer.className = 'nexelin-widget-chat';
-  
-  // Iframe з чатом
+  // Iframe з готовим Client Portal
   const iframe = document.createElement('iframe');
   iframe.src = chatUrl;
-  iframe.setAttribute('allow', 'microphone; camera');
-  iframe.setAttribute('title', 'Nexelin AI Chat');
-  iframe.setAttribute('loading', 'lazy');
+  iframe.allow = 'microphone; camera';
   
-  chatContainer.appendChild(iframe);
+  popup.appendChild(closeBtn);
+  popup.appendChild(iframe);
   
-  // Стан віджета
+  // Логіка відкриття/закриття
   let isOpen = false;
-  let isClosing = false;
+  const isMobile = window.innerWidth <= 480;
   
-  // Функція відкриття чату
   function openChat() {
-    if (isOpen || isClosing) return;
-    
     isOpen = true;
-    chatContainer.classList.add('active');
-    overlay.classList.add('active');
-    button.innerHTML = config.closeIcon;
-    button.setAttribute('aria-label', 'Close chat');
-    button.setAttribute('title', 'Close chat');
-    
-    // Ховаємо badge при відкритті
-    badge.classList.remove('visible');
-    
-    // Фокус на iframe для доступності
-    setTimeout(() => {
-      iframe.focus();
-    }, 300);
+    popup.classList.add('open');
+    btn.innerHTML = '✕';
+    if (isMobile) btn.classList.add('hidden');
   }
   
-  // Функція закриття чату
   function closeChat() {
-    if (!isOpen || isClosing) return;
-    
-    isClosing = true;
-    chatContainer.classList.add('closing');
-    overlay.classList.remove('active');
-    button.innerHTML = config.buttonIcon;
-    button.setAttribute('aria-label', 'Open chat');
-    button.setAttribute('title', 'Chat with us');
-    
-    setTimeout(() => {
-      chatContainer.classList.remove('active', 'closing');
-      isOpen = false;
-      isClosing = false;
-    }, 200);
+    isOpen = false;
+    popup.classList.remove('open');
+    btn.innerHTML = '💬';
+    btn.classList.remove('hidden');
   }
   
-  // Обробка кліку на кнопку
-  button.addEventListener('click', function(e) {
-    e.stopPropagation();
-    if (isOpen) {
-      closeChat();
-    } else {
-      openChat();
-    }
-  });
-  
-  // Закриваємо при кліку на overlay
-  overlay.addEventListener('click', function() {
-    closeChat();
-  });
-  
-  // Закриваємо при натисканні ESC
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && isOpen) {
-      closeChat();
-    }
-  });
-  
-  // API для керування віджетом ззовні
-  window.NexelinWidget = {
-    open: openChat,
-    close: closeChat,
-    toggle: function() {
-      if (isOpen) {
-        closeChat();
-      } else {
-        openChat();
-      }
-    },
-    isOpen: function() {
-      return isOpen;
-    },
-    showBadge: function(count) {
-      if (count && count > 0) {
-        badge.textContent = count > 99 ? '99+' : count;
-        badge.classList.add('visible');
-      } else {
-        badge.classList.remove('visible');
-      }
-    },
-    hideBadge: function() {
-      badge.classList.remove('visible');
-    }
+  btn.onclick = function() {
+    if (isOpen) closeChat();
+    else openChat();
   };
   
-  // Додаємо елементи до DOM
-  container.appendChild(button);
-  document.body.appendChild(overlay);
-  document.body.appendChild(chatContainer);
-  document.body.appendChild(container);
+  closeBtn.onclick = closeChat;
   
-  // Повідомлення про успішне завантаження
-  console.log('✅ Nexelin AI Chat Widget loaded successfully');
-  console.log('📦 Widget API available: window.NexelinWidget');
-  console.log('🏷️  Client tag:', tag);
+  // Додаємо до сторінки
+  document.body.appendChild(popup);
+  document.body.appendChild(btn);
   
-  // Опціонально: показуємо badge через 3 секунди після завантаження
-  // (щоб привернути увагу користувача)
-  setTimeout(function() {
-    if (!isOpen) {
-      // Розкоментуйте наступний рядок, якщо хочете показувати badge автоматично
-      // badge.classList.add('visible');
-      
-      // Або додайте пульсацію
-      button.classList.add('pulse');
-      setTimeout(() => button.classList.remove('pulse'), 4000);
-    }
-  }, 3000);
+  // API для зовнішнього керування
+  window.ChatWidget = {
+    open: openChat,
+    close: closeChat,
+    toggle: function() { if (isOpen) closeChat(); else openChat(); }
+  };
   
+  console.log('✅ Chat Widget loaded, tag:', tag);
 })();
-

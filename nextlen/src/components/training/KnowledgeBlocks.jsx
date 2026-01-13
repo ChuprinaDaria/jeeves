@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Edit3, Loader2 } from "lucide-react";
+import { Edit3, Loader2, Trash2, Power } from "lucide-react";
 import { clientAPI } from "../../api/client";
 import KnowledgeBlockEditModal from "./KnowledgeBlockEditModal";
 import KnowledgeBlockAddModal from "./KnowledgeBlockAddModal";
@@ -132,60 +132,73 @@ const KnowledgeBlocks = () => {
               >
                 <div className="flex flex-col justify-between h-full">
                   <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium text-accent-900 dark:text-accent-300">{block.name}</p>
-                      {block.permanent && (
-                        <span className="text-xs bg-accent-200 dark:bg-accent-800 text-accent-700 dark:text-accent-300 px-2 py-0.5 rounded">
-                          Permanent
-                        </span>
-                      )}
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <p className="font-semibold text-accent-900 dark:text-accent-100 truncate">{block.name}</p>
+                        {block.permanent && (
+                          <span className="text-xs bg-accent-200 dark:bg-accent-800 text-accent-700 dark:text-accent-300 px-2 py-0.5 rounded flex-shrink-0">
+                            {t("knowledgeBlocks.permanent") || "Permanent"}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-accent-500 dark:text-accent-500 flex-shrink-0 font-medium">
+                        {t('knowledgeBlocks.entries', { count: block.entries })}
+                      </span>
                     </div>
                     {block.description && (
-                      <p className="text-xs text-accent-600 dark:text-accent-400 mt-1 line-clamp-2">
+                      <p className="text-sm text-accent-600 dark:text-accent-400 line-clamp-2">
                         {block.description}
                       </p>
                     )}
                   </div>
 
-                  <div className="flex justify-between items-center mt-4">
-                    {!block.permanent && (
-                      <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-accent-200 dark:border-accent-800">
+                    {!block.permanent ? (
+                      <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleEditBlock(block)}
-                          className="flex items-center gap-1 text-accent-900 dark:text-accent-300 text-sm font-medium hover:underline"
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-accent-700 dark:text-accent-300 hover:bg-accent-100 dark:hover:bg-accent-800 rounded-lg transition-colors"
+                          title={t("knowledgeBlocks.edit")}
                         >
                           <Edit3 size={14} />
-                          {t("knowledgeBlocks.edit")}
+                          <span>{t("knowledgeBlocks.edit")}</span>
                         </button>
                         <button
                           onClick={() => handleDeleteBlock(block.id)}
-                          className="flex items-center gap-1 text-red-600 dark:text-red-400 text-sm font-medium hover:underline"
+                          className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          title={t("knowledgeBlocks.delete") || "Delete"}
                         >
-                          <span>🗑️</span>
-                          {t("knowledgeBlocks.delete") || "Delete"}
+                          <Trash2 size={18} />
                         </button>
                       </div>
+                    ) : (
+                      <div className="text-xs text-accent-500 dark:text-accent-500">
+                        {t("knowledgeBlocks.permanentNote") || "Permanent blocks cannot be edited"}
+                      </div>
                     )}
-                    {block.permanent && <div></div>}
 
-                    {/* Toggle switch - disabled для permanent блоків */}
-                    <label
-                      className={`relative inline-flex items-center ${
-                        block.permanent
-                          ? "cursor-not-allowed opacity-60"
-                          : "cursor-pointer"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={block.active}
-                        onChange={() => toggleBlock(block.id)}
-                        disabled={block.permanent}
-                        className="sr-only peer"
-                      />
-                      <div className="w-9 h-5 bg-accent-300 dark:bg-accent-700 rounded-full peer peer-checked:bg-accent-900 dark:peer-checked:bg-accent-500 transition-colors"></div>
-                      <div className="absolute left-[2px] top-[2px] bg-white dark:bg-gray-300 w-4 h-4 rounded-full shadow-md transition-transform peer-checked:translate-x-4"></div>
-                    </label>
+                    {/* Toggle switch */}
+                    <div className="flex items-center gap-2">
+                      <Power size={14} className={`${block.active ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`} />
+                      <label
+                        className={`relative inline-flex items-center ${
+                          block.permanent
+                            ? "cursor-not-allowed opacity-60"
+                            : "cursor-pointer"
+                        }`}
+                        title={block.active ? (t("knowledgeBlocks.active") || "Active") : (t("knowledgeBlocks.inactive") || "Inactive")}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={block.active}
+                          onChange={() => toggleBlock(block.id)}
+                          disabled={block.permanent}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-300 dark:bg-gray-600 rounded-full peer peer-checked:bg-green-500 dark:peer-checked:bg-green-600 transition-colors"></div>
+                        <div className="absolute left-[2px] top-[2px] bg-white dark:bg-gray-200 w-5 h-5 rounded-full shadow-md transition-transform peer-checked:translate-x-5"></div>
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -49,6 +49,22 @@ export const clientAPI = {
     });
   },
 
+  // Завантажити текст як документ
+  uploadTextDocument: (title, text) => {
+    // Створюємо Blob з тексту
+    const blob = new Blob([text], { type: 'text/plain' });
+    const file = new File([blob], `${title || 'text'}.txt`, { type: 'text/plain' });
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('title', title || 'Text Document');
+    formData.append('file_type', 'txt');
+    
+    return api.post('/clients/documents/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
   // Видалити документ клієнта
   deleteDocument: (documentId) => api.delete(`/clients/documents/${documentId}/`),
 
@@ -93,5 +109,12 @@ export const clientAPI = {
   
   // Model Status API
   getModelStatus: () => api.get('/clients/model-status/'),
+  
+  // Web Parsing Requests API
+  getWebParsingRequests: () => api.get('/clients/web-parsing-requests/'),
+  createWebParsingRequest: (data) => api.post('/clients/web-parsing-requests/', data),
+  getWebParsingRequest: (id) => api.get(`/clients/web-parsing-requests/${id}/`),
+  updateWebParsingRequest: (id, data) => api.patch(`/clients/web-parsing-requests/${id}/`, data),
+  deleteWebParsingRequest: (id) => api.delete(`/clients/web-parsing-requests/${id}/`),
 };
 

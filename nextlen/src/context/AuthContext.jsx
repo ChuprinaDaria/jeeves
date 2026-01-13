@@ -33,14 +33,19 @@ export const AuthProvider = ({ children }) => {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const tagFromUrl = urlParams.get('tag');
-      if (tagFromUrl) {
-        localStorage.setItem('client_tag', tagFromUrl);
+      const storedClientTag = localStorage.getItem('client_tag');
+      
+      // Використовуємо tag з URL або збережений (для ClientLoginPage після логіну)
+      // НЕ перезаписуємо client_tag для WebChat - він працює через URL
+      const effectiveTag = tagFromUrl || storedClientTag;
+      
+      if (effectiveTag) {
         // Очищуємо JWT токени при використанні client tag
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-      }
-      const clientTag = localStorage.getItem('client_tag') || tagFromUrl;
-      if (clientTag) {
+        if (tagFromUrl) {
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+        }
+        
         try {
           const { data } = await clientAPI.getMe();
           setUser(data);

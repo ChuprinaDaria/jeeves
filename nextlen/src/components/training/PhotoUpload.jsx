@@ -33,7 +33,7 @@ const PhotoUpload = ({ onUpload }) => {
 
   return (
     <div className="card">
-      <h3 className="text-lg font-semibold mb-4">{t('training.uploadPhotos')}</h3>
+      <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">{t('training.uploadPhotos')}</h3>
 
       <div
         onDragOver={(e) => {
@@ -44,15 +44,15 @@ const PhotoUpload = ({ onUpload }) => {
         onDrop={handleDrop}
         className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
           dragging
-            ? 'border-primary-500 bg-primary-50'
-            : 'border-gray-300 hover:border-primary-400'
+            ? 'border-primary-500 dark:border-primary-400 bg-primary-50 dark:bg-primary-900/30'
+            : 'border-gray-300 dark:border-gray-600 hover:border-primary-400 dark:hover:border-primary-500'
         }`}
       >
-        <Camera className="mx-auto mb-4 text-gray-400" size={48} />
-        <p className="text-gray-700 font-medium mb-2">
+        <Camera className="mx-auto mb-4 text-gray-400 dark:text-gray-500" size={48} />
+        <p className="text-gray-700 dark:text-gray-300 font-medium mb-2">
           {t('training.dragDropPhotos')}
         </p>
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
           {t('training.supportedPhotoFormats')}
         </p>
         <input

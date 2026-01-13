@@ -1,0 +1,259 @@
+import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthContext';
+import { Upload, X, Loader2 } from 'lucide-react';
+import { clientAPI } from '../api/client';
+
+const SettingsPage = () => {
+  const { t } = useTranslation();
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const [logo, setLogo] = useState(null);
+  const [logoUrl, setLogoUrl] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
+
+  useEffect(() => {
+    if (authLoading) {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      if (!dataLoaded) {
+        loadClientLogo();
+        setDataLoaded(true);
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [authLoading, isAuthenticated, dataLoaded]);
+
+  const loadClientLogo = async () => {
+    try {
+      const response = await clientAPI.getMe();
+      const logoUrlFromAPI = response.data?.logo_url || response.data?.logo;
+      if (logoUrlFromAPI) {
+        if (logoUrlFromAPI.startsWith('/')) {
+          const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+          setLogoUrl(`${baseURL}${logoUrlFromAPI}`);
+        } else {
+          setLogoUrl(logoUrlFromAPI);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load client logo:', err);
+    }
+  };
+
+  const handleLogoSelect = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        setError(t('settings.logoInvalidType') || 'File must be an image');
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        setError(t('settings.logoTooLarge') || 'File size must be less than 5MB');
+        return;
+      }
+
+      setError(null);
+      setLogo(file);
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoUrl(reader.result);
+      };
+      reader.readAsDataURL(file);
+
+      // Автоматично завантажуємо фото одразу без додаткової кнопки
+      await handleLogoUpload(file);
+    }
+  };
+
+  const handleLogoUpload = async (fileToUpload = null) => {
+    const file = fileToUpload || logo;
+    if (!file) return;
+
+    setUploading(true);
+    setError(null);
+    setSuccess(false);
+
+    try {
+      const response = await clientAPI.uploadLogo(file);
+      const uploadedLogoUrl = response.data?.logo_url;
+      
+      if (uploadedLogoUrl) {
+        if (uploadedLogoUrl.startsWith('/')) {
+          const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+          setLogoUrl(`${baseURL}${uploadedLogoUrl}`);
+        } else {
+          setLogoUrl(uploadedLogoUrl);
+        }
+      }
+      
+      setSuccess(true);
+      setLogo(null);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      console.error('Failed to upload logo:', err);
+      setError(t('settings.logoUploadError') || 'Failed to upload logo');
+      // Якщо помилка, залишаємо файл для повторної спроби
+      if (!fileToUpload) {
+        setLogo(file);
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleLogoDelete = async () => {
+    if (!confirm(t('settings.deleteLogoConfirm') || 'Are you sure you want to delete the logo?')) {
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+
+    try {
+      await clientAPI.deleteLogo();
+      setLogoUrl(null);
+      setLogo(null);
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      console.error('Failed to delete logo:', err);
+      setError(t('settings.logoDeleteError') || 'Failed to delete logo');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setLogo(null);
+    setError(null);
+    loadClientLogo();
+  };
+
+  if (authLoading || !isAuthenticated) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-primary-500 dark:text-primary-400 mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">{t('common.loading') || 'Loading...'}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('settings.title') || 'Settings'}</h1>
+        <p className="text-gray-600 dark:text-gray-400">{t('settings.subtitle') || 'Manage your account settings'}</p>
+      </div>
+
+      {/* Logo Upload Section */}
+      <div className="max-w-2xl">
+        <div className="card">
+          <div className="mb-6">
+            <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">{t('settings.uploadLogo') || 'Upload Logo'}</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+              {t('settings.logoDescription') || 'Upload your company logo. It will be used in QR code generation.'}
+            </p>
+          </div>
+
+        <div className="space-y-4">
+          {/* Current Logo Preview */}
+          {logoUrl && (
+            <div className="relative inline-block">
+              <img
+                src={logoUrl}
+                alt="Company Logo"
+                className="max-w-xs max-h-32 object-contain border border-gray-200 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-700"
+              />
+              {logo && (
+                <button
+                  onClick={handleCancel}
+                  className="absolute -top-2 -right-2 bg-red-500 dark:bg-red-600 text-white rounded-full p-1 hover:bg-red-600 dark:hover:bg-red-700 transition"
+                  title={t('common.cancel') || 'Cancel'}
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Error/Success Messages */}
+          {error && (
+            <div className="p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded text-red-700 dark:text-red-400 text-sm">
+              {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded text-green-700 dark:text-green-400 text-sm">
+              {t('settings.logoUploadSuccess') || 'Logo uploaded successfully! QR codes will be regenerated with the new logo.'}
+            </div>
+          )}
+
+          {/* Upload Controls */}
+          <div className="flex items-center gap-3">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleLogoSelect}
+              className="hidden"
+              id="logo-input"
+              disabled={uploading}
+            />
+            <label
+              htmlFor="logo-input"
+              className={`btn-secondary flex items-center gap-2 cursor-pointer ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {uploading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  {t('settings.uploading') || 'Uploading...'}
+                </>
+              ) : (
+                <>
+                  <Upload size={16} />
+                  {logoUrl ? t('settings.changeLogo') : t('settings.selectLogo')}
+                </>
+              )}
+            </label>
+
+            {logoUrl && !uploading && (
+              <button
+                onClick={handleLogoDelete}
+                disabled={uploading}
+                className="btn-danger flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <X size={16} />
+                {t('settings.deleteLogo') || 'Delete Logo'}
+              </button>
+            )}
+          </div>
+
+          {/* Info about QR codes */}
+          {logoUrl && (
+            <div className="text-xs text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded p-2">
+              {t('settings.logoQRInfo') || 'Your logo will be used in all QR code generations. Existing QR codes will be regenerated automatically.'}
+            </div>
+          )}
+        </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default SettingsPage;
+

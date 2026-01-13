@@ -12,8 +12,28 @@ export const ragAPI = {
     });
   },
 
-  // Публічний чат з RAG системою
-  chat: (message) => api.post('/rag/chat/', { message }),
+  // Публічний чат з RAG системою (підтримка тексту, зображень та контексту діалогу)
+  chat: (message, imageFile = null, context = null) => {
+    if (imageFile) {
+      // Якщо є зображення, відправляємо як multipart/form-data
+      const formData = new FormData();
+      formData.append('message', message || '');
+      formData.append('image', imageFile);
+      if (context) {
+        // Контекст передаємо як JSON-рядок
+        formData.append('context', JSON.stringify(context));
+      }
+      return api.post('/rag/chat/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    }
+    // Якщо тільки текст, відправляємо як JSON
+    const payload = { message };
+    if (context) {
+      payload.context = context;
+    }
+    return api.post('/rag/chat/', payload);
+  },
 
   // Отримати список embedding моделей
   getEmbeddingModels: () => api.get('/rag/embedding-models/'),
@@ -38,13 +58,6 @@ export const ragAPI = {
   // Переіндексувати документи клієнта
   reindexDocuments: () => api.post('/rag/client/reindex/'),
 
-  // Отримати список LLM провайдерів
-  getLLMProviders: () => api.get('/rag/llm-providers/'),
-
-  // Встановити LLM провайдера для клієнта
-  setLLMProvider: (providerId) => 
-    api.post('/rag/client/llm-provider/', { provider_id: providerId }),
-
   // Text-to-Speech (TTS)
   textToSpeech: (text, voice = 'alloy') => 
     api.post('/restaurant/tts/', { text, voice }, {
@@ -56,6 +69,20 @@ export const ragAPI = {
     const formData = new FormData();
     formData.append('file', audioFile);
     return api.post('/restaurant/stt/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  // Зберегти Q&A пару в базу знань
+  saveSandboxQA: (question, answer) => api.post('/rag/sandbox/save-qa/', { question, answer }),
+
+  // Зберегти фото з описом в базу знань
+  saveSandboxPhoto: (photoFile, description, isClean = false) => {
+    const formData = new FormData();
+    formData.append('photo', photoFile);
+    formData.append('description', description);
+    formData.append('is_clean', isClean ? 'true' : 'false');
+    return api.post('/rag/sandbox/save-photo/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },

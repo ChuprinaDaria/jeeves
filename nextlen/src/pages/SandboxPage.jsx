@@ -8,8 +8,8 @@ const SandboxPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">{t('sandbox.title')}</h1>
-        <p className="text-gray-600">{t('sandbox.subtitle')}</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('sandbox.title')}</h1>
+        <p className="text-gray-600 dark:text-gray-400">{t('sandbox.subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

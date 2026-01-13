@@ -1,0 +1,221 @@
+{
+  "dataset_name": "Nexelin Client Consultant Knowledge Base",
+  "version": "1.0",
+  "language": "en",
+  "description": "Training dataset for AI client consultant explaining Nexelin platform features and functionality",
+  "entries": [
+    {
+      "category": "platform_overview",
+      "questions": [
+        "What is Nexelin?",
+        "What does Nexelin do?",
+        "Tell me about Nexelin platform",
+        "How does Nexelin work?"
+      ],
+      "answer": "Nexelin is an AI-powered customer support platform that enables businesses to create intelligent chatbots and virtual assistants. The platform uses Retrieval-Augmented Generation (RAG) technology to provide accurate, context-aware responses based on your company's knowledge base. Nexelin integrates with multiple messaging channels including WhatsApp, Telegram, Web Chat, and Email, allowing you to provide 24/7 AI-powered customer support across all your communication channels."
+    },
+    {
+      "category": "core_features",
+      "questions": [
+        "What are the main features?",
+        "What can I do with Nexelin?",
+        "What features are available?",
+        "What functionality does Nexelin offer?"
+      ],
+      "answer": "Nexelin offers comprehensive AI customer support capabilities including: 1) Knowledge Base Management - upload documents (PDF, DOCX, TXT, CSV, XML, JSON) and build your AI's knowledge base, 2) Multi-Channel Integration - connect to WhatsApp Business, Telegram, Web Chat widget, and Email, 3) AI Chat Sandbox - test and refine your AI assistant's responses, 4) Conversation History - view and analyze all customer interactions, 5) Custom Prompts - configure system prompts and instructions for your AI, 6) LLM Provider Selection - choose from multiple AI models (OpenAI, Anthropic, etc.), 7) White Label Support - customize branding for enterprise clients, 8) Analytics Dashboard - track conversations, messages, and AI performance metrics."
+    },
+    {
+      "category": "knowledge_base",
+      "questions": [
+        "How do I add documents?",
+        "How to upload files?",
+        "How to train the AI?",
+        "How does the knowledge base work?",
+        "What file formats are supported?"
+      ],
+      "answer": "You can build your AI's knowledge base by uploading documents in the Training section. Supported formats include PDF, DOCX, TXT, CSV, XML, and JSON files. Simply go to Training → Upload Files, select your documents, and they will be automatically processed. The system extracts text, creates embeddings, and stores them in a vector database for semantic search. You can also add text blocks directly, import web content, or use the Chrome extension to scrape website content. All documents are automatically chunked, embedded, and indexed for fast retrieval when customers ask questions."
+    },
+    {
+      "category": "integrations_whatsapp",
+      "questions": [
+        "How to set up WhatsApp?",
+        "Can I use WhatsApp Business?",
+        "How does WhatsApp integration work?",
+        "How to connect WhatsApp?"
+      ],
+      "answer": "Nexelin supports WhatsApp Business integration via Meta's WhatsApp Business API. To set it up: 1) Go to Integrations → WhatsApp, 2) Enable WhatsApp integration, 3) Enter your Meta WhatsApp Business Account ID (WABA ID), App ID, App Secret, Phone Number ID, Access Token, and Verify Token from your Meta Business account, 4) Save the configuration. Once configured, customers can message your WhatsApp Business number and receive AI-powered responses. The system handles incoming messages, generates AI responses based on your knowledge base, and sends replies automatically. You can also generate QR codes for easy customer onboarding."
+    },
+    {
+      "category": "integrations_telegram",
+      "questions": [
+        "How to set up Telegram bot?",
+        "Can I use Telegram?",
+        "How does Telegram integration work?",
+        "How to connect Telegram?"
+      ],
+      "answer": "Nexelin supports Telegram Bot integration. To set it up: 1) Go to Integrations → Telegram, 2) Enable Telegram Bot, 3) Get a bot token from @BotFather on Telegram, 4) Enter the bot token in the settings, 5) Save the configuration. The webhook URL is automatically configured. Once set up, customers can interact with your Telegram bot, and it will respond using your AI knowledge base. The bot supports text messages, commands, and can handle multiple conversations simultaneously."
+    },
+    {
+      "category": "integrations_web_chat",
+      "questions": [
+        "How to set up web chat?",
+        "What is web chat?",
+        "How does web chat work?",
+        "Can customers chat on my website?"
+      ],
+      "answer": "Web Chat is a B2C chat interface that allows customers to chat directly with your AI assistant. It's available for all clients. To configure it: 1) Go to Integrations → Web Chat, 2) Generate a QR code or copy the chat link, 3) Share the link or QR code with your customers. The chat interface is accessible via URL like 'https://your-domain.com/client?tag=YOUR_TAG'. Customers can open this link and start chatting with your AI assistant. The chat supports text messages, voice input, and photo uploads. All conversations are saved in the History section."
+    },
+    {
+      "category": "integrations_web_widget",
+      "questions": [
+        "What is web widget?",
+        "How to add chat widget to my website?",
+        "Can I embed chat on my website?",
+        "How does web widget work?",
+        "Is web widget available for white label?"
+      ],
+      "answer": "Web Widget is a floating chat button that you can embed on your website. It's available for white label clients only. To set it up: 1) Go to Integrations → Web Widget, 2) Enable Web Widget, 3) Copy the generated HTML code, 4) Paste it into your website's HTML before the closing </body> tag. The widget will display a chat button on your website. When customers click it, a chat window opens with your AI assistant. The widget automatically adapts to mobile devices with a full-screen interface and close button. For white label clients, the widget uses your custom domain for the chat interface."
+    },
+    {
+      "category": "integrations_email",
+      "questions": [
+        "How to set up email?",
+        "Can I use email integration?",
+        "How does email SMTP work?",
+        "How to configure email?"
+      ],
+      "answer": "Nexelin supports SMTP email integration for sending and receiving emails via AI. To configure it: 1) Go to Integrations → Email SMTP, 2) Enable Email SMTP, 3) Enter your SMTP server details (host, port, username, password), 4) Configure TLS/SSL settings, 5) Set the 'From' email address and name, 6) Save the configuration. Once configured, the system can send automated email responses and process incoming emails using your AI knowledge base. The integration supports standard SMTP servers including Gmail, Outlook, and custom email servers."
+    },
+    {
+      "category": "ai_sandbox",
+      "questions": [
+        "What is sandbox?",
+        "How to test AI responses?",
+        "What is the chat sandbox?",
+        "How to try the AI?"
+      ],
+      "answer": "The Sandbox is a testing environment where you can interact with your AI assistant before deploying it to customers. Go to Sandbox in the navigation menu to access it. You can ask questions, test different prompts, upload photos for analysis, and see how your AI responds. This helps you refine your knowledge base and system prompts before going live. The Sandbox uses the same AI model and knowledge base as your production chat, so you get accurate previews of customer interactions."
+    },
+    {
+      "category": "conversation_history",
+      "questions": [
+        "Where can I see conversations?",
+        "How to view chat history?",
+        "What is the History section?",
+        "Can I see past conversations?"
+      ],
+      "answer": "All customer conversations are saved in the History section. Go to History in the navigation menu to view them. You can see conversations from all channels (WhatsApp, Telegram, Web Chat, Email). The history shows: customer messages, AI responses, timestamps, conversation duration, and source channel. You can filter conversations by date, search for specific topics, and view detailed conversation logs. This helps you monitor AI performance, identify areas for improvement, and understand common customer questions."
+    },
+    {
+      "category": "dashboard",
+      "questions": [
+        "What is the dashboard?",
+        "What statistics are available?",
+        "What metrics can I see?",
+        "What does the dashboard show?"
+      ],
+      "answer": "The Dashboard provides an overview of your AI assistant's performance and activity. It displays key metrics including: total conversations, total messages, conversion rate, active conversations, and messages by type (Web, Telegram, WhatsApp). You can also see recent activity feed, top prompts that customers ask, and model status information. The dashboard helps you monitor usage, track performance, and identify trends in customer interactions."
+    },
+    {
+      "category": "llm_providers",
+      "questions": [
+        "Which AI models are available?",
+        "Can I choose the AI model?",
+        "What LLM providers are supported?",
+        "How to change AI model?"
+      ],
+      "answer": "Nexelin supports multiple LLM (Large Language Model) providers. You can configure your preferred AI model in the Training → LLM Provider section. Available providers include OpenAI (GPT-3.5, GPT-4, GPT-4 Turbo), Anthropic (Claude models), and other compatible providers. Each provider offers different models with varying capabilities, response times, and costs. You can select the model that best fits your needs based on accuracy requirements, response speed, and budget. The system also supports custom system prompts to fine-tune model behavior."
+    },
+    {
+      "category": "custom_prompts",
+      "questions": [
+        "How to customize AI responses?",
+        "What are system prompts?",
+        "How to configure AI behavior?",
+        "Can I customize the AI personality?"
+      ],
+      "answer": "You can customize your AI assistant's behavior using system prompts. Go to Training → Prompt Book to access prompt management. System prompts define how your AI should respond, its tone, personality, and specific instructions. You can create multiple prompts for different scenarios, edit existing ones, and test them in the Sandbox. Prompts help ensure your AI provides consistent, brand-aligned responses that match your company's voice and customer service standards."
+    },
+    {
+      "category": "white_label",
+      "questions": [
+        "What is white label?",
+        "Can I customize branding?",
+        "What is white label support?",
+        "How to use custom domain?"
+      ],
+      "answer": "White Label is a feature available for enterprise clients that allows full branding customization. White label clients can: use their own domain name for the chat interface, customize the portal with their company logo and name, access Web Widget integration, and have a fully branded customer experience. The chat interface and client portal will display your company's branding instead of Nexelin branding. To enable white label, contact support or configure it in your account settings."
+    },
+    {
+      "category": "chrome_extension",
+      "questions": [
+        "What is the Chrome extension?",
+        "How to use Chrome extension?",
+        "Can I scrape website content?",
+        "How to add web content to knowledge base?"
+      ],
+      "answer": "Nexelin offers a Chrome browser extension that allows you to easily add website content to your knowledge base. Install the extension from the Chrome Web Store, then: 1) Visit any website you want to add, 2) Click the Nexelin extension icon, 3) Enter your client token, 4) Click 'Send Page Data' to scrape and add the content. The extension extracts text, images, and structured data from web pages and automatically adds them to your knowledge base. This is useful for quickly building knowledge from documentation sites, help pages, or any web content."
+    },
+    {
+      "category": "getting_started",
+      "questions": [
+        "How do I get started?",
+        "What should I do first?",
+        "How to begin using Nexelin?",
+        "What are the first steps?"
+      ],
+      "answer": "To get started with Nexelin: 1) Log in to your client portal, 2) Go to Training and upload your first documents (PDFs, Word docs, or text files) to build your knowledge base, 3) Configure your AI model and system prompts in Training → LLM Provider and Prompt Book, 4) Test your AI in the Sandbox to ensure it responds correctly, 5) Set up integrations (WhatsApp, Telegram, Web Chat, or Email) in the Integrations section, 6) Generate QR codes or chat links to share with customers, 7) Monitor conversations in History and refine your knowledge base based on customer questions. The Setup Instructions page provides detailed guides for each integration."
+    },
+    {
+      "category": "authentication",
+      "questions": [
+        "How do I log in?",
+        "What is client tag?",
+        "How does auto-login work?",
+        "Do I need a password?"
+      ],
+      "answer": "Nexelin supports multiple authentication methods. You can log in with email and password on the Login page, or use automatic login via client tag. Client tag is a unique identifier for your account. When you access the portal via URL like '/l?tag=YOUR_TAG', you're automatically logged in without entering credentials. This is convenient for bookmarking and sharing access links. The client tag is provided when your account is created and can be found in your account settings."
+    },
+    {
+      "category": "file_processing",
+      "questions": [
+        "How long does file processing take?",
+        "What happens after I upload a file?",
+        "Why is my file still processing?",
+        "How do I know when processing is done?"
+      ],
+      "answer": "After uploading a document, the system automatically processes it in the background. Processing includes: text extraction, chunking into smaller pieces, generating embeddings (vector representations), and indexing for search. Processing time depends on file size and complexity, typically taking a few seconds to a few minutes. You can see the processing status in the Training → Documents list. Files show as 'Processing' until complete, then automatically update to 'Processed'. The system checks status every 5 seconds. Once processed, the content is immediately available for AI responses."
+    },
+    {
+      "category": "qr_codes",
+      "questions": [
+        "How to generate QR codes?",
+        "What are QR codes for?",
+        "Can I create QR codes for WhatsApp?",
+        "How to use QR codes?"
+      ],
+      "answer": "QR codes provide an easy way for customers to start chatting with your AI. You can generate QR codes in the Integrations section. For WhatsApp: go to Integrations → WhatsApp → Generate QR Code. For Web Chat: go to Integrations → Web Chat → Generate QR Code. Each QR code can be customized with a name, description, and location. When customers scan the QR code with their phone, they're automatically directed to start a chat. QR codes are useful for physical locations, printed materials, or sharing via social media. You can download QR code images and print them or display them digitally."
+    },
+    {
+      "category": "api_access",
+      "questions": [
+        "Can I use API?",
+        "How to access API?",
+        "What API endpoints are available?",
+        "How to get API key?"
+      ],
+      "answer": "Nexelin provides a comprehensive REST API for programmatic access. API keys can be generated in your account settings. The API allows you to: upload documents, query the AI, retrieve conversation history, manage integrations, and access all platform features programmatically. API documentation is available in the admin panel, and endpoints support standard HTTP methods (GET, POST, PATCH, DELETE). All API requests require authentication via API key in the X-API-Key header."
+    },
+    {
+      "category": "support",
+      "questions": [
+        "How to get help?",
+        "Where can I find documentation?",
+        "How to contact support?",
+        "Where are setup instructions?"
+      ],
+      "answer": "Nexelin provides comprehensive documentation and support resources. The Setup Instructions page (accessible from the navigation menu) contains detailed step-by-step guides for setting up WhatsApp, Telegram, Email, and other integrations. Each integration includes setup instructions, configuration steps, and troubleshooting tips. For additional support, you can contact the Nexelin support team through the support widget (available for non-white-label clients) or reach out via your account manager."
+    }
+  ]
+}
+

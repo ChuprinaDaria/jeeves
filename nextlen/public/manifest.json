@@ -1,6 +1,6 @@
 {
-  "name": "Nexelin Client Portal",
-  "short_name": "Nexelin",
+  "name": "Client Portal",
+  "short_name": "Client Portal",
   "description": "AI-powered client portal for document management and intelligent chat",
   "start_url": "/",
   "display": "standalone",

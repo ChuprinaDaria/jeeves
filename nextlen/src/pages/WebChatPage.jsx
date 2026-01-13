@@ -181,7 +181,7 @@ const WebChatPage = () => {
         setMessages([{
           id: 'welcome',
           role: 'assistant',
-          content: t('webChat.welcomeMessage') || 'Hello! I am your AI assistant. How can I help you today?',
+          content: 'Bonjour! Hello! Hallo! Hola! Ciao! 你好!',
           timestamp: new Date().toISOString(),
         }]);
       } else {
@@ -202,7 +202,7 @@ const WebChatPage = () => {
             setMessages([{
               id: 'welcome',
               role: 'assistant',
-              content: 'Hello! I am your AI assistant. How can I help you today?',
+              content: 'Bonjour! Hello! Hallo! Hola! Ciao! 你好!',
               timestamp: new Date().toISOString(),
             }]);
           }
@@ -211,7 +211,7 @@ const WebChatPage = () => {
           setMessages([{
             id: 'welcome',
             role: 'assistant',
-            content: 'Hello! I am your AI assistant. How can I help you today?',
+            content: 'Bonjour! Hello! Hallo! Hola! Ciao! 你好!',
             timestamp: new Date().toISOString(),
           }]);
         }
@@ -854,7 +854,7 @@ const WebChatPage = () => {
           />
           <label
             htmlFor="image-input"
-            className={`flex items-center justify-center h-10 w-10 sm:h-11 sm:w-11 rounded-lg cursor-pointer transition-colors flex-shrink-0 ${
+            className={`inline-flex items-center justify-center h-10 w-10 sm:h-11 sm:w-11 rounded-lg cursor-pointer transition-colors flex-shrink-0 ${
               darkMode
                 ? 'bg-gray-700 hover:bg-gray-600 text-gray-200'
                 : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
@@ -872,7 +872,7 @@ const WebChatPage = () => {
             onKeyPress={handleKeyPress}
             onFocus={handleInputFocus}
             placeholder={t('webChat.placeholder') || 'Type message...'}
-            className={`flex-1 px-3 py-2 sm:px-4 sm:py-2 rounded-lg focus:outline-none focus:ring-2 ${
+            className={`flex-1 min-w-0 px-3 py-2 sm:px-4 sm:py-2 rounded-lg focus:outline-none focus:ring-2 ${
               darkMode
                 ? 'bg-gray-700 border border-gray-600 text-gray-100 placeholder-gray-400 focus:ring-blue-500'
                 : 'bg-white border border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-primary-500'
@@ -885,7 +885,7 @@ const WebChatPage = () => {
           <button
             onClick={sendMessage}
             disabled={loading || isRecording || (!inputMessage.trim() && !selectedImage) || !conversationId}
-            className={`px-3 sm:px-6 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 ${
+            className={`h-10 w-10 sm:h-11 sm:w-11 rounded-lg transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 ${
               darkMode
                 ? 'bg-blue-600 hover:bg-blue-700 text-white'
                 : 'bg-primary-600 hover:bg-primary-700 text-white'

@@ -12,6 +12,7 @@ import SetupInstructionsPage from './SetupInstructionsPage';
 import SettingsPage from './SettingsPage';
 import { useTranslation } from 'react-i18next';
 import { clientAPI } from '../api/client';
+import { ensureSupportWidgetForClientType } from '../utils/supportWidget';
 
 const ClientLoginPage = () => {
   const [searchParams] = useSearchParams();
@@ -78,6 +79,9 @@ const ClientLoginPage = () => {
       } else {
         setClientLogo(null);
       }
+
+      // Налаштовуємо віджет підтримки для поточного типу клієнта
+      ensureSupportWidgetForClientType(data?.client_type);
     } catch (err) {
       console.error('Failed to load client data:', err);
       // On error, show NEXELIN

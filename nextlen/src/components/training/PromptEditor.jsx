@@ -70,18 +70,18 @@ Always use a warm and welcoming tone.`;
   return (
     <div className="card">
       <div className="flex items-center gap-2 mb-4">
-        <Sparkles className="text-primary-500" size={20} />
-        <h3 className="text-lg font-semibold">{t('training.aiBehavior')}</h3>
+        <Sparkles className="text-primary-500 dark:text-primary-400" size={20} />
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('training.aiBehavior')}</h3>
       </div>
 
-      <p className="text-sm text-gray-600 mb-4">
+      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
         {t('training.customizePrompt')}
       </p>
 
       {loading ? (
         <div className="flex items-center justify-center h-64">
-          <Loader2 className="animate-spin text-primary-500" size={24} />
-          <span className="ml-2 text-gray-600">{t('training.loading') || 'Loading...'}</span>
+          <Loader2 className="animate-spin text-primary-500 dark:text-primary-400" size={24} />
+          <span className="ml-2 text-gray-600 dark:text-gray-400">{t('training.loading') || 'Loading...'}</span>
         </div>
       ) : (
         <>
@@ -92,18 +92,18 @@ Always use a warm and welcoming tone.`;
               setError(null);
               setSuccess(false);
             }}
-            className="w-full h-64 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none resize-none font-mono text-sm"
+            className="w-full h-64 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-transparent outline-none resize-none font-mono text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             placeholder={t('training.promptPlaceholder') || 'Enter your custom AI behavior prompt here...'}
           />
 
           {error && (
-            <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+            <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded text-red-700 dark:text-red-400 text-sm">
               {error}
             </div>
           )}
 
           {success && (
-            <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
+            <div className="mt-2 p-2 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded text-green-700 dark:text-green-400 text-sm">
               {t('training.promptSaved') || 'Prompt saved successfully!'}
             </div>
           )}

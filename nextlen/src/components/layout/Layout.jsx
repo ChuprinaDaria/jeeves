@@ -7,7 +7,7 @@ const Layout = () => {
   const { user } = useAuth();
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
       <Sidebar />
       <div className="flex-1 flex flex-col w-full md:w-auto">
         {user?.subscription_status === 'trial' && <TrialBanner />}

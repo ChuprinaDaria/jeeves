@@ -1,0 +1,125 @@
+# Nexelin Integration Setup Guide - Client Consultant Dataset
+# Format: Q: question | A: answer
+# Language: English
+# Version: 1.0
+
+Q: How do I set up WhatsApp Business integration step by step?
+A: To set up WhatsApp Business integration: Step 1 - Create a Meta Business Account: Visit https://business.facebook.com, log in with your Facebook account, create a Business Manager if prompted, and complete business details (company name, address, phone number). Step 2 - Create a WhatsApp App: Open https://developers.facebook.com/apps, click "Create App", choose "Other → Business → WhatsApp", set an app name (e.g., "My Business WhatsApp"), and confirm creation. Step 3 - Add WhatsApp API: Open your app, go to "WhatsApp" → "Getting Started" in the left menu. You'll see: Temporary token, Test phone number, Phone Number ID, and WhatsApp Business Account ID (WABA). Step 4 - Add your phone number: Open https://business.facebook.com/wa/manage, go to "Phone Numbers", click "Add Phone Number", enter your business phone number, and confirm by SMS or voice call. Step 5 - Generate permanent access token: In Business Manager, go to "Business Settings → Users → System Users", create a system user with Admin role, create a token for this user, select your app, give permissions: whatsapp_business_messaging and whatsapp_business_management, then generate the permanent access token. Step 6 - Set up Webhook: In Meta Developers, go to "WhatsApp → Configuration → Webhooks", enter Callback URL: https://api.nexelin.com/api/clients/whatsapp/meta/webhook/, enter your Verify Token (you'll receive it from Nexelin), click "Verify and Save", then click "Manage Subscriptions" and enable: messages, message_template_status_update, and optionally phone_number_quality_update. Step 7 - Configure in Nexelin: Go to Integrations → WhatsApp in your Nexelin portal, enable WhatsApp integration, fill in: Meta WABA ID, Meta App ID, Meta App Secret, Meta Access Token, Meta Phone Number ID, your business WhatsApp number, Webhook Verify Token, and click Save. Your WhatsApp Business API is now connected!
+
+Q: What are the steps to configure WhatsApp Business?
+A: To configure WhatsApp Business: Step 1 - Create Meta Business Account at business.facebook.com. Step 2 - Create WhatsApp App in Meta Developers (developers.facebook.com/apps). Step 3 - Get your WhatsApp credentials (WABA ID, App ID, Phone Number ID, Access Token). Step 4 - Add your business phone number in WhatsApp Manager. Step 5 - Generate permanent access token with proper permissions. Step 6 - Configure webhook URL (https://api.nexelin.com/api/clients/whatsapp/meta/webhook/) in Meta Developers. Step 7 - Enter all credentials in Nexelin portal under Integrations → WhatsApp and save.
+
+Q: How to connect WhatsApp to Nexelin?
+A: To connect WhatsApp to Nexelin: First, set up WhatsApp Business API in Meta Business Manager and Meta Developers. You'll need: Meta WABA ID, App ID, App Secret, Access Token, Phone Number ID, and Verify Token. Then go to your Nexelin portal → Integrations → WhatsApp, enable the integration, enter all the credentials from Meta, configure the webhook URL, and save. The webhook URL is: https://api.nexelin.com/api/clients/whatsapp/meta/webhook/
+
+Q: How do I set up Telegram Bot integration?
+A: To set up Telegram Bot integration: Step 1 - Create a Telegram Bot: Open Telegram app, search for @BotFather, start a conversation, send the command /newbot, follow instructions to enter bot name (e.g., "My Restaurant Bot") and username (must end with "bot", e.g., "my_restaurant_bot"), BotFather will send you a Bot Token - save it securely! Step 2 - Configure Bot Settings (Optional): Use BotFather commands like /setdescription, /setabouttext, /setuserpic to customize your bot. Step 3 - Add Bot Token to Nexelin: Go to your Nexelin client portal, navigate to Integrations page, find the Telegram section, click Configure button, enable Telegram integration, paste your Bot Token from BotFather, click Save. The webhook URL is automatically configured by Nexelin. Step 4 - Test your bot: Open Telegram, search for your bot by username, start a conversation, send a test message. Your bot should respond using your AI knowledge base!
+
+Q: How to configure Telegram bot?
+A: To configure Telegram bot: First, create a bot with @BotFather in Telegram by sending /newbot command. BotFather will give you a Bot Token. Then go to Nexelin portal → Integrations → Telegram, enable Telegram Bot, paste the Bot Token, and save. Nexelin automatically sets up the webhook. Your bot is ready to use!
+
+Q: How do I set up Web Chat?
+A: To set up Web Chat: Step 1 - Go to Integrations → Web Chat in your Nexelin portal. Step 2 - Generate QR Code or Copy Link: Click "Generate QR Code" to create a QR code image, or copy the chat link (format: https://your-domain.com/client?tag=YOUR_TAG). Step 3 - Share with customers: Print or display the QR code, or share the chat link via email, social media, or embed it on your website. Step 4 - Test: Open the link or scan QR code to test the chat interface. Web Chat is available for all clients and supports text messages, voice input, and photo uploads. All conversations are saved in History.
+
+Q: How to generate Web Chat QR code?
+A: To generate Web Chat QR code: Go to Integrations → Web Chat in your Nexelin portal, click "Generate QR Code" or "Regenerate QR Code" button, the system will create a QR code image, download the QR code image, you can customize it with name, description, and location. Share the QR code with customers by printing it, displaying it digitally, or sharing via social media. When customers scan the QR code, they're automatically directed to start a chat with your AI assistant.
+
+Q: How do I set up Web Widget for my website?
+A: To set up Web Widget (available for white label clients only): Step 1 - Enable Web Widget: Go to Integrations → Web Widget in your Nexelin portal, click Setup button, enable the "Enable Web Widget" toggle. Step 2 - Copy the Widget Code: After enabling, you'll see the Widget Code tab, copy the generated HTML code (it looks like: <script>...script.src = 'https://app.nexelin.com/static/widget/chat.js?tag=YOUR_TAG'...</script>). Step 3 - Insert into your website: Open your website's HTML code, find the closing </body> tag, paste the widget code BEFORE the </body> tag, save and publish your website. Step 4 - Test: Visit your website, you should see a chat button 💬 in the bottom right corner. Click it to open the chat window. The widget automatically adapts to mobile devices with full-screen interface and close button. For white label clients, the widget uses your custom domain for the chat interface.
+
+Q: How to embed chat widget on my website?
+A: To embed chat widget: First, ensure you're a white label client (Web Widget is only available for white label). Go to Integrations → Web Widget, enable Web Widget, copy the generated HTML code, paste it into your website's HTML before the closing </body> tag, save and publish. The widget will appear as a floating chat button on your website.
+
+Q: How do I set up Email SMTP integration?
+A: To set up Email SMTP integration: Step 1 - Go to Integrations → Email SMTP in your Nexelin portal. Step 2 - Enable Email SMTP: Click Configure button, enable the "Enable Email SMTP" toggle. Step 3 - Enter SMTP Server Details: SMTP Host (e.g., smtp.gmail.com for Gmail, smtp.office365.com for Outlook), SMTP Port (usually 587 for TLS or 465 for SSL), SMTP Username (your email address), SMTP Password (your email password or app-specific password), enable TLS/SSL as required by your email provider. Step 4 - Configure Email Settings: Set "From" Email Address (the email address that will appear as sender), set "From" Name (display name for emails). Step 5 - Test Connection: Click "Test Connection" if available, or save and test by sending a test email. Step 6 - Save Configuration: Click Save button. Once configured, Nexelin can send automated email responses and process incoming emails using your AI knowledge base. Supported providers include Gmail, Outlook, and custom SMTP servers.
+
+Q: How to configure email integration?
+A: To configure email integration: Go to Integrations → Email SMTP, enable Email SMTP, enter your SMTP server host (e.g., smtp.gmail.com), port (587 for TLS, 465 for SSL), username (your email), password (email password or app password), enable TLS if required, set "From" email address and name, then save. The system will use these settings to send and receive emails via AI.
+
+Q: What SMTP settings do I need for Gmail?
+A: For Gmail SMTP settings: SMTP Host: smtp.gmail.com, SMTP Port: 587 (for TLS) or 465 (for SSL), SMTP Username: your Gmail address (e.g., yourname@gmail.com), SMTP Password: your Gmail app password (not your regular password - you need to generate an app-specific password in Google Account settings), TLS: Enable TLS (for port 587) or SSL (for port 465). Note: You must enable "Less secure app access" or use an App Password in your Google Account settings for the integration to work.
+
+Q: What SMTP settings do I need for Outlook?
+A: For Outlook SMTP settings: SMTP Host: smtp.office365.com, SMTP Port: 587 (for TLS), SMTP Username: your Outlook email address (e.g., yourname@outlook.com), SMTP Password: your Outlook password, TLS: Enable TLS. Note: Some Outlook accounts may require enabling "Allow less secure apps" or using app-specific passwords.
+
+Q: How do I generate a WhatsApp QR code?
+A: To generate a WhatsApp QR code: Go to Integrations → WhatsApp in your Nexelin portal, click "Generate QR Code" or "Regenerate QR Code" button, the system creates a QR code image, download the QR code image, you can customize it with name (e.g., "WhatsApp Integration"), description, and location. Share the QR code by printing it, displaying it at your location, or sharing digitally. When customers scan the QR code with WhatsApp, they're automatically directed to start a chat with your WhatsApp Business number.
+
+Q: How to customize QR codes?
+A: To customize QR codes: When generating a QR code in Integrations section, you can set: Name (e.g., "Front Desk", "Table 5", "WhatsApp Support"), Description (optional details about the QR code), Location (where the QR code is placed or used). Each QR code can have different settings. You can create up to 10 QR codes per client. QR codes are available for WhatsApp and Web Chat integrations.
+
+Q: What webhook URL do I need for WhatsApp?
+A: For WhatsApp webhook configuration, use this URL: https://api.nexelin.com/api/clients/whatsapp/meta/webhook/. Enter this in Meta Developers → WhatsApp → Configuration → Webhooks → Callback URL. You'll also need a Verify Token, which you'll receive from Nexelin or can set in your Nexelin portal under Integrations → WhatsApp settings.
+
+Q: What webhook URL do I need for Telegram?
+A: Telegram webhook is automatically configured by Nexelin when you save your bot token. You don't need to manually set up the webhook URL. Nexelin handles the webhook configuration automatically after you enter your Bot Token in Integrations → Telegram and save the settings.
+
+Q: How do I test if my WhatsApp integration is working?
+A: To test WhatsApp integration: After completing setup, send a test message to your WhatsApp Business number from another phone number, check if you receive the message in Nexelin (go to History to see conversations), verify that the AI responds automatically, check the webhook status in Meta Developers → WhatsApp → Configuration → Webhooks (should show "Verified"), test sending a message from Nexelin to WhatsApp, verify message delivery status. If messages aren't working, check: webhook is verified, all credentials are correct, phone number is approved by Meta, access token has proper permissions.
+
+Q: How do I test if my Telegram bot is working?
+A: To test Telegram bot: After saving your bot token in Nexelin, open Telegram app, search for your bot by username (the one you created with @BotFather), start a conversation with your bot, send a test message (e.g., "Hello"), your bot should respond using your AI knowledge base, try asking questions from your knowledge base, verify responses are accurate. If the bot doesn't respond, check: bot token is correct, webhook is set (Nexelin does this automatically), your knowledge base has content, AI model is configured properly.
+
+Q: How do I test Web Chat?
+A: To test Web Chat: Generate a QR code or copy the chat link from Integrations → Web Chat, open the link in your browser (or scan QR code with your phone), you should see the chat interface, send a test message, verify the AI responds, try voice input (if supported), try photo upload (if supported), check that conversation appears in History section. Web Chat should work immediately after setup - no additional configuration needed.
+
+Q: How do I test Web Widget?
+A: To test Web Widget: After embedding the widget code on your website, visit your website in a browser, look for the chat button 💬 in the bottom right corner, click the button to open chat window, send a test message, verify AI responds, test on mobile device - widget should show full-screen interface with close button, verify chat opens with your custom domain (for white label clients). If widget doesn't appear, check: code is pasted before </body> tag, website is published, no JavaScript errors in browser console, you're a white label client (widget only available for white label).
+
+Q: How do I test Email integration?
+A: To test Email integration: After configuring SMTP settings, send a test email to your configured email address, check if Nexelin receives and processes the email, verify AI generates a response, check if response email is sent back, verify email appears in History section. If emails aren't working, check: SMTP credentials are correct, TLS/SSL settings match your provider, port number is correct (587 for TLS, 465 for SSL), "From" email address is valid, firewall allows SMTP connections.
+
+Q: What credentials do I need for WhatsApp setup?
+A: For WhatsApp setup, you need these credentials from Meta: Meta WABA ID (WhatsApp Business Account ID) - found in Meta Developers → WhatsApp → Getting Started, Meta App ID - found in Meta Developers → App Settings, Meta App Secret - found in Meta Developers → App Settings → Basic, Meta Access Token - permanent token from Business Manager → System Users, Meta Phone Number ID - found in WhatsApp → Getting Started, Your WhatsApp Business Phone Number - the phone number you added (in E.164 format, e.g., +14155552671), Webhook Verify Token - you can set this yourself or receive from Nexelin.
+
+Q: What do I need for Telegram setup?
+A: For Telegram setup, you only need: Bot Token - obtained from @BotFather in Telegram by creating a bot with /newbot command. That's it! Nexelin handles all other configuration automatically, including webhook setup.
+
+Q: What do I need for Email SMTP setup?
+A: For Email SMTP setup, you need: SMTP Host - your email provider's SMTP server (e.g., smtp.gmail.com, smtp.office365.com), SMTP Port - usually 587 for TLS or 465 for SSL, SMTP Username - your email address, SMTP Password - your email password or app-specific password, TLS/SSL setting - enable TLS for port 587, SSL for port 465, From Email Address - the email address that will appear as sender, From Name - display name for emails.
+
+Q: Where do I find my WhatsApp Business Account ID?
+A: Your WhatsApp Business Account ID (WABA ID) can be found in Meta Developers: Go to developers.facebook.com/apps, select your WhatsApp app, go to WhatsApp → Getting Started in the left menu, you'll see "WhatsApp Business Account ID" listed there. It's a long numeric ID.
+
+Q: Where do I get my Meta App ID and App Secret?
+A: To find Meta App ID and App Secret: Go to developers.facebook.com/apps, select your app, go to Settings → Basic in the left menu, you'll see "App ID" displayed, click "Show" next to "App Secret" to reveal it (you may need to enter your password). Copy both values and paste them into Nexelin portal.
+
+Q: How do I create a permanent access token for WhatsApp?
+A: To create a permanent access token: Go to business.facebook.com, open Business Settings → Users → System Users, click "Add" to create a new system user, set role to "Admin", create a token for this system user, select your WhatsApp app, give permissions: whatsapp_business_messaging and whatsapp_business_management, generate the token, copy and save it securely - this is your permanent access token. Use this token in Nexelin portal under Integrations → WhatsApp → Meta Access Token.
+
+Q: How do I get a Telegram bot token?
+A: To get a Telegram bot token: Open Telegram app (mobile or desktop), search for @BotFather, start a conversation with BotFather, send the command: /newbot, follow the instructions: enter a name for your bot (e.g., "My Business Bot"), enter a username ending with "bot" (e.g., "my_business_bot"), BotFather will send you a Bot Token - it looks like: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz, copy and save this token securely, paste it into Nexelin portal under Integrations → Telegram → Bot Token.
+
+Q: How do I generate a Gmail app password?
+A: To generate a Gmail app password: Go to your Google Account settings (myaccount.google.com), go to Security section, enable 2-Step Verification if not already enabled, go to "App passwords" (under 2-Step Verification), select "Mail" and "Other (Custom name)", enter "Nexelin" as the app name, click Generate, Google will show you a 16-character password, copy this password (not your regular Gmail password), use this app password in Nexelin Email SMTP settings as the SMTP Password.
+
+Q: What if my WhatsApp webhook verification fails?
+A: If WhatsApp webhook verification fails: Check that the Callback URL is exactly: https://api.nexelin.com/api/clients/whatsapp/meta/webhook/, verify the Verify Token matches what you set in Nexelin portal, ensure your Nexelin server is accessible from the internet, check that SSL certificate is valid, try clicking "Verify and Save" again in Meta Developers, if still failing, contact Nexelin support to verify webhook endpoint is working.
+
+Q: What if my Telegram bot doesn't respond?
+A: If Telegram bot doesn't respond: Verify bot token is correct in Nexelin portal, check that webhook is set (Nexelin sets this automatically, but you can verify in Telegram API), ensure your knowledge base has content uploaded, verify AI model is configured in Training → LLM Provider, test in Sandbox to ensure AI responds correctly, check History section to see if messages are being received, verify bot is not blocked or restricted, try restarting the bot by disabling and re-enabling in Nexelin portal.
+
+Q: What if Web Widget doesn't appear on my website?
+A: If Web Widget doesn't appear: Verify you're a white label client (widget only available for white label), check that widget code is pasted before the closing </body> tag, ensure website is published (not just saved as draft), check browser console for JavaScript errors (F12 → Console), verify the script URL is accessible: https://app.nexelin.com/static/widget/chat.js, check that your tag parameter is correct, try clearing browser cache (Ctrl+Shift+R), verify website allows external scripts, check if any ad blockers are blocking the widget.
+
+Q: What if Email integration doesn't send emails?
+A: If Email integration doesn't send emails: Verify SMTP credentials are correct, check TLS/SSL settings match your provider (TLS for port 587, SSL for port 465), ensure port number is correct for your provider, verify "From" email address is valid, check if your email provider requires app-specific passwords (Gmail, Outlook), ensure firewall allows SMTP connections, test SMTP connection manually if possible, check History section to see if emails are being received, verify email provider isn't blocking automated emails, contact your email provider support if needed.
+
+Q: Can I use multiple WhatsApp numbers?
+A: Currently, each Nexelin client account supports one WhatsApp Business number. If you need multiple numbers, you can create separate client accounts in Nexelin, each with its own WhatsApp integration. Each account will have its own knowledge base and AI configuration.
+
+Q: Can I use multiple Telegram bots?
+A: Currently, each Nexelin client account supports one Telegram bot. If you need multiple bots, you can create separate client accounts, each with its own Telegram bot token and configuration.
+
+Q: Can I customize the chat interface?
+A: Yes, for white label clients, you can customize: Company logo and name displayed in the portal, custom domain for chat interface (webchat_domain), Web Widget uses your branding. The chat interface will show your company's branding instead of Nexelin branding. Contact support to enable white label features.
+
+Q: How do I change my WhatsApp phone number?
+A: To change WhatsApp phone number: Go to Meta Business Manager → WhatsApp Manager → Phone Numbers, add your new phone number, verify it, then update the phone number in Nexelin portal under Integrations → WhatsApp → Meta Phone Number, save the settings. Note: You may need to update Phone Number ID if it changed.
+
+Q: How do I regenerate my Telegram bot token?
+A: To regenerate Telegram bot token: Open Telegram, go to @BotFather, send command: /revoke, select your bot, BotFather will generate a new token, copy the new token, update it in Nexelin portal under Integrations → Telegram → Bot Token, save settings. The webhook will be automatically reconfigured.
+
+Q: How do I update SMTP password?
+A: To update SMTP password: Go to Integrations → Email SMTP in Nexelin portal, click Configure, enter your new password in SMTP Password field, save settings. The new password will be used immediately for all email operations.
+

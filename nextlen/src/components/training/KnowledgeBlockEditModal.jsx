@@ -62,14 +62,14 @@ const KnowledgeBlockEditModal = ({ block, isOpen, onClose, onSave }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             {t("knowledgeBlocks.editBlock")}
           </h3>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
           >
             <X size={20} />
           </button>
@@ -77,37 +77,37 @@ const KnowledgeBlockEditModal = ({ block, isOpen, onClose, onSave }) => {
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               {t("knowledgeBlocks.blockName")}
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               placeholder={t("knowledgeBlocks.blockNamePlaceholder")}
               disabled={block?.is_permanent}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               {t("knowledgeBlocks.description")}
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent h-24 resize-none"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-transparent h-24 resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               placeholder={t("knowledgeBlocks.descriptionPlaceholder")}
               disabled={block?.is_permanent}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               {t("knowledgeBlocks.addDocuments")}
             </label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+            <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4">
               <input
                 type="file"
                 multiple
@@ -123,8 +123,8 @@ const KnowledgeBlockEditModal = ({ block, isOpen, onClose, onSave }) => {
                   block?.is_permanent ? "opacity-50 cursor-not-allowed" : ""
                 }`}
               >
-                <Upload className="text-gray-400 mb-2" size={24} />
-                <span className="text-sm text-gray-600">
+                <Upload className="text-gray-400 dark:text-gray-500 mb-2" size={24} />
+                <span className="text-sm text-gray-600 dark:text-gray-400">
                   {t("knowledgeBlocks.clickToUpload")}
                 </span>
               </label>
@@ -135,15 +135,15 @@ const KnowledgeBlockEditModal = ({ block, isOpen, onClose, onSave }) => {
                 {files.map((file, index) => (
                   <div
                     key={index}
-                    className="flex items-center justify-between bg-gray-50 p-2 rounded"
+                    className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 p-2 rounded"
                   >
                     <div className="flex items-center gap-2">
-                      <FileText size={16} className="text-gray-500" />
-                      <span className="text-sm text-gray-700">{file.name}</span>
+                      <FileText size={16} className="text-gray-500 dark:text-gray-400" />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{file.name}</span>
                     </div>
                     <button
                       onClick={() => handleRemoveFile(index)}
-                      className="text-red-500 hover:text-red-700"
+                      className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                       disabled={block?.is_permanent}
                     >
                       <X size={16} />
@@ -158,7 +158,7 @@ const KnowledgeBlockEditModal = ({ block, isOpen, onClose, onSave }) => {
         <div className="flex justify-end gap-3 mt-6">
           <button
             onClick={onClose}
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800"
             disabled={saving}
           >
             {t("common.cancel")}
@@ -166,7 +166,7 @@ const KnowledgeBlockEditModal = ({ block, isOpen, onClose, onSave }) => {
           <button
             onClick={handleSave}
             disabled={saving || uploading || block?.is_permanent}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-4 py-2 bg-primary-600 dark:bg-primary-500 text-white rounded-lg hover:bg-primary-700 dark:hover:bg-primary-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {saving || uploading ? (
               <>

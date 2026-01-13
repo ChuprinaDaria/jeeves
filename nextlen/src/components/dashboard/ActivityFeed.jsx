@@ -21,17 +21,17 @@ const ActivityFeed = () => {
       // Форматуємо активності для відображення
       const formattedActivities = activitiesData.map((activity) => {
         let icon = MessageSquare;
-        let color = 'bg-blue-50 text-blue-600';
+        let color = 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400';
         
         if (activity.type === 'new_chat') {
           icon = MessageSquare;
-          color = 'bg-blue-50 text-blue-600';
+          color = 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400';
         } else if (activity.type === 'booking') {
           icon = Calendar;
-          color = 'bg-green-50 text-green-600';
+          color = 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400';
         } else if (activity.type === 'training') {
           icon = CheckCircle;
-          color = 'bg-primary-50 text-primary-600';
+          color = 'bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400';
         }
         
         return {
@@ -56,14 +56,14 @@ const ActivityFeed = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <Loader2 className="animate-spin text-primary-500" size={24} />
+        <Loader2 className="animate-spin text-primary-500 dark:text-primary-400" size={24} />
       </div>
     );
   }
 
   if (activities.length === 0) {
     return (
-      <div className="text-center text-gray-500 py-8">
+      <div className="text-center text-gray-500 dark:text-gray-400 py-8">
         <p>{t('dashboard.noActivity') || 'No recent activity'}</p>
       </div>
     );
@@ -77,8 +77,8 @@ const ActivityFeed = () => {
             <activity.icon size={16} />
           </div>
           <div className="flex-1">
-            <p className="text-sm text-gray-800">{activity.text}</p>
-            <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
+            <p className="text-sm text-gray-800 dark:text-gray-200">{activity.text}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{activity.time}</p>
           </div>
         </div>
       ))}

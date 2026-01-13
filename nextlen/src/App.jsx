@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import Layout from './components/layout/Layout';
 
 // Pages
@@ -10,18 +11,23 @@ import SandboxPage from './pages/SandboxPage';
 import HistoryPage from './pages/HistoryPage';
 import IntegrationsPage from './pages/IntegrationsPage';
 import SetupInstructionsPage from './pages/SetupInstructionsPage';
+import SettingsPage from './pages/SettingsPage';
 import ClientLoginPage from './pages/ClientLoginPage';
 import LoginPage from './pages/LoginPage';
-// import SettingsPage from './pages/SettingsPage';
+import WebChatPage from './pages/WebChatPage';
 // import PricingPage from './pages/PricingPage';
 
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <ThemeProvider>
+        <BrowserRouter>
         <Routes>
           {/* Client auto-login route with tag parameter */}
           <Route path="/l" element={<ClientLoginPage />} />
+          
+          {/* Web Chat for B2C clients */}
+          <Route path="/client" element={<WebChatPage />} />
           
           {/* Login page */}
           <Route path="/login" element={<LoginPage />} />
@@ -33,12 +39,14 @@ function App() {
               <Route path="/integrations" element={<IntegrationsPage />} />
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/setup" element={<SetupInstructionsPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
             </Route>
 
           {/* Redirect */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </BrowserRouter>
+      </ThemeProvider>
     </AuthProvider>
   );
 }

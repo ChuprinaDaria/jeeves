@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MessageSquare, Loader2, Globe } from 'lucide-react';
+import { MessageSquare, Loader2, Globe, Send, Monitor } from 'lucide-react';
 import { clientAPI } from '../../api/client';
 
 const ChatList = ({ onSelectChat, selectedChatId }) => {
@@ -74,19 +74,29 @@ const ChatList = ({ onSelectChat, selectedChatId }) => {
             }`}
           >
             <div className="flex items-start justify-between mb-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
                 {chat.source === 'web' ? (
-                  <Globe size={16} className="text-blue-500 dark:text-blue-400" />
+                  <Globe size={16} className="text-blue-500 dark:text-blue-400 flex-shrink-0" />
+                ) : chat.source === 'telegram' ? (
+                  <Send size={16} className="text-cyan-500 dark:text-cyan-400 flex-shrink-0" />
+                ) : chat.source === 'web_widget' ? (
+                  <Monitor size={16} className="text-purple-500 dark:text-purple-400 flex-shrink-0" />
                 ) : (
-                  <MessageSquare size={16} className="text-gray-500 dark:text-gray-400" />
+                  <MessageSquare size={16} className="text-green-500 dark:text-green-400 flex-shrink-0" />
                 )}
-                <span className="font-medium text-sm text-gray-900 dark:text-gray-100">{chat.customerName}</span>
+                <span className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">{chat.customerName}</span>
                 {chat.source === 'web' && (
-                  <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded">Web</span>
+                  <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded flex-shrink-0">Web</span>
+                )}
+                {chat.source === 'telegram' && (
+                  <span className="text-xs bg-cyan-100 dark:bg-cyan-900 text-cyan-700 dark:text-cyan-300 px-1.5 py-0.5 rounded flex-shrink-0">Telegram</span>
+                )}
+                {chat.source === 'web_widget' && (
+                  <span className="text-xs bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded flex-shrink-0">Widget</span>
                 )}
               </div>
               {chat.unread > 0 && (
-                <span className="bg-primary-500 dark:bg-primary-600 text-white text-xs px-2 py-0.5 rounded-full">
+                <span className="bg-primary-500 dark:bg-primary-600 text-white text-xs px-2 py-0.5 rounded-full flex-shrink-0">
                   {chat.unread}
                 </span>
               )}
