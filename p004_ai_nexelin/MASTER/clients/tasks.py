@@ -612,7 +612,7 @@ def check_inactive_chat_sessions():
     # Return simple dict without Celery task results to avoid JSON serialization errors
     return {
         "status": "success",
-        "checked_5min": inactive_5min.count(),
+        "checked_5min": len(inactive_5min),
         "checked_20min": inactive_20min.count(),
         "rating_requests_scheduled": rating_requests_sent,
         "emails_scheduled": emails_scheduled
