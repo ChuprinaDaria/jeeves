@@ -119,7 +119,11 @@ class ResponseGenerator:
                 except Exception:
                     pass  # Best-effort
                 
-                query_cost = embedding_service.calculate_cost(query_tokens, embedding_model)
+                # Calculate embedding cost using Decimal for precision
+                from decimal import Decimal
+                emb_price = Decimal(str(embedding_model.cost_per_1k_tokens))
+                query_cost = (Decimal(query_tokens) / Decimal('1000')) * emb_price
+                
                 metadata = {
                     'query': query[:200],
                     'embedding_tokens': query_tokens,
@@ -134,7 +138,7 @@ class ResponseGenerator:
                     embedding_model=embedding_model,
                     operation_type='query',
                     tokens_used=query_tokens,  # Total tokens (embedding + LLM) = embedding tokens + 0
-                    cost=query_cost,
+                    cost=query_cost,  # ✅ Real cost from EmbeddingModel using Decimal
                     metadata=metadata,
                 )
                 # Send to MG asynchronously (best-effort, non-blocking)
@@ -227,13 +231,13 @@ class ResponseGenerator:
         # Get embedding model for UsageStats
         embedding_model = self._get_embedding_model(client, specialization, branch)
         
-        # Find model pair GUID for statistics
+        # Find model pair GUID for statistics and get LLMProvider for cost calculation
         model_pair_guid = None
+        llm_provider_obj = None  # Will be reused for cost calculation
         if client and embedding_model:
             try:
                 from MASTER.EmbeddingModel.models import ModelPair, LLMProvider
                 # Get LLMProvider from client
-                llm_provider_obj = None
                 if hasattr(client, 'llm_provider_model') and client.llm_provider_model:
                     llm_provider_obj = client.llm_provider_model
                 else:
@@ -268,17 +272,29 @@ class ResponseGenerator:
                 
                 total_tokens = int(llm_usage.get('total_tokens', 0))
                 if total_tokens > 0:
-                    # Calculate cost (simplified - can be enhanced with LLMProvider model)
-                    # For now, use a default cost per 1k tokens
-                    cost_per_1k = Decimal('0.002')  # Default $0.002 per 1k tokens
-                    cost = Decimal(total_tokens) / Decimal(1000) * cost_per_1k
+                    # Calculate cost using LLMProvider pricing (input + output tokens separately)
+                    prompt_tokens = int(llm_usage.get('prompt_tokens', 0))
+                    completion_tokens = int(llm_usage.get('completion_tokens', 0))
+                    
+                    # Use llm_provider_obj that was already found above (reuse for cost calculation)
+                    # Calculate cost using LLMProvider pricing
+                    if llm_provider_obj:
+                        # Use real pricing from LLMProvider (separate input and output costs)
+                        in_price = Decimal(str(llm_provider_obj.cost_per_1k_input_tokens))
+                        out_price = Decimal(str(llm_provider_obj.cost_per_1k_output_tokens))
+                        llm_cost = (Decimal(prompt_tokens) / Decimal('1000') * in_price) + \
+                                   (Decimal(completion_tokens) / Decimal('1000') * out_price)
+                    else:
+                        # Fallback: use default cost if provider not found
+                        logger.warning(f"LLMProvider not found for client {client.id}, using default cost $0.002 per 1k tokens")
+                        llm_cost = Decimal(str(total_tokens)) / Decimal('1000') * Decimal('0.002')
                     
                     # Create UsageStats for LLM (embedding tokens = 0, LLM tokens = total_tokens)
                     metadata = {
                         'llm_model': llm_model,
                         'llm_provider': llm_provider,
-                        'prompt_tokens': llm_usage.get('prompt_tokens', 0),
-                        'completion_tokens': llm_usage.get('completion_tokens', 0),
+                        'prompt_tokens': prompt_tokens,
+                        'completion_tokens': completion_tokens,
                         'query': query[:200],  # Store first 200 chars of query
                         'embedding_tokens': 0,  # For LLM-only stats, embedding = 0
                         'llm_tokens': total_tokens,
@@ -291,8 +307,8 @@ class ResponseGenerator:
                         client=client,
                         embedding_model=embedding_model,  # Required field, but this is LLM usage
                         operation_type='rag_chat',
-                        tokens_used=total_tokens,  # Total tokens (embedding + LLM) = 0 + LLM tokens
-                        cost=cost,
+                        tokens_used=prompt_tokens + completion_tokens,  # Total tokens = prompt + completion
+                        cost=llm_cost,  # ✅ Real cost from LLMProvider (input + output separately)
                         metadata=metadata,
                     )
                     
