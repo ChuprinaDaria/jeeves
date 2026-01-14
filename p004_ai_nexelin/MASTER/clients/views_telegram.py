@@ -40,6 +40,60 @@ def escape_html(text: str) -> str:
     )
 
 
+def get_rating_message(language: str, rating: str) -> tuple[str, str]:
+    """
+    Повертає перекладені фрази для оцінки бесіди на основі мови користувача.
+    
+    Args:
+        language: Код мови (uk, en, de, fr, es, it, nl, da)
+        rating: Тип оцінки ('positive' або 'negative')
+    
+    Returns:
+        tuple: (rating_text, confirmation_text) - фрази для callback та підтвердження
+    """
+    # Словник перекладів для фраз оцінки
+    rating_translations = {
+        'uk': {
+            'positive': ('👍 Дякуємо за позитивну оцінку!', '✅ Ви оцінили розмову: 👍'),
+            'negative': ('👎 Дякуємо за відгук!', '✅ Ви оцінили розмову: 👎'),
+        },
+        'en': {
+            'positive': ('👍 Thank you for your positive rating!', '✅ You rated the conversation: 👍'),
+            'negative': ('👎 Thank you for your feedback!', '✅ You rated the conversation: 👎'),
+        },
+        'de': {
+            'positive': ('👍 Vielen Dank für Ihre positive Bewertung!', '✅ Sie haben die Unterhaltung bewertet: 👍'),
+            'negative': ('👎 Vielen Dank für Ihr Feedback!', '✅ Sie haben die Unterhaltung bewertet: 👎'),
+        },
+        'fr': {
+            'positive': ('👍 Merci pour votre évaluation positive !', '✅ Vous avez évalué la conversation : 👍'),
+            'negative': ('👎 Merci pour vos commentaires !', '✅ Vous avez évalué la conversation : 👎'),
+        },
+        'es': {
+            'positive': ('👍 ¡Gracias por su evaluación positiva!', '✅ Ha calificado la conversación: 👍'),
+            'negative': ('👎 ¡Gracias por sus comentarios!', '✅ Ha calificado la conversación: 👎'),
+        },
+        'it': {
+            'positive': ('👍 Grazie per la tua valutazione positiva!', '✅ Hai valutato la conversazione: 👍'),
+            'negative': ('👎 Grazie per il tuo feedback!', '✅ Hai valutato la conversazione: 👎'),
+        },
+        'nl': {
+            'positive': ('👍 Bedankt voor uw positieve beoordeling!', '✅ U heeft het gesprek beoordeeld: 👍'),
+            'negative': ('👎 Bedankt voor uw feedback!', '✅ U heeft het gesprek beoordeeld: 👎'),
+        },
+        'da': {
+            'positive': ('👍 Tak for din positive vurdering!', '✅ Du har vurderet samtalen: 👍'),
+            'negative': ('👎 Tak for din feedback!', '✅ Du har vurderet samtalen: 👎'),
+        },
+    }
+    
+    # Отримуємо переклади для вказаної мови або використовуємо англійську як fallback
+    lang_translations = rating_translations.get(language, rating_translations.get('en'))
+    rating_text, confirmation_text = lang_translations.get(rating, lang_translations['positive'])
+    
+    return rating_text, confirmation_text
+
+
 def send_telegram_message(bot_token: str, chat_id: int, message_text: str) -> bool:
     """
     Відправляє повідомлення через Telegram Bot API
@@ -547,15 +601,23 @@ class TelegramWebhookView(View):
             # Якщо розмови немає, створюємо її
             if not conversation:
                 logger.info(f"Creating new conversation for regular message: chat_id={chat_id}")
+                now = timezone.now()
+                # Detect language from first message
+                from MASTER.clients.tasks import detect_language_from_messages
+                initial_messages = [{'role': 'user', 'content': message_text}]
+                detected_language = detect_language_from_messages(initial_messages)
+                
                 conversation = ClientWhatsAppConversation.objects.create(
                     client=client,
                     customer_phone=f"telegram_{chat_id}",
                     telegram_chat_id=str(chat_id),
-                    started_at=timezone.now(),
+                    started_at=now,
+                    last_activity_at=now,  # Встановлюємо last_activity_at при створенні
+                    language=detected_language,  # Встановлюємо мову при створенні
                     messages=[{
                         'role': 'user',
                         'content': message_text,
-                        'timestamp': timezone.now().isoformat()
+                        'timestamp': now.isoformat()
                     }],
                     context_metadata={'platform': 'telegram', 'username': username, 'first_name': first_name}
                 )
@@ -586,7 +648,17 @@ class TelegramWebhookView(View):
                     'timestamp': timezone.now().isoformat()
                 })
                 conversation.total_messages = len(conversation.messages)
-                updated_fields.extend(['messages', 'total_messages', 'updated_at'])
+                # Оновлюємо last_activity_at для відстеження неактивності
+                conversation.last_activity_at = timezone.now()
+                
+                # Detect and update language if not set or was default
+                if not conversation.language or conversation.language == 'uk':
+                    from MASTER.clients.tasks import detect_language_from_messages
+                    detected_language = detect_language_from_messages(conversation.messages)
+                    conversation.language = detected_language
+                    updated_fields.append('language')
+                
+                updated_fields.extend(['messages', 'total_messages', 'updated_at', 'last_activity_at'])
                 
                 if updated_fields:
                     conversation.save(update_fields=updated_fields)
@@ -638,24 +710,40 @@ class TelegramWebhookView(View):
                         conversation.rating_timestamp = timezone.now()
                         conversation.save(update_fields=['user_rating', 'rating_timestamp'])
                         
-                        # Відправляємо підтвердження користувачу
+                        # Відправляємо підтвердження користувачу мовою користувача
                         bot_token = conversation.client.telegram_bot_token
                         if bot_token:
-                            rating_text = "👍 Дякуємо за позитивну оцінку!" if rating == 'positive' else "👎 Дякуємо за відгук!"
+                            # Отримуємо мову користувача з conversation або використовуємо 'en' як fallback
+                            user_language = conversation.language or 'en'
+                            rating_text, confirmation_text = get_rating_message(user_language, rating)
+                            
+                            # Відправляємо callback answer (підказка при натисканні кнопки)
                             url = f"https://api.telegram.org/bot{bot_token}/answerCallbackQuery"
-                            requests.post(url, json={
+                            callback_response = requests.post(url, json={
                                 "callback_query_id": callback_query.get('id'),
                                 "text": rating_text,
                                 "show_alert": False
                             }, timeout=10)
                             
-                            # Оновлюємо повідомлення з оцінкою
+                            # Оновлюємо повідомлення з оцінкою мовою користувача
                             url = f"https://api.telegram.org/bot{bot_token}/editMessageText"
-                            requests.post(url, json={
+                            edit_response = requests.post(url, json={
                                 "chat_id": chat_id,
                                 "message_id": message_id,
-                                "text": f"✅ Ви оцінили розмову: {'👍' if rating == 'positive' else '👎'}",
+                                "text": confirmation_text,
                             }, timeout=10)
+                            
+                            # Також відправляємо нове повідомлення з підтвердженням оцінки
+                            url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+                            send_response = requests.post(url, json={
+                                "chat_id": chat_id,
+                                "text": rating_text,
+                            }, timeout=10)
+                            
+                            if send_response.status_code != 200:
+                                logger.error(f"Failed to send rating confirmation message to Telegram: {send_response.text}")
+                            else:
+                                logger.info(f"Rating confirmation sent to Telegram chat {chat_id} for conversation {conversation_id}")
                         
                         logger.info(f"Rating saved: conversation_id={conversation_id}, rating={rating}")
                         return HttpResponse("OK")
@@ -740,19 +828,24 @@ class TelegramWebhookView(View):
                 'content': message_body
             })
             
-            # Визначаємо мову повідомлення (простий метод за ключовими словами)
-            language = 'uk'  # За замовчуванням українська
-            message_lower = message_body.lower()
+            # Визначаємо мову повідомлення
+            # Використовуємо conversation.language якщо встановлено, інакше визначаємо з повідомлень
+            from MASTER.clients.tasks import detect_language_from_messages
             
-            # Англійська: перевіряємо наявність англійських слів
-            eng_words = ['hello', 'hi', 'who', 'are', 'you', 'what', 'how', 'can', 'help', 'please', 'thank']
-            if any(word in message_lower for word in eng_words):
-                language = 'en'
-            # Українська/Російська
-            elif any(char in message_lower for char in ['і', 'ї', 'є', 'ґ', 'привіт', 'допомога']):
-                language = 'uk'
+            # Detect language from current message and existing messages
+            all_messages = list(conversation.messages) if conversation.messages else []
+            all_messages.append({'role': 'user', 'content': message_body})
+            detected_language = detect_language_from_messages(all_messages)
             
-            logger.info(f"Detected language for message '{message_body[:30]}...': {language}")
+            if conversation.language and conversation.language != 'uk' and conversation.language in ['en', 'de', 'fr', 'es', 'it', 'nl', 'da']:
+                language = conversation.language
+            else:
+                # Use detected language and update conversation
+                language = detected_language
+                conversation.language = language
+                conversation.save(update_fields=['language'])
+            
+            logger.info(f"Using language '{language}' for conversation {conversation.id} (message: '{message_body[:30]}...')")
             
             # Використовуємо RAG API для генерації відповіді
             try:
@@ -780,6 +873,11 @@ class TelegramWebhookView(View):
             # Зберігаємо повідомлення в розмову
             conversation.add_message('user', message_body)
             conversation.add_message('assistant', response_text)
+            
+            # Update conversation language if not set or was default
+            if not conversation.language or conversation.language == 'uk':
+                conversation.language = language
+                conversation.save(update_fields=['language'])
             
             return response_text
             

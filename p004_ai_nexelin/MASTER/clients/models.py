@@ -215,7 +215,7 @@ class Client(models.Model):
     
     # Email report configuration for chat summaries
     email_report_enabled = models.BooleanField(
-        default=False,
+        default=True,
         help_text="Enable automatic email reports for closed chat sessions"
     )
     email_report_recipients = models.JSONField(
@@ -1346,6 +1346,13 @@ class ClientWhatsAppConversation(models.Model):
             models.Index(fields=['is_active']),
             models.Index(fields=['session_id', 'created_at']),
             models.Index(fields=['telegram_chat_id']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['client', 'session_id'],
+                name='unique_client_session',
+                condition=models.Q(session_id__isnull=False) & ~models.Q(session_id=''),
+            ),
         ]
     
     def __str__(self):

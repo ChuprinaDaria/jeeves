@@ -8,6 +8,85 @@ from typing import Dict, Any
 logger = logging.getLogger(__name__)
 
 
+def detect_language_from_messages(messages):
+    """
+    Detect language from conversation messages.
+    Returns language code (uk, en, de, fr, es, it, nl, da) based on message content.
+    """
+    if not messages:
+        return 'en'
+    
+    # Collect all user and assistant messages
+    all_text = ''
+    for msg in messages:
+        if isinstance(msg, dict) and msg.get('content'):
+            all_text += ' ' + msg.get('content', '').lower()
+    
+    if not all_text:
+        return 'en'
+    
+    # Language detection patterns
+    # English
+    eng_words = ['hello', 'hi', 'who', 'are', 'you', 'what', 'how', 'can', 'help', 'please', 'thank', 'thanks', 'yes', 'no', 'ok', 'okay']
+    if any(word in all_text for word in eng_words):
+        return 'en'
+    
+    # German
+    de_words = ['hallo', 'guten', 'tag', 'morgen', 'abend', 'bitte', 'danke', 'hilfe', 'können', 'sie', 'wie', 'was']
+    if any(word in all_text for word in de_words):
+        return 'de'
+    
+    # French
+    fr_words = ['bonjour', 'bonsoir', 'salut', 'merci', 'aider', 'pouvez', 'comment', 'quoi', 'oui', 'non']
+    if any(word in all_text for word in fr_words):
+        return 'fr'
+    
+    # Spanish
+    es_words = ['hola', 'buenos', 'días', 'tardes', 'gracias', 'ayuda', 'puede', 'cómo', 'qué', 'sí', 'no']
+    if any(word in all_text for word in es_words):
+        return 'es'
+    
+    # Italian
+    it_words = ['ciao', 'buongiorno', 'buonasera', 'grazie', 'aiuto', 'può', 'come', 'cosa', 'sì', 'no']
+    if any(word in all_text for word in it_words):
+        return 'it'
+    
+    # Dutch
+    nl_words = ['hallo', 'goedemorgen', 'goedenavond', 'dank', 'help', 'kunt', 'hoe', 'wat', 'ja', 'nee']
+    if any(word in all_text for word in nl_words):
+        return 'nl'
+    
+    # Danish
+    da_words = ['hej', 'godmorgen', 'goddag', 'tak', 'hjælp', 'kan', 'hvordan', 'hvad', 'ja', 'nej']
+    if any(word in all_text for word in da_words):
+        return 'da'
+    
+    # Ukrainian/Russian (check for Cyrillic characters)
+    uk_chars = ['і', 'ї', 'є', 'ґ', 'привіт', 'допомога', 'дякую', 'так', 'ні']
+    if any(char in all_text for char in uk_chars):
+        return 'uk'
+    
+    # Default to English
+    return 'en'
+
+
+def get_rating_request_message(language: str) -> str:
+    """
+    Get localized rating request message based on language code.
+    """
+    rating_messages = {
+        'uk': 'Будь ласка, оцініть нашу розмову: 👍 або 👎',
+        'en': 'Please rate our conversation: 👍 or 👎',
+        'de': 'Bitte bewerten Sie unser Gespräch: 👍 oder 👎',
+        'fr': 'Veuillez évaluer notre conversation : 👍 ou 👎',
+        'es': 'Por favor, califique nuestra conversación: 👍 o 👎',
+        'it': 'Per favore, valuta la nostra conversazione: 👍 o 👎',
+        'nl': 'Beoordeel ons gesprek: 👍 of 👎',
+        'da': 'Bedøm vores samtale: 👍 eller 👎',
+    }
+    return rating_messages.get(language, rating_messages['en'])
+
+
 @shared_task(bind=True, max_retries=3)
 def start_zero_container_task(self, config_id: int) -> Dict[str, Any]:
     """
@@ -394,6 +473,7 @@ def check_inactive_chat_sessions():
     """
     from django.utils import timezone
     from datetime import timedelta
+    from django.db.models import Q
     from MASTER.clients.models import ClientWhatsAppConversation
     
     logger.info("Checking inactive chat sessions...")
@@ -403,40 +483,77 @@ def check_inactive_chat_sessions():
     twenty_minutes_ago = now - timedelta(minutes=20)
     
     # Find active conversations with last activity more than 5 minutes ago
+    # Use updated_at if last_activity_at is NULL
     inactive_5min = ClientWhatsAppConversation.objects.filter(
-        is_active=True,
-        last_activity_at__lte=five_minutes_ago
+        is_active=True
+    ).filter(
+        Q(last_activity_at__lte=five_minutes_ago) | 
+        Q(last_activity_at__isnull=True, updated_at__lte=five_minutes_ago)
     ).exclude(
         user_rating__isnull=False  # Skip if already rated by user
     )
     
     # Find active conversations with last activity more than 20 minutes ago
+    # Use updated_at if last_activity_at is NULL
     inactive_20min = ClientWhatsAppConversation.objects.filter(
-        is_active=True,
-        last_activity_at__lte=twenty_minutes_ago
+        is_active=True
+    ).filter(
+        Q(last_activity_at__lte=twenty_minutes_ago) | 
+        Q(last_activity_at__isnull=True, updated_at__lte=twenty_minutes_ago)
     )
     
     # Send rating request after 5 minutes
+    rating_requests_sent = 0
     for conversation in inactive_5min:
         if not conversation.user_rating and not conversation.rating_request_sent:
             send_rating_request.delay(conversation.id)
+            rating_requests_sent += 1
     
     # Close and send email after 20 minutes
+    emails_scheduled = 0
     for conversation in inactive_20min:
-        if not conversation.email_sent:
-            # Auto-rate if user hasn't rated yet (after 20 minutes of inactivity)
-            if not conversation.user_rating and not conversation.ai_rating:
-                # Call auto_rate synchronously first, then send email
-                auto_rate_and_close_session.delay(conversation.id)
+        # Перевіряємо чи email вже надіслано
+        if conversation.email_sent:
+            # Якщо email вже надіслано, перевіряємо чи не було нової активності після відправки
+            # Використовуємо last_activity_at або updated_at якщо last_activity_at NULL
+            activity_time = conversation.last_activity_at or conversation.updated_at
+            
+            if conversation.email_sent_at and activity_time:
+                # Якщо НЕ було нової активності після відправки email (activity_time <= email_sent_at),
+                # не відправляємо повторно той самий email
+                if activity_time <= conversation.email_sent_at:
+                    logger.info(f"Conversation {conversation.id} email already sent and no new activity, skipping")
+                    continue
+                # Якщо була нова активність після відправки email, але сесія все ще неактивна (потрапила в inactive_20min),
+                # це означає що після нової активності знову пройшло 20 хвилин - відправляємо новий email
+                else:
+                    logger.info(f"Conversation {conversation.id} has new activity after email was sent, will send new email")
             else:
-                # User already rated, just close and send email
-                close_session_and_send_email.delay(conversation.id)
+                # Якщо email_sent=True але немає дати відправки, пропускаємо
+                logger.info(f"Conversation {conversation.id} email_sent=True but no email_sent_at, skipping")
+                continue
+        
+        # Відправляємо email (або перший раз, або повторно після нової активності)
+        # Auto-rate if user hasn't rated yet (after 20 minutes of inactivity)
+        if not conversation.user_rating and not conversation.ai_rating:
+            # Call auto_rate synchronously first, then send email
+            auto_rate_and_close_session.delay(conversation.id)
+            emails_scheduled += 1
+        else:
+            # User already rated, just close and send email
+            close_session_and_send_email.delay(conversation.id)
+            emails_scheduled += 1
     
     logger.info(f"Found {inactive_5min.count()} conversations inactive for 5+ min, {inactive_20min.count()} for 20+ min")
+    logger.info(f"Scheduled {rating_requests_sent} rating requests and {emails_scheduled} email reports")
+    
+    # Return simple dict without Celery task results to avoid JSON serialization errors
     return {
         "status": "success",
         "checked_5min": inactive_5min.count(),
-        "checked_20min": inactive_20min.count()
+        "checked_20min": inactive_20min.count(),
+        "rating_requests_scheduled": rating_requests_sent,
+        "emails_scheduled": emails_scheduled
     }
 
 
@@ -462,23 +579,34 @@ def send_rating_request(self, conversation_id: int):
         # Determine platform from context_metadata
         platform = conversation.context_metadata.get('platform', 'whatsapp') if conversation.context_metadata else 'whatsapp'
         
-        # Get rating request message based on client language or default
-        rating_message = "Будь ласка, оцініть нашу розмову: 👍 або 👎"
-        # TODO: Add i18n support for rating messages
+        # Determine language: always detect from conversation.messages to get actual user language
+        # This ensures rating request is in the same language the user actually used
+        detected_language = detect_language_from_messages(conversation.messages)
+        
+        # Update conversation.language if not set or was default/invalid
+        if not conversation.language or conversation.language == 'uk' or conversation.language not in ['en', 'de', 'fr', 'es', 'it', 'nl', 'da']:
+            conversation.language = detected_language
+            conversation.save(update_fields=['language'])
+        
+        # Use detected language for rating message
+        language = detected_language
+        
+        # Get localized rating request message
+        rating_message = get_rating_request_message(language)
         
         # Send rating request based on platform
         if platform == 'web' or platform == 'web_widget' or platform == 'iframe':
-            # For Web Chat - add message to conversation
+            # For Web Chat - add message to conversation (do NOT send via Meta WhatsApp)
             conversation.add_message('assistant', rating_message)
             conversation.rating_request_sent = True
             conversation.rating_request_sent_at = timezone.now()
             conversation.save(update_fields=['rating_request_sent', 'rating_request_sent_at', 'messages', 'total_messages', 'updated_at', 'last_activity_at'])
-            logger.info(f"Rating request added to web chat conversation {conversation_id}")
+            logger.info(f"Rating request added to web chat conversation {conversation_id} in language {language}")
             
         elif platform == 'telegram':
             # For Telegram - send message with inline keyboard
-            from MASTER.clients.views_telegram import send_telegram_message
             import json
+            import requests
             
             if conversation.telegram_chat_id and conversation.client.telegram_bot_token:
                 chat_id = int(conversation.telegram_chat_id)
@@ -499,22 +627,22 @@ def send_rating_request(self, conversation_id: int):
                     "text": rating_message,
                     "reply_markup": json.dumps(keyboard)
                 }
-                import requests
                 response = requests.post(url, json=payload, timeout=10)
                 
                 if response.status_code == 200:
                     conversation.rating_request_sent = True
                     conversation.rating_request_sent_at = timezone.now()
                     conversation.save(update_fields=['rating_request_sent', 'rating_request_sent_at'])
-                    logger.info(f"Rating request sent to Telegram chat {chat_id} for conversation {conversation_id}")
+                    logger.info(f"Rating request sent to Telegram chat {chat_id} for conversation {conversation_id} in language {language}")
                 else:
                     logger.error(f"Failed to send Telegram rating request: {response.text}")
             
-        else:
-            # For WhatsApp - send text message
+        elif platform == 'whatsapp':
+            # For WhatsApp (Meta) - send text message via Meta API
+            # Only send if it's actually WhatsApp, not web chat
             from MASTER.clients.views_meta_whatsapp import send_whatsapp_text
             
-            if conversation.customer_phone:
+            if conversation.customer_phone and not conversation.customer_phone.startswith('web_') and not conversation.customer_phone.startswith('telegram_'):
                 success = send_whatsapp_text(
                     conversation.customer_phone,
                     rating_message,
@@ -525,9 +653,11 @@ def send_rating_request(self, conversation_id: int):
                     conversation.rating_request_sent = True
                     conversation.rating_request_sent_at = timezone.now()
                     conversation.save(update_fields=['rating_request_sent', 'rating_request_sent_at'])
-                    logger.info(f"Rating request sent to WhatsApp {conversation.customer_phone} for conversation {conversation_id}")
+                    logger.info(f"Rating request sent to WhatsApp {conversation.customer_phone} for conversation {conversation_id} in language {language}")
+        else:
+            logger.warning(f"Unknown platform '{platform}' for conversation {conversation_id}, skipping rating request")
         
-        return {"status": "success", "platform": platform}
+        return {"status": "success", "platform": platform, "language": language}
         
     except ClientWhatsAppConversation.DoesNotExist:
         logger.error(f"Conversation {conversation_id} not found")
@@ -669,8 +799,18 @@ def close_session_and_send_email(self, conversation_id: int):
     try:
         conversation = ClientWhatsAppConversation.objects.select_related('client').get(id=conversation_id)
         
-        # Skip if email already sent
+        # Skip if email already sent AND no new activity after email was sent
         if conversation.email_sent:
+            # Перевіряємо чи була нова активність після відправки email
+            # Використовуємо last_activity_at або updated_at якщо last_activity_at NULL
+            activity_time = conversation.last_activity_at or conversation.updated_at
+            
+            if conversation.email_sent_at and activity_time:
+                if activity_time > conversation.email_sent_at:
+                    # Була нова активність після відправки email, не відправляємо повторно
+                    logger.info(f"Conversation {conversation_id} has new activity after email was sent, skipping")
+                    return {"status": "skipped", "message": "New activity after email was sent"}
+            # Email вже надіслано і немає нової активності
             return {"status": "skipped", "message": "Email already sent"}
         
         # Check if client has email reports enabled

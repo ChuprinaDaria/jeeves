@@ -8,7 +8,7 @@ import { clientAPI } from '../api/client';
 import { updateBrandingFromClient } from '../utils/helpers';
 
 const WebChatPage = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [searchParams] = useSearchParams();
   const tag = searchParams.get('tag');
   const [messages, setMessages] = useState([]);
@@ -534,13 +534,14 @@ const WebChatPage = () => {
     try {
       await clientAPI.rateConversation(conversationDbId, rating);
       setShowRatingButtons(false);
-      // Додаємо повідомлення про успішну оцінку
+      // Додаємо повідомлення про успішну оцінку мовою користувача
+      // t() автоматично використовує поточну мову з i18n.language
       const ratingMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: rating === 'positive' 
-          ? (t('webChat.ratingThankYouPositive') || 'Дякуємо за позитивну оцінку! 👍')
-          : (t('webChat.ratingThankYouNegative') || 'Дякуємо за відгук! 👎'),
+          ? (t('webChat.ratingThankYouPositive') || 'Thank you for your positive rating! 👍')
+          : (t('webChat.ratingThankYouNegative') || 'Thank you for your feedback! 👎'),
         timestamp: new Date().toISOString(),
       };
       setMessages(prev => [...prev, ratingMessage]);

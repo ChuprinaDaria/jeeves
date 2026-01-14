@@ -40,6 +40,7 @@ class ClientAdmin(admin.ModelAdmin):
         'extension_enabled',
         'logo_preview',
         'api_keys_count',
+        'chats_statistics',
         'zero_status',
         'api_docs_link',
         'created_by_display',
@@ -49,7 +50,7 @@ class ClientAdmin(admin.ModelAdmin):
     list_filter = ['client_type', 'llm_provider', 'specialization__branch', 'specialization', 'is_active', 'created_by', 'created_at']
     search_fields = ['user', 'tag', 'company_name', 'description']
     ordering = ['-created_at']
-    readonly_fields = ['created_by', 'created_at', 'updated_at', 'api_keys_count', 'zero_status', 'api_docs_link', 'client_portal_link', 'logo_preview']
+    readonly_fields = ['created_by', 'created_at', 'updated_at', 'api_keys_count', 'chats_statistics', 'zero_status', 'api_docs_link', 'client_portal_link', 'logo_preview']
     actions = ['test_rag', 'start_zero_service', 'stop_zero_service', 'restart_zero_service', 'check_zero_health']
     
     def get_queryset(self, request):
@@ -120,6 +121,16 @@ class ClientAdmin(admin.ModelAdmin):
             'fields': ('sync_usage_stats',),
             'description': 'Control whether usage statistics are sent to MG for this client'
         }),
+        ('Email Reports', {
+            'fields': ('email_report_enabled', 'email_smtp_enabled', 'email_smtp_host', 'email_smtp_port', 'email_smtp_use_tls', 'email_smtp_username', 'email_smtp_password', 'email_from_address', 'email_from_name', 'email_report_recipients'),
+            'classes': ('collapse',),
+            'description': 'Email configuration for sending chat summary reports. Enabled by default.'
+        }),
+        ('Chat Statistics', {
+            'fields': ('chats_statistics',),
+            'classes': ('collapse',),
+            'description': 'Statistics of conversations by integration type (Web, Telegram, WhatsApp)'
+        }),
         ('Dashboard Configuration', {
             'fields': (
                 'dashboard_layout',
@@ -146,6 +157,48 @@ class ClientAdmin(admin.ModelAdmin):
     @admin.display(description='Active API Keys')
     def api_keys_count(self, obj):
         return obj.api_keys.filter(is_active=True).count()
+    
+    @admin.display(description='Chats Statistics')
+    def chats_statistics(self, obj):
+        """Відображає статистику по кількості чатів для кожної інтеграції"""
+        from django.db.models import Q
+        from MASTER.clients.models import ClientWhatsAppConversation
+        
+        if not obj.pk:
+            return '-'
+        
+        # Отримуємо всі розмови клієнта
+        conversations = ClientWhatsAppConversation.objects.filter(client=obj)
+        
+        # Підрахунок по типах інтеграцій
+        web_chats = 0
+        telegram_chats = 0
+        whatsapp_chats = 0
+        
+        for conv in conversations:
+            platform = None
+            if conv.context_metadata:
+                platform = conv.context_metadata.get('platform')
+            
+            # Визначаємо тип інтеграції
+            if platform == 'telegram' or (conv.telegram_chat_id and conv.telegram_chat_id.strip()) or (conv.customer_phone and conv.customer_phone.startswith('telegram_')):
+                telegram_chats += 1
+            elif platform == 'web' or platform == 'web_widget' or (conv.customer_phone and conv.customer_phone.startswith('web_')):
+                web_chats += 1
+            else:
+                whatsapp_chats += 1
+        
+        total = web_chats + telegram_chats + whatsapp_chats
+        
+        return format_html(
+            '<div style="white-space: nowrap;">'
+            '<span style="color: #0066cc;">🌐 Web: <strong>{}</strong></span><br>'
+            '<span style="color: #0088cc;">📱 Telegram: <strong>{}</strong></span><br>'
+            '<span style="color: #25D366;">💬 WhatsApp: <strong>{}</strong></span><br>'
+            '<span style="font-weight: bold;">Total: <strong>{}</strong></span>'
+            '</div>',
+            web_chats, telegram_chats, whatsapp_chats, total
+        )
 
     @admin.action(description='Test RAG for selected client')
     def test_rag(self, request, queryset):

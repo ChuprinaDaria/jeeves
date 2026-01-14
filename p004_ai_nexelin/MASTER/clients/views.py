@@ -2450,16 +2450,17 @@ class ClientWebConversationView(APIView):
         short_phone = short_phone[:20]  # Гарантуємо макс 20 символів
         
         now = timezone.now()
+        # Use get_or_create with client and session_id for security (unique constraint)
         conversation, created = ClientWhatsAppConversation.objects.get_or_create(
-            session_id=session_id,
             client=client,
-            is_active=True,
+            session_id=session_id,
             defaults={
                 'customer_phone': short_phone,
                 'started_at': now,
                 'messages': [],
                 'context_metadata': {'platform': platform},
                 'last_activity_at': now,
+                'is_active': True,
             }
         )
         
@@ -2489,9 +2490,15 @@ class ClientWebConversationView(APIView):
             'timestamp': now.isoformat()
         })
         
+        # Detect and update language from user messages if not set
+        if not conversation.language or conversation.language == 'uk':
+            from MASTER.clients.tasks import detect_language_from_messages
+            detected_language = detect_language_from_messages(conversation.messages)
+            conversation.language = detected_language
+        
         conversation.total_messages = len(conversation.messages)
         conversation.last_activity_at = now
-        conversation.save(update_fields=['messages', 'total_messages', 'updated_at', 'last_activity_at'])
+        conversation.save(update_fields=['messages', 'total_messages', 'language', 'updated_at', 'last_activity_at'])
         
         return Response({
             'success': True,
