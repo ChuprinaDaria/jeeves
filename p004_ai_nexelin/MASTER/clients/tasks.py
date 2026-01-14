@@ -1130,9 +1130,12 @@ def close_session_and_send_email(self, conversation_id: int):
 def generate_chat_summary(conversation):
     """
     Generate AI summary of the conversation.
+    Only includes messages from this session (between started_at and ended_at/now).
     Returns a fallback summary if LLM generation fails.
     """
     from MASTER.rag.llm_client import LLMClient
+    from django.utils import timezone
+    from datetime import datetime
     
     # Check if messages exist
     if not conversation.messages:
@@ -1146,11 +1149,43 @@ def generate_chat_summary(conversation):
     if len(conversation.messages) == 0:
         return "No messages in this conversation."
     
+    # Filter messages to only include those from this session
+    session_messages = []
+    session_start = conversation.started_at
+    session_end = conversation.ended_at or timezone.now()
+    
+    for msg in conversation.messages:
+        if not isinstance(msg, dict) or not msg.get('content'):
+            continue
+        
+        timestamp_str = msg.get('timestamp', '')
+        if timestamp_str:
+            try:
+                msg_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                msg_time = timezone.make_aware(msg_time) if timezone.is_naive(msg_time) else msg_time
+                
+                # Only include messages from this session
+                if session_start and session_end:
+                    if session_start <= msg_time <= session_end:
+                        session_messages.append(msg)
+                elif session_start:
+                    if msg_time >= session_start:
+                        session_messages.append(msg)
+            except Exception:
+                # If timestamp parsing fails, include message (fallback)
+                session_messages.append(msg)
+        else:
+            # If no timestamp, include message (fallback)
+            session_messages.append(msg)
+    
+    if len(session_messages) == 0:
+        return "No messages in this session."
+    
     # Format messages for summary
     try:
         messages_text = "\n".join([
             f"{msg.get('role', 'unknown').upper()}: {msg.get('content', '')}"
-            for msg in conversation.messages
+            for msg in session_messages
             if isinstance(msg, dict) and msg.get('content')
         ])
         
@@ -1321,8 +1356,35 @@ def _generate_fallback_summary(conversation, messages_text, lang_name):
 def format_chat_as_text(conversation):
     """
     Format full conversation as text for email attachment.
+    Only includes messages from this session (between started_at and ended_at/now).
     """
     from datetime import datetime
+    from django.utils import timezone
+    
+    # Filter messages to only include those from this session
+    session_messages = []
+    session_start = conversation.started_at
+    session_end = conversation.ended_at or timezone.now()
+    
+    for msg in conversation.messages:
+        timestamp_str = msg.get('timestamp', '')
+        if not timestamp_str:
+            continue
+        
+        try:
+            msg_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+            msg_time = timezone.make_aware(msg_time) if timezone.is_naive(msg_time) else msg_time
+            
+            # Only include messages from this session
+            if session_start and session_end:
+                if session_start <= msg_time <= session_end:
+                    session_messages.append(msg)
+            elif session_start:
+                if msg_time >= session_start:
+                    session_messages.append(msg)
+        except Exception:
+            # If timestamp parsing fails, include message (fallback)
+            session_messages.append(msg)
     
     lines = [
         f"Chat Session Report",
@@ -1332,7 +1394,7 @@ def format_chat_as_text(conversation):
         f"Session ID: {conversation.session_id or 'N/A'}",
         f"Started: {conversation.started_at.strftime('%Y-%m-%d %H:%M:%S') if conversation.started_at else 'N/A'}",
         f"Ended: {conversation.ended_at.strftime('%Y-%m-%d %H:%M:%S') if conversation.ended_at else 'N/A'}",
-        f"Total Messages: {conversation.total_messages}",
+        f"Total Messages: {len(session_messages)}",
         f"Language: {conversation.language}",
         f"Rating: {conversation.user_rating or conversation.ai_rating or 'Not rated'}",
         f"{'=' * 50}",
@@ -1341,7 +1403,7 @@ def format_chat_as_text(conversation):
         "",
     ]
     
-    for i, msg in enumerate(conversation.messages, 1):
+    for i, msg in enumerate(session_messages, 1):
         role = msg.get('role', 'unknown').upper()
         content = msg.get('content', '')
         timestamp = msg.get('timestamp', '')
