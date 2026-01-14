@@ -705,6 +705,39 @@ def send_rating_request(self, conversation_id: int):
             conversation.save(update_fields=['rating_request_sent', 'rating_request_sent_at', 'messages', 'total_messages', 'updated_at', 'last_activity_at'])
             logger.info(f"✅ Rating request added to web chat conversation {conversation_id} in language {language}")
             
+            # Send email with chat summary immediately after rating request
+            try:
+                from MASTER.clients.tasks import send_chat_summary_email, format_chat_as_text, generate_chat_summary
+                
+                # Check if email reports are enabled
+                if conversation.client.email_report_enabled and conversation.client.email_smtp_enabled:
+                    # Generate summary if not exists
+                    if not conversation.summary:
+                        summary = generate_chat_summary(conversation)
+                        conversation.summary = summary
+                        conversation.save(update_fields=['summary'])
+                    
+                    # Generate full chat text
+                    chat_text = format_chat_as_text(conversation)
+                    
+                    # Get recipient email
+                    recipient_email = conversation.client.email_from_address or conversation.client.email_smtp_username
+                    
+                    if recipient_email:
+                        # Send email (do NOT close session - user may still write)
+                        email_result = send_chat_summary_email(conversation, chat_text, recipients=[recipient_email])
+                        if email_result.get("success") and email_result.get("sent_count", 0) > 0:
+                            logger.info(f"✅ Chat summary email sent immediately after rating request for conversation {conversation_id}")
+                        else:
+                            logger.warning(f"⚠️ Failed to send email after rating request for conversation {conversation_id}: {email_result}")
+                    else:
+                        logger.warning(f"⚠️ No email recipient configured for client {conversation.client.id}, skipping email")
+                else:
+                    logger.debug(f"Email reports disabled or SMTP not enabled for client {conversation.client.id}, skipping email")
+            except Exception as e:
+                logger.error(f"Failed to send email after rating request for conversation {conversation_id}: {e}", exc_info=True)
+                # Don't fail the whole task if email fails
+            
         elif platform == 'telegram':
             # For Telegram - send message with inline keyboard
             import json
@@ -759,6 +792,39 @@ def send_rating_request(self, conversation_id: int):
                             conversation.rating_request_sent_at = timezone.now()
                             conversation.save(update_fields=['rating_request_sent', 'rating_request_sent_at'])
                             logger.info(f"✅ Rating request sent to Telegram chat {telegram_chat_id} for conversation {conversation_id} in language {language}, message_id={message_id}")
+                            
+                            # Send email with chat summary immediately after rating request
+                            try:
+                                from MASTER.clients.tasks import send_chat_summary_email, format_chat_as_text, generate_chat_summary
+                                
+                                # Check if email reports are enabled
+                                if conversation.client.email_report_enabled and conversation.client.email_smtp_enabled:
+                                    # Generate summary if not exists
+                                    if not conversation.summary:
+                                        summary = generate_chat_summary(conversation)
+                                        conversation.summary = summary
+                                        conversation.save(update_fields=['summary'])
+                                    
+                                    # Generate full chat text
+                                    chat_text = format_chat_as_text(conversation)
+                                    
+                                    # Get recipient email
+                                    recipient_email = conversation.client.email_from_address or conversation.client.email_smtp_username
+                                    
+                                    if recipient_email:
+                                        # Send email (do NOT close session - user may still write)
+                                        email_result = send_chat_summary_email(conversation, chat_text, recipients=[recipient_email])
+                                        if email_result.get("success") and email_result.get("sent_count", 0) > 0:
+                                            logger.info(f"✅ Chat summary email sent immediately after rating request for conversation {conversation_id}")
+                                        else:
+                                            logger.warning(f"⚠️ Failed to send email after rating request for conversation {conversation_id}: {email_result}")
+                                    else:
+                                        logger.warning(f"⚠️ No email recipient configured for client {conversation.client.id}, skipping email")
+                                else:
+                                    logger.debug(f"Email reports disabled or SMTP not enabled for client {conversation.client.id}, skipping email")
+                            except Exception as e:
+                                logger.error(f"Failed to send email after rating request for conversation {conversation_id}: {e}", exc_info=True)
+                                # Don't fail the whole task if email fails
                         else:
                             error_description = response_data.get('description', 'Unknown error')
                             logger.error(f"❌ Telegram API returned ok=False: {error_description}, full_response={response_data}")
