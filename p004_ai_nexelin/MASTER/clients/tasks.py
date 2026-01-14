@@ -497,15 +497,53 @@ def check_inactive_chat_sessions():
     
     # Find active conversations with last activity more than 5 minutes ago
     # Use updated_at if last_activity_at is NULL
-    # Exclude conversations that already have user rating
+    # Include conversations that have user_rating BUT have new messages after rating (new session)
     inactive_5min = ClientWhatsAppConversation.objects.filter(
         is_active=True
     ).filter(
         Q(last_activity_at__lte=five_minutes_ago) | 
         Q(last_activity_at__isnull=True, updated_at__lte=five_minutes_ago)
-    ).exclude(
-        user_rating__in=['positive', 'negative']  # Skip if already rated by user
     )
+    
+    # Filter: exclude conversations with rating UNLESS they have new messages after rating (new session)
+    conversations_to_check = []
+    for conv in inactive_5min:
+        has_rating = conv.user_rating in ['positive', 'negative']
+        
+        if not has_rating:
+            # No rating - can send rating request
+            conversations_to_check.append(conv)
+        else:
+            # Has rating - check if there are new messages after rating (new session)
+            # Use last_activity_at as it's more reliable than parsing message timestamps
+            if conv.rating_timestamp and conv.last_activity_at:
+                # If last activity is after rating timestamp, it's a new session
+                if conv.last_activity_at > conv.rating_timestamp:
+                    logger.info(f"Conv {conv.id}: Has rating but new activity after rating (new session at {conv.last_activity_at}), resetting for new rating request")
+                    # Reset rating flags for new session
+                    conv.rating_request_sent = False
+                    conv.user_rating = None
+                    conv.rating_timestamp = None
+                    conv.save(update_fields=['rating_request_sent', 'user_rating', 'rating_timestamp'])
+                    conversations_to_check.append(conv)
+                else:
+                    logger.debug(f"Conv {conv.id}: Has rating and no new activity after rating (rating={conv.rating_timestamp}, last_activity={conv.last_activity_at}), skipping")
+            elif conv.rating_timestamp and not conv.last_activity_at:
+                # Has rating_timestamp but no last_activity_at - use updated_at as fallback
+                if conv.updated_at > conv.rating_timestamp:
+                    logger.info(f"Conv {conv.id}: Has rating but updated_at after rating (new session), resetting for new rating request")
+                    conv.rating_request_sent = False
+                    conv.user_rating = None
+                    conv.rating_timestamp = None
+                    conv.save(update_fields=['rating_request_sent', 'user_rating', 'rating_timestamp'])
+                    conversations_to_check.append(conv)
+                else:
+                    logger.debug(f"Conv {conv.id}: Has rating and no new activity after rating, skipping")
+            else:
+                # Has rating but no rating_timestamp - skip (shouldn't happen, but safe fallback)
+                logger.debug(f"Conv {conv.id}: Has rating but no rating_timestamp, skipping")
+    
+    inactive_5min = conversations_to_check
     
     logger.info(f"Found {inactive_5min.count()} conversations inactive for 5+ min (before rating_request_sent check)")
     

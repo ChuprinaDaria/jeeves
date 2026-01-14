@@ -2549,6 +2549,15 @@ class ConversationRatingView(APIView):
         conversation.rating_timestamp = timezone.now()
         conversation.save(update_fields=['user_rating', 'rating_timestamp'])
         
+        # If positive rating, send email immediately
+        if rating == 'positive':
+            from MASTER.clients.tasks import close_session_and_send_email
+            try:
+                close_session_and_send_email.delay(conversation.id)
+                logger.info(f"✅ Positive rating received for conversation {conversation_id}, scheduling email immediately")
+            except Exception as e:
+                logger.error(f"Failed to schedule email for positive rating: {e}")
+        
         return Response({
             'success': True,
             'conversation_id': conversation.id,
