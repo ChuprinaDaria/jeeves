@@ -1004,9 +1004,10 @@ class TelegramWebhookView(View):
             
             if client_hint:
                 # Use provided client_hint for security
+                # CRITICAL: Positional arguments (Q objects) must come before keyword arguments
                 conversation = ClientWhatsAppConversation.objects.filter(
-                    client=client_hint,
                     Q(telegram_chat_id=str(chat_id)) | Q(customer_phone=f"telegram_{chat_id}"),
+                    client=client_hint,
                     is_active=True
                 ).first()
             else:
