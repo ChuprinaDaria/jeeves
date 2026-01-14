@@ -515,11 +515,13 @@ def check_inactive_chat_sessions():
             conversations_to_check.append(conv)
         else:
             # Has rating - check if there are new messages after rating (new session)
-            # Use last_activity_at as it's more reliable than parsing message timestamps
+            # CRITICAL: Use only last_activity_at, NOT updated_at
+            # updated_at is updated even when rating is saved, so it's not reliable
+            # last_activity_at is updated ONLY when user sends a new message
             if conv.rating_timestamp and conv.last_activity_at:
-                # If last activity is after rating timestamp, it's a new session
+                # If last activity is after rating timestamp, it's a new session (user sent message after rating)
                 if conv.last_activity_at > conv.rating_timestamp:
-                    logger.info(f"Conv {conv.id}: Has rating but new activity after rating (new session at {conv.last_activity_at}), resetting for new rating request")
+                    logger.info(f"Conv {conv.id}: Has rating but new message after rating (new session at {conv.last_activity_at}), resetting for new rating request")
                     # Reset rating flags for new session
                     conv.rating_request_sent = False
                     conv.user_rating = None
@@ -527,21 +529,12 @@ def check_inactive_chat_sessions():
                     conv.save(update_fields=['rating_request_sent', 'user_rating', 'rating_timestamp'])
                     conversations_to_check.append(conv)
                 else:
-                    logger.debug(f"Conv {conv.id}: Has rating and no new activity after rating (rating={conv.rating_timestamp}, last_activity={conv.last_activity_at}), skipping")
-            elif conv.rating_timestamp and not conv.last_activity_at:
-                # Has rating_timestamp but no last_activity_at - use updated_at as fallback
-                if conv.updated_at > conv.rating_timestamp:
-                    logger.info(f"Conv {conv.id}: Has rating but updated_at after rating (new session), resetting for new rating request")
-                    conv.rating_request_sent = False
-                    conv.user_rating = None
-                    conv.rating_timestamp = None
-                    conv.save(update_fields=['rating_request_sent', 'user_rating', 'rating_timestamp'])
-                    conversations_to_check.append(conv)
-                else:
-                    logger.debug(f"Conv {conv.id}: Has rating and no new activity after rating, skipping")
+                    # Rating was given but no new messages after - not a new session
+                    logger.debug(f"Conv {conv.id}: Has rating and no new messages after rating (rating={conv.rating_timestamp}, last_activity={conv.last_activity_at}), skipping")
             else:
-                # Has rating but no rating_timestamp - skip (shouldn't happen, but safe fallback)
-                logger.debug(f"Conv {conv.id}: Has rating but no rating_timestamp, skipping")
+                # Has rating but no last_activity_at or no rating_timestamp - skip
+                # We don't use updated_at as fallback because it's updated even when rating is saved
+                logger.debug(f"Conv {conv.id}: Has rating but no last_activity_at or rating_timestamp, skipping (not a new session)")
     
     inactive_5min = conversations_to_check
     
