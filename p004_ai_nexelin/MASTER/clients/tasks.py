@@ -1181,6 +1181,9 @@ def generate_chat_summary(conversation):
     if len(session_messages) == 0:
         return "No messages in this session."
     
+    # Log filtering result for debugging
+    logger.debug(f"generate_chat_summary: Filtered {len(session_messages)} messages from {len(conversation.messages)} total for conversation {conversation.id} (session: {session_start} to {session_end})")
+    
     # Format messages for summary
     try:
         messages_text = "\n".join([
@@ -1435,6 +1438,9 @@ def format_chat_as_text(conversation):
         "CONVERSATION:",
         "",
     ]
+    
+    # Log filtering result for debugging
+    logger.debug(f"format_chat_as_text: Filtered {len(session_messages)} messages from {len(conversation.messages)} total for conversation {conversation.id} (session: {session_start} to {session_end})")
     
     for i, msg in enumerate(session_messages, 1):
         role = msg.get('role', 'unknown').upper()
