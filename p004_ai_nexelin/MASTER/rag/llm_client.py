@@ -243,10 +243,23 @@ class LLMClient:
         usage = result.get('usage', {})
         model_name = result.get('model', '')
         
-        # Get provider info for metadata
+        # Get provider info for metadata - extract from client correctly
         provider_type = 'openai'
+        model_name_from_client = None
         if client:
-            provider_type = getattr(client, 'llm_provider', 'openai')
+            # Priority 1: Check llm_provider_model (FK)
+            llm_provider_obj = getattr(client, "llm_provider_model", None)
+            if llm_provider_obj is not None:
+                provider_type = getattr(llm_provider_obj, "provider_type", "openai").lower()
+                model_name_from_client = getattr(llm_provider_obj, "model_name", None)
+            else:
+                # Priority 2: Check legacy string fields
+                provider_type = (getattr(client, 'llm_provider', None) or 'openai').lower()
+                model_name_from_client = getattr(client, 'llm_model_name', None)
+        
+        # Use model_name from result if available, otherwise from client
+        if not model_name and model_name_from_client:
+            model_name = model_name_from_client
         
         if not stream:
             # Return dict with content and usage for non-streaming

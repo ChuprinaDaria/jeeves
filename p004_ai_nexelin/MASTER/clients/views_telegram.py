@@ -255,10 +255,12 @@ class TelegramWebhookView(View):
 
             # Визначаємо клієнта за secret_token з webhook-запиту
             client_hint = self._get_client_from_request(request)
+            # Store client_hint for use in helper methods
+            self._current_client_hint = client_hint
             
             # Перевіряємо, чи це callback_query (натискання на кнопки)
             if 'callback_query' in data:
-                return self.handle_callback_query(data['callback_query'])
+                return self.handle_callback_query(data['callback_query'], client_hint)
             
             # Перевіряємо, чи це оновлення повідомлення
             if 'message' not in data:
@@ -402,6 +404,8 @@ class TelegramWebhookView(View):
             return HttpResponse("Error processing /start", status=500)
     
     def handle_start2_command(self, chat_id: int, message_text: str, username: str, first_name: str, client_hint=None):
+        # Store client_hint for use in _get_bot_token_for_chat
+        self._current_client_hint = client_hint
         """
         Обробляє START2 команду з QR-коду
         """
@@ -680,7 +684,7 @@ class TelegramWebhookView(View):
             send_telegram_message(self._get_bot_token_for_chat(chat_id), chat_id, "Вибачте, виникла помилка. Спробуйте пізніше.")
             return HttpResponse("Error processing message", status=500)
     
-    def handle_callback_query(self, callback_query):
+    def handle_callback_query(self, callback_query, client_hint=None):
         """
         Обробляє callback_query від Telegram (натискання на кнопки)
         """
@@ -703,7 +707,23 @@ class TelegramWebhookView(View):
                     rating = parts[2]  # 'positive' or 'negative'
                     
                     try:
-                        conversation = ClientWhatsAppConversation.objects.get(id=conversation_id)
+                        # CRITICAL: Filter by client for security - sandbox chats must not leak
+                        # Get client from callback query if not provided
+                        if not client_hint:
+                            # Try to get client from chat_id
+                            from MASTER.clients.models import Client
+                            temp_conv = ClientWhatsAppConversation.objects.filter(
+                                Q(telegram_chat_id=str(chat_id)) | Q(customer_phone=f"telegram_{chat_id}")
+                            ).first()
+                            if temp_conv:
+                                client_hint = temp_conv.client
+                        
+                        if not client_hint:
+                            logger.error(f"Security violation: cannot determine client for conversation {conversation_id}")
+                            return HttpResponse("Unauthorized", status=403)
+                        
+                        # Get conversation with client filter for security
+                        conversation = ClientWhatsAppConversation.objects.get(id=conversation_id, client=client_hint)
                         
                         # Оновлюємо оцінку
                         conversation.user_rating = rating
@@ -970,15 +990,31 @@ class TelegramWebhookView(View):
             logger.error(f"Error getting client from request: {str(e)}", exc_info=True)
             return None
     
-    def _get_bot_token_for_chat(self, chat_id: int) -> str:
+    def _get_bot_token_for_chat(self, chat_id: int, client_hint=None) -> str:
         """
         Знаходить bot token для чату (через активну розмову або перший доступний)
+        CRITICAL: Must filter by client for security - sandbox chats must not leak
         """
         try:
-            conversation = ClientWhatsAppConversation.objects.filter(
-                Q(telegram_chat_id=str(chat_id)) | Q(customer_phone=f"telegram_{chat_id}"),
-                is_active=True
-            ).first()
+            from MASTER.clients.models import ClientWhatsAppConversation, Client
+            
+            # Use client_hint from parameter or instance variable
+            if not client_hint:
+                client_hint = getattr(self, '_current_client_hint', None)
+            
+            if client_hint:
+                # Use provided client_hint for security
+                conversation = ClientWhatsAppConversation.objects.filter(
+                    client=client_hint,
+                    Q(telegram_chat_id=str(chat_id)) | Q(customer_phone=f"telegram_{chat_id}"),
+                    is_active=True
+                ).first()
+            else:
+                # Fallback: find conversation and get client from it (less secure, but needed for backward compatibility)
+                conversation = ClientWhatsAppConversation.objects.filter(
+                    Q(telegram_chat_id=str(chat_id)) | Q(customer_phone=f"telegram_{chat_id}"),
+                    is_active=True
+                ).first()
             
             if conversation and conversation.client.telegram_bot_token:
                 logger.info(f"Found bot token for chat_id={chat_id} via conversation")

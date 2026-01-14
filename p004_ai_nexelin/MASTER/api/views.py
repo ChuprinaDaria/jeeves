@@ -149,8 +149,16 @@ class PublicRAGChatView(APIView):
     Body: multipart/form-data or JSON
     - message (required): текст повідомлення
     - image (optional): файл зображення для аналізу
+    - context (optional): локальна історія діалогу з фронтенду (для sandbox)
+    - session_id (optional): ID сесії для завантаження історії з бази (НЕ використовується sandbox)
     
     Response: { "response": "...", "sources": [...], "num_chunks": N, "total_tokens": N }
+    
+    CRITICAL SECURITY NOTES:
+    - Sandbox chats use ONLY 'context' parameter (localStorage history), NEVER 'session_id'
+    - Sandbox conversations are NEVER saved to ClientWhatsAppConversation database
+    - Sandbox history stays ONLY in browser localStorage, never leaks to Telegram/WhatsApp/Web Chat
+    - This endpoint does NOT save conversations - only WebChatPage calls /clients/web-conversations/ for that
     """
     permission_classes = [AllowAny]
     # Простий кеш для результатів класифікації email-інтентів (у межах процесу)
@@ -316,10 +324,16 @@ class PublicRAGChatView(APIView):
                     pass
 
             # 2) Контекст із бекенду по session_id (web-client chat)
+            # CRITICAL: Sandbox chats don't use session_id, so they won't load conversation history
+            # This ensures sandbox conversations stay private and don't leak to Telegram/WhatsApp
+            # Sandbox only uses 'context' parameter (localStorage history), never session_id
             session_id = request.data.get('session_id') or request.data.get('conversation_id')
-            if session_id:
+            # CRITICAL SECURITY: Only load conversation history if session_id is provided AND not empty
+            # Sandbox never provides session_id, so it will never load or save conversations to database
+            if session_id and str(session_id).strip() and not str(session_id).startswith('sandbox_'):
                 try:
                     from MASTER.clients.models import ClientWhatsAppConversation
+                    # CRITICAL: Always filter by client for security - sandbox chats must not leak
                     conv = ClientWhatsAppConversation.objects.filter(
                         client=client,
                         session_id=session_id,

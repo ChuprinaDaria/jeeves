@@ -970,7 +970,20 @@ Summary ({lang_name}):"""
         
         # Log which model will be used for summary generation
         client = conversation.client
-        provider_info = f"{getattr(client, 'llm_provider', 'unknown')}/{getattr(client, 'llm_model_name', 'unknown')}"
+        # Extract provider and model info correctly (support both FK and legacy fields)
+        provider_name = 'unknown'
+        model_name = 'unknown'
+        if client:
+            # Priority 1: Check llm_provider_model (FK)
+            llm_provider_obj = getattr(client, "llm_provider_model", None)
+            if llm_provider_obj is not None:
+                provider_name = getattr(llm_provider_obj, "provider_type", "unknown")
+                model_name = getattr(llm_provider_obj, "model_name", "unknown")
+            else:
+                # Priority 2: Check legacy string fields
+                provider_name = getattr(client, 'llm_provider', 'unknown')
+                model_name = getattr(client, 'llm_model_name', 'unknown')
+        provider_info = f"{provider_name}/{model_name}"
         logger.info(f"Generating summary for conversation {conversation.id} using client model: {provider_info}")
         
         result = llm_client.generate_response(
@@ -988,13 +1001,29 @@ Summary ({lang_name}):"""
         if summary and summary.strip():
             return summary.strip()
         else:
-            logger.warning(f"LLM returned empty summary for conversation {conversation.id} (provider: {getattr(conversation.client, 'llm_provider', 'unknown')})")
+            # Extract provider info for logging
+            provider_name = 'unknown'
+            if conversation.client:
+                llm_provider_obj = getattr(conversation.client, "llm_provider_model", None)
+                if llm_provider_obj is not None:
+                    provider_name = getattr(llm_provider_obj, "provider_type", "unknown")
+                else:
+                    provider_name = getattr(conversation.client, 'llm_provider', 'unknown')
+            logger.warning(f"LLM returned empty summary for conversation {conversation.id} (provider: {provider_name})")
             # Fallback to basic summary
             return _generate_fallback_summary(conversation, messages_text, lang_name)
             
     except Exception as e:
         error_msg = str(e)
-        logger.error(f"Failed to generate summary for conversation {conversation.id} (provider: {getattr(conversation.client, 'llm_provider', 'unknown')}): {error_msg}", exc_info=True)
+        # Extract provider info for logging
+        provider_name = 'unknown'
+        if conversation.client:
+            llm_provider_obj = getattr(conversation.client, "llm_provider_model", None)
+            if llm_provider_obj is not None:
+                provider_name = getattr(llm_provider_obj, "provider_type", "unknown")
+            else:
+                provider_name = getattr(conversation.client, 'llm_provider', 'unknown')
+        logger.error(f"Failed to generate summary for conversation {conversation.id} (provider: {provider_name}): {error_msg}", exc_info=True)
         
         # Check if it's a timeout or connection error (common with Ollama)
         if "timeout" in error_msg.lower() or "connection" in error_msg.lower() or "read timed out" in error_msg.lower():
