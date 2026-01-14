@@ -588,9 +588,21 @@ def send_rating_request(self, conversation_id: int):
             return {"status": "skipped", "message": "Conversation is still active"}
         
         # Determine platform from context_metadata
-        platform = conversation.context_metadata.get('platform', 'whatsapp') if conversation.context_metadata else 'whatsapp'
+        platform = conversation.context_metadata.get('platform', None) if conversation.context_metadata else None
         
-        # Fallback: detect platform from customer_phone or telegram_chat_id
+        # If context_metadata is missing or platform is not set, try to detect platform
+        if not platform:
+            # Check if client has telegram_bot_token - if yes, default to telegram instead of whatsapp
+            if conversation.client and conversation.client.telegram_bot_token:
+                platform = 'telegram'
+            elif conversation.telegram_chat_id or (conversation.customer_phone and conversation.customer_phone.startswith('telegram_')):
+                platform = 'telegram'
+            elif conversation.customer_phone and conversation.customer_phone.startswith('web_'):
+                platform = 'web'
+            else:
+                platform = 'whatsapp'
+        
+        # Fallback: detect platform from customer_phone or telegram_chat_id if still not determined
         if platform == 'whatsapp':
             if conversation.telegram_chat_id or (conversation.customer_phone and conversation.customer_phone.startswith('telegram_')):
                 platform = 'telegram'
@@ -972,7 +984,10 @@ def generate_chat_summary(conversation):
         logger.error(f"Error formatting messages for conversation {conversation.id}: {str(e)}", exc_info=True)
         return "Unable to generate summary: error processing messages."
     
-    language = conversation.language or 'uk'
+    # Detect language from messages instead of defaulting to Ukrainian
+    detected_language = detect_language_from_messages(conversation.messages)
+    language = detected_language if detected_language else (conversation.language or 'en')
+    
     lang_map = {
         'uk': 'Ukrainian',
         'en': 'English',
@@ -986,7 +1001,9 @@ def generate_chat_summary(conversation):
     }
     lang_name = lang_map.get(language, 'English')
     
-    prompt = f"""Generate a concise summary of this customer support conversation in {lang_name} language.
+    prompt = f"""Summarize the conversation in the same language as the user's messages. Do not force Ukrainian if the chat is in English.
+
+Generate a concise summary of this customer support conversation in {lang_name} language. Be concise and avoid repetitive words.
 
 Conversation:
 {messages_text}
@@ -1010,7 +1027,9 @@ Summary ({lang_name}):"""
             messages_text = "..." + messages_text[-max_context_length:]
         
         # Update prompt with truncated messages
-        prompt = f"""Generate a concise summary of this customer support conversation in {lang_name} language.
+        prompt = f"""Summarize the conversation in the same language as the user's messages. Do not force Ukrainian if the chat is in English.
+
+Generate a concise summary of this customer support conversation in {lang_name} language. Be concise and avoid repetitive words.
 
 Conversation:
 {messages_text}
