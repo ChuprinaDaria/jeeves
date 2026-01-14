@@ -932,14 +932,25 @@ def auto_rate_and_close_session(self, conversation_id: int):
         # We use .apply() instead of .delay() to ensure sequential execution
         rating_result = auto_rate_conversation.apply(args=[conversation_id])
         
+        # Extract result value to avoid JSON serialization error
+        # rating_result is EagerResult, we need to get the actual value
+        try:
+            rating_value = rating_result.get() if hasattr(rating_result, 'get') else rating_result.result
+        except Exception:
+            rating_value = {"status": "unknown", "rating": None}
+        
         # Reload conversation to get updated rating
         conversation.refresh_from_db()
         
         # Then close and send email
         close_session_and_send_email.delay(conversation_id)
         
-        logger.info(f"Auto-rated and closing session {conversation_id}: {rating_result}")
-        return {"status": "success", "rating_result": rating_result}
+        # Extract rating from result dict for logging
+        rating = rating_value.get('rating') if isinstance(rating_value, dict) else None
+        logger.info(f"Auto-rated and closing session {conversation_id}: rating={rating}")
+        
+        # Return simple dict without Celery result objects to avoid JSON serialization errors
+        return {"status": "success", "rating": rating}
         
     except ClientWhatsAppConversation.DoesNotExist:
         logger.error(f"Conversation {conversation_id} not found")
