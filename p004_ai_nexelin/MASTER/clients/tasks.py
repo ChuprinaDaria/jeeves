@@ -712,18 +712,46 @@ def send_rating_request(self, conversation_id: int):
                     "reply_markup": json.dumps(keyboard)
                 }
                 
-                logger.info(f"Attempting to send rating request to Telegram chat_id={telegram_chat_id} for conversation {conversation_id}")
-                response = requests.post(url, json=payload, timeout=10)
+                logger.info(f"Attempting to send rating request to Telegram chat_id={telegram_chat_id} for conversation {conversation_id} in language {language}")
+                logger.debug(f"Telegram API payload: url={url}, chat_id={telegram_chat_id}, text_length={len(rating_message)}")
                 
-                if response.status_code == 200:
-                    conversation.rating_request_sent = True
-                    conversation.rating_request_sent_at = timezone.now()
-                    conversation.save(update_fields=['rating_request_sent', 'rating_request_sent_at'])
-                    logger.info(f"✅ Rating request sent to Telegram chat {telegram_chat_id} for conversation {conversation_id} in language {language}")
-                else:
-                    logger.error(f"❌ Failed to send Telegram rating request: status={response.status_code}, response={response.text}")
+                try:
+                    response = requests.post(url, json=payload, timeout=10)
+                    response.raise_for_status()  # Raise exception for bad status codes
+                    
+                    # Parse response to verify success
+                    try:
+                        response_data = response.json()
+                        if response_data.get('ok') is True:
+                            message_id = response_data.get('result', {}).get('message_id')
+                            conversation.rating_request_sent = True
+                            conversation.rating_request_sent_at = timezone.now()
+                            conversation.save(update_fields=['rating_request_sent', 'rating_request_sent_at'])
+                            logger.info(f"✅ Rating request sent to Telegram chat {telegram_chat_id} for conversation {conversation_id} in language {language}, message_id={message_id}")
+                        else:
+                            error_description = response_data.get('description', 'Unknown error')
+                            logger.error(f"❌ Telegram API returned ok=False: {error_description}, full_response={response_data}")
+                            # DO NOT set rating_request_sent=True if Telegram API says it failed
+                    except (ValueError, KeyError) as e:
+                        logger.error(f"❌ Failed to parse Telegram API response: {e}, response_text={response.text[:500]}")
+                        # DO NOT set rating_request_sent=True if we can't verify success
+                        
+                except requests.RequestException as e:
+                    logger.error(f"❌ Failed to send Telegram rating request (network error): {e}")
+                    # DO NOT set rating_request_sent=True on network errors
+                    # Raise exception to trigger Celery retry
+                    raise
+                except Exception as e:
+                    logger.error(f"❌ Unexpected error sending Telegram rating request: {e}", exc_info=True)
+                    # DO NOT set rating_request_sent=True on unexpected errors
+                    raise
             else:
-                logger.warning(f"⚠️ Cannot send Telegram rating request: chat_id={telegram_chat_id}, has_bot_token={bool(conversation.client and conversation.client.telegram_bot_token)}")
+                missing = []
+                if not telegram_chat_id:
+                    missing.append("telegram_chat_id")
+                if not (conversation.client and conversation.client.telegram_bot_token):
+                    missing.append("telegram_bot_token")
+                logger.warning(f"⚠️ Cannot send Telegram rating request for conversation {conversation_id}: missing {', '.join(missing)}")
             
         elif platform == 'whatsapp':
             # For WhatsApp (Meta) - send text message via Meta API
