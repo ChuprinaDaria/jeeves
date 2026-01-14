@@ -1321,11 +1321,44 @@ Summary ({lang_name}):"""
 def _generate_fallback_summary(conversation, messages_text, lang_name):
     """
     Generate a basic fallback summary when LLM generation fails.
+    Only includes messages from this session.
     """
+    from django.utils import timezone
+    from datetime import datetime
+    
     try:
-        # Count messages by role
-        user_messages = [msg for msg in conversation.messages if isinstance(msg, dict) and msg.get('role') == 'user']
-        assistant_messages = [msg for msg in conversation.messages if isinstance(msg, dict) and msg.get('role') == 'assistant']
+        # Filter messages to only include those from this session
+        session_messages = []
+        session_start = conversation.started_at
+        session_end = conversation.ended_at or timezone.now()
+        
+        for msg in conversation.messages:
+            if not isinstance(msg, dict):
+                continue
+            
+            timestamp_str = msg.get('timestamp', '')
+            if timestamp_str:
+                try:
+                    msg_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                    msg_time = timezone.make_aware(msg_time) if timezone.is_naive(msg_time) else msg_time
+                    
+                    # Only include messages from this session
+                    if session_start and session_end:
+                        if session_start <= msg_time <= session_end:
+                            session_messages.append(msg)
+                    elif session_start:
+                        if msg_time >= session_start:
+                            session_messages.append(msg)
+                except Exception:
+                    # If timestamp parsing fails, include message (fallback)
+                    session_messages.append(msg)
+            else:
+                # If no timestamp, include message (fallback)
+                session_messages.append(msg)
+        
+        # Count messages by role (only from this session)
+        user_messages = [msg for msg in session_messages if msg.get('role') == 'user']
+        assistant_messages = [msg for msg in session_messages if msg.get('role') == 'assistant']
         
         # Get first and last user messages
         first_user_msg = user_messages[0].get('content', '')[:100] if user_messages else ''
