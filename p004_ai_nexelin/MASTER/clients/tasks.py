@@ -482,16 +482,40 @@ def check_inactive_chat_sessions():
     five_minutes_ago = now - timedelta(minutes=5)
     twenty_minutes_ago = now - timedelta(minutes=20)
     
+    # Debug: Log all active conversations
+    all_active = ClientWhatsAppConversation.objects.filter(is_active=True)
+    logger.info(f"Total active conversations: {all_active.count()}")
+    
+    # Debug: Log conversations with details
+    for conv in all_active[:10]:  # Log first 10 for debugging
+        last_activity = conv.last_activity_at or conv.updated_at
+        if last_activity:
+            minutes_inactive = (now - last_activity).total_seconds() / 60
+            logger.info(f"  Conv {conv.id}: last_activity={last_activity}, inactive_minutes={minutes_inactive:.1f}, "
+                       f"user_rating={conv.user_rating}, rating_request_sent={conv.rating_request_sent}, "
+                       f"platform={conv.context_metadata.get('platform') if conv.context_metadata else None}")
+    
     # Find active conversations with last activity more than 5 minutes ago
     # Use updated_at if last_activity_at is NULL
+    # Exclude conversations that already have user rating
     inactive_5min = ClientWhatsAppConversation.objects.filter(
         is_active=True
     ).filter(
         Q(last_activity_at__lte=five_minutes_ago) | 
         Q(last_activity_at__isnull=True, updated_at__lte=five_minutes_ago)
     ).exclude(
-        user_rating__isnull=False  # Skip if already rated by user
+        user_rating__in=['positive', 'negative']  # Skip if already rated by user
     )
+    
+    logger.info(f"Found {inactive_5min.count()} conversations inactive for 5+ min (before rating_request_sent check)")
+    
+    # Debug: Log inactive conversations
+    for conv in inactive_5min[:5]:  # Log first 5 for debugging
+        last_activity = conv.last_activity_at or conv.updated_at
+        if last_activity:
+            minutes_inactive = (now - last_activity).total_seconds() / 60
+            logger.info(f"  Inactive conv {conv.id}: last_activity={last_activity}, inactive_minutes={minutes_inactive:.1f}, "
+                       f"user_rating={conv.user_rating}, rating_request_sent={conv.rating_request_sent}")
     
     # Find active conversations with last activity more than 20 minutes ago
     # Use updated_at if last_activity_at is NULL
