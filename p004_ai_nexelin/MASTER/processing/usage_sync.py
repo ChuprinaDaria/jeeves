@@ -171,15 +171,42 @@ def send_usage_to_mg(usage: UsageStats) -> Optional[dict]:
             logger.error(f"UsageStats {usage.id} has invalid tokens_used value: {tokens_value}, error: {e}")
             return None
 
+        ai_model_guid = _resolve_ai_model(usage)
+        uid = _resolve_uid(usage)
+        
+        # Validate ai_model_guid - API requires valid GUID, not "unknown"
+        if ai_model_guid == "unknown":
+            logger.error(f"UsageStats {usage.id}: Cannot send to MG - ai_model_guid is 'unknown'. "
+                        f"Please configure ModelPair.external_guid or EmbeddingModel.external_guid for client {client.id if client else 'N/A'}")
+            return None
+        
         payload = {
             "guid": package_guid,  # Package GUID (required)
             "tokens": tokens_int,  # Number of used tokens (required, min: 1)
             "occurred": occurred_str,  # Date when usage occurred (required, ISO 8601 format)
-            "uid": _resolve_uid(usage),  # Unique report identifier (required, max: 255)
-            "ai_model": _resolve_ai_model(usage),  # GUID AI Sub model identifier (required, max: 255)
+            "uid": uid,  # Unique report identifier (required, max: 255)
+            "ai_model": ai_model_guid,  # GUID AI Sub model identifier (required, max: 255)
         }
+        
+        # Log payload for debugging 422 errors
+        logger.info(f"Sending usage stats to MG: usage_id={usage.id}, guid={package_guid}, tokens={tokens_int}, "
+                   f"ai_model={ai_model_guid}, uid={uid}, occurred={occurred_str}")
+        
+        # Log metadata for debugging
+        metadata = getattr(usage, 'metadata', {}) or {}
+        if isinstance(metadata, dict):
+            logger.debug(f"UsageStats {usage.id} metadata: {metadata}")
 
         resp = requests.post(url, json=payload, timeout=10)
+        
+        # Log response details for 422 errors
+        if resp.status_code == 422:
+            try:
+                error_details = resp.json()
+                logger.error(f"MG usage sync 422 error for usage_id={usage.id}: {error_details}")
+            except Exception:
+                logger.error(f"MG usage sync 422 error for usage_id={usage.id}: {resp.text[:500]}")
+        
         resp.raise_for_status()
         try:
             return resp.json()

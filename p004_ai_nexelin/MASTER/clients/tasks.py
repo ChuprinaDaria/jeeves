@@ -611,27 +611,43 @@ def send_rating_request(self, conversation_id: int):
             logger.info(f"Conversation {conversation_id} is still active (last_activity={last_activity}, now={now}), skipping rating request")
             return {"status": "skipped", "message": "Conversation is still active"}
         
-        # Determine platform from context_metadata
-        platform = conversation.context_metadata.get('platform', None) if conversation.context_metadata else None
+        # Determine platform: prioritize telegram_chat_id over context_metadata
+        # This ensures Telegram conversations are correctly identified even if context_metadata is wrong
+        platform = None
         
-        # If context_metadata is missing or platform is not set, try to detect platform
+        # CRITICAL: Check telegram_chat_id FIRST (most reliable indicator)
+        if conversation.telegram_chat_id:
+            platform = 'telegram'
+            logger.info(f"Conversation {conversation_id}: Detected platform=telegram from telegram_chat_id={conversation.telegram_chat_id}")
+        elif conversation.customer_phone and conversation.customer_phone.startswith('telegram_'):
+            platform = 'telegram'
+            logger.info(f"Conversation {conversation_id}: Detected platform=telegram from customer_phone prefix")
+        
+        # If not Telegram, check context_metadata
+        if not platform:
+            platform = conversation.context_metadata.get('platform', None) if conversation.context_metadata else None
+            if platform:
+                logger.info(f"Conversation {conversation_id}: Using platform={platform} from context_metadata")
+        
+        # If still not determined, use fallback detection
         if not platform:
             # Check if client has telegram_bot_token - if yes, default to telegram instead of whatsapp
             if conversation.client and conversation.client.telegram_bot_token:
                 platform = 'telegram'
-            elif conversation.telegram_chat_id or (conversation.customer_phone and conversation.customer_phone.startswith('telegram_')):
-                platform = 'telegram'
+                logger.info(f"Conversation {conversation_id}: Detected platform=telegram from client.telegram_bot_token")
             elif conversation.customer_phone and conversation.customer_phone.startswith('web_'):
                 platform = 'web'
+                logger.info(f"Conversation {conversation_id}: Detected platform=web from customer_phone prefix")
             else:
                 platform = 'whatsapp'
+                logger.info(f"Conversation {conversation_id}: Defaulting to platform=whatsapp")
         
-        # Fallback: detect platform from customer_phone or telegram_chat_id if still not determined
-        if platform == 'whatsapp':
-            if conversation.telegram_chat_id or (conversation.customer_phone and conversation.customer_phone.startswith('telegram_')):
-                platform = 'telegram'
-            elif conversation.customer_phone and conversation.customer_phone.startswith('web_'):
-                platform = 'web'
+        # Final validation: if platform is 'web' but we have telegram_chat_id, it's Telegram!
+        if platform in ['web', 'web_widget', 'iframe'] and conversation.telegram_chat_id:
+            platform = 'telegram'
+            logger.warning(f"Conversation {conversation_id}: Overriding platform from {platform} to telegram (has telegram_chat_id)")
+        
+        logger.info(f"Conversation {conversation_id}: Final platform={platform} for rating request")
         
         # Determine language: always detect from conversation.messages to get actual user language
         # This ensures rating request is in the same language the user actually used
