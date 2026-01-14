@@ -1108,60 +1108,89 @@ def generate_chat_summary(conversation):
     """
     Generate AI summary of the conversation.
     Only includes messages from this session (between started_at and ended_at/now).
-    Returns a fallback summary if LLM generation fails.
+    Uses conversationmessage_set.all() to get messages from database.
     ALWAYS returns a summary - never returns None or empty string.
     """
     from MASTER.rag.llm_client import LLMClient
     from django.utils import timezone
     from datetime import datetime
     
-    # Check if messages exist
-    if not conversation.messages:
-        return "No messages in this conversation."
-    
-    # Validate messages format
-    if not isinstance(conversation.messages, list):
-        logger.warning(f"Conversation {conversation.id} has invalid messages format: {type(conversation.messages)}")
-        # Return fallback instead of error message
-        return _generate_fallback_summary(conversation, "", "English")
-    
-    if len(conversation.messages) == 0:
-        return "No messages in this conversation."
-    
-    # Filter messages to only include those from this session
-    session_messages = []
+    # Get messages from database using conversationmessage_set
+    # Filter by created_at between started_at and ended_at
     session_start = conversation.started_at
     session_end = conversation.ended_at or timezone.now()
     
-    for msg in conversation.messages:
-        if not isinstance(msg, dict) or not msg.get('content'):
-            continue
-        
-        timestamp_str = msg.get('timestamp', '')
-        if timestamp_str:
-            try:
-                msg_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-                msg_time = timezone.make_aware(msg_time) if timezone.is_naive(msg_time) else msg_time
-                
-                # Only include messages from this session
-                if session_start and session_end:
-                    if session_start <= msg_time <= session_end:
-                        session_messages.append(msg)
-                elif session_start:
-                    if msg_time >= session_start:
-                        session_messages.append(msg)
-            except Exception:
-                # If timestamp parsing fails, include message (fallback)
-                session_messages.append(msg)
+    try:
+        # Try to get messages from ConversationMessage model via related manager
+        if hasattr(conversation, 'conversationmessage_set'):
+            db_messages = conversation.conversationmessage_set.all()
+            logger.info(f"📊 Using conversationmessage_set: found {db_messages.count()} total messages")
+            
+            # Filter messages by created_at between session_start and session_end
+            session_messages = db_messages.filter(
+                created_at__gte=session_start,
+                created_at__lte=session_end
+            ).order_by('created_at')
+            
+            logger.info(f"📊 Filtered {session_messages.count()} messages for session ({session_start} to {session_end})")
+            
+            # Convert QuerySet to list of dicts for processing
+            session_messages_list = []
+            for msg in session_messages:
+                session_messages_list.append({
+                    'role': getattr(msg, 'role', 'unknown'),
+                    'content': getattr(msg, 'content', ''),
+                    'timestamp': msg.created_at.isoformat() if hasattr(msg, 'created_at') else ''
+                })
+            
+            session_messages = session_messages_list
+            
         else:
-            # If no timestamp, include message (fallback)
-            session_messages.append(msg)
+            # Fallback to JSONField if conversationmessage_set doesn't exist
+            logger.warning(f"⚠️ conversationmessage_set not found for conversation {conversation.id}, falling back to JSONField")
+            if not conversation.messages:
+                return "No messages in this conversation."
+            
+            if not isinstance(conversation.messages, list):
+                logger.warning(f"Conversation {conversation.id} has invalid messages format: {type(conversation.messages)}")
+                return "No messages in this conversation."
+            
+            # Filter messages from JSONField by timestamp
+            session_messages = []
+            for msg in conversation.messages:
+                if not isinstance(msg, dict) or not msg.get('content'):
+                    continue
+                
+                timestamp_str = msg.get('timestamp', '')
+                if timestamp_str:
+                    try:
+                        msg_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                        msg_time = timezone.make_aware(msg_time) if timezone.is_naive(msg_time) else msg_time
+                        
+                        # Only include messages from this session
+                        if session_start and session_end:
+                            if session_start <= msg_time <= session_end:
+                                session_messages.append(msg)
+                        elif session_start:
+                            if msg_time >= session_start:
+                                session_messages.append(msg)
+                    except Exception:
+                        # If timestamp parsing fails, include message (fallback)
+                        session_messages.append(msg)
+                else:
+                    # If no timestamp, include message (fallback)
+                    session_messages.append(msg)
+    
+    except Exception as e:
+        logger.error(f"❌ Error getting messages for conversation {conversation.id}: {str(e)}", exc_info=True)
+        return "No messages in this conversation."
     
     if len(session_messages) == 0:
+        logger.warning(f"⚠️ No messages found in session for conversation {conversation.id}")
         return "No messages in this session."
     
     # Log filtering result for debugging
-    logger.debug(f"generate_chat_summary: Filtered {len(session_messages)} messages from {len(conversation.messages)} total for conversation {conversation.id} (session: {session_start} to {session_end})")
+    logger.info(f"📊 Processing {len(session_messages)} messages for summary generation (session: {session_start} to {session_end})")
     
     # Format messages for summary
     messages_text = ""
@@ -1173,17 +1202,16 @@ def generate_chat_summary(conversation):
         ])
         
         if not messages_text or len(messages_text.strip()) < 10:
-            # Return fallback instead of error message
-            lang_name = 'English'
-            return _generate_fallback_summary(conversation, messages_text, lang_name)
+            logger.warning(f"⚠️ Insufficient message content for summary: {len(messages_text)} chars")
+            raise ValueError("Insufficient message content")
     except Exception as e:
-        logger.error(f"Error formatting messages for conversation {conversation.id}: {str(e)}", exc_info=True)
-        # Return fallback instead of error message
-        lang_name = 'English'
-        return _generate_fallback_summary(conversation, messages_text if messages_text else "", lang_name)
+        logger.error(f"❌ Error formatting messages for conversation {conversation.id}: {str(e)}", exc_info=True)
+        raise ValueError(f"Error formatting messages: {str(e)}")
     
-    # Detect language from messages instead of defaulting to Ukrainian
-    detected_language = detect_language_from_messages(conversation.messages)
+    # Detect language from messages
+    # Convert session_messages to format expected by detect_language_from_messages
+    messages_for_detection = session_messages if isinstance(session_messages, list) else list(session_messages)
+    detected_language = detect_language_from_messages(messages_for_detection)
     language = detected_language if detected_language else (conversation.language or 'en')
     
     lang_map = {
@@ -1345,39 +1373,61 @@ def _generate_fallback_summary(conversation, messages_text, lang_name):
     """
     Generate a basic fallback summary when LLM generation fails.
     Only includes messages from this session.
+    Uses conversationmessage_set.all() to get messages from database.
     """
     from django.utils import timezone
     from datetime import datetime
     
     try:
-        # Filter messages to only include those from this session
-        session_messages = []
+        # Get messages from database using conversationmessage_set
         session_start = conversation.started_at
         session_end = conversation.ended_at or timezone.now()
         
-        for msg in conversation.messages:
-            if not isinstance(msg, dict):
-                continue
+        # Try to get messages from ConversationMessage model via related manager
+        if hasattr(conversation, 'conversationmessage_set'):
+            db_messages = conversation.conversationmessage_set.all()
             
-            timestamp_str = msg.get('timestamp', '')
-            if timestamp_str:
-                try:
-                    msg_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-                    msg_time = timezone.make_aware(msg_time) if timezone.is_naive(msg_time) else msg_time
+            # Filter messages by created_at between session_start and session_end
+            session_messages_qs = db_messages.filter(
+                created_at__gte=session_start,
+                created_at__lte=session_end
+            ).order_by('created_at')
+            
+            # Convert QuerySet to list of dicts for processing
+            session_messages = []
+            for msg in session_messages_qs:
+                session_messages.append({
+                    'role': getattr(msg, 'role', 'unknown'),
+                    'content': getattr(msg, 'content', ''),
+                    'timestamp': msg.created_at.isoformat() if hasattr(msg, 'created_at') else ''
+                })
+        else:
+            # Fallback to JSONField if conversationmessage_set doesn't exist
+            session_messages = []
+            if conversation.messages:
+                for msg in conversation.messages:
+                    if not isinstance(msg, dict):
+                        continue
                     
-                    # Only include messages from this session
-                    if session_start and session_end:
-                        if session_start <= msg_time <= session_end:
+                    timestamp_str = msg.get('timestamp', '')
+                    if timestamp_str:
+                        try:
+                            msg_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                            msg_time = timezone.make_aware(msg_time) if timezone.is_naive(msg_time) else msg_time
+                            
+                            # Only include messages from this session
+                            if session_start and session_end:
+                                if session_start <= msg_time <= session_end:
+                                    session_messages.append(msg)
+                            elif session_start:
+                                if msg_time >= session_start:
+                                    session_messages.append(msg)
+                        except Exception:
+                            # If timestamp parsing fails, include message (fallback)
                             session_messages.append(msg)
-                    elif session_start:
-                        if msg_time >= session_start:
-                            session_messages.append(msg)
-                except Exception:
-                    # If timestamp parsing fails, include message (fallback)
-                    session_messages.append(msg)
-            else:
-                # If no timestamp, include message (fallback)
-                session_messages.append(msg)
+                    else:
+                        # If no timestamp, include message (fallback)
+                        session_messages.append(msg)
         
         # Count messages by role (only from this session)
         user_messages = [msg for msg in session_messages if msg.get('role') == 'user']
@@ -1413,34 +1463,63 @@ def format_chat_as_text(conversation):
     """
     Format full conversation as text for email attachment.
     Only includes messages from this session (between started_at and ended_at/now).
+    Uses conversationmessage_set.all() to get messages from database.
     """
     from datetime import datetime
     from django.utils import timezone
     
-    # Filter messages to only include those from this session
-    session_messages = []
+    # Get messages from database using conversationmessage_set
     session_start = conversation.started_at
     session_end = conversation.ended_at or timezone.now()
     
-    for msg in conversation.messages:
-        timestamp_str = msg.get('timestamp', '')
-        if not timestamp_str:
-            continue
-        
-        try:
-            msg_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-            msg_time = timezone.make_aware(msg_time) if timezone.is_naive(msg_time) else msg_time
+    try:
+        # Try to get messages from ConversationMessage model via related manager
+        if hasattr(conversation, 'conversationmessage_set'):
+            db_messages = conversation.conversationmessage_set.all()
             
-            # Only include messages from this session
-            if session_start and session_end:
-                if session_start <= msg_time <= session_end:
-                    session_messages.append(msg)
-            elif session_start:
-                if msg_time >= session_start:
-                    session_messages.append(msg)
-        except Exception:
-            # If timestamp parsing fails, include message (fallback)
-            session_messages.append(msg)
+            # Filter messages by created_at between session_start and session_end
+            session_messages_qs = db_messages.filter(
+                created_at__gte=session_start,
+                created_at__lte=session_end
+            ).order_by('created_at')
+            
+            # Convert QuerySet to list of dicts for processing
+            session_messages = []
+            for msg in session_messages_qs:
+                session_messages.append({
+                    'role': getattr(msg, 'role', 'unknown'),
+                    'content': getattr(msg, 'content', ''),
+                    'timestamp': msg.created_at.isoformat() if hasattr(msg, 'created_at') else ''
+                })
+        else:
+            # Fallback to JSONField if conversationmessage_set doesn't exist
+            session_messages = []
+            if conversation.messages:
+                for msg in conversation.messages:
+                    if not isinstance(msg, dict):
+                        continue
+                    
+                    timestamp_str = msg.get('timestamp', '')
+                    if not timestamp_str:
+                        continue
+                    
+                    try:
+                        msg_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                        msg_time = timezone.make_aware(msg_time) if timezone.is_naive(msg_time) else msg_time
+                        
+                        # Only include messages from this session
+                        if session_start and session_end:
+                            if session_start <= msg_time <= session_end:
+                                session_messages.append(msg)
+                        elif session_start:
+                            if msg_time >= session_start:
+                                session_messages.append(msg)
+                    except Exception:
+                        # If timestamp parsing fails, include message (fallback)
+                        session_messages.append(msg)
+    except Exception as e:
+        logger.error(f"Error getting messages for format_chat_as_text: {str(e)}", exc_info=True)
+        session_messages = []
     
     # Refresh conversation from database to ensure we have latest rating
     conversation.refresh_from_db(fields=['user_rating', 'ai_rating', 'summary'])
