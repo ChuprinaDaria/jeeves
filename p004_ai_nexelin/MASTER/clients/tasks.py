@@ -564,6 +564,7 @@ def send_rating_request(self, conversation_id: int):
     Works for Web Chat, Telegram, and WhatsApp.
     """
     from django.utils import timezone
+    from datetime import timedelta
     from MASTER.clients.models import ClientWhatsAppConversation
     
     try:
@@ -576,8 +577,25 @@ def send_rating_request(self, conversation_id: int):
         if not conversation.messages:
             return {"status": "skipped", "message": "No messages"}
         
+        # CRITICAL: Double-check inactivity before sending (prevent race conditions and timezone issues)
+        now = timezone.now()
+        five_minutes_ago = now - timedelta(minutes=5)
+        
+        # Check if conversation is still inactive (using timezone-aware comparison)
+        last_activity = conversation.last_activity_at or conversation.updated_at
+        if last_activity and last_activity > five_minutes_ago:
+            logger.info(f"Conversation {conversation_id} is still active (last_activity={last_activity}, now={now}), skipping rating request")
+            return {"status": "skipped", "message": "Conversation is still active"}
+        
         # Determine platform from context_metadata
         platform = conversation.context_metadata.get('platform', 'whatsapp') if conversation.context_metadata else 'whatsapp'
+        
+        # Fallback: detect platform from customer_phone or telegram_chat_id
+        if platform == 'whatsapp':
+            if conversation.telegram_chat_id or (conversation.customer_phone and conversation.customer_phone.startswith('telegram_')):
+                platform = 'telegram'
+            elif conversation.customer_phone and conversation.customer_phone.startswith('web_'):
+                platform = 'web'
         
         # Determine language: always detect from conversation.messages to get actual user language
         # This ensures rating request is in the same language the user actually used
@@ -597,19 +615,33 @@ def send_rating_request(self, conversation_id: int):
         # Send rating request based on platform
         if platform == 'web' or platform == 'web_widget' or platform == 'iframe':
             # For Web Chat - add message to conversation (do NOT send via Meta WhatsApp)
+            logger.info(f"Attempting to add rating request to web chat conversation {conversation_id} in language {language}")
             conversation.add_message('assistant', rating_message)
             conversation.rating_request_sent = True
             conversation.rating_request_sent_at = timezone.now()
             conversation.save(update_fields=['rating_request_sent', 'rating_request_sent_at', 'messages', 'total_messages', 'updated_at', 'last_activity_at'])
-            logger.info(f"Rating request added to web chat conversation {conversation_id} in language {language}")
+            logger.info(f"✅ Rating request added to web chat conversation {conversation_id} in language {language}")
             
         elif platform == 'telegram':
             # For Telegram - send message with inline keyboard
             import json
             import requests
             
-            if conversation.telegram_chat_id and conversation.client.telegram_bot_token:
-                chat_id = int(conversation.telegram_chat_id)
+            # Get telegram_chat_id from conversation or customer_phone
+            telegram_chat_id = None
+            if conversation.telegram_chat_id:
+                try:
+                    telegram_chat_id = int(conversation.telegram_chat_id)
+                except (ValueError, TypeError):
+                    pass
+            
+            if not telegram_chat_id and conversation.customer_phone and conversation.customer_phone.startswith('telegram_'):
+                try:
+                    telegram_chat_id = int(conversation.customer_phone.replace('telegram_', ''))
+                except (ValueError, TypeError):
+                    pass
+            
+            if telegram_chat_id and conversation.client and conversation.client.telegram_bot_token:
                 bot_token = conversation.client.telegram_bot_token
                 
                 # Create inline keyboard with rating buttons
@@ -623,28 +655,35 @@ def send_rating_request(self, conversation_id: int):
                 # Send message with keyboard
                 url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
                 payload = {
-                    "chat_id": chat_id,
+                    "chat_id": telegram_chat_id,
                     "text": rating_message,
                     "reply_markup": json.dumps(keyboard)
                 }
+                
+                logger.info(f"Attempting to send rating request to Telegram chat_id={telegram_chat_id} for conversation {conversation_id}")
                 response = requests.post(url, json=payload, timeout=10)
                 
                 if response.status_code == 200:
                     conversation.rating_request_sent = True
                     conversation.rating_request_sent_at = timezone.now()
                     conversation.save(update_fields=['rating_request_sent', 'rating_request_sent_at'])
-                    logger.info(f"Rating request sent to Telegram chat {chat_id} for conversation {conversation_id} in language {language}")
+                    logger.info(f"✅ Rating request sent to Telegram chat {telegram_chat_id} for conversation {conversation_id} in language {language}")
                 else:
-                    logger.error(f"Failed to send Telegram rating request: {response.text}")
+                    logger.error(f"❌ Failed to send Telegram rating request: status={response.status_code}, response={response.text}")
+            else:
+                logger.warning(f"⚠️ Cannot send Telegram rating request: chat_id={telegram_chat_id}, has_bot_token={bool(conversation.client and conversation.client.telegram_bot_token)}")
             
         elif platform == 'whatsapp':
             # For WhatsApp (Meta) - send text message via Meta API
-            # Only send if it's actually WhatsApp, not web chat
+            # Only send if it's actually WhatsApp, not web chat or telegram
             from MASTER.clients.views_meta_whatsapp import send_whatsapp_text
             
-            if conversation.customer_phone and not conversation.customer_phone.startswith('web_') and not conversation.customer_phone.startswith('telegram_'):
+            # Verify it's actually WhatsApp (not web or telegram)
+            customer_phone = conversation.customer_phone
+            if customer_phone and not customer_phone.startswith('web_') and not customer_phone.startswith('telegram_'):
+                logger.info(f"Attempting to send rating request to WhatsApp {customer_phone} for conversation {conversation_id}")
                 success = send_whatsapp_text(
-                    conversation.customer_phone,
+                    customer_phone,
                     rating_message,
                     client=conversation.client
                 )
@@ -653,9 +692,13 @@ def send_rating_request(self, conversation_id: int):
                     conversation.rating_request_sent = True
                     conversation.rating_request_sent_at = timezone.now()
                     conversation.save(update_fields=['rating_request_sent', 'rating_request_sent_at'])
-                    logger.info(f"Rating request sent to WhatsApp {conversation.customer_phone} for conversation {conversation_id} in language {language}")
+                    logger.info(f"✅ Rating request sent to WhatsApp {customer_phone} for conversation {conversation_id} in language {language}")
+                else:
+                    logger.error(f"❌ Failed to send WhatsApp rating request to {customer_phone} for conversation {conversation_id}")
+            else:
+                logger.warning(f"⚠️ Cannot send WhatsApp rating request: invalid customer_phone format '{customer_phone}' for conversation {conversation_id}")
         else:
-            logger.warning(f"Unknown platform '{platform}' for conversation {conversation_id}, skipping rating request")
+            logger.warning(f"⚠️ Unknown platform '{platform}' for conversation {conversation_id}, skipping rating request")
         
         return {"status": "success", "platform": platform, "language": language}
         
@@ -794,10 +837,21 @@ def close_session_and_send_email(self, conversation_id: int):
     Close chat session and send summary email to client after 20 minutes of inactivity.
     """
     from django.utils import timezone
+    from datetime import timedelta
     from MASTER.clients.models import ClientWhatsAppConversation
     
     try:
         conversation = ClientWhatsAppConversation.objects.select_related('client').get(id=conversation_id)
+        
+        # CRITICAL: Double-check inactivity before sending email (prevent race conditions and timezone issues)
+        now = timezone.now()
+        twenty_minutes_ago = now - timedelta(minutes=20)
+        
+        # Check if conversation is still inactive (using timezone-aware comparison)
+        last_activity = conversation.last_activity_at or conversation.updated_at
+        if last_activity and last_activity > twenty_minutes_ago:
+            logger.info(f"Conversation {conversation_id} is still active (last_activity={last_activity}, now={now}), skipping email")
+            return {"status": "skipped", "message": "Conversation is still active"}
         
         # Skip if email already sent AND no new activity after email was sent
         if conversation.email_sent:
@@ -811,6 +865,7 @@ def close_session_and_send_email(self, conversation_id: int):
                     logger.info(f"Conversation {conversation_id} has new activity after email was sent, skipping")
                     return {"status": "skipped", "message": "New activity after email was sent"}
             # Email вже надіслано і немає нової активності
+            logger.info(f"Conversation {conversation_id} email already sent, skipping")
             return {"status": "skipped", "message": "Email already sent"}
         
         # Check if client has email reports enabled

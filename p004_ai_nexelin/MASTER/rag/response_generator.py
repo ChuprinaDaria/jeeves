@@ -87,15 +87,55 @@ class ResponseGenerator:
             try:
                 from MASTER.processing.models import UsageStats
                 from MASTER.processing.usage_sync import send_usage_to_mg_async_delay
+                from MASTER.EmbeddingModel.models import ModelPair, LLMProvider
+                
+                # Find model pair GUID for statistics
+                model_pair_guid = None
+                try:
+                    # Get LLMProvider from client
+                    llm_provider_obj = None
+                    if hasattr(client, 'llm_provider_model') and client.llm_provider_model:
+                        llm_provider_obj = client.llm_provider_model
+                    else:
+                        # Fallback: find LLMProvider by provider_type and model_name
+                        llm_provider_type = getattr(client, 'llm_provider', None)
+                        llm_model_name = getattr(client, 'llm_model_name', None)
+                        if llm_provider_type and llm_model_name:
+                            llm_provider_obj = LLMProvider.objects.filter(
+                                provider_type=llm_provider_type,
+                                model_name=llm_model_name,
+                                is_active=True
+                            ).first()
+                    
+                    # Find ModelPair by LLMProvider + EmbeddingModel
+                    if llm_provider_obj:
+                        model_pair = ModelPair.objects.filter(
+                            llm_provider=llm_provider_obj,
+                            embedding_model=embedding_model,
+                            is_active=True
+                        ).first()
+                        if model_pair and model_pair.external_guid:
+                            model_pair_guid = model_pair.external_guid
+                except Exception:
+                    pass  # Best-effort
                 
                 query_cost = embedding_service.calculate_cost(query_tokens, embedding_model)
+                metadata = {
+                    'query': query[:200],
+                    'embedding_tokens': query_tokens,
+                    'llm_tokens': 0,  # For embedding-only stats, LLM = 0
+                }
+                # Add model pair GUID if found
+                if model_pair_guid:
+                    metadata['ai_model_guid'] = model_pair_guid
+                
                 query_usage_stat = UsageStats.objects.create(
                     client=client,
                     embedding_model=embedding_model,
                     operation_type='query',
-                    tokens_used=query_tokens,
+                    tokens_used=query_tokens,  # Total tokens (embedding + LLM) = embedding tokens + 0
                     cost=query_cost,
-                    metadata={'query': query[:200]},
+                    metadata=metadata,
                 )
                 # Send to MG asynchronously (best-effort, non-blocking)
                 try:
@@ -187,6 +227,38 @@ class ResponseGenerator:
         # Get embedding model for UsageStats
         embedding_model = self._get_embedding_model(client, specialization, branch)
         
+        # Find model pair GUID for statistics
+        model_pair_guid = None
+        if client and embedding_model:
+            try:
+                from MASTER.EmbeddingModel.models import ModelPair, LLMProvider
+                # Get LLMProvider from client
+                llm_provider_obj = None
+                if hasattr(client, 'llm_provider_model') and client.llm_provider_model:
+                    llm_provider_obj = client.llm_provider_model
+                else:
+                    # Fallback: find LLMProvider by provider_type and model_name
+                    llm_provider_type = getattr(client, 'llm_provider', None)
+                    llm_model_name = getattr(client, 'llm_model_name', None)
+                    if llm_provider_type and llm_model_name:
+                        llm_provider_obj = LLMProvider.objects.filter(
+                            provider_type=llm_provider_type,
+                            model_name=llm_model_name,
+                            is_active=True
+                        ).first()
+                
+                # Find ModelPair by LLMProvider + EmbeddingModel
+                if llm_provider_obj:
+                    model_pair = ModelPair.objects.filter(
+                        llm_provider=llm_provider_obj,
+                        embedding_model=embedding_model,
+                        is_active=True
+                    ).first()
+                    if model_pair and model_pair.external_guid:
+                        model_pair_guid = model_pair.external_guid
+            except Exception as e:
+                logger.debug(f"Failed to find model pair GUID: {e}")
+        
         # Create UsageStats for LLM tokens if we have usage info
         if llm_usage and client:
             try:
@@ -201,20 +273,27 @@ class ResponseGenerator:
                     cost_per_1k = Decimal('0.002')  # Default $0.002 per 1k tokens
                     cost = Decimal(total_tokens) / Decimal(1000) * cost_per_1k
                     
-                    # Create UsageStats for LLM
+                    # Create UsageStats for LLM (embedding tokens = 0, LLM tokens = total_tokens)
+                    metadata = {
+                        'llm_model': llm_model,
+                        'llm_provider': llm_provider,
+                        'prompt_tokens': llm_usage.get('prompt_tokens', 0),
+                        'completion_tokens': llm_usage.get('completion_tokens', 0),
+                        'query': query[:200],  # Store first 200 chars of query
+                        'embedding_tokens': 0,  # For LLM-only stats, embedding = 0
+                        'llm_tokens': total_tokens,
+                    }
+                    # Add model pair GUID if found
+                    if model_pair_guid:
+                        metadata['ai_model_guid'] = model_pair_guid
+                    
                     llm_usage_stat = UsageStats.objects.create(
                         client=client,
                         embedding_model=embedding_model,  # Required field, but this is LLM usage
                         operation_type='rag_chat',
-                        tokens_used=total_tokens,
+                        tokens_used=total_tokens,  # Total tokens (embedding + LLM) = 0 + LLM tokens
                         cost=cost,
-                        metadata={
-                            'llm_model': llm_model,
-                            'llm_provider': llm_provider,
-                            'prompt_tokens': llm_usage.get('prompt_tokens', 0),
-                            'completion_tokens': llm_usage.get('completion_tokens', 0),
-                            'query': query[:200],  # Store first 200 chars of query
-                        },
+                        metadata=metadata,
                     )
                     
                     # Send to MG asynchronously (non-blocking)

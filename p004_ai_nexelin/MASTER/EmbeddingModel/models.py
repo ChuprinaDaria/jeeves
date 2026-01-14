@@ -144,6 +144,13 @@ class LLMProvider(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    external_guid = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text='GUID from mg.nexelin.com for LLM model identification in usage stats API'
+    )
+    
     class Meta:
         app_label = 'EmbeddingModel'
         verbose_name = 'LLM Provider'
@@ -158,3 +165,52 @@ class LLMProvider(models.Model):
         if not self.slug:
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
+
+
+class ModelPair(models.Model):
+    """
+    Model pair (LLM + Embedding) with GUID for usage statistics.
+    GUID identifies the pair in mg.nexelin.com API.
+    Statistics are sent with combined tokens (embedding + LLM) and cost for the pair.
+    If statistics is only for LLM or only for embedding, we count 0 + statistics.
+    """
+    llm_provider = models.ForeignKey(
+        LLMProvider,
+        on_delete=models.CASCADE,
+        related_name='model_pairs',
+        verbose_name='LLM Provider',
+        help_text='LLM model for this pair'
+    )
+    embedding_model = models.ForeignKey(
+        EmbeddingModel,
+        on_delete=models.CASCADE,
+        related_name='model_pairs',
+        verbose_name='Embedding Model',
+        help_text='Embedding model for this pair'
+    )
+    external_guid = models.CharField(
+        max_length=255,
+        unique=True,
+        help_text='GUID from mg.nexelin.com for this model pair (LLM + Embedding) identification in usage stats API'
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text='Whether this pair is active and can be used'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        app_label = 'EmbeddingModel'
+        verbose_name = 'Model Pair'
+        verbose_name_plural = 'Model Pairs'
+        ordering = ['llm_provider', 'embedding_model']
+        unique_together = [['llm_provider', 'embedding_model']]
+        indexes = [
+            models.Index(fields=['llm_provider', 'embedding_model']),
+            models.Index(fields=['external_guid']),
+            models.Index(fields=['is_active']),
+        ]
+    
+    def __str__(self):
+        return f"{self.llm_provider.name} + {self.embedding_model.name} (GUID: {self.external_guid})"

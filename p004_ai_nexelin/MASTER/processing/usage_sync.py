@@ -82,26 +82,25 @@ def _resolve_ai_model(usage: UsageStats) -> str:
     Resolve AI model GUID identifier for mg.nexelin API.
     
     Priority:
-    1. metadata['ai_model_guid'] or metadata['llm_model_guid'] (preferred - GUID format)
-    2. EmbeddingModel.external_guid if exists (GUID from mg.nexelin)
+    1. metadata['ai_model_guid'] (preferred - GUID from ModelPair for LLM + Embedding pair)
+    2. EmbeddingModel.external_guid if exists (GUID from mg.nexelin, fallback for embedding-only)
     3. EmbeddingModel.id as fallback (API accepts ID if GUID not available)
     
-    Note: API expects GUID, but accepts ID as fallback per developer note.
+    Note: API expects GUID for model pair (LLM + Embedding). Statistics are sent with combined tokens.
     """
     metadata = getattr(usage, 'metadata', {}) or {}
     if isinstance(metadata, dict):
-        # Try to get GUID from metadata (preferred)
-        ai_model_guid = metadata.get('ai_model_guid') or metadata.get('llm_model_guid')
+        # Try to get GUID from metadata (preferred - this is ModelPair GUID)
+        ai_model_guid = metadata.get('ai_model_guid')
         if ai_model_guid:
             return str(ai_model_guid).strip()
     
-    # Try to get GUID from EmbeddingModel
+    # Try to get GUID from EmbeddingModel (fallback for embedding-only operations)
     model = usage.embedding_model
     if not model:
         return "unknown"
     
     # Check if model has external_guid field (GUID from mg.nexelin)
-    # This would need to be added to EmbeddingModel if not exists
     if hasattr(model, 'external_guid') and model.external_guid:
         return str(model.external_guid).strip()
     

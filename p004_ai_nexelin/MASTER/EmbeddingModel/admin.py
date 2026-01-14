@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib import messages
-from .models import EmbeddingModel, LLMProvider
+from .models import EmbeddingModel, LLMProvider, ModelPair
 import requests
 from django.conf import settings
 
@@ -220,7 +220,7 @@ class EmbeddingModelAdmin(admin.ModelAdmin):
 
 @admin.register(LLMProvider)
 class LLMProviderAdmin(admin.ModelAdmin):
-    list_display = ['name', 'provider_type', 'model_name', 'api_endpoint', 'is_active', 'is_default', 'created_at']
+    list_display = ['name', 'provider_type', 'model_name', 'external_guid', 'api_endpoint', 'is_active', 'is_default', 'created_at']
     list_filter = ['provider_type', 'is_active', 'is_default', 'created_at']
     search_fields = ['name', 'model_name', 'slug']
     ordering = ['provider_type', 'name']
@@ -249,6 +249,11 @@ class LLMProviderAdmin(admin.ModelAdmin):
         }),
         ('Status', {
             'fields': ('is_active', 'is_default')
+        }),
+        ('GUID Configuration', {
+            'fields': ('external_guid',),
+            'classes': ('collapse',),
+            'description': 'GUID from mg.nexelin.com for LLM model identification in usage stats API'
         }),
         ('Metadata', {
             'fields': ('created_at', 'updated_at'),
@@ -630,3 +635,27 @@ class LLMProviderAdmin(admin.ModelAdmin):
             self.message_user(request, f'✅ Claude 3 Opus успішно додано!', level=messages.SUCCESS)
         else:
             self.message_user(request, f'⚠️ Claude 3 Opus вже існує', level=messages.WARNING)
+
+
+@admin.register(ModelPair)
+class ModelPairAdmin(admin.ModelAdmin):
+    list_display = ['llm_provider', 'embedding_model', 'external_guid', 'is_active', 'created_at']
+    list_filter = ['is_active', 'llm_provider__provider_type', 'embedding_model__provider', 'created_at']
+    search_fields = ['llm_provider__name', 'embedding_model__name', 'external_guid']
+    ordering = ['llm_provider', 'embedding_model']
+    list_editable = ['is_active']
+    readonly_fields = ('created_at', 'updated_at')
+    
+    fieldsets = (
+        ('Model Pair', {
+            'fields': ('llm_provider', 'embedding_model', 'external_guid', 'is_active'),
+            'description': 'GUID identifies this pair (LLM + Embedding) in mg.nexelin.com API. Statistics are sent with combined tokens and cost for the pair.'
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('llm_provider', 'embedding_model')
