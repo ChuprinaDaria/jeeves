@@ -545,7 +545,7 @@ def check_inactive_chat_sessions():
     
     inactive_5min = conversations_to_check
     
-    logger.info(f"Found {inactive_5min.count()} conversations inactive for 5+ min (before rating_request_sent check)")
+    logger.info(f"Found {len(inactive_5min)} conversations inactive for 5+ min (before rating_request_sent check)")
     
     # Debug: Log inactive conversations
     for conv in inactive_5min[:5]:  # Log first 5 for debugging
@@ -606,7 +606,7 @@ def check_inactive_chat_sessions():
             close_session_and_send_email.delay(conversation.id)
             emails_scheduled += 1
     
-    logger.info(f"Found {inactive_5min.count()} conversations inactive for 5+ min, {inactive_20min.count()} for 20+ min")
+    logger.info(f"Found {len(inactive_5min)} conversations inactive for 5+ min, {inactive_20min.count()} for 20+ min")
     logger.info(f"Scheduled {rating_requests_sent} rating requests and {emails_scheduled} email reports")
     
     # Return simple dict without Celery task results to avoid JSON serialization errors
