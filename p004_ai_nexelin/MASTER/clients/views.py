@@ -2087,7 +2087,13 @@ class ClientConversationsView(APIView):
             )
         
         # Отримуємо всі розмови клієнта (ClientWhatsAppConversation)
-        conversations = ClientWhatsAppConversation.objects.filter(client=client).order_by('-started_at')
+        # Order by most recent activity: ended_at (if exists), then last_activity_at, then started_at
+        # This ensures the latest conversations appear first
+        conversations = ClientWhatsAppConversation.objects.filter(client=client).order_by(
+            '-ended_at',  # Most recently ended first
+            '-last_activity_at',  # Then by last activity
+            '-started_at'  # Finally by start time
+        )
         
         # Логування для діагностики
         import logging
@@ -2695,11 +2701,20 @@ class ManualReportView(APIView):
             )
         
         try:
+            # Refresh conversation from database to ensure we have latest data
+            conversation.refresh_from_db()
+            
             # Generate summary if not exists
             if not conversation.summary:
-                summary = generate_chat_summary(conversation)
-                conversation.summary = summary
-                conversation.save(update_fields=['summary'])
+                try:
+                    summary = generate_chat_summary(conversation)
+                    if summary:
+                        conversation.summary = summary
+                        conversation.save(update_fields=['summary'])
+                except Exception as e:
+                    logger.error(f"Failed to generate summary for conversation {conversation_id}: {str(e)}", exc_info=True)
+                    # Don't fail the whole request if summary generation fails
+                    # format_chat_as_text will show error message
             
             # Format chat text
             chat_text = format_chat_as_text(conversation)

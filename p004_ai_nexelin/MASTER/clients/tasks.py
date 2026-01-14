@@ -1422,6 +1422,18 @@ def format_chat_as_text(conversation):
             # If timestamp parsing fails, include message (fallback)
             session_messages.append(msg)
     
+    # Refresh conversation from database to ensure we have latest rating
+    conversation.refresh_from_db(fields=['user_rating', 'ai_rating', 'summary'])
+    
+    # Get rating - check both user_rating and ai_rating, handle empty strings
+    rating = conversation.user_rating or conversation.ai_rating
+    if not rating or rating.strip() == '':
+        rating = 'Not rated'
+    elif rating == 'positive':
+        rating = '👍 Positive'
+    elif rating == 'negative':
+        rating = '👎 Negative'
+    
     lines = [
         f"Chat Session Report",
         f"{'=' * 50}",
@@ -1432,7 +1444,7 @@ def format_chat_as_text(conversation):
         f"Ended: {conversation.ended_at.strftime('%Y-%m-%d %H:%M:%S') if conversation.ended_at else 'N/A'}",
         f"Total Messages: {len(session_messages)}",
         f"Language: {conversation.language}",
-        f"Rating: {conversation.user_rating or conversation.ai_rating or 'Not rated'}",
+        f"Rating: {rating}",
         f"{'=' * 50}",
         "",
         "CONVERSATION:",
@@ -1461,10 +1473,13 @@ def format_chat_as_text(conversation):
         lines.append(content)
         lines.append("")
     
+    # Always add summary section - show error message if generation failed
+    lines.append("")
+    lines.append("SUMMARY:")
     if conversation.summary:
-        lines.append("")
-        lines.append("SUMMARY:")
         lines.append(conversation.summary)
+    else:
+        lines.append("Summary generation failed due to an error.")
     
     return "\n".join(lines)
 
