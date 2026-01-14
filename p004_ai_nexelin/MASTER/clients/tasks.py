@@ -705,38 +705,9 @@ def send_rating_request(self, conversation_id: int):
             conversation.save(update_fields=['rating_request_sent', 'rating_request_sent_at', 'messages', 'total_messages', 'updated_at', 'last_activity_at'])
             logger.info(f"✅ Rating request added to web chat conversation {conversation_id} in language {language}")
             
-            # Send email with chat summary immediately after rating request
-            try:
-                from MASTER.clients.tasks import send_chat_summary_email, format_chat_as_text, generate_chat_summary
-                
-                # Check if email reports are enabled
-                if conversation.client.email_report_enabled and conversation.client.email_smtp_enabled:
-                    # Generate summary if not exists
-                    if not conversation.summary:
-                        summary = generate_chat_summary(conversation)
-                        conversation.summary = summary
-                        conversation.save(update_fields=['summary'])
-                    
-                    # Generate full chat text
-                    chat_text = format_chat_as_text(conversation)
-                    
-                    # Get recipient email
-                    recipient_email = conversation.client.email_from_address or conversation.client.email_smtp_username
-                    
-                    if recipient_email:
-                        # Send email (do NOT close session - user may still write)
-                        email_result = send_chat_summary_email(conversation, chat_text, recipients=[recipient_email])
-                        if email_result.get("success") and email_result.get("sent_count", 0) > 0:
-                            logger.info(f"✅ Chat summary email sent immediately after rating request for conversation {conversation_id}")
-                        else:
-                            logger.warning(f"⚠️ Failed to send email after rating request for conversation {conversation_id}: {email_result}")
-                    else:
-                        logger.warning(f"⚠️ No email recipient configured for client {conversation.client.id}, skipping email")
-                else:
-                    logger.debug(f"Email reports disabled or SMTP not enabled for client {conversation.client.id}, skipping email")
-            except Exception as e:
-                logger.error(f"Failed to send email after rating request for conversation {conversation_id}: {e}", exc_info=True)
-                # Don't fail the whole task if email fails
+            # NOTE: Email is NOT sent here - it will be sent only after:
+            # 1. User rates the conversation (positive rating triggers immediate email)
+            # 2. 20 minutes of inactivity (auto_rate_and_close_session -> close_session_and_send_email)
             
         elif platform == 'telegram':
             # For Telegram - send message with inline keyboard
@@ -1089,11 +1060,17 @@ def close_session_and_send_email(self, conversation_id: int):
             conversation.save(update_fields=['is_active', 'ended_at'])
             return {"status": "skipped", "message": "No email recipient configured"}
         
-        # Generate summary if not exists
+        # Generate summary if not exists - no fallback, must succeed
         if not conversation.summary:
+            logger.info(f"🔄 Generating summary for conversation {conversation_id} in close_session_and_send_email")
             summary = generate_chat_summary(conversation)
-            conversation.summary = summary
-            conversation.save(update_fields=['summary'])
+            if summary and summary.strip():
+                conversation.summary = summary
+                conversation.save(update_fields=['summary'])
+                logger.info(f"✅ Summary saved for conversation {conversation_id}, length={len(summary)}")
+            else:
+                logger.error(f"❌ Summary generation returned empty for conversation {conversation_id}")
+                raise ValueError(f"Summary generation returned empty for conversation {conversation_id}")
         
         # Generate full chat text
         chat_text = format_chat_as_text(conversation)
@@ -1132,6 +1109,7 @@ def generate_chat_summary(conversation):
     Generate AI summary of the conversation.
     Only includes messages from this session (between started_at and ended_at/now).
     Returns a fallback summary if LLM generation fails.
+    ALWAYS returns a summary - never returns None or empty string.
     """
     from MASTER.rag.llm_client import LLMClient
     from django.utils import timezone
@@ -1144,7 +1122,8 @@ def generate_chat_summary(conversation):
     # Validate messages format
     if not isinstance(conversation.messages, list):
         logger.warning(f"Conversation {conversation.id} has invalid messages format: {type(conversation.messages)}")
-        return "Unable to generate summary: invalid message format."
+        # Return fallback instead of error message
+        return _generate_fallback_summary(conversation, "", "English")
     
     if len(conversation.messages) == 0:
         return "No messages in this conversation."
@@ -1185,6 +1164,7 @@ def generate_chat_summary(conversation):
     logger.debug(f"generate_chat_summary: Filtered {len(session_messages)} messages from {len(conversation.messages)} total for conversation {conversation.id} (session: {session_start} to {session_end})")
     
     # Format messages for summary
+    messages_text = ""
     try:
         messages_text = "\n".join([
             f"{msg.get('role', 'unknown').upper()}: {msg.get('content', '')}"
@@ -1193,10 +1173,14 @@ def generate_chat_summary(conversation):
         ])
         
         if not messages_text or len(messages_text.strip()) < 10:
-            return "Unable to generate summary: insufficient message content."
+            # Return fallback instead of error message
+            lang_name = 'English'
+            return _generate_fallback_summary(conversation, messages_text, lang_name)
     except Exception as e:
         logger.error(f"Error formatting messages for conversation {conversation.id}: {str(e)}", exc_info=True)
-        return "Unable to generate summary: error processing messages."
+        # Return fallback instead of error message
+        lang_name = 'English'
+        return _generate_fallback_summary(conversation, messages_text if messages_text else "", lang_name)
     
     # Detect language from messages instead of defaulting to Ukrainian
     detected_language = detect_language_from_messages(conversation.messages)
@@ -1231,13 +1215,47 @@ Provide a summary that includes:
 Summary ({lang_name}):"""
     
     try:
-        llm_client = LLMClient()
+        # Get client and verify it exists
+        client = conversation.client
+        if not client:
+            logger.error(f"❌ SUMMARY GENERATION FAILED: Conversation {conversation.id} has no client assigned")
+            raise ValueError(f"Conversation {conversation.id} has no client assigned")
+        
+        # Refresh client from DB to ensure we have latest LLM settings
+        try:
+            from MASTER.clients.models import Client
+            client = Client.objects.select_related('llm_provider_model').get(pk=client.pk)
+            logger.info(f"✅ Refreshed client {client.id} ({client.company_name}) from DB for summary generation")
+        except Client.DoesNotExist:
+            logger.error(f"❌ SUMMARY GENERATION FAILED: Client {client.id} not found in database")
+            raise ValueError(f"Client {client.id} not found in database")
+        
+        # Extract provider and model info correctly (support both FK and legacy fields)
+        provider_name = 'unknown'
+        model_name = 'unknown'
+        llm_provider_obj = None
+        
+        # Priority 1: Check llm_provider_model (FK)
+        llm_provider_obj = getattr(client, "llm_provider_model", None)
+        if llm_provider_obj is not None:
+            provider_name = getattr(llm_provider_obj, "provider_type", "unknown")
+            model_name = getattr(llm_provider_obj, "model_name", "unknown")
+            logger.info(f"📋 Using LLMProvider FK: provider_type={provider_name}, model_name={model_name}, provider_id={llm_provider_obj.id}")
+        else:
+            # Priority 2: Check legacy string fields
+            provider_name = getattr(client, 'llm_provider', 'unknown')
+            model_name = getattr(client, 'llm_model_name', 'unknown')
+            logger.info(f"📋 Using legacy fields: llm_provider={provider_name}, llm_model_name={model_name}")
+        
+        provider_info = f"{provider_name}/{model_name}"
+        logger.info(f"🚀 SUMMARY GENERATION START: conversation_id={conversation.id}, client_id={client.id}, provider={provider_info}")
         
         # For Ollama, limit message length to avoid timeout issues
         # Truncate messages_text if too long (keep last 2000 chars for context)
         max_context_length = 2000
+        original_length = len(messages_text)
         if len(messages_text) > max_context_length:
-            logger.info(f"Truncating messages for summary generation (conversation {conversation.id}): {len(messages_text)} -> {max_context_length} chars")
+            logger.info(f"✂️ Truncating messages for summary: {original_length} -> {max_context_length} chars")
             messages_text = "..." + messages_text[-max_context_length:]
         
         # Update prompt with truncated messages
@@ -1256,69 +1274,71 @@ Provide a summary that includes:
 
 Summary ({lang_name}):"""
         
-        # Log which model will be used for summary generation
-        client = conversation.client
-        # Extract provider and model info correctly (support both FK and legacy fields)
-        provider_name = 'unknown'
-        model_name = 'unknown'
-        if client:
-            # Priority 1: Check llm_provider_model (FK)
-            llm_provider_obj = getattr(client, "llm_provider_model", None)
-            if llm_provider_obj is not None:
-                provider_name = getattr(llm_provider_obj, "provider_type", "unknown")
-                model_name = getattr(llm_provider_obj, "model_name", "unknown")
-            else:
-                # Priority 2: Check legacy string fields
-                provider_name = getattr(client, 'llm_provider', 'unknown')
-                model_name = getattr(client, 'llm_model_name', 'unknown')
-        provider_info = f"{provider_name}/{model_name}"
-        logger.info(f"Generating summary for conversation {conversation.id} using client model: {provider_info}")
+        logger.info(f"📝 Prompt prepared: length={len(prompt)}, language={lang_name}, session_messages={len(session_messages)}")
         
-        result = llm_client.generate_response(
-            user_query=prompt,
-            context="",
-            client=client,  # Use client's configured model (e.g., ollama_light/qwen2.5:1.5b)
-            stream=False
-        )
+        # Initialize LLM client
+        llm_client = LLMClient()
+        logger.info(f"🔧 LLMClient initialized, calling generate_response with client={client.id}")
+        
+        # Call LLM
+        import time
+        start_time = time.time()
+        try:
+            result = llm_client.generate_response(
+                user_query=prompt,
+                context="",
+                client=client,  # Use client's configured model (e.g., ollama_light/qwen2.5:1.5b)
+                stream=False
+            )
+            elapsed_time = time.time() - start_time
+            logger.info(f"⏱️ LLM call completed in {elapsed_time:.2f}s")
+        except Exception as llm_error:
+            elapsed_time = time.time() - start_time
+            logger.error(f"❌ LLM call failed after {elapsed_time:.2f}s: {type(llm_error).__name__}: {str(llm_error)}", exc_info=True)
+            raise
+        
         # Handle dict response (new format) or string (old format)
         if isinstance(result, dict):
             summary = result.get('content', '')
+            usage = result.get('usage', {})
+            model_used = result.get('model', 'unknown')
+            provider_used = result.get('provider', 'unknown')
+            logger.info(f"📦 LLM response format: dict, model={model_used}, provider={provider_used}, usage={usage}, content_length={len(summary) if summary else 0}")
         else:
             summary = str(result)
+            logger.info(f"📦 LLM response format: string, content_length={len(summary) if summary else 0}")
         
         if summary and summary.strip():
+            logger.info(f"✅ SUMMARY GENERATION SUCCESS: conversation_id={conversation.id}, summary_length={len(summary)}, preview={summary[:100]}...")
             return summary.strip()
         else:
-            # Extract provider info for logging
-            provider_name = 'unknown'
-            if conversation.client:
-                llm_provider_obj = getattr(conversation.client, "llm_provider_model", None)
-                if llm_provider_obj is not None:
-                    provider_name = getattr(llm_provider_obj, "provider_type", "unknown")
-                else:
-                    provider_name = getattr(conversation.client, 'llm_provider', 'unknown')
-            logger.warning(f"LLM returned empty summary for conversation {conversation.id} (provider: {provider_name})")
-            # Fallback to basic summary
-            return _generate_fallback_summary(conversation, messages_text, lang_name)
+            logger.error(f"❌ SUMMARY GENERATION FAILED: LLM returned empty summary for conversation {conversation.id}, provider={provider_name}/{model_name}, result_type={type(result)}")
+            raise ValueError(f"LLM returned empty summary for conversation {conversation.id}")
             
     except Exception as e:
         error_msg = str(e)
+        error_type = type(e).__name__
+        
         # Extract provider info for logging
         provider_name = 'unknown'
+        model_name = 'unknown'
         if conversation.client:
             llm_provider_obj = getattr(conversation.client, "llm_provider_model", None)
             if llm_provider_obj is not None:
                 provider_name = getattr(llm_provider_obj, "provider_type", "unknown")
+                model_name = getattr(llm_provider_obj, "model_name", "unknown")
             else:
                 provider_name = getattr(conversation.client, 'llm_provider', 'unknown')
-        logger.error(f"Failed to generate summary for conversation {conversation.id} (provider: {provider_name}): {error_msg}", exc_info=True)
+                model_name = getattr(conversation.client, 'llm_model_name', 'unknown')
+        
+        logger.error(f"❌ SUMMARY GENERATION FAILED: conversation_id={conversation.id}, error_type={error_type}, provider={provider_name}/{model_name}, error={error_msg}", exc_info=True)
         
         # Check if it's a timeout or connection error (common with Ollama)
         if "timeout" in error_msg.lower() or "connection" in error_msg.lower() or "read timed out" in error_msg.lower():
-            logger.warning(f"Ollama timeout/connection error for conversation {conversation.id}, using fallback summary")
+            logger.warning(f"⚠️ Ollama timeout/connection error detected for conversation {conversation.id}")
         
-        # Fallback to basic summary instead of error message
-        return _generate_fallback_summary(conversation, messages_text, lang_name)
+        # Re-raise exception instead of fallback - let caller handle it
+        raise
 
 
 def _generate_fallback_summary(conversation, messages_text, lang_name):

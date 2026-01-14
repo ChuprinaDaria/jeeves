@@ -2704,17 +2704,17 @@ class ManualReportView(APIView):
             # Refresh conversation from database to ensure we have latest data
             conversation.refresh_from_db()
             
-            # Generate summary if not exists
+            # Generate summary if not exists - no fallback, must succeed
             if not conversation.summary:
-                try:
-                    summary = generate_chat_summary(conversation)
-                    if summary:
-                        conversation.summary = summary
-                        conversation.save(update_fields=['summary'])
-                except Exception as e:
-                    logger.error(f"Failed to generate summary for conversation {conversation_id}: {str(e)}", exc_info=True)
-                    # Don't fail the whole request if summary generation fails
-                    # format_chat_as_text will show error message
+                logger.info(f"🔄 Generating summary for conversation {conversation_id} in ManualReportView")
+                summary = generate_chat_summary(conversation)
+                if summary and summary.strip():
+                    conversation.summary = summary
+                    conversation.save(update_fields=['summary'])
+                    logger.info(f"✅ Summary saved for conversation {conversation_id}, length={len(summary)}")
+                else:
+                    logger.error(f"❌ Summary generation returned empty for conversation {conversation_id}")
+                    raise ValueError(f"Summary generation returned empty for conversation {conversation_id}")
             
             # Format chat text
             chat_text = format_chat_as_text(conversation)
