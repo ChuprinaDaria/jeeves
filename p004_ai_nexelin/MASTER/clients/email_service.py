@@ -162,11 +162,18 @@ class EmailService:
                 msg.attach(MIMEText(body, 'plain'))
             
             # Connect to SMTP server
-            if self.smtp_use_tls:
-                server = smtplib.SMTP(self.smtp_host, self.smtp_port)
+            # Port 465 = SSL (implicit TLS, encrypted from start)
+            # Port 587 = STARTTLS (explicit TLS, start plain then upgrade)
+            if self.smtp_port == 465:
+                # SSL connection (implicit TLS)
+                server = smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, timeout=30)
+            elif self.smtp_use_tls:
+                # STARTTLS connection (explicit TLS)
+                server = smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=30)
                 server.starttls()
             else:
-                server = smtplib.SMTP_SSL(self.smtp_host, self.smtp_port)
+                # Plain connection (no encryption) - not recommended
+                server = smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=30)
             
             server.login(self.smtp_username, self.smtp_password)
             

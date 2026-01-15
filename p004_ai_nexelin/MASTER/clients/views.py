@@ -1301,11 +1301,12 @@ class ClientEmailSMTPConfigView(APIView):
             'email_smtp_port': getattr(client, 'email_smtp_port', 587),
             'email_smtp_use_tls': getattr(client, 'email_smtp_use_tls', True),
             'email_smtp_username': getattr(client, 'email_smtp_username', ''),
-            'email_smtp_password': '',  # Не повертаємо пароль
+            'email_smtp_password': '',  # Don't return password for security
             'email_from_address': getattr(client, 'email_from_address', ''),
             'email_from_name': getattr(client, 'email_from_name', ''),
             'email_report_enabled': getattr(client, 'email_report_enabled', False),
             'email_report_recipients': getattr(client, 'email_report_recipients', []),
+            'password_configured': bool(getattr(client, 'email_smtp_password', '')),  # Flag if password exists
         }
         return Response(data)
 
@@ -1343,26 +1344,37 @@ class ClientEmailSMTPConfigView(APIView):
         
         for key, val in data.items():
             if key in updatable and key != 'test_connection':
+                # Don't clear password if empty string is sent (preserve existing password)
+                if key == 'email_smtp_password' and not val:
+                    continue  # Skip empty password - keep existing
                 setattr(client, key, val)
                 changed.append(key)
         
-        if not changed:
+        if not changed and not test_connection:
             return Response({'error': 'No fields to update'}, status=400)
         
         # Тестуємо з'єднання якщо потрібно
         if test_connection and client.email_smtp_enabled and client.email_smtp_host and client.email_smtp_username and client.email_smtp_password:
             try:
-                # Тестуємо SMTP з'єднання
-                if client.email_smtp_use_tls:
-                    server = smtplib.SMTP(client.email_smtp_host, client.email_smtp_port)
+                port = client.email_smtp_port
+                
+                # Port 465 = SSL (encrypted from start)
+                # Port 587 = STARTTLS (start plain, upgrade to TLS)
+                # email_smtp_use_tls checkbox means "use encryption"
+                if port == 465:
+                    # SSL connection (implicit TLS)
+                    server = smtplib.SMTP_SSL(client.email_smtp_host, port, timeout=10)
+                elif client.email_smtp_use_tls:
+                    # STARTTLS connection (explicit TLS)
+                    server = smtplib.SMTP(client.email_smtp_host, port, timeout=10)
                     server.starttls()
                 else:
-                    server = smtplib.SMTP_SSL(client.email_smtp_host, client.email_smtp_port)
+                    # Plain connection (no encryption) - not recommended
+                    server = smtplib.SMTP(client.email_smtp_host, port, timeout=10)
                 
                 server.login(client.email_smtp_username, client.email_smtp_password)
                 server.quit()
                 
-                # Новіни про інтеграції створюються тільки через адмін-панель, не автоматично
             except Exception as e:
                 return Response({
                     'error': f'SMTP connection test failed: {str(e)}',

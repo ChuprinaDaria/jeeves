@@ -30,7 +30,18 @@ const EmailSetup = ({ onClose }) => {
     try {
       setLoading(true);
       const res = await api.get('/clients/email-smtp/config/');
-      setForm(prev => ({ ...prev, ...res.data }));
+      // Don't overwrite password with empty string from API (security measure)
+      const { email_smtp_password, ...safeData } = res.data;
+      setForm(prev => ({ 
+        ...prev, 
+        ...safeData,
+        // Keep password empty for new entry, but show placeholder if configured
+        email_smtp_password: '',
+      }));
+      // Track if password was already configured
+      if (res.data.password_configured) {
+        setForm(prev => ({ ...prev, _passwordConfigured: true }));
+      }
     } catch (error) {
       console.error('Failed to load email config:', error);
       setError('Failed to load email configuration');
@@ -238,12 +249,14 @@ const EmailSetup = ({ onClose }) => {
                   name="email_smtp_password"
                   value={form.email_smtp_password}
                   onChange={handleChange}
-                  placeholder="••••••••"
+                  placeholder={form._passwordConfigured ? '••••••••  (configured)' : 'Enter password'}
                   className="input"
-                  required
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {t('integrations.smtpPasswordHint') || 'For Gmail, use an App Password instead of your regular password'}
+                  {form._passwordConfigured 
+                    ? (t('integrations.passwordConfiguredHint') || 'Password is already saved. Leave empty to keep existing, or enter new password to change.')
+                    : (t('integrations.smtpPasswordHint') || 'For Gmail, use an App Password instead of your regular password')
+                  }
                 </p>
               </div>
 
