@@ -479,77 +479,9 @@ def check_inactive_chat_sessions():
     logger.info("Checking inactive chat sessions...")
     
     now = timezone.now()
-    five_minutes_ago = now - timedelta(minutes=5)
     twenty_minutes_ago = now - timedelta(minutes=20)
     
-    # Debug: Log all active conversations
-    all_active = ClientWhatsAppConversation.objects.filter(is_active=True)
-    logger.info(f"Total active conversations: {all_active.count()}")
-    
-    # Debug: Log conversations with details
-    for conv in all_active[:10]:  # Log first 10 for debugging
-        last_activity = conv.last_activity_at or conv.updated_at
-        if last_activity:
-            minutes_inactive = (now - last_activity).total_seconds() / 60
-            logger.info(f"  Conv {conv.id}: last_activity={last_activity}, inactive_minutes={minutes_inactive:.1f}, "
-                       f"user_rating={conv.user_rating}, rating_request_sent={conv.rating_request_sent}, "
-                       f"platform={conv.context_metadata.get('platform') if conv.context_metadata else None}")
-    
-    # Find active conversations with last activity more than 5 minutes ago
-    # Use updated_at if last_activity_at is NULL
-    # Include conversations that have user_rating BUT have new messages after rating (new session)
-    inactive_5min = ClientWhatsAppConversation.objects.filter(
-        is_active=True
-    ).filter(
-        Q(last_activity_at__lte=five_minutes_ago) | 
-        Q(last_activity_at__isnull=True, updated_at__lte=five_minutes_ago)
-    )
-    
-    # Filter: exclude conversations with rating UNLESS they have new messages after rating (new session)
-    conversations_to_check = []
-    for conv in inactive_5min:
-        has_rating = conv.user_rating in ['positive', 'negative']
-        
-        if not has_rating:
-            # No rating - can send rating request
-            conversations_to_check.append(conv)
-        else:
-            # Has rating - check if there are new messages after rating (new session)
-            # CRITICAL: Use only last_activity_at, NOT updated_at
-            # updated_at is updated even when rating is saved, so it's not reliable
-            # last_activity_at is updated ONLY when user sends a new message
-            if conv.rating_timestamp and conv.last_activity_at:
-                # If last activity is after rating timestamp, it's a new session (user sent message after rating)
-                if conv.last_activity_at > conv.rating_timestamp:
-                    logger.info(f"Conv {conv.id}: Has rating but new message after rating (new session at {conv.last_activity_at}), resetting for new rating request")
-                    # Reset rating flags for new session
-                    conv.rating_request_sent = False
-                    conv.user_rating = None
-                    conv.rating_timestamp = None
-                    conv.save(update_fields=['rating_request_sent', 'user_rating', 'rating_timestamp'])
-                    conversations_to_check.append(conv)
-                else:
-                    # Rating was given but no new messages after - not a new session
-                    logger.debug(f"Conv {conv.id}: Has rating and no new messages after rating (rating={conv.rating_timestamp}, last_activity={conv.last_activity_at}), skipping")
-            else:
-                # Has rating but no last_activity_at or no rating_timestamp - skip
-                # We don't use updated_at as fallback because it's updated even when rating is saved
-                logger.debug(f"Conv {conv.id}: Has rating but no last_activity_at or rating_timestamp, skipping (not a new session)")
-    
-    inactive_5min = conversations_to_check
-    
-    logger.info(f"Found {len(inactive_5min)} conversations inactive for 5+ min (before rating_request_sent check)")
-    
-    # Debug: Log inactive conversations
-    for conv in inactive_5min[:5]:  # Log first 5 for debugging
-        last_activity = conv.last_activity_at or conv.updated_at
-        if last_activity:
-            minutes_inactive = (now - last_activity).total_seconds() / 60
-            logger.info(f"  Inactive conv {conv.id}: last_activity={last_activity}, inactive_minutes={minutes_inactive:.1f}, "
-                       f"user_rating={conv.user_rating}, rating_request_sent={conv.rating_request_sent}")
-    
     # Find active conversations with last activity more than 20 minutes ago
-    # Use updated_at if last_activity_at is NULL
     inactive_20min = ClientWhatsAppConversation.objects.filter(
         is_active=True
     ).filter(
@@ -557,61 +489,41 @@ def check_inactive_chat_sessions():
         Q(last_activity_at__isnull=True, updated_at__lte=twenty_minutes_ago)
     )
     
-    # Send rating request after 5 minutes
-    rating_requests_sent = 0
-    for conversation in inactive_5min:
-        if not conversation.user_rating and not conversation.rating_request_sent:
-            # Disabled to eliminate "spammy" messages.
-            # We keep passive rating + AI auto-rating only.
-            # send_rating_request.delay(conversation.id)
-            # rating_requests_sent += 1
-            pass
+    inactive_count = inactive_20min.count()
+    logger.info(f"Found {inactive_count} conversations inactive for 20+ min")
     
-    # Close and send email after 20 minutes
-    emails_scheduled = 0
+    # Close sessions and auto-rate after 20 minutes of inactivity
+    # Email policy:
+    # - NO automatic emails for every session
+    # - Alarm email ONLY if rating is negative
+    # - Otherwise use: daily digest, manual digest, or manual email from Activity UI
+    sessions_closed = 0
     for conversation in inactive_20min:
-        # Перевіряємо чи email вже надіслано
-        if conversation.email_sent:
-            # Якщо email вже надіслано, перевіряємо чи не було нової активності після відправки
-            # Використовуємо last_activity_at або updated_at якщо last_activity_at NULL
-            activity_time = conversation.last_activity_at or conversation.updated_at
-            
-            if conversation.email_sent_at and activity_time:
-                # Якщо НЕ було нової активності після відправки email (activity_time <= email_sent_at),
-                # не відправляємо повторно той самий email
-                if activity_time <= conversation.email_sent_at:
-                    logger.info(f"Conversation {conversation.id} email already sent and no new activity, skipping")
-                    continue
-                # Якщо була нова активність після відправки email, але сесія все ще неактивна (потрапила в inactive_20min),
-                # це означає що після нової активності знову пройшло 20 хвилин - відправляємо новий email
-                else:
-                    logger.info(f"Conversation {conversation.id} has new activity after email was sent, will send new email")
-            else:
-                # Якщо email_sent=True але немає дати відправки, пропускаємо
-                logger.info(f"Conversation {conversation.id} email_sent=True but no email_sent_at, skipping")
-                continue
-        
-        # Відправляємо email (або перший раз, або повторно після нової активності)
-        # Auto-rate if user hasn't rated yet (after 20 minutes of inactivity)
+        # Auto-rate if user hasn't rated yet
         if not conversation.user_rating and not conversation.ai_rating:
-            # Call auto_rate synchronously first, then send email
+            # Auto-rate and close session (sends alarm email only if negative)
             auto_rate_and_close_session.delay(conversation.id)
-            emails_scheduled += 1
+            sessions_closed += 1
         else:
-            # User already rated, just close and send email
-            close_session_and_send_email.delay(conversation.id)
-            emails_scheduled += 1
+            # Already has rating - check if negative for alarm email
+            is_negative = conversation.user_rating == 'negative' or conversation.ai_rating == 'negative'
+            if is_negative:
+                # Send alarm email for negative rating
+                close_session_and_send_email.delay(conversation.id)
+                sessions_closed += 1
+            else:
+                # Positive/neutral - just close without email
+                conversation.is_active = False
+                conversation.ended_at = now
+                conversation.save(update_fields=['is_active', 'ended_at'])
+                sessions_closed += 1
     
-    logger.info(f"Found {len(inactive_5min)} conversations inactive for 5+ min, {inactive_20min.count()} for 20+ min")
-    logger.info(f"Scheduled {rating_requests_sent} rating requests and {emails_scheduled} email reports")
+    logger.info(f"Closed {sessions_closed} inactive sessions (no auto-emails, use daily digest)")
     
-    # Return simple dict without Celery task results to avoid JSON serialization errors
     return {
         "status": "success",
-        "checked_5min": len(inactive_5min),
-        "checked_20min": inactive_20min.count(),
-        "rating_requests_scheduled": rating_requests_sent,
-        "emails_scheduled": emails_scheduled
+        "checked_20min": inactive_count,
+        "sessions_closed": sessions_closed
     }
 
 
@@ -864,8 +776,10 @@ def send_rating_request(self, conversation_id: int):
 @shared_task(bind=True, max_retries=3)
 def auto_rate_conversation(self, conversation_id: int):
     """
-    Auto-rate conversation using AI after 5 minutes of inactivity (fallback if user doesn't rate).
-    This is now a fallback - primary is send_rating_request.
+    Auto-rate conversation using AI (client's configured model).
+    
+    Determines if conversation is NEGATIVE (requires alarm email) or POSITIVE.
+    Uses the client's LLM model for consistent quality assessment.
     """
     from django.utils import timezone
     from MASTER.clients.models import ClientWhatsAppConversation
@@ -881,35 +795,55 @@ def auto_rate_conversation(self, conversation_id: int):
         if not conversation.messages:
             return {"status": "skipped", "message": "No messages"}
         
-        # Auto-rate if rating request was sent OR if called from auto_rate_and_close_session (20+ min)
-        # Remove the check for rating_request_sent to allow auto-rating after 20 minutes
+        # Get client's model info for logging
+        client = conversation.client
+        model_info = "default"
+        if client and hasattr(client, 'llm_provider_model') and client.llm_provider_model:
+            model_info = f"{client.llm_provider_model.provider_type}/{client.llm_provider_model.model_name}"
+        elif client and hasattr(client, 'llm_provider'):
+            model_info = f"{client.llm_provider}/{getattr(client, 'llm_model_name', 'unknown')}"
         
-        # Generate rating using LLM
+        logger.info(f"🤖 Auto-rating conversation {conversation_id} using model: {model_info}")
+        
+        # Prepare conversation text for analysis
         messages_text = "\n".join([
-            f"{msg.get('role', 'unknown')}: {msg.get('content', '')[:200]}"
-            for msg in conversation.messages[-10:]  # Last 10 messages
+            f"{'USER' if msg.get('role') == 'user' else 'ASSISTANT'}: {msg.get('content', '')[:300]}"
+            for msg in conversation.messages[-15:]  # Last 15 messages for better context
         ])
         
-        prompt = f"""Analyze this customer support conversation and rate it as positive (👍) or negative (👎).
+        # Enhanced prompt for accurate negative detection
+        prompt = f"""You are analyzing a customer support conversation to detect if there are any issues that require immediate business attention.
 
-Conversation:
+CONVERSATION:
 {messages_text}
 
-Respond with ONLY one word: "positive" or "negative"
-Consider:
-- Was the customer's issue resolved?
-- Was the assistant helpful and professional?
-- Was the customer satisfied with the responses?
+ANALYZE FOR NEGATIVE INDICATORS:
+1. Customer frustration, anger, or disappointment
+2. Unresolved issues or complaints
+3. Bot/AI failures (wrong answers, confusion, loops)
+4. Customer explicitly expressing dissatisfaction
+5. Requests for human support that weren't addressed
+6. Profanity or strong negative language
+7. Customer threatening to leave, complain, or request refund
+8. Multiple repeated questions (bot not understanding)
 
-Rating:"""
+RATING CRITERIA:
+- NEGATIVE: Any of the above indicators present, OR customer clearly unhappy
+- POSITIVE: Customer satisfied, issue resolved, helpful interaction
+
+YOUR TASK: Respond with ONLY one word - either "NEGATIVE" or "POSITIVE".
+If unsure, lean towards NEGATIVE (better to alert business than miss an issue).
+
+RATING:"""
         
         llm_client = LLMClient()
         result = llm_client.generate_response(
             user_query=prompt,
             context="",
-            client=conversation.client,
+            client=client,  # Uses client's configured LLM model
             stream=False
         )
+        
         # Handle dict response (new format) or string (old format)
         if isinstance(result, dict):
             response = result.get('content', '')
@@ -919,21 +853,25 @@ Rating:"""
         rating = None
         if response:
             response_lower = response.strip().lower()
-            if 'positive' in response_lower or '👍' in response:
-                rating = 'positive'
-            elif 'negative' in response_lower or '👎' in response:
+            # Check for negative first (stricter detection)
+            if 'negative' in response_lower or '👎' in response:
                 rating = 'negative'
+            elif 'positive' in response_lower or '👍' in response:
+                rating = 'positive'
         
-        # Default to positive if unclear
+        # Default to positive only if response is truly unclear
         if not rating:
+            logger.warning(f"⚠️ AI rating unclear for conversation {conversation_id}, response: {response[:100]}")
             rating = 'positive'
         
         conversation.ai_rating = rating
         conversation.rating_timestamp = timezone.now()
         conversation.save(update_fields=['ai_rating', 'rating_timestamp'])
         
-        logger.info(f"Auto-rated conversation {conversation_id} as {rating}")
-        return {"status": "success", "rating": rating}
+        log_emoji = "🔴" if rating == 'negative' else "🟢"
+        logger.info(f"{log_emoji} Auto-rated conversation {conversation_id} as {rating.upper()} (model: {model_info})")
+        
+        return {"status": "success", "rating": rating, "model": model_info}
         
     except ClientWhatsAppConversation.DoesNotExist:
         logger.error(f"Conversation {conversation_id} not found")
@@ -957,16 +895,21 @@ def auto_rate_and_close_session(self, conversation_id: int):
         
         # Skip if already rated
         if conversation.user_rating or conversation.ai_rating:
-            # Already rated, just close and send email
-            close_session_and_send_email.delay(conversation_id)
+            # Already rated - only send email if negative (alarm policy)
+            is_negative = conversation.user_rating == 'negative' or conversation.ai_rating == 'negative'
+            if is_negative:
+                close_session_and_send_email.delay(conversation_id)
+            else:
+                # Positive/neutral - just close without email
+                conversation.is_active = False
+                conversation.ended_at = timezone.now()
+                conversation.save(update_fields=['is_active', 'ended_at'])
             return {"status": "skipped", "message": "Already rated"}
         
-        # Auto-rate first (call synchronously to ensure rating is saved before email)
-        # We use .apply() instead of .delay() to ensure sequential execution
+        # Auto-rate first (call synchronously to ensure rating is saved before deciding on email)
         rating_result = auto_rate_conversation.apply(args=[conversation_id])
         
-        # Extract result value to avoid JSON serialization error
-        # rating_result is EagerResult, we need to get the actual value
+        # Extract result value
         try:
             rating_value = rating_result.get() if hasattr(rating_result, 'get') else rating_result.result
         except Exception:
@@ -975,15 +918,29 @@ def auto_rate_and_close_session(self, conversation_id: int):
         # Reload conversation to get updated rating
         conversation.refresh_from_db()
         
-        # Then close and send email
-        close_session_and_send_email.delay(conversation_id)
-        
-        # Extract rating from result dict for logging
+        # Extract rating from result
         rating = rating_value.get('rating') if isinstance(rating_value, dict) else None
-        logger.info(f"Auto-rated and closing session {conversation_id}: rating={rating}")
+        is_negative = rating == 'negative' or conversation.ai_rating == 'negative'
         
-        # Return simple dict without Celery result objects to avoid JSON serialization errors
-        return {"status": "success", "rating": rating}
+        # Only send alarm email if AI detected NEGATIVE
+        email_sent = False
+        if is_negative:
+            logger.info(f"🔴 AI detected NEGATIVE for conversation {conversation_id}, sending alarm email")
+            close_session_and_send_email.delay(conversation_id)
+            email_sent = True
+        else:
+            # Positive - just close session, no email (use daily digest instead)
+            logger.info(f"🟢 AI rated conversation {conversation_id} as POSITIVE, closing without email")
+            conversation.is_active = False
+            conversation.ended_at = timezone.now()
+            conversation.save(update_fields=['is_active', 'ended_at'])
+        
+        return {
+            "status": "success", 
+            "rating": rating, 
+            "alarm_email": email_sent,
+            "model": rating_value.get('model') if isinstance(rating_value, dict) else None
+        }
         
     except ClientWhatsAppConversation.DoesNotExist:
         logger.error(f"Conversation {conversation_id} not found")
@@ -1024,17 +981,21 @@ def close_session_and_send_email(self, conversation_id: int, force_send: bool = 
                 )
                 return {"status": "skipped", "message": "Conversation is still active"}
         
-        # Skip if email already sent (unless forced)
+        # Skip if email already sent (unless forced or there's new activity)
         if conversation.email_sent and not force_send:
             activity_time = conversation.last_activity_at or conversation.updated_at
             if conversation.email_sent_at and activity_time and activity_time > conversation.email_sent_at:
+                # New activity after email was sent - allow sending a follow-up email
+                # This conversation resumed and became inactive again after 20 min
                 logger.info(
                     f"Conversation {conversation_id} has new activity after email was sent; "
-                    f"skipping to avoid duplicates"
+                    f"will send follow-up email"
                 )
-                return {"status": "skipped", "message": "New activity after email was sent"}
-            logger.info(f"Conversation {conversation_id} email already sent, skipping")
-            return {"status": "skipped", "message": "Email already sent"}
+                # Continue to send email (don't return/skip)
+            else:
+                # No new activity - skip to avoid duplicate email
+                logger.info(f"Conversation {conversation_id} email already sent, skipping")
+                return {"status": "skipped", "message": "Email already sent"}
         
         # Generate summary if not exists - no fallback, must succeed
         if not conversation.summary:
@@ -2022,14 +1983,18 @@ def _send_daily_digest_email(
 
 
 @shared_task
-def send_daily_digest():
+def send_daily_digest(manual: bool = False):
     """
     Daily digest at 17:00 (scheduled via CELERY_BEAT_SCHEDULE).
 
     - Aggregates today's chats per client
     - Generates a daily meta-summary via LLM
     - Highlights top 5 positives and all negatives
-    - Attaches transcripts for ALL negative conversations
+    - Attaches transcripts for ALL conversations
+
+    Args:
+        manual: If True, uses last 24 hours instead of today 09:00-17:00 window.
+                This allows immediate testing without waiting for scheduled time.
     """
     from datetime import datetime, time, timedelta
     from django.utils import timezone
@@ -2038,12 +2003,20 @@ def send_daily_digest():
     from MASTER.clients.models import Client, ClientWhatsAppConversation
 
     tz = timezone.get_current_timezone()
-    today = timezone.localdate()
-    # Coverage window: 09:00 -> 17:00 (or now, for manual runs)
-    start = timezone.make_aware(datetime.combine(today, time(hour=9, minute=0)), tz)
-    scheduled_end = timezone.make_aware(datetime.combine(today, time(hour=17, minute=0)), tz)
     now = timezone.now()
-    end = min(now, scheduled_end)
+
+    if manual:
+        # Manual trigger: last 24 hours
+        start = now - timedelta(hours=24)
+        end = now
+        logger.info(f"📊 Manual daily digest triggered: {start} to {end}")
+    else:
+        # Scheduled: today 09:00 -> 17:00 (or now if before 17:00)
+        today = timezone.localdate()
+        start = timezone.make_aware(datetime.combine(today, time(hour=9, minute=0)), tz)
+        scheduled_end = timezone.make_aware(datetime.combine(today, time(hour=17, minute=0)), tz)
+        end = min(now, scheduled_end)
+        logger.info(f"📊 Scheduled daily digest: {start} to {end}")
 
     results: list[dict] = []
 

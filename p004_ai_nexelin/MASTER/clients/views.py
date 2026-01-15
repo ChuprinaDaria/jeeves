@@ -1379,6 +1379,8 @@ class SendDailyDigestNowView(APIView):
     """
     Manual trigger for daily digest email (per-client).
     POST /api/clients/reports/daily-digest/send/
+
+    Uses last 24 hours instead of today's 09:00-17:00 window for immediate results.
     """
     permission_classes = []  # client auth via get_client_from_request
 
@@ -1390,7 +1392,8 @@ class SendDailyDigestNowView(APIView):
         from MASTER.clients.tasks import send_daily_digest
 
         try:
-            async_result = send_daily_digest.delay()
+            # Pass manual=True to use last 24 hours window
+            async_result = send_daily_digest.delay(manual=True)
             return Response(
                 {'success': True, 'scheduled': True, 'task_id': getattr(async_result, 'id', None)},
                 status=202,
