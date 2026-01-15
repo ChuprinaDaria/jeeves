@@ -561,8 +561,11 @@ def check_inactive_chat_sessions():
     rating_requests_sent = 0
     for conversation in inactive_5min:
         if not conversation.user_rating and not conversation.rating_request_sent:
-            send_rating_request.delay(conversation.id)
-            rating_requests_sent += 1
+            # Disabled to eliminate "spammy" messages.
+            # We keep passive rating + AI auto-rating only.
+            # send_rating_request.delay(conversation.id)
+            # rating_requests_sent += 1
+            pass
     
     # Close and send email after 20 minutes
     emails_scheduled = 0
@@ -991,9 +994,15 @@ def auto_rate_and_close_session(self, conversation_id: int):
 
 
 @shared_task(bind=True, max_retries=3)
-def close_session_and_send_email(self, conversation_id: int):
+def close_session_and_send_email(self, conversation_id: int, force_send: bool = False):
     """
-    Close chat session and send summary email to client after 20 minutes of inactivity.
+    Close chat session and (optionally) send summary email.
+
+    Refactored to reduce spam:
+    - By default, we DO NOT email every closed session.
+    - Immediate email is sent ONLY when:
+      1) force_send=True (manual trigger), OR
+      2) user_rating/ai_rating is 'negative' (critical alert).
     """
     from django.utils import timezone
     from datetime import timedelta
@@ -1002,63 +1011,30 @@ def close_session_and_send_email(self, conversation_id: int):
     try:
         conversation = ClientWhatsAppConversation.objects.select_related('client').get(id=conversation_id)
         
-        # CRITICAL: Double-check inactivity before sending email (prevent race conditions and timezone issues)
         now = timezone.now()
-        twenty_minutes_ago = now - timedelta(minutes=20)
+
+        # CRITICAL: Double-check inactivity before closing/sending (avoid race conditions)
+        if not force_send:
+            twenty_minutes_ago = now - timedelta(minutes=20)
+            last_activity = conversation.last_activity_at or conversation.updated_at
+            if last_activity and last_activity > twenty_minutes_ago:
+                logger.info(
+                    f"Conversation {conversation_id} is still active "
+                    f"(last_activity={last_activity}, now={now}), skipping close/email"
+                )
+                return {"status": "skipped", "message": "Conversation is still active"}
         
-        # Check if conversation is still inactive (using timezone-aware comparison)
-        last_activity = conversation.last_activity_at or conversation.updated_at
-        if last_activity and last_activity > twenty_minutes_ago:
-            logger.info(f"Conversation {conversation_id} is still active (last_activity={last_activity}, now={now}), skipping email")
-            return {"status": "skipped", "message": "Conversation is still active"}
-        
-        # Skip if email already sent AND no new activity after email was sent
-        if conversation.email_sent:
-            # Перевіряємо чи була нова активність після відправки email
-            # Використовуємо last_activity_at або updated_at якщо last_activity_at NULL
+        # Skip if email already sent (unless forced)
+        if conversation.email_sent and not force_send:
             activity_time = conversation.last_activity_at or conversation.updated_at
-            
-            if conversation.email_sent_at and activity_time:
-                if activity_time > conversation.email_sent_at:
-                    # Була нова активність після відправки email, не відправляємо повторно
-                    logger.info(f"Conversation {conversation_id} has new activity after email was sent, skipping")
-                    return {"status": "skipped", "message": "New activity after email was sent"}
-            # Email вже надіслано і немає нової активності
+            if conversation.email_sent_at and activity_time and activity_time > conversation.email_sent_at:
+                logger.info(
+                    f"Conversation {conversation_id} has new activity after email was sent; "
+                    f"skipping to avoid duplicates"
+                )
+                return {"status": "skipped", "message": "New activity after email was sent"}
             logger.info(f"Conversation {conversation_id} email already sent, skipping")
             return {"status": "skipped", "message": "Email already sent"}
-        
-        # Check if client has email reports enabled
-        if not conversation.client.email_report_enabled:
-            logger.info(f"Email reports disabled for client {conversation.client.id}, closing session only")
-            conversation.is_active = False
-            conversation.ended_at = timezone.now()
-            conversation.save(update_fields=['is_active', 'ended_at'])
-            return {"status": "skipped", "message": "Email reports disabled"}
-        
-        # Check if SMTP is configured for the client
-        if not conversation.client.email_smtp_enabled:
-            logger.warning(f"SMTP not enabled for client {conversation.client.id}, cannot send email")
-            conversation.is_active = False
-            conversation.ended_at = timezone.now()
-            conversation.save(update_fields=['is_active', 'ended_at'])
-            return {"status": "skipped", "message": "SMTP not enabled. Check email settings."}
-        
-        # Check if SMTP settings are complete
-        if not conversation.client.email_smtp_host or not conversation.client.email_smtp_username or not conversation.client.email_smtp_password:
-            logger.warning(f"Incomplete SMTP settings for client {conversation.client.id}: host={bool(conversation.client.email_smtp_host)}, username={bool(conversation.client.email_smtp_username)}, password={bool(conversation.client.email_smtp_password)}")
-            conversation.is_active = False
-            conversation.ended_at = timezone.now()
-            conversation.save(update_fields=['is_active', 'ended_at'])
-            return {"status": "skipped", "message": "Incomplete SMTP settings. Check email settings."}
-        
-        # Always use email_from_address as recipient
-        recipient_email = conversation.client.email_from_address or conversation.client.email_smtp_username
-        if not recipient_email:
-            logger.warning(f"No email recipient configured for client {conversation.client.id} (email_from_address required)")
-            conversation.is_active = False
-            conversation.ended_at = timezone.now()
-            conversation.save(update_fields=['is_active', 'ended_at'])
-            return {"status": "skipped", "message": "No email recipient configured"}
         
         # Generate summary if not exists - no fallback, must succeed
         if not conversation.summary:
@@ -1071,30 +1047,105 @@ def close_session_and_send_email(self, conversation_id: int):
             else:
                 logger.error(f"❌ Summary generation returned empty for conversation {conversation_id}")
                 raise ValueError(f"Summary generation returned empty for conversation {conversation_id}")
+
+        # Decide whether we should send an email for this conversation
+        is_negative = (conversation.user_rating == 'negative') or (conversation.ai_rating == 'negative')
+        should_send = bool(force_send or is_negative)
+
+        # If we are not sending: just close + keep summary, no email
+        if not should_send:
+            if not force_send:
+                conversation.is_active = False
+                conversation.ended_at = now
+                conversation.save(update_fields=['is_active', 'ended_at'])
+            return {"status": "closed_no_email", "message": "Closed without email (non-critical)"}
+
+        # Respect per-client toggle (manual trigger can override)
+        if not conversation.client.email_report_enabled and not force_send:
+            logger.info(
+                f"Email reports disabled for client {conversation.client.id}; "
+                f"skipping email for conversation {conversation_id}"
+            )
+            if not force_send:
+                conversation.is_active = False
+                conversation.ended_at = now
+                conversation.save(update_fields=['is_active', 'ended_at'])
+            return {"status": "skipped", "message": "Email reports disabled"}
+
+        # Validate SMTP only if we are sending
+        if not conversation.client.email_smtp_enabled:
+            logger.warning(f"SMTP not enabled for client {conversation.client.id}, cannot send email")
+            if not force_send:
+                conversation.is_active = False
+                conversation.ended_at = now
+                conversation.save(update_fields=['is_active', 'ended_at'])
+            return {"status": "skipped", "message": "SMTP not enabled. Check email settings."}
+
+        if (
+            not conversation.client.email_smtp_host
+            or not conversation.client.email_smtp_username
+            or not conversation.client.email_smtp_password
+        ):
+            logger.warning(
+                f"Incomplete SMTP settings for client {conversation.client.id}: "
+                f"host={bool(conversation.client.email_smtp_host)}, "
+                f"username={bool(conversation.client.email_smtp_username)}, "
+                f"password={bool(conversation.client.email_smtp_password)}"
+            )
+            if not force_send:
+                conversation.is_active = False
+                conversation.ended_at = now
+                conversation.save(update_fields=['is_active', 'ended_at'])
+            return {"status": "skipped", "message": "Incomplete SMTP settings. Check email settings."}
+
+        # Use smart recipients list
+        recipients = conversation.client.get_report_recipients() if conversation.client else []
+        if not recipients:
+            fallback_recipient = conversation.client.email_from_address or conversation.client.email_smtp_username
+            if fallback_recipient:
+                recipients = [fallback_recipient]
+
+        if not recipients:
+            logger.warning(f"No email recipients configured for client {conversation.client.id}")
+            if not force_send:
+                conversation.is_active = False
+                conversation.ended_at = now
+                conversation.save(update_fields=['is_active', 'ended_at'])
+            return {"status": "skipped", "message": "No email recipients configured"}
         
         # Generate full chat text
         chat_text = format_chat_as_text(conversation)
-        
-        # Send email to email_from_address
-        email_result = send_chat_summary_email(conversation, chat_text, recipients=[recipient_email])
-        
-        # Update conversation
-        conversation.is_active = False
-        conversation.ended_at = timezone.now()
-        
-        # Only mark as sent if email was actually sent successfully
-        if email_result.get("success") and email_result.get("sent_count", 0) > 0:
+
+        subject_prefix = "🔴 URGENT NEGATIVE " if is_negative else ""
+        email_result = send_chat_summary_email(
+            conversation,
+            chat_text,
+            recipients=recipients,
+            subject_prefix=subject_prefix,
+        )
+
+        # Update email flags
+        email_sent_ok = bool(email_result.get("success") and email_result.get("sent_count", 0) > 0)
+        if email_sent_ok:
             conversation.email_sent = True
-            conversation.email_sent_at = timezone.now()
-            logger.info(f"Closed session {conversation_id} and sent email successfully: {email_result}")
+            conversation.email_sent_at = now
         else:
-            # Email failed to send, log error but still close session
-            logger.error(f"Failed to send email for conversation {conversation_id}: {email_result}")
             conversation.email_sent = False
-        
-        conversation.save(update_fields=['is_active', 'ended_at', 'email_sent', 'email_sent_at'])
-        
-        return {"status": "success" if email_result.get("success") else "partial", "email_result": email_result}
+
+        update_fields = ['email_sent', 'email_sent_at']
+
+        # Close session only for the inactivity flow
+        if not force_send:
+            conversation.is_active = False
+            conversation.ended_at = now
+            update_fields.extend(['is_active', 'ended_at'])
+
+        conversation.save(update_fields=update_fields)
+
+        return {
+            "status": "success" if email_sent_ok else "partial",
+            "email_result": email_result,
+        }
         
     except ClientWhatsAppConversation.DoesNotExist:
         logger.error(f"Conversation {conversation_id} not found")
@@ -1583,7 +1634,7 @@ def format_chat_as_text(conversation):
     return "\n".join(lines)
 
 
-def send_chat_summary_email(conversation, chat_text, recipients=None):
+def send_chat_summary_email(conversation, chat_text, recipients=None, subject_prefix: str = ""):
     """
     Send chat summary email to client recipients with attachment.
     Uses Django's get_connection with client-specific SMTP settings.
@@ -1643,7 +1694,10 @@ def send_chat_summary_email(conversation, chat_text, recipients=None):
         )
         
         # Prepare email
-        subject = f"Chat Session Summary - {conversation.client.company_name}"
+        prefix = (subject_prefix or "").strip()
+        if prefix:
+            prefix = prefix + " "
+        subject = f"{prefix}Chat Session Summary - {conversation.client.company_name}"
         
         # Email body with summary
         summary_html = conversation.summary.replace(chr(10), '<br>') if conversation.summary else 'No summary available.'
@@ -1756,4 +1810,521 @@ Full conversation transcript is attached as a text file.
     except Exception as e:
         logger.error(f"Failed to send chat summary email: {str(e)}", exc_info=True)
         return {"success": False, "error": str(e)}
+
+
+def _get_conversation_platform(conversation) -> str:
+    """Best-effort platform inference for reporting."""
+    try:
+        if getattr(conversation, 'telegram_chat_id', ''):
+            return 'telegram'
+        customer_phone = getattr(conversation, 'customer_phone', '') or ''
+        if customer_phone.startswith('telegram_'):
+            return 'telegram'
+
+        platform = None
+        context_metadata = getattr(conversation, 'context_metadata', None) or {}
+        if isinstance(context_metadata, dict):
+            platform = context_metadata.get('platform')
+
+        if platform in ['web', 'web_widget', 'iframe']:
+            return 'web'
+        if customer_phone.startswith('web_'):
+            return 'web'
+    except Exception:
+        pass
+    return 'whatsapp'
+
+
+def _get_last_user_quote(conversation, max_len: int = 180) -> str:
+    """Extract a short user quote from JSON messages (best-effort)."""
+    try:
+        messages = getattr(conversation, 'messages', None)
+        if not isinstance(messages, list):
+            return ""
+        for msg in reversed(messages):
+            if not isinstance(msg, dict):
+                continue
+            if msg.get('role') != 'user':
+                continue
+            content = (msg.get('content') or '').strip()
+            if content:
+                return content[:max_len] + ("…" if len(content) > max_len else "")
+    except Exception:
+        return ""
+    return ""
+
+
+def _detect_language_from_text(text: str) -> str:
+    """Reuse existing lightweight language detection on an arbitrary text."""
+    if not text or not text.strip():
+        return 'en'
+    try:
+        # detect_language_from_messages expects list[dict] with 'content'
+        return detect_language_from_messages([{'content': text}])
+    except Exception:
+        return 'en'
+
+
+def _detect_digest_language_from_client_prompt(client) -> str:
+    """
+    Digest language should follow the language of the client's train/system prompt.
+    Falls back to English when unknown.
+    """
+    prompt_text = ""
+    try:
+        active = getattr(client, 'active_custom_prompt', None)
+        if active is not None:
+            prompt_text = (getattr(active, 'prompt_text', '') or '').strip()
+    except Exception:
+        prompt_text = ""
+
+    if not prompt_text:
+        prompt_text = (getattr(client, 'custom_system_prompt', '') or '').strip()
+
+    if not prompt_text:
+        # As a last resort: use description/company fields (better than nothing)
+        prompt_text = (getattr(client, 'description', '') or '').strip()
+
+    return _detect_language_from_text(prompt_text) or 'en'
+
+
+def _generate_daily_meta_summary(
+    client,
+    summaries: list[str],
+    language: str,
+    top_sources: list[str] | None = None,
+) -> str:
+    """
+    Generate a "Daily Meta-Summary" via the existing LLM client.
+    Keep the prompt short and token-safe.
+    """
+    if not summaries:
+        return "No chats for today."
+
+    from MASTER.rag.llm_client import LLMClient
+
+    # Token safety: include up to 40 short summaries
+    clipped = [s.strip() for s in summaries if s and s.strip()]
+    clipped = clipped[:40]
+    clipped = [s[:240] + ("…" if len(s) > 240 else "") for s in clipped]
+
+    lang_map = {
+        'uk': 'Ukrainian',
+        'en': 'English',
+        'de': 'German',
+        'fr': 'French',
+        'es': 'Spanish',
+        'it': 'Italian',
+        'nl': 'Dutch',
+        'da': 'Danish',
+        'ru': 'Russian',
+    }
+    lang_name = lang_map.get((language or 'en').lower(), 'English')
+
+    sources_block = ""
+    if top_sources:
+        clipped_sources = [s.strip() for s in top_sources if s and s.strip()][:10]
+        if clipped_sources:
+            sources_block = (
+                "\nTop knowledge sources used today (from RAG citations):\n"
+                + "\n".join([f"- {s}" for s in clipped_sources])
+                + "\n"
+            )
+
+    prompt = (
+        "You are preparing a daily digest for a business owner.\n"
+        "The owner will skim this in 30 seconds.\n"
+        "Based on the chat summaries below, output EXACTLY these sections:\n"
+        "AI Conclusion: 1-2 sentences.\n"
+        "Agent Improvements: 3 bullets with concrete actions (what to add, where to add it, which knowledge sources were useful).\n"
+        "FAQ / Knowledge to Add: 3 bullets (short).\n\n"
+        + (sources_block + "\n" if sources_block else "")
+        + "Chat summaries:\n"
+        + "\n".join([f"- {s}" for s in clipped])
+        + f"\n\nRespond concisely in {lang_name}."
+    )
+
+    llm = LLMClient()
+    result = llm.generate_response(
+        user_query=prompt,
+        context="",
+        client=client,
+        stream=False,
+    )
+
+    if isinstance(result, dict):
+        return (result.get('content') or '').strip() or "Meta-summary unavailable."
+    return str(result).strip() or "Meta-summary unavailable."
+
+
+def _escape_html(text: str) -> str:
+    import html
+
+    return html.escape(text or "")
+
+
+def _contact_html(user_id: str) -> str:
+    """Clickable tel: link for phone-like identifiers."""
+    raw = (user_id or '').strip()
+    if raw.startswith('+') and raw[1:].replace(' ', '').replace('-', '').isdigit():
+        tel = '+' + ''.join(ch for ch in raw if ch.isdigit() or ch == '+')
+        return f'<a href="tel:{_escape_html(tel)}" style="color:#2c3e50; text-decoration:none;">{_escape_html(raw)}</a>'
+    return _escape_html(raw)
+
+
+def _send_daily_digest_email(
+    *,
+    client,
+    recipients: list[str],
+    subject: str,
+    body_html: str,
+    body_text: str,
+    attachments: list[tuple[str, bytes, str]],
+) -> dict:
+    """Send ONE digest email per client (one message, multiple attachments)."""
+    from django.core.mail import get_connection, EmailMultiAlternatives
+
+    use_tls = client.email_smtp_use_tls
+    use_ssl = (not use_tls) and int(getattr(client, 'email_smtp_port', 0) or 0) == 465
+
+    from_email = client.email_from_address or client.email_smtp_username
+    from_name = client.email_from_name or client.company_name or "AI Assistant"
+    from_address = f"{from_name} <{from_email}>"
+
+    connection = get_connection(
+        backend='django.core.mail.backends.smtp.EmailBackend',
+        host=client.email_smtp_host,
+        port=client.email_smtp_port,
+        username=client.email_smtp_username,
+        password=client.email_smtp_password,
+        use_tls=use_tls,
+        use_ssl=use_ssl,
+    )
+
+    try:
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=body_text,
+            from_email=from_address,
+            to=recipients,
+            connection=connection,
+        )
+        email.attach_alternative(body_html, "text/html")
+
+        for filename, content, mimetype in attachments:
+            email.attach(filename=filename, content=content, mimetype=mimetype)
+
+        email.send(fail_silently=False)
+        return {"success": True, "sent_to": recipients, "attachments": len(attachments)}
+    except Exception as e:
+        logger.error(f"Failed to send daily digest email for client {client.id}: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}
+
+
+@shared_task
+def send_daily_digest():
+    """
+    Daily digest at 17:00 (scheduled via CELERY_BEAT_SCHEDULE).
+
+    - Aggregates today's chats per client
+    - Generates a daily meta-summary via LLM
+    - Highlights top 5 positives and all negatives
+    - Attaches transcripts for ALL negative conversations
+    """
+    from datetime import datetime, time, timedelta
+    from django.utils import timezone
+    from django.db.models import Count, Q
+    from django.db.models.functions import ExtractHour
+    from MASTER.clients.models import Client, ClientWhatsAppConversation
+
+    tz = timezone.get_current_timezone()
+    today = timezone.localdate()
+    # Coverage window: 09:00 -> 17:00 (or now, for manual runs)
+    start = timezone.make_aware(datetime.combine(today, time(hour=9, minute=0)), tz)
+    scheduled_end = timezone.make_aware(datetime.combine(today, time(hour=17, minute=0)), tz)
+    now = timezone.now()
+    end = min(now, scheduled_end)
+
+    results: list[dict] = []
+
+    clients = Client.objects.filter(email_report_enabled=True).select_related('active_custom_prompt')
+    for client in clients:
+        # Only send if SMTP is usable
+        if not client.email_smtp_enabled:
+            continue
+        if not (client.email_smtp_host and client.email_smtp_username and client.email_smtp_password):
+            continue
+
+        recipients = client.get_report_recipients()
+        if not recipients:
+            fallback = client.email_from_address or client.email_smtp_username
+            if fallback:
+                recipients = [fallback]
+        if not recipients:
+            continue
+
+        qs = ClientWhatsAppConversation.objects.filter(
+            client=client,
+            started_at__gte=start,
+            started_at__lt=end,
+        ).order_by('started_at')
+
+        total_chats = qs.count()
+        if total_chats == 0:
+            continue
+
+        # Ratings
+        negative_q = Q(user_rating='negative') | Q(ai_rating='negative')
+        positive_q = Q(user_rating='positive') | Q(ai_rating='positive')
+        negative_count = qs.filter(negative_q).count()
+        positive_count = qs.filter(positive_q).count()
+
+        # Top activity hours (by started_at)
+        hours = list(
+            qs.annotate(hour=ExtractHour('started_at'))
+            .values('hour')
+            .annotate(count=Count('id'))
+            .order_by('-count')[:5]
+        )
+
+        # Platform counts
+        platform_counts = {'whatsapp': 0, 'telegram': 0, 'web': 0}
+        conversations = list(qs)
+        for conv in conversations:
+            platform = _get_conversation_platform(conv)
+            platform_counts[platform] = platform_counts.get(platform, 0) + 1
+
+        digest_language = _detect_digest_language_from_client_prompt(client)
+
+        # Ensure summaries exist + collect them
+        summaries: list[str] = []
+        for conv in conversations:
+            if not (conv.summary or '').strip():
+                try:
+                    summary = generate_chat_summary(conv)
+                    if summary and summary.strip():
+                        conv.summary = summary.strip()
+                        conv.save(update_fields=['summary'])
+                except Exception as e:
+                    logger.warning(f"Daily digest: failed to generate summary for conv={conv.id}: {e}")
+            if (conv.summary or '').strip():
+                summaries.append(conv.summary.strip())
+
+        # Aggregate top RAG sources from stored conversation metadata (if present)
+        source_counts: dict[str, int] = {}
+        for conv in conversations:
+            md = getattr(conv, 'context_metadata', None) or {}
+            if not isinstance(md, dict):
+                continue
+            history = md.get('rag_history') or []
+            if not isinstance(history, list):
+                continue
+            for item in history:
+                if not isinstance(item, dict):
+                    continue
+                for src in (item.get('sources') or []):
+                    if not isinstance(src, dict):
+                        continue
+                    title = (src.get('title') or '').strip()
+                    if title:
+                        source_counts[title] = source_counts.get(title, 0) + 1
+        top_sources = [k for k, _ in sorted(source_counts.items(), key=lambda x: x[1], reverse=True)[:10]]
+
+        meta_summary = _generate_daily_meta_summary(client, summaries, digest_language, top_sources=top_sources)
+
+        # Highlight positives (top 5 by rating_timestamp, fallback started_at)
+        positives = sorted(
+            [c for c in conversations if (c.user_rating == 'positive' or c.ai_rating == 'positive')],
+            key=lambda c: (c.rating_timestamp or c.started_at or start),
+            reverse=True,
+        )[:5]
+        positive_rows = [
+            {
+                "id": c.id,
+                "user": c.customer_phone,
+                "quote": _get_last_user_quote(c),
+                "summary": (c.summary or "").strip(),
+            }
+            for c in positives
+        ]
+
+        # All negatives (for critical section)
+        negatives = [c for c in conversations if (c.user_rating == 'negative' or c.ai_rating == 'negative')]
+        negative_rows = [
+            {
+                "id": c.id,
+                "user": c.customer_phone,
+                "rating": c.user_rating or c.ai_rating,
+                "summary": (c.summary or "").strip(),
+            }
+            for c in negatives
+        ]
+
+        # Attach transcripts for ALL conversations for today (as requested)
+        attachments: list[tuple[str, bytes, str]] = []
+        for c in conversations:
+            try:
+                transcript = format_chat_as_text(c)
+                is_neg = (c.user_rating == 'negative') or (c.ai_rating == 'negative')
+                prefix = "NEGATIVE_" if is_neg else ""
+                filename = f"{prefix}chat_{today.isoformat()}_{c.id}_{c.session_id or 'unknown'}.txt"
+                attachments.append((filename, transcript.encode('utf-8'), 'text/plain'))
+            except Exception as e:
+                logger.warning(f"Daily digest: failed to build transcript for conv={c.id}: {e}")
+
+        # Dashboard helpers
+        neutral_count = max(total_chats - positive_count - negative_count, 0)
+        pos_pct = round((positive_count / total_chats) * 100) if total_chats else 0
+        neg_pct = round((negative_count / total_chats) * 100) if total_chats else 0
+        neu_pct = max(0, 100 - pos_pct - neg_pct) if total_chats else 0
+
+        # Peak hours: pick top hour and show a 2-hour window (HH:00 - HH+2:00)
+        peak_window = "N/A"
+        if hours and hours[0].get('hour') is not None:
+            h0 = int(hours[0]['hour'])
+            peak_window = f"{h0:02d}:00 - {(h0 + 2) % 24:02d}:00"
+
+        # Overall status
+        if negative_count > 0:
+            status_icon, status_text, status_color = "🔴", "Critical", "#c0392b"
+        elif total_chats > 0 and pos_pct < 70:
+            status_icon, status_text, status_color = "🟡", "Needs attention", "#f39c12"
+        else:
+            status_icon, status_text, status_color = "🟢", "Stable", "#27ae60"
+
+        # Subject prefix (mailbox scanning)
+        subject_prefix = "🔴 " if negative_count > 0 else "🟢 "
+        subject = f"{subject_prefix}Daily Report - {client.company_name} - {today.isoformat()}"
+
+        # Critical rows (ALL negatives, short)
+        critical_rows_html = ""
+        for row in negative_rows:
+            user_html = _contact_html(row.get('user') or '')
+            summary_short = (row.get('summary') or '').strip()
+            summary_short = summary_short[:140] + ("…" if len(summary_short) > 140 else "")
+            summary_short = _escape_html(summary_short)
+            critical_rows_html += (
+                "<tr style='background:#fdf2f2;'>"
+                f"<td style='padding:10px; border-bottom:1px solid #eee; white-space:nowrap;'><b>{user_html}</b></td>"
+                f"<td style='padding:10px; border-bottom:1px solid #eee;'>{summary_short}</td>"
+                f"<td style='padding:10px; border-bottom:1px solid #eee; white-space:nowrap;'>"
+                f"<span style='display:inline-block; padding:4px 8px; border-radius:999px; background:#fdecea; color:#c0392b; font-size:12px;'>conv #{row.get('id')}</span>"
+                "</td>"
+                "</tr>"
+            )
+        if not critical_rows_html:
+            critical_rows_html = (
+                "<tr><td style='padding:10px; color:#7f8c8d;' colspan='3'>No critical issues.</td></tr>"
+            )
+
+        # Positive highlights (keep SHORT)
+        praise_items_html = ""
+        for r in positive_rows[:5]:
+            user_html = _contact_html(r.get('user') or '')
+            quote = (r.get('quote') or '').strip()
+            if not quote:
+                quote = (r.get('summary') or '').strip()
+            quote = quote[:140] + ("…" if len(quote) > 140 else "")
+            praise_items_html += (
+                "<li style='margin:6px 0;'>"
+                f"<span style='color:#27ae60; font-weight:700;'>★</span> "
+                f"“{_escape_html(quote)}” — <i>{user_html}</i>"
+                "</li>"
+            )
+        if not praise_items_html:
+            praise_items_html = "<li style='color:#7f8c8d;'>No positive highlights today.</li>"
+
+        # Escape meta summary (keep line breaks)
+        meta_html = _escape_html(meta_summary or "").replace("\n", "<br>")
+
+        # Render HTML: skimmable, no walls of text
+        coverage = f"{start.strftime('%H:%M')} - {end.strftime('%H:%M')}"
+        body_html = f"""
+<html>
+  <body>
+    <div style="font-family: Arial, sans-serif; max-width: 640px; margin: auto; border: 1px solid #eee; padding: 18px; color:#2c3e50;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+        <div>
+          <h2 style="margin:0; color:#2c3e50;">📊 Daily Report: {_escape_html(client.company_name)}</h2>
+          <div style="margin-top:6px; font-size:13px; color:#7f8c8d;">
+            Date: {_escape_html(today.isoformat())} (coverage: {_escape_html(coverage)})
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:13px; color:#7f8c8d;">Overall status</div>
+          <div style="font-size:16px; font-weight:800; color:{status_color};">{status_icon} {status_text}</div>
+        </div>
+      </div>
+
+      <hr style="border:none; border-top:1px solid #eee; margin:14px 0;">
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap; background:#f9f9f9; padding:12px; border-radius:10px;">
+        <div style="min-width:140px;"><b>Total chats:</b> {total_chats}</div>
+        <div style="min-width:140px;"><b>Channels:</b> 📱 WhatsApp ({platform_counts.get('whatsapp', 0)}) | 💬 Web ({platform_counts.get('web', 0)}) | ✈️ Telegram ({platform_counts.get('telegram', 0)})</div>
+        <div style="min-width:140px;"><b>Peak activity:</b> {peak_window}</div>
+        <div style="min-width:140px;">
+          <b>Mood:</b>
+          <span style="color:#27ae60; font-weight:700;">😊 {pos_pct}%</span> |
+          <span style="color:#c0392b; font-weight:700;">😡 {neg_pct}%</span> |
+          <span style="color:#7f8c8d; font-weight:700;">😐 {neu_pct}%</span>
+        </div>
+      </div>
+
+      <h3 style="margin:16px 0 8px; color:#c0392b;">🔴 Critical Issues</h3>
+      <table width="100%" style="border-collapse: collapse;">
+        {critical_rows_html}
+      </table>
+
+      <h3 style="margin:16px 0 8px; color:#2980b9;">🤖 AI Insight</h3>
+      <div style="background:#eaf2f8; padding:10px; border-left:4px solid #2980b9; border-radius:6px; font-size:13px; line-height:1.35;">
+        {meta_html}
+      </div>
+
+      <h3 style="margin:16px 0 8px; color:#27ae60;">🌟 Positive Highlights</h3>
+      <ul style="list-style:none; padding:0; margin:0;">
+        {praise_items_html}
+      </ul>
+
+      <div style="margin-top:16px; font-size:12px; color:#7f8c8d;">
+        Attachments: {len(attachments)} transcript file(s) for today's chats.
+      </div>
+    </div>
+  </body>
+</html>
+"""
+
+        body_text = (
+            f"Daily Report: {client.company_name}\n"
+            f"Date: {today.isoformat()} (coverage: {coverage})\n"
+            f"Status: {status_text}\n\n"
+            f"Total chats: {total_chats}\n"
+            f"Channels: WhatsApp {platform_counts.get('whatsapp', 0)} | Web {platform_counts.get('web', 0)} | Telegram {platform_counts.get('telegram', 0)}\n"
+            f"Peak activity: {peak_window}\n"
+            f"Mood: positive {pos_pct}% | negative {neg_pct}% | neutral {neu_pct}%\n\n"
+            f"Critical issues: {negative_count}\n"
+            f"Attachments: {len(attachments)}\n\n"
+            f"AI Insight:\n{meta_summary}\n"
+        )
+
+        send_result = _send_daily_digest_email(
+            client=client,
+            recipients=recipients,
+            subject=subject,
+            body_html=body_html,
+            body_text=body_text,
+            attachments=attachments,
+        )
+
+        results.append(
+            {
+                "client_id": client.id,
+                "client": client.company_name,
+                "total_chats": total_chats,
+                "negative": negative_count,
+                "sent": bool(send_result.get("success")),
+                "send_result": send_result,
+            }
+        )
+
+    return {"success": True, "date": today.isoformat(), "results": results}
 

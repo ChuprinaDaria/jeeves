@@ -1375,6 +1375,31 @@ class ClientEmailSMTPConfigView(APIView):
         })
 
 
+class SendDailyDigestNowView(APIView):
+    """
+    Manual trigger for daily digest email (per-client).
+    POST /api/clients/reports/daily-digest/send/
+    """
+    permission_classes = []  # client auth via get_client_from_request
+
+    def post(self, request):
+        client = get_client_from_request(request)
+        if not client:
+            return Response({'error': 'Client not found'}, status=401)
+
+        from MASTER.clients.tasks import send_daily_digest
+
+        try:
+            async_result = send_daily_digest.delay()
+            return Response(
+                {'success': True, 'scheduled': True, 'task_id': getattr(async_result, 'id', None)},
+                status=202,
+            )
+        except Exception as e:
+            logger.error(f"Failed to schedule send_daily_digest: {e}", exc_info=True)
+            return Response({'success': False, 'error': str(e)}, status=500)
+
+
 class ClientExtensionPageView(APIView):
     """
     API endpoint for Google Chrome extension.
@@ -2554,15 +2579,17 @@ class ConversationRatingView(APIView):
         conversation.user_rating = rating
         conversation.rating_timestamp = timezone.now()
         conversation.save(update_fields=['user_rating', 'rating_timestamp'])
-        
-        # If positive rating, send email immediately
-        if rating == 'positive':
+
+        # Smart alert: immediate email ONLY for negative rating (critical)
+        if rating == 'negative':
             from MASTER.clients.tasks import close_session_and_send_email
             try:
-                close_session_and_send_email.delay(conversation.id)
-                logger.info(f"✅ Positive rating received for conversation {conversation_id}, scheduling email immediately")
+                close_session_and_send_email.delay(conversation.id, force_send=True)
+                logger.info(
+                    f"🔴 Negative rating received for conversation {conversation_id}, scheduling urgent email"
+                )
             except Exception as e:
-                logger.error(f"Failed to schedule email for positive rating: {e}")
+                logger.error(f"Failed to schedule email for negative rating: {e}")
         
         return Response({
             'success': True,
@@ -2678,9 +2705,8 @@ class ManualReportView(APIView):
     permission_classes = []
     
     def post(self, request, conversation_id):
-        import traceback
         from MASTER.clients.models import ClientWhatsAppConversation
-        from MASTER.clients.tasks import generate_chat_summary, format_chat_as_text, send_chat_summary_email
+        from MASTER.clients.tasks import close_session_and_send_email
         
         client = get_client_from_request(request)
         if not client:
@@ -2700,68 +2726,18 @@ class ManualReportView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        try:
-            # Refresh conversation from database to ensure we have latest data
-            conversation.refresh_from_db()
-            
-            # Generate summary if not exists - no fallback, must succeed
-            if not conversation.summary:
-                logger.info(f"🔄 Generating summary for conversation {conversation_id} in ManualReportView")
-                summary = generate_chat_summary(conversation)
-                if summary and summary.strip():
-                    conversation.summary = summary
-                    conversation.save(update_fields=['summary'])
-                    logger.info(f"✅ Summary saved for conversation {conversation_id}, length={len(summary)}")
-                else:
-                    logger.error(f"❌ Summary generation returned empty for conversation {conversation_id}")
-                    raise ValueError(f"Summary generation returned empty for conversation {conversation_id}")
-            
-            # Format chat text
-            chat_text = format_chat_as_text(conversation)
-            
-            # For manual trigger: ignore email_report_enabled flag (force send)
-            # Check if SMTP is configured
-            email_result = None
-            if (conversation.client.email_smtp_enabled and
-                conversation.client.email_smtp_host and
-                conversation.client.email_smtp_username and
-                conversation.client.email_smtp_password):
-                
-                # Always use email_from_address as recipient
-                recipient_email = conversation.client.email_from_address or conversation.client.email_smtp_username
-                if recipient_email:
-                    email_result = send_chat_summary_email(conversation, chat_text, recipients=[recipient_email])
-                else:
-                    email_result = {
-                        "success": False,
-                        "error": "No email recipient configured",
-                        "message": "Email not sent. Configure email_from_address in Email Setup."
-                    }
-            else:
-                # SMTP not configured
-                email_result = {
-                    "success": False,
-                    "error": "SMTP not configured",
-                    "message": "Email not sent. Please configure SMTP settings in Integrations → Email Setup."
-                }
-            
-            return Response({
+        # Manual trigger: schedule task with force_send=True (no spam logic bypassed)
+        close_session_and_send_email.delay(conversation.id, force_send=True)
+
+        return Response(
+            {
                 'success': True,
                 'conversation_id': conversation.id,
-                'summary': conversation.summary,
-                'chat_text': chat_text,
-                'email_sent': email_result.get('success', False) if email_result else False,
-                'email_result': email_result
-            })
-        except Exception as e:
-            # Print full traceback to console for debugging in docker logs
-            traceback.print_exc()
-            return Response({
-                'success': False,
-                'email_sent': False,
-                'error': str(e),
-                'message': 'Email not sent. Check email settings.'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                'scheduled': True,
+                'message': 'Report email scheduled',
+            },
+            status=status.HTTP_202_ACCEPTED,
+        )
 
 
 class ConversationNotesView(APIView):

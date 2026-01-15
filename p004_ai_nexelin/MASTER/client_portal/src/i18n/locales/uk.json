@@ -89,6 +89,17 @@
   "logo_uploaded": "Логотип завантажено",
   "logo_deleted": "Логотип видалено",
   "logo_upload_error": "Помилка завантаження логотипу",
-  "choose_file": "Вибрати файл"
+  "choose_file": "Вибрати файл",
+  "report_settings": "Налаштування звітів",
+  "report_enabled": "Увімкнути щоденні звіти",
+  "report_recipients": "Отримувачі (до 5 email)",
+  "report_email_placeholder": "email@example.com",
+  "report_no_recipients": "Отримувачів ще не додано",
+  "send_daily_report": "Надіслати щоденний звіт зараз",
+  "report_scheduled": "Щоденний звіт заплановано",
+  "report_invalid_email": "Некоректна email-адреса",
+  "report_max_recipients": "Можна додати до 5 отримувачів",
+  "remove": "Видалити",
+  "add": "Додати"
 
 }

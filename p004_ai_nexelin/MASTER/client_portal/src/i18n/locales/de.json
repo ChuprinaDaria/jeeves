@@ -19,5 +19,16 @@
   "logo_uploaded": "Logo hochgeladen",
   "logo_deleted": "Logo gelöscht",
   "logo_upload_error": "Fehler beim Hochladen des Logos",
-  "choose_file": "Datei auswählen"
+  "choose_file": "Datei auswählen",
+  "report_settings": "Berichtseinstellungen",
+  "report_enabled": "Tägliche Berichte aktivieren",
+  "report_recipients": "Empfänger (bis zu 5 E-Mails)",
+  "report_email_placeholder": "email@example.com",
+  "report_no_recipients": "Noch keine Empfänger hinzugefügt",
+  "send_daily_report": "Tagesbericht jetzt senden",
+  "report_scheduled": "Tagesbericht geplant",
+  "report_invalid_email": "Ungültige E-Mail-Adresse",
+  "report_max_recipients": "Sie können bis zu 5 Empfänger hinzufügen",
+  "remove": "Entfernen",
+  "add": "Hinzufügen"
 }

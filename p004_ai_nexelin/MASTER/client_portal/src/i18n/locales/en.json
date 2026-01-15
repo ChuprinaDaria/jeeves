@@ -90,4 +90,16 @@
   "logo_deleted": "Logo deleted",
   "logo_upload_error": "Logo upload error",
   "choose_file": "Choose file"
+  ,
+  "report_settings": "Report settings",
+  "report_enabled": "Enable daily reports",
+  "report_recipients": "Recipients (up to 5 emails)",
+  "report_email_placeholder": "email@example.com",
+  "report_no_recipients": "No recipients added yet",
+  "send_daily_report": "Send daily report now",
+  "report_scheduled": "Daily report scheduled",
+  "report_invalid_email": "Invalid email address",
+  "report_max_recipients": "You can add up to 5 recipients",
+  "remove": "Remove",
+  "add": "Add"
 }

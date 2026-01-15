@@ -730,14 +730,16 @@ class TelegramWebhookView(View):
                         conversation.rating_timestamp = timezone.now()
                         conversation.save(update_fields=['user_rating', 'rating_timestamp'])
                         
-                        # If positive rating, send email immediately
-                        if rating == 'positive':
+                        # Smart alert: immediate email ONLY for negative rating (critical)
+                        if rating == 'negative':
                             from MASTER.clients.tasks import close_session_and_send_email
                             try:
-                                close_session_and_send_email.delay(conversation.id)
-                                logger.info(f"✅ Positive rating received for Telegram conversation {conversation_id}, scheduling email immediately")
+                                close_session_and_send_email.delay(conversation.id, force_send=True)
+                                logger.info(
+                                    f"🔴 Negative rating received for Telegram conversation {conversation_id}, scheduling urgent email"
+                                )
                             except Exception as e:
-                                logger.error(f"Failed to schedule email for positive rating: {e}")
+                                logger.error(f"Failed to schedule email for negative rating: {e}")
                         
                         # Відправляємо підтвердження користувачу мовою користувача
                         bot_token = conversation.client.telegram_bot_token
@@ -891,6 +893,25 @@ class TelegramWebhookView(View):
                 if isinstance(rag_response, RAGResponse):
                     response_text = rag_response.answer
                     logger.info(f"RAG response generated: {len(response_text)} chars, {rag_response.num_chunks} chunks, language={language}")
+
+                    # Store RAG sources into conversation.context_metadata for reporting (per answer)
+                    try:
+                        if not conversation.context_metadata or not isinstance(conversation.context_metadata, dict):
+                            conversation.context_metadata = {}
+                        history = conversation.context_metadata.get('rag_history')
+                        if not isinstance(history, list):
+                            history = []
+                        history.append({
+                            'ts': timezone.now().isoformat(),
+                            'query': (message_body or '')[:200],
+                            'sources': rag_response.sources,
+                        })
+                        # cap growth
+                        conversation.context_metadata['rag_history'] = history[-50:]
+                        conversation.context_metadata['last_rag_sources'] = rag_response.sources
+                        conversation.save(update_fields=['context_metadata', 'updated_at'])
+                    except Exception as e:
+                        logger.warning(f"Failed to store RAG sources for conversation {conversation.id}: {e}")
                 else:
                     logger.error("Unexpected generator response when stream=False")
                     response_text = "Вибачте, виникла помилка при генерації відповіді." if language == 'uk' else "Sorry, an error occurred while generating the response."

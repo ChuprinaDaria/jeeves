@@ -27,6 +27,7 @@ urlpatterns = [
     path('whatsapp/meta/config/', views.ClientWhatsAppConfigView.as_view(), name='client-whatsapp-meta-config'),
     path('telegram/config/', views.ClientTelegramConfigView.as_view(), name='client-telegram-config'),
     path('email-smtp/config/', views.ClientEmailSMTPConfigView.as_view(), name='client-email-smtp-config'),
+    path('reports/daily-digest/send/', views.SendDailyDigestNowView.as_view(), name='client-send-daily-digest-now'),
     path('extension/page/', views.ClientExtensionPageView.as_view(), name='client-extension-page'),
     path('extension/data/', views.ClientExtensionDataView.as_view(), name='client-extension-data'),
     path('web-widget/config/', WebWidgetConfigView.as_view(), name='client-web-widget-config'),

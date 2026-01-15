@@ -321,6 +321,48 @@ class Client(models.Model):
         """Get configuration value for a specific feature"""
         return self.features.get(feature_name, default) if self.features else default
 
+    def get_report_recipients(self) -> list[str]:
+        """
+        Return up to 5 cleaned email recipients for chat reports/digests.
+
+        Backward-compatible:
+        - If `email_report_recipients` is a list/JSON, it is used directly.
+        - If it's a string, it is split by comma/semicolon.
+        """
+        raw = getattr(self, "email_report_recipients", None)
+        items: list[str] = []
+
+        if isinstance(raw, list):
+            items = [str(x) for x in raw if x]
+        elif isinstance(raw, str):
+            # Allow "a@b.com, c@d.com; e@f.com"
+            import re
+
+            items = [p.strip() for p in re.split(r"[;,]", raw) if p and p.strip()]
+        elif raw:
+            # Any other JSON-ish value (dict, etc.) – treat as single token
+            items = [str(raw).strip()]
+
+        # Normalize + basic validation
+        cleaned: list[str] = []
+        seen: set[str] = set()
+        for email_addr in items:
+            email_norm = email_addr.strip().strip('"').strip("'")
+            if not email_norm:
+                continue
+            # Basic sanity check (avoid heavy validators here)
+            if "@" not in email_norm or "." not in email_norm.split("@")[-1]:
+                continue
+            email_norm_l = email_norm.lower()
+            if email_norm_l in seen:
+                continue
+            seen.add(email_norm_l)
+            cleaned.append(email_norm)
+            if len(cleaned) >= 5:
+                break
+
+        return cleaned
+
 
 class ClientAPIConfig(models.Model):
     LANG_PYTHON = 'python'

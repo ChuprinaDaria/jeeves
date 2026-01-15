@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { Upload, X, Loader2 } from 'lucide-react';
 import { clientAPI } from '../api/client';
+import api from '../api/axios';
 
 const SettingsPage = () => {
   const { t } = useTranslation();
@@ -13,6 +14,12 @@ const SettingsPage = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [reportEnabled, setReportEnabled] = useState(false);
+  const [reportRecipients, setReportRecipients] = useState([]);
+  const [reportEmail, setReportEmail] = useState('');
+  const [reportSaving, setReportSaving] = useState(false);
+  const [reportSending, setReportSending] = useState(false);
+  const [reportMessage, setReportMessage] = useState('');
 
   useEffect(() => {
     if (authLoading) {
@@ -26,6 +33,7 @@ const SettingsPage = () => {
     const timer = setTimeout(() => {
       if (!dataLoaded) {
         loadClientLogo();
+        loadReportSettings();
         setDataLoaded(true);
       }
     }, 200);
@@ -47,6 +55,18 @@ const SettingsPage = () => {
       }
     } catch (err) {
       console.error('Failed to load client logo:', err);
+    }
+  };
+
+  const loadReportSettings = async () => {
+    try {
+      const res = await api.get('/clients/email-smtp/config/');
+      setReportEnabled(!!res.data?.email_report_enabled);
+      const recipients = res.data?.email_report_recipients;
+      setReportRecipients(Array.isArray(recipients) ? recipients : []);
+    } catch (err) {
+      // Silent: report settings are optional
+      console.error('Failed to load report settings:', err);
     }
   };
 
@@ -139,6 +159,77 @@ const SettingsPage = () => {
     setLogo(null);
     setError(null);
     loadClientLogo();
+  };
+
+  const isValidEmail = (value) => {
+    const v = (value || '').trim();
+    if (!v) return false;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  };
+
+  const addReportRecipient = () => {
+    setReportMessage('');
+    const email = reportEmail.trim();
+
+    if (!isValidEmail(email)) {
+      setReportMessage(t('settings.reportInvalidEmail') || 'Invalid email address');
+      return;
+    }
+
+    const exists = reportRecipients.some((r) => String(r).toLowerCase() === email.toLowerCase());
+    if (exists) {
+      setReportEmail('');
+      return;
+    }
+
+    if (reportRecipients.length >= 5) {
+      setReportMessage(t('settings.reportMaxRecipients') || 'You can add up to 5 recipients');
+      return;
+    }
+
+    setReportRecipients((prev) => [...prev, email]);
+    setReportEmail('');
+  };
+
+  const removeReportRecipient = (email) => {
+    setReportRecipients((prev) => prev.filter((r) => r !== email));
+  };
+
+  const saveReportSettings = async () => {
+    try {
+      setReportSaving(true);
+      setReportMessage('');
+
+      await api.patch('/clients/email-smtp/config/', {
+        email_report_enabled: reportEnabled,
+        email_report_recipients: reportRecipients,
+      });
+
+      setReportMessage(t('settings.reportSaved') || t('common.success') || 'Saved');
+    } catch (err) {
+      console.error('Failed to save report settings:', err);
+      setReportMessage(t('settings.reportSaveError') || t('common.error') || 'Error');
+    } finally {
+      setReportSaving(false);
+    }
+  };
+
+  const sendDailyReportNow = async () => {
+    try {
+      setReportSending(true);
+      setReportMessage('');
+      const res = await api.post('/clients/reports/daily-digest/send/', {});
+      if (res.data?.success) {
+        setReportMessage(t('settings.reportScheduled') || 'Daily report scheduled');
+      } else {
+        setReportMessage(res.data?.error || t('common.error') || 'Error');
+      }
+    } catch (err) {
+      console.error('Failed to send daily report:', err);
+      setReportMessage(t('settings.reportSendError') || t('common.error') || 'Error');
+    } finally {
+      setReportSending(false);
+    }
   };
 
   if (authLoading || !isAuthenticated) {
@@ -249,6 +340,119 @@ const SettingsPage = () => {
             </div>
           )}
         </div>
+        </div>
+      </div>
+
+      {/* Report Settings Section */}
+      <div className="max-w-2xl">
+        <div className="card">
+          <div className="mb-6">
+            <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">
+              {t('settings.reportSettingsTitle') || 'Report settings'}
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+              {t('settings.reportSettingsSubtitle') || 'Configure recipients and send the daily report manually.'}
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <label className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={reportEnabled}
+                onChange={(e) => setReportEnabled(e.target.checked)}
+                className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+              />
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                {t('settings.reportEnabledLabel') || 'Enable daily reports'}
+              </span>
+            </label>
+
+            <div>
+              <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-gray-100">
+                {t('settings.reportRecipientsLabel') || 'Recipients (up to 5 emails)'}
+              </label>
+              <div className="flex gap-3">
+                <input
+                  type="email"
+                  value={reportEmail}
+                  onChange={(e) => setReportEmail(e.target.value)}
+                  placeholder={t('settings.reportEmailPlaceholder') || 'email@example.com'}
+                  className="input flex-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addReportRecipient();
+                    }
+                  }}
+                />
+                <button onClick={addReportRecipient} className="btn-secondary">
+                  {t('settings.reportAdd') || t('common.create') || 'Add'}
+                </button>
+              </div>
+            </div>
+
+            {reportRecipients?.length ? (
+              <div className="space-y-2">
+                {reportRecipients.map((email) => (
+                  <div
+                    key={email}
+                    className="flex items-center justify-between gap-3 bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2"
+                  >
+                    <div className="text-sm font-mono text-gray-900 dark:text-gray-100">{email}</div>
+                    <button
+                      onClick={() => removeReportRecipient(email)}
+                      className="btn-danger"
+                    >
+                      {t('settings.reportRemove') || t('common.delete') || 'Remove'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                {t('settings.reportNoRecipients') || 'No recipients added yet.'}
+              </div>
+            )}
+
+            {reportMessage && (
+              <div className="p-3 bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 rounded text-gray-800 dark:text-gray-200 text-sm">
+                {reportMessage}
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-3 pt-2">
+              <button
+                onClick={saveReportSettings}
+                disabled={reportSaving}
+                className="btn-primary flex items-center justify-center gap-2"
+              >
+                {reportSaving ? (
+                  <>
+                    <Loader2 className="animate-spin" size={18} />
+                    {t('settings.reportSaving') || t('common.loading') || 'Saving...'}
+                  </>
+                ) : (
+                  t('settings.reportSave') || t('common.save') || 'Save'
+                )}
+              </button>
+
+              <button
+                onClick={sendDailyReportNow}
+                disabled={reportSending}
+                className="btn-secondary flex items-center justify-center gap-2"
+              >
+                {reportSending ? (
+                  <>
+                    <Loader2 className="animate-spin" size={18} />
+                    {t('settings.reportSending') || t('common.loading') || 'Sending...'}
+                  </>
+                ) : (
+                  t('settings.reportSendNow') || 'Send daily report now'
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

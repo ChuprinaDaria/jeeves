@@ -239,6 +239,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'MASTER.clients.tasks.check_inactive_chat_sessions',
         'schedule': 60.0,  # Run every 60 seconds (1 minute)
     },
+    'send-daily-digest': {
+        'task': 'MASTER.clients.tasks.send_daily_digest',
+        'schedule': crontab(hour=17, minute=0),  # Every day at 17:00 (Europe/Kyiv)
+    },
 }
 
 # === RAG CONFIGS (SHORTENED) ===

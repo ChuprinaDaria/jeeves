@@ -427,6 +427,25 @@ class MetaWhatsAppWebhookView(View):
                 if isinstance(rag_response, RAGResponse):
                     response_text = rag_response.answer
                     logger.info(f"RAG response generated: {len(response_text)} chars")
+
+                    # Store RAG sources into conversation.context_metadata for reporting (per answer)
+                    try:
+                        if isinstance(conversation, ClientWhatsAppConversation):
+                            if not conversation.context_metadata or not isinstance(conversation.context_metadata, dict):
+                                conversation.context_metadata = {}
+                            history = conversation.context_metadata.get('rag_history')
+                            if not isinstance(history, list):
+                                history = []
+                            history.append({
+                                'ts': timezone.now().isoformat(),
+                                'query': (message_body or '')[:200],
+                                'sources': rag_response.sources,
+                            })
+                            conversation.context_metadata['rag_history'] = history[-50:]
+                            conversation.context_metadata['last_rag_sources'] = rag_response.sources
+                            conversation.save(update_fields=['context_metadata', 'updated_at'])
+                    except Exception as e:
+                        logger.warning(f"Failed to store RAG sources for conversation {getattr(conversation, 'id', None)}: {e}")
                 else:
                     response_text = "Вибачте, виникла помилка при генерації відповіді."
                 

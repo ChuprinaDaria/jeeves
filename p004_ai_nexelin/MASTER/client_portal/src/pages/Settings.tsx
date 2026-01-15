@@ -11,6 +11,11 @@ type ClientMe = {
   logo?: string
 }
 
+type EmailReportConfig = {
+  email_report_enabled: boolean
+  email_report_recipients: string[]
+}
+
 export default function Settings(){
   const [me, setMe] = useState<ClientMe|null>(null)
   const [prompt, setPrompt] = useState('')
@@ -19,6 +24,12 @@ export default function Settings(){
   const [logoFile, setLogoFile] = useState<File|null>(null)
   const [logoPreview, setLogoPreview] = useState<string|null>(null)
   const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [reportEnabled, setReportEnabled] = useState(false)
+  const [reportRecipients, setReportRecipients] = useState<string[]>([])
+  const [newRecipient, setNewRecipient] = useState('')
+  const [savingReport, setSavingReport] = useState(false)
+  const [sendingDigest, setSendingDigest] = useState(false)
+  const [reportMsg, setReportMsg] = useState('')
   const { t } = useTranslation()
   const auth = useAuthStore(s=>({ access: s.access, loading: s.loading }))
 
@@ -28,6 +39,14 @@ export default function Settings(){
     setPrompt(data.custom_system_prompt || '')
     if (data.logo) {
       setLogoPreview(data.logo)
+    }
+    // Load report settings
+    try{
+      const res = await api.get<EmailReportConfig>('/api/clients/email-smtp/config/')
+      setReportEnabled(!!res.data.email_report_enabled)
+      setReportRecipients(Array.isArray(res.data.email_report_recipients) ? res.data.email_report_recipients : [])
+    }catch{
+      // ignore
     }
   }
   useEffect(()=>{ if(auth.access && !auth.loading){ load().catch(()=>{}) } },[auth.access, auth.loading])
@@ -109,6 +128,71 @@ export default function Settings(){
     }
   }
 
+  function isValidEmail(email: string){
+    const v = email.trim()
+    if(!v) return false
+    // basic check (backend will also validate/sanitize)
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
+  }
+
+  function addRecipient(){
+    setReportMsg('')
+    const email = newRecipient.trim()
+    if(!isValidEmail(email)){
+      setReportMsg(t('report_invalid_email'))
+      return
+    }
+    const exists = reportRecipients.some(r => r.toLowerCase() === email.toLowerCase())
+    if(exists){
+      setNewRecipient('')
+      return
+    }
+    if(reportRecipients.length >= 5){
+      setReportMsg(t('report_max_recipients'))
+      return
+    }
+    setReportRecipients(prev => [...prev, email])
+    setNewRecipient('')
+  }
+
+  function removeRecipient(email: string){
+    setReportRecipients(prev => prev.filter(r => r !== email))
+  }
+
+  async function saveReportSettings(){
+    setSavingReport(true)
+    setReportMsg('')
+    try{
+      const payload = {
+        email_report_enabled: reportEnabled,
+        email_report_recipients: reportRecipients,
+      }
+      await api.patch('/api/clients/email-smtp/config/', payload)
+      setReportMsg(t('saved'))
+    }catch(e:any){
+      setReportMsg(e?.response?.data?.error || e.message || 'Save error')
+    }finally{
+      setSavingReport(false)
+    }
+  }
+
+  async function sendDailyReportNow(){
+    setSendingDigest(true)
+    setReportMsg('')
+    try{
+      const { data } = await api.post('/api/clients/reports/daily-digest/send/', {})
+      if(data?.success){
+        setReportMsg(t('report_scheduled'))
+      }else{
+        setReportMsg(data?.error || 'Error')
+      }
+    }catch(e:any){
+      setReportMsg(e?.response?.data?.error || e.message || 'Error')
+    }finally{
+      setSendingDigest(false)
+    }
+  }
+
   return (
     <div className="grid" style={{gap:20}}>
       <div className="card">
@@ -134,6 +218,74 @@ export default function Settings(){
 
 
         {message && <div className="form-message">{message}</div>}
+      </div>
+
+      <div className="card">
+        <h2 style={{marginTop:0}}>{t('report_settings')}</h2>
+
+        <label style={{display:'flex', alignItems:'center', gap:10, marginBottom:12}}>
+          <input
+            type="checkbox"
+            checked={reportEnabled}
+            onChange={(e)=>setReportEnabled(e.target.checked)}
+          />
+          <span>{t('report_enabled')}</span>
+        </label>
+
+        <div className="label">{t('report_recipients')}</div>
+        <div style={{display:'flex', gap:8, marginBottom:10}}>
+          <input
+            className="input"
+            value={newRecipient}
+            placeholder={t('report_email_placeholder')}
+            onChange={(e)=>setNewRecipient(e.target.value)}
+            onKeyDown={(e)=>{
+              if(e.key === 'Enter'){
+                e.preventDefault()
+                addRecipient()
+              }
+            }}
+          />
+          <button className="btn btn--secondary" onClick={addRecipient}>
+            {t('add')}
+          </button>
+        </div>
+
+        {reportRecipients.length > 0 ? (
+          <div style={{display:'flex', flexDirection:'column', gap:6, marginBottom:14}}>
+            {reportRecipients.map((email)=>(
+              <div key={email} style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:10}}>
+                <div style={{fontFamily:'monospace'}}>{email}</div>
+                <button className="btn btn--danger" onClick={()=>removeRecipient(email)}>
+                  {t('remove')}
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{fontSize:'0.9em', color:'#666', marginBottom:14}}>
+            {t('report_no_recipients')}
+          </div>
+        )}
+
+        <div className="form-actions" style={{display:'flex', gap:10, flexWrap:'wrap'}}>
+          <button
+            className="btn btn--primary"
+            onClick={saveReportSettings}
+            disabled={savingReport}
+          >
+            {savingReport ? t('loading') : t('save')}
+          </button>
+          <button
+            className="btn btn--success"
+            onClick={sendDailyReportNow}
+            disabled={sendingDigest}
+          >
+            {sendingDigest ? t('loading') : t('send_daily_report')}
+          </button>
+        </div>
+
+        {reportMsg && <div className="form-message">{reportMsg}</div>}
       </div>
 
 
