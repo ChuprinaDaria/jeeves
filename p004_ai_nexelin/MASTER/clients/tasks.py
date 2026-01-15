@@ -2182,8 +2182,8 @@ def notify_manager_of_escalation(self, conversation_id: int, question_summary: s
             logger.warning(f"No manager Telegram IDs configured for client {client.id}")
             return {"success": False, "error": "No managers configured"}
         
-        # CRITICAL: Filter out IDs that belong to existing customers (not managers)
-        # This prevents accidentally sending escalation to customers who wrote /start
+        # Check if any manager IDs are also customer chat IDs (e.g., manager tested the bot)
+        # We LOG a warning but DON'T filter them out - explicitly configured manager IDs are trusted
         customer_chat_ids = set(
             ClientWhatsAppConversation.objects.filter(
                 client=client,
@@ -2201,23 +2201,16 @@ def notify_manager_of_escalation(self, conversation_id: int, question_summary: s
             except (ValueError, TypeError):
                 continue
         
-        # Filter out customer IDs from manager list
-        valid_manager_ids = [mid for mid in manager_ids if mid not in customer_ids_int]
-        
-        if not valid_manager_ids:
-            logger.error(
-                f"All manager IDs for client {client.id} are customer chat IDs! "
-                f"Manager IDs: {manager_ids}, Customer IDs: {customer_ids_int}. "
-                f"Please configure correct manager Telegram IDs."
+        # Check for overlap but trust explicitly configured manager IDs
+        overlap_ids = [mid for mid in manager_ids if mid in customer_ids_int]
+        if overlap_ids:
+            logger.info(
+                f"Note: Manager IDs {overlap_ids} for client {client.id} also appear as customer chat IDs. "
+                f"This is normal if managers tested the bot. Proceeding with escalation."
             )
-            return {"success": False, "error": "All manager IDs are customer chat IDs - misconfigured"}
         
-        if len(valid_manager_ids) < len(manager_ids):
-            filtered_out = set(manager_ids) - set(valid_manager_ids)
-            logger.warning(
-                f"Filtered out {len(filtered_out)} customer IDs from manager list: {filtered_out}. "
-                f"These IDs belong to existing customers, not managers."
-            )
+        # Use all configured manager IDs (trust explicit configuration)
+        valid_manager_ids = manager_ids
         
         # Check if client has Telegram bot token
         bot_token = client.telegram_bot_token
@@ -2296,7 +2289,6 @@ def notify_manager_of_escalation(self, conversation_id: int, question_summary: s
             "conversation_id": conversation_id,
             "managers_notified": successful,
             "total_managers": len(valid_manager_ids),
-            "filtered_customer_ids": len(manager_ids) - len(valid_manager_ids),
             "results": results
         }
         
