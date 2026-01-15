@@ -704,13 +704,39 @@ class TelegramWebhookView(View):
             message_text = message.get('text', '')
             reply_message_id = reply_to.get('message_id')
             
+            logger.info(f"HITL: Checking if message is manager reply: sender_id={sender_id}, reply_to_msg_id={reply_message_id}")
+            
             if not sender_id or not message_text or not reply_message_id:
+                logger.debug(f"HITL: Missing data - sender_id={sender_id}, text={bool(message_text)}, reply_id={reply_message_id}")
                 return None
             
             # Check if sender is a manager for this client
             manager_ids = client_hint.get_manager_telegram_ids() if hasattr(client_hint, 'get_manager_telegram_ids') else []
+            logger.info(f"HITL: Client {client_hint.id if client_hint else 'None'} manager_ids={manager_ids}, sender_id={sender_id}")
+            
             if sender_id not in manager_ids:
-                return None  # Not a manager, process as regular message
+                logger.info(f"HITL: Sender {sender_id} is NOT in manager list {manager_ids}, checking other clients...")
+                
+                # Try to find ANY client where this sender is a manager with a waiting conversation
+                from MASTER.clients.models import Client
+                for client in Client.objects.filter(hitl_enabled=True):
+                    client_manager_ids = client.get_manager_telegram_ids()
+                    if sender_id in client_manager_ids:
+                        # Found a client where sender is a manager, check for waiting conversations
+                        conv = ClientWhatsAppConversation.objects.filter(
+                            client=client,
+                            is_waiting_for_manager=True,
+                            last_escalation_message_id=str(reply_message_id)
+                        ).first()
+                        if conv:
+                            logger.info(f"HITL: Found waiting conversation {conv.id} for manager {sender_id} on client {client.id}")
+                            client_hint = client
+                            manager_ids = client_manager_ids
+                            break
+                
+                if sender_id not in manager_ids:
+                    logger.debug(f"HITL: Sender {sender_id} is not a manager for any client")
+                    return None  # Not a manager, process as regular message
             
             # Find conversation waiting for this manager's response
             conversation = ClientWhatsAppConversation.objects.filter(
@@ -719,6 +745,8 @@ class TelegramWebhookView(View):
                 last_escalation_message_id=str(reply_message_id)
             ).first()
             
+            logger.info(f"HITL: Looking for conversation with client={client_hint.id}, waiting=True, escalation_msg_id={reply_message_id}")
+            
             if not conversation:
                 # Also try to find by escalation_manager_id
                 conversation = ClientWhatsAppConversation.objects.filter(
@@ -726,9 +754,10 @@ class TelegramWebhookView(View):
                     is_waiting_for_manager=True,
                     escalation_manager_id=str(sender_id)
                 ).first()
+                logger.info(f"HITL: Fallback search by escalation_manager_id={sender_id}, found={conversation is not None}")
             
             if not conversation:
-                logger.debug(f"No waiting conversation found for manager {sender_id} reply")
+                logger.warning(f"HITL: No waiting conversation found for manager {sender_id} reply to message {reply_message_id}")
                 return None  # No matching escalation found
             
             # Process the manager's response
