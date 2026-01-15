@@ -271,15 +271,24 @@ class TelegramWebhookView(View):
             # Check if this is a manager reply to an escalation
             message = data['message']
             reply_to = message.get('reply_to_message')
+            from_user = message.get('from', {})
+            sender_id = from_user.get('id')
+            
+            # First, check if this is a reply to an escalation message
             if reply_to and client_hint:
                 manager_result = self.handle_manager_reply(message, reply_to, client_hint)
                 if manager_result:
                     return manager_result
             
-            message = data['message']
+            # Second, check if sender is a manager with ANY waiting conversation (even without reply)
+            # This handles cases where manager just types a response without using Telegram's "Reply"
+            if sender_id and client_hint:
+                manager_result = self.handle_manager_direct_message(message, sender_id, client_hint)
+                if manager_result:
+                    return manager_result
+            
             chat_id = message.get('chat', {}).get('id')
             message_text = message.get('text', '')
-            from_user = message.get('from', {})
             username = from_user.get('username', '')
             first_name = from_user.get('first_name', '')
             
@@ -781,6 +790,84 @@ class TelegramWebhookView(View):
             logger.error(f"Error handling manager reply: {e}", exc_info=True)
             return None
     
+    def handle_manager_direct_message(self, message, sender_id, client_hint):
+        """
+        Handle manager's direct message (not a reply) when there's a waiting conversation.
+        
+        This handles cases where manager just types their response without using 
+        Telegram's "Reply" feature.
+        
+        Returns HttpResponse if this was a manager message for escalation, None otherwise.
+        """
+        try:
+            message_text = message.get('text', '')
+            if not message_text:
+                return None
+            
+            # Check if sender is a manager for this client or any HITL-enabled client
+            from MASTER.clients.models import Client
+            
+            manager_client = None
+            manager_ids = []
+            
+            # First check current client_hint
+            if client_hint and hasattr(client_hint, 'get_manager_telegram_ids'):
+                manager_ids = client_hint.get_manager_telegram_ids()
+                if sender_id in manager_ids:
+                    manager_client = client_hint
+            
+            # If not found, search all HITL-enabled clients
+            if not manager_client:
+                for client in Client.objects.filter(hitl_enabled=True):
+                    client_manager_ids = client.get_manager_telegram_ids()
+                    if sender_id in client_manager_ids:
+                        manager_client = client
+                        manager_ids = client_manager_ids
+                        break
+            
+            if not manager_client:
+                return None  # Not a manager
+            
+            # Find the most recent conversation waiting for this manager's response
+            conversation = ClientWhatsAppConversation.objects.filter(
+                client=manager_client,
+                is_waiting_for_manager=True,
+                escalation_manager_id=str(sender_id)
+            ).order_by('-updated_at').first()
+            
+            if not conversation:
+                # Try any waiting conversation for this client
+                conversation = ClientWhatsAppConversation.objects.filter(
+                    client=manager_client,
+                    is_waiting_for_manager=True
+                ).order_by('-updated_at').first()
+            
+            if not conversation:
+                logger.debug(f"HITL: Manager {sender_id} sent message but no waiting conversations found")
+                return None
+            
+            logger.info(f"HITL: Manager {sender_id} sent direct message for conversation {conversation.id}")
+            
+            # Process the manager's response
+            from MASTER.clients.tasks import process_manager_hitl_response
+            
+            # Send confirmation to manager
+            bot_token = manager_client.telegram_bot_token
+            if bot_token:
+                chat_id = message.get('chat', {}).get('id')
+                customer_id = conversation.customer_phone or conversation.telegram_chat_id or f"Conv #{conversation.id}"
+                confirm_msg = f"✅ Got it! Sending your response to customer {customer_id}..."
+                send_telegram_message(bot_token, chat_id, confirm_msg)
+            
+            # Process asynchronously
+            process_manager_hitl_response.delay(conversation.id, message_text, sender_id)
+            
+            return HttpResponse("OK")
+            
+        except Exception as e:
+            logger.error(f"Error handling manager direct message: {e}", exc_info=True)
+            return None
+    
     def handle_callback_query(self, callback_query, client_hint=None):
         """
         Обробляє callback_query від Telegram (натискання на кнопки)
@@ -943,19 +1030,32 @@ class TelegramWebhookView(View):
             
             # HITL: Check if conversation is waiting for manager response
             if getattr(conversation, 'is_waiting_for_manager', False):
-                # Get waiting message based on language
-                waiting_messages = {
-                    'en': "I'm still waiting for confirmation from my colleague. Please hold on, I'll get back to you shortly.",
-                    'de': "Ich warte noch auf die Bestätigung von meinem Kollegen. Bitte warten Sie einen Moment.",
-                    'fr': "J'attends toujours la confirmation de mon collègue. Veuillez patienter.",
-                    'es': "Todavía estoy esperando la confirmación de mi colega. Por favor espere un momento.",
-                    'it': "Sto ancora aspettando la conferma dal mio collega. Attenda un momento per favore.",
-                    'nl': "Ik wacht nog op bevestiging van mijn collega. Even geduld alstublieft.",
-                    'da': "Jeg venter stadig på bekræftelse fra min kollega. Vent venligst et øjeblik.",
-                    'uk': "I'm still checking with my colleague. Please wait a moment.",
-                }
-                lang = getattr(conversation, 'language', 'en') or 'en'
-                return waiting_messages.get(lang, waiting_messages['en'])
+                # Check timeout - if waiting for more than 30 minutes, cancel waiting state
+                from datetime import timedelta
+                timeout_minutes = 30
+                escalation_timeout = timezone.now() - timedelta(minutes=timeout_minutes)
+                
+                if conversation.updated_at and conversation.updated_at < escalation_timeout:
+                    # Timeout reached - reset waiting state and continue with normal response
+                    logger.info(f"HITL: Timeout reached for conversation {conversation.id}, resetting waiting state")
+                    conversation.is_waiting_for_manager = False
+                    conversation.manager_escalation_context = ''
+                    conversation.save(update_fields=['is_waiting_for_manager', 'manager_escalation_context', 'updated_at'])
+                    # Continue to generate normal response below
+                else:
+                    # Still within timeout - return waiting message
+                    waiting_messages = {
+                        'en': "I'm still waiting for confirmation from my colleague. Please hold on, I'll get back to you shortly.",
+                        'de': "Ich warte noch auf die Bestätigung von meinem Kollegen. Bitte warten Sie einen Moment.",
+                        'fr': "J'attends toujours la confirmation de mon collègue. Veuillez patienter.",
+                        'es': "Todavía estoy esperando la confirmación de mi colega. Por favor espere un momento.",
+                        'it': "Sto ancora aspettando la conferma dal mio collega. Attenda un momento per favore.",
+                        'nl': "Ik wacht nog op bevestiging van mijn collega. Even geduld alstublieft.",
+                        'da': "Jeg venter stadig på bekræftelse fra min kollega. Vent venligst et øjeblik.",
+                        'uk': "I'm still checking with my colleague. Please wait a moment.",
+                    }
+                    lang = getattr(conversation, 'language', 'en') or 'en'
+                    return waiting_messages.get(lang, waiting_messages['en'])
             
             # Формуємо контекст з історії розмови
             context_messages = []
