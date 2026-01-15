@@ -489,18 +489,10 @@ def check_inactive_chat_sessions():
         Q(last_activity_at__isnull=True, updated_at__lte=twenty_minutes_ago)
     )
     
-    # Send rating request after 5 minutes
-    rating_requests_sent = 0
-    for conversation in inactive_5min:
-        if not conversation.user_rating and not conversation.rating_request_sent:
-            # Disabled to eliminate "spammy" messages.
-            # We keep passive rating + AI auto-rating only.
-            # send_rating_request.delay(conversation.id)
-            # rating_requests_sent += 1
-            pass
+    inactive_count = inactive_20min.count()
     
     # Close and send email after 20 minutes
-    emails_scheduled = 0
+    sessions_closed = 0
     for conversation in inactive_20min:
         # Auto-rate if user hasn't rated yet
         if not conversation.user_rating and not conversation.ai_rating:
@@ -955,15 +947,7 @@ def auto_rate_and_close_session(self, conversation_id: int):
 
 @shared_task(bind=True, max_retries=3)
 def close_session_and_send_email(self, conversation_id: int, force_send: bool = False):
-def close_session_and_send_email(self, conversation_id: int, force_send: bool = False):
     """
-    Close chat session and (optionally) send summary email.
-
-    Refactored to reduce spam:
-    - By default, we DO NOT email every closed session.
-    - Immediate email is sent ONLY when:
-      1) force_send=True (manual trigger), OR
-      2) user_rating/ai_rating is 'negative' (critical alert).
     Close chat session and (optionally) send summary email.
 
     Refactored to reduce spam:
@@ -980,17 +964,6 @@ def close_session_and_send_email(self, conversation_id: int, force_send: bool = 
         conversation = ClientWhatsAppConversation.objects.select_related('client').get(id=conversation_id)
         
         now = timezone.now()
-
-        # CRITICAL: Double-check inactivity before closing/sending (avoid race conditions)
-        if not force_send:
-            twenty_minutes_ago = now - timedelta(minutes=20)
-            last_activity = conversation.last_activity_at or conversation.updated_at
-            if last_activity and last_activity > twenty_minutes_ago:
-                logger.info(
-                    f"Conversation {conversation_id} is still active "
-                    f"(last_activity={last_activity}, now={now}), skipping close/email"
-                )
-                return {"status": "skipped", "message": "Conversation is still active"}
 
         # CRITICAL: Double-check inactivity before closing/sending (avoid race conditions)
         if not force_send:
@@ -1049,43 +1022,7 @@ def close_session_and_send_email(self, conversation_id: int, force_send: bool = 
                 conversation.is_active = False
                 conversation.ended_at = now
                 conversation.save(update_fields=['is_active', 'ended_at'])
-        # Generate summary if not exists - no fallback, must succeed
-        if not conversation.summary:
-            logger.info(f"🔄 Generating summary for conversation {conversation_id} in close_session_and_send_email")
-            summary = generate_chat_summary(conversation)
-            if summary and summary.strip():
-                conversation.summary = summary
-                conversation.save(update_fields=['summary'])
-                logger.info(f"✅ Summary saved for conversation {conversation_id}, length={len(summary)}")
-            else:
-                logger.error(f"❌ Summary generation returned empty for conversation {conversation_id}")
-                raise ValueError(f"Summary generation returned empty for conversation {conversation_id}")
-
-        # Decide whether we should send an email for this conversation
-        is_negative = (conversation.user_rating == 'negative') or (conversation.ai_rating == 'negative')
-        should_send = bool(force_send or is_negative)
-
-        # If we are not sending: just close + keep summary, no email
-        if not should_send:
-            if not force_send:
-                conversation.is_active = False
-                conversation.ended_at = now
-                conversation.save(update_fields=['is_active', 'ended_at'])
-            return {"status": "closed_no_email", "message": "Closed without email (non-critical)"}
-
-        # Respect per-client toggle (manual trigger can override)
-        if not conversation.client.email_report_enabled and not force_send:
-            logger.info(
-                f"Email reports disabled for client {conversation.client.id}; "
-                f"skipping email for conversation {conversation_id}"
-            )
-            if not force_send:
-                conversation.is_active = False
-                conversation.ended_at = now
-                conversation.save(update_fields=['is_active', 'ended_at'])
             return {"status": "skipped", "message": "Email reports disabled"}
-
-        # Validate SMTP only if we are sending
 
         # Validate SMTP only if we are sending
         if not conversation.client.email_smtp_enabled:
@@ -1094,27 +1031,7 @@ def close_session_and_send_email(self, conversation_id: int, force_send: bool = 
                 conversation.is_active = False
                 conversation.ended_at = now
                 conversation.save(update_fields=['is_active', 'ended_at'])
-            if not force_send:
-                conversation.is_active = False
-                conversation.ended_at = now
-                conversation.save(update_fields=['is_active', 'ended_at'])
             return {"status": "skipped", "message": "SMTP not enabled. Check email settings."}
-
-        if (
-            not conversation.client.email_smtp_host
-            or not conversation.client.email_smtp_username
-            or not conversation.client.email_smtp_password
-        ):
-            logger.warning(
-                f"Incomplete SMTP settings for client {conversation.client.id}: "
-                f"host={bool(conversation.client.email_smtp_host)}, "
-                f"username={bool(conversation.client.email_smtp_username)}, "
-                f"password={bool(conversation.client.email_smtp_password)}"
-            )
-            if not force_send:
-                conversation.is_active = False
-                conversation.ended_at = now
-                conversation.save(update_fields=['is_active', 'ended_at'])
 
         if (
             not conversation.client.email_smtp_host
@@ -1147,21 +1064,6 @@ def close_session_and_send_email(self, conversation_id: int, force_send: bool = 
                 conversation.ended_at = now
                 conversation.save(update_fields=['is_active', 'ended_at'])
             return {"status": "skipped", "message": "No email recipients configured"}
-
-        # Use smart recipients list
-        recipients = conversation.client.get_report_recipients() if conversation.client else []
-        if not recipients:
-            fallback_recipient = conversation.client.email_from_address or conversation.client.email_smtp_username
-            if fallback_recipient:
-                recipients = [fallback_recipient]
-
-        if not recipients:
-            logger.warning(f"No email recipients configured for client {conversation.client.id}")
-            if not force_send:
-                conversation.is_active = False
-                conversation.ended_at = now
-                conversation.save(update_fields=['is_active', 'ended_at'])
-            return {"status": "skipped", "message": "No email recipients configured"}
         
         # Generate full chat text
         chat_text = format_chat_as_text(conversation)
@@ -1177,38 +1079,10 @@ def close_session_and_send_email(self, conversation_id: int, force_send: bool = 
         # Update email flags
         email_sent_ok = bool(email_result.get("success") and email_result.get("sent_count", 0) > 0)
         if email_sent_ok:
-
-        subject_prefix = "🔴 URGENT NEGATIVE " if is_negative else ""
-        email_result = send_chat_summary_email(
-            conversation,
-            chat_text,
-            recipients=recipients,
-            subject_prefix=subject_prefix,
-        )
-
-        # Update email flags
-        email_sent_ok = bool(email_result.get("success") and email_result.get("sent_count", 0) > 0)
-        if email_sent_ok:
             conversation.email_sent = True
-            conversation.email_sent_at = now
             conversation.email_sent_at = now
         else:
             conversation.email_sent = False
-
-        update_fields = ['email_sent', 'email_sent_at']
-
-        # Close session only for the inactivity flow
-        if not force_send:
-            conversation.is_active = False
-            conversation.ended_at = now
-            update_fields.extend(['is_active', 'ended_at'])
-
-        conversation.save(update_fields=update_fields)
-
-        return {
-            "status": "success" if email_sent_ok else "partial",
-            "email_result": email_result,
-        }
 
         update_fields = ['email_sent', 'email_sent_at']
 
@@ -1713,7 +1587,6 @@ def format_chat_as_text(conversation):
 
 
 def send_chat_summary_email(conversation, chat_text, recipients=None, subject_prefix: str = ""):
-def send_chat_summary_email(conversation, chat_text, recipients=None, subject_prefix: str = ""):
     """
     Send chat summary email to client recipients with attachment.
     Uses Django's get_connection with client-specific SMTP settings.
@@ -1773,10 +1646,6 @@ def send_chat_summary_email(conversation, chat_text, recipients=None, subject_pr
         )
         
         # Prepare email
-        prefix = (subject_prefix or "").strip()
-        if prefix:
-            prefix = prefix + " "
-        subject = f"{prefix}Chat Session Summary - {conversation.client.company_name}"
         prefix = (subject_prefix or "").strip()
         if prefix:
             prefix = prefix + " "
