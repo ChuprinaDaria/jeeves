@@ -2801,8 +2801,6 @@ class ManualReportView(APIView):
     
     def post(self, request, conversation_id):
         from MASTER.clients.models import ClientWhatsAppConversation
-        from MASTER.clients.tasks import close_session_and_send_email
-        from MASTER.clients.tasks import close_session_and_send_email
         
         client = get_client_from_request(request)
         if not client:
@@ -2822,18 +2820,37 @@ class ManualReportView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        # Manual trigger: schedule task with force_send=True (no spam logic bypassed)
-        close_session_and_send_email.delay(conversation.id, force_send=True)
-
-        return Response(
-            {
-                'success': True,
-                'conversation_id': conversation.id,
-                'scheduled': True,
-                'message': 'Report email scheduled',
-            },
-            status=status.HTTP_202_ACCEPTED,
-        )
+        # Manual trigger: run synchronously to get result immediately
+        from MASTER.clients.tasks import close_session_and_send_email
+        
+        try:
+            result = close_session_and_send_email(conversation.id, force_send=True)
+            
+            email_result = result.get('email_result') if result else None
+            email_sent = email_result.get('success', False) if email_result else False
+            
+            return Response(
+                {
+                    'success': True,
+                    'conversation_id': conversation.id,
+                    'email_sent': email_sent,
+                    'email_result': email_result,
+                    'message': 'Email sent successfully' if email_sent else 'Email sending attempted',
+                },
+                status=status.HTTP_200_OK if email_sent else status.HTTP_202_ACCEPTED,
+            )
+        except Exception as e:
+            logger.error(f"Error sending email for conversation {conversation.id}: {e}", exc_info=True)
+            return Response(
+                {
+                    'success': False,
+                    'conversation_id': conversation.id,
+                    'email_sent': False,
+                    'email_result': {'success': False, 'error': str(e)},
+                    'message': f'Email sending failed: {str(e)}',
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class ConversationNotesView(APIView):
