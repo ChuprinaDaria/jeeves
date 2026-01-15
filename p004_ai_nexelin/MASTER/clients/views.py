@@ -49,6 +49,8 @@ from MASTER.clients.serializers import (
 )
 from MASTER.clients.permissions import IsAdminOrReadOnly, IsClientOwner
 from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 from django.contrib.admin.views.decorators import staff_member_required
 from MASTER.rag.response_generator import ResponseGenerator
 from MASTER.branches.models import Branch
@@ -2550,6 +2552,7 @@ class ClientConversationDetailView(APIView):
                 )
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class ClientWebConversationView(APIView):
     """
     API endpoint для збереження та отримання web розмов
@@ -2560,6 +2563,21 @@ class ClientWebConversationView(APIView):
     Returns new messages if any (for HITL polling)
     """
     permission_classes = []
+    authentication_classes = []  # Явно відключаємо автентифікацію для уникнення CSRF
+    
+    def options(self, request, *args, **kwargs):
+        """Обробка CORS preflight запитів"""
+        # CORS middleware має обробляти це автоматично, але додаємо явну підтримку
+        response = Response()
+        origin = request.headers.get('Origin', '')
+        # Перевіряємо чи origin дозволений (для безпеки)
+        if origin:
+            response['Access-Control-Allow-Origin'] = origin
+            response['Access-Control-Allow-Credentials'] = 'true'
+        response['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+        response['Access-Control-Allow-Headers'] = 'Content-Type, X-Client-Token, X-API-Key, Authorization, Accept'
+        response['Access-Control-Max-Age'] = '86400'
+        return response
     
     def get(self, request):
         """Poll for new messages (especially HITL responses)"""
