@@ -1209,6 +1209,7 @@ class ClientTelegramConfigView(APIView):
             'telegram_enabled': getattr(client, 'telegram_enabled', False),
             'telegram_bot_token': getattr(client, 'telegram_bot_token', ''),
             'telegram_webhook_url': getattr(client, 'telegram_webhook_url', ''),
+            'telegram_welcome_message': getattr(client, 'telegram_welcome_message', ''),
         }
         return Response(data)
 
@@ -1230,6 +1231,7 @@ class ClientTelegramConfigView(APIView):
         updatable = {
             'telegram_enabled',
             'telegram_bot_token',
+            'telegram_welcome_message',
         }
         
         old_token = client.telegram_bot_token

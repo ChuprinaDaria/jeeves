@@ -187,6 +187,10 @@ class Client(models.Model):
     telegram_enabled = models.BooleanField(default=False, help_text="Enable Telegram Bot for this client")
     telegram_bot_token = models.CharField(max_length=255, blank=True, help_text="Telegram Bot Token from @BotFather")
     telegram_webhook_url = models.URLField(blank=True, help_text="Telegram webhook URL (auto-generated)")
+    telegram_welcome_message = models.TextField(
+        blank=True,
+        help_text="Custom welcome message for Telegram bot. Shown when user sends /start. Use {name} for user's first name."
+    )
 
     # Web Widget configuration (only for white label clients)
     widget_enabled = models.BooleanField(default=False, help_text="Enable web widget for white label clients")

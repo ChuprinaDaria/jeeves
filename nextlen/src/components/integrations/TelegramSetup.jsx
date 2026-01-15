@@ -10,6 +10,7 @@ const TelegramSetup = ({ onClose }) => {
   const [form, setForm] = useState({
     telegram_enabled: false,
     telegram_bot_token: '',
+    telegram_welcome_message: '',
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -156,6 +157,23 @@ const TelegramSetup = ({ onClose }) => {
                   className="input"
                   required
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-gray-100">
+                  {t('integrations.welcomeMessage') || 'Welcome Message'}
+                </label>
+                <textarea
+                  name="telegram_welcome_message"
+                  value={form.telegram_welcome_message}
+                  onChange={handleChange}
+                  placeholder={t('integrations.welcomeMessagePlaceholder') || 'Hello {name}! 👋\n\nWelcome to our service! How can I help you today?'}
+                  className="input min-h-[120px] resize-y"
+                  rows={4}
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {t('integrations.welcomeMessageHint') || 'This message is sent when a user starts the bot. Use {name} to include the user\'s name.'}
+                </p>
               </div>
 
               {webhookUrl && (

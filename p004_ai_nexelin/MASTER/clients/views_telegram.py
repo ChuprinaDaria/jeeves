@@ -1291,58 +1291,35 @@ class TelegramWebhookView(View):
     
     def _generate_welcome_message(self, client: Client, first_name: str = None) -> str:
         """
-        Генерує привітальне повідомлення з використанням промпту клієнта через RAG і LLM.
-        Починається з вітання з first_name, решта генерується через LLM на основі промпту клієнта.
-        Використовує тільки RAG і промпт, без додаткового контексту про QR-коди або столики.
+        Генерує привітальне повідомлення для Telegram бота.
+        
+        Пріоритет:
+        1. Кастомне повідомлення з telegram_welcome_message (якщо налаштовано)
+        2. Fallback: базове привітання з назвою компанії
         """
         try:
-            # Початок вітання з first_name
-            greeting_start = f"Привіт{', ' + first_name if first_name else ''}! 👋\n\n"
+            # 1. Перевіряємо чи є кастомне привітання
+            custom_message = getattr(client, 'telegram_welcome_message', '') or ''
+            if custom_message.strip():
+                # Підставляємо {name} якщо є
+                welcome_text = custom_message.strip()
+                if '{name}' in welcome_text:
+                    welcome_text = welcome_text.replace('{name}', first_name or '')
+                # Прибираємо подвійні пробіли якщо name був пустий
+                welcome_text = ' '.join(welcome_text.split())
+                logger.info(f"Using custom welcome message for client: {client.company_name}")
+                return welcome_text
             
-            # Генеруємо решту вітання через LLM з використанням промпту клієнта
-            try:
-                from MASTER.rag.llm_client import LLMClient
-                
-                llm_client = LLMClient()
-                
-                # Створюємо запит для генерації вітання
-                welcome_query = "Створи коротке привітальне повідомлення для нового користувача. Повідомлення має бути дружнім, професійним та відповідати твоїй особистості та стилю спілкування згідно з твоїм промптом. Включи інформацію про те, як користувач може почати роботу."
-                
-                # Генеруємо відповідь через LLM з використанням промпту клієнта
-                llm_result = llm_client.generate_response(
-                    user_query=welcome_query,
-                    context="",  # Для вітання контекст не потрібен
-                    client=client,
-                    specialization=client.specialization if hasattr(client, 'specialization') else None,
-                    branch=client.branch if hasattr(client, 'branch') else None,
-                    stream=False
-                )
-                
-                # Обробляємо результат (може бути dict або str)
-                if isinstance(llm_result, dict):
-                    welcome_body = llm_result.get('content', '')
-                else:
-                    welcome_body = str(llm_result)
-                
-                if welcome_body:
-                    # Об'єднуємо вітання з first_name та згенерований текст
-                    welcome_text = greeting_start + welcome_body.strip()
-                    logger.info(f"Generated welcome message via LLM for client: {client.company_name}")
-                    return welcome_text
-                
-            except Exception as e:
-                logger.warning(f"Failed to generate welcome message via LLM: {e}", exc_info=True)
+            # 2. Fallback: базове привітання (якщо кастомне не налаштовано)
+            greeting = f"Привіт{', ' + first_name if first_name else ''}! 👋\n\n"
+            fallback_text = greeting + f"Вітаємо в {client.company_name}!\n\nЧим можу допомогти?"
             
-            # Fallback: якщо LLM не спрацював, використовуємо мінімальне вітання
-            fallback_text = greeting_start + f"Вітаємо в {client.company_name}!\n\n"
-            fallback_text += "Чим можу допомогти?"
-            
-            logger.info(f"Using fallback welcome message for client: {client.company_name}")
+            logger.info(f"Using default welcome message for client: {client.company_name} (no custom message configured)")
             return fallback_text
             
         except Exception as e:
             logger.error(f"Error generating welcome message: {e}", exc_info=True)
-            # Останній fallback
+            # Останній fallback при помилці
             greeting = f"Привіт{', ' + first_name if first_name else ''}! 👋\n\n"
             return greeting + f"Вітаємо в {client.company_name}. Чим можу допомогти?"
 
