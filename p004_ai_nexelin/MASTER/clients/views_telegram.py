@@ -1151,6 +1151,10 @@ class TelegramWebhookView(View):
                 conversation.language = language
                 conversation.save(update_fields=['language'])
             
+            # Real-time negative sentiment detection
+            # Check user message for negative indicators and trigger immediate alert
+            self._check_realtime_negative_sentiment(conversation, message_body)
+            
             return response_text
             
         except Exception as e:
@@ -1322,4 +1326,59 @@ class TelegramWebhookView(View):
             # Останній fallback при помилці
             greeting = f"Привіт{', ' + first_name if first_name else ''}! 👋\n\n"
             return greeting + f"Вітаємо в {client.company_name}. Чим можу допомогти?"
+    
+    def _check_realtime_negative_sentiment(self, conversation, user_message: str):
+        """
+        Real-time check for obvious negative sentiment in user messages.
+        Triggers immediate alert if strong negative indicators are detected.
+        
+        This is a quick keyword-based check for obvious cases.
+        The full AI-based rating happens after 20 min inactivity.
+        """
+        try:
+            if not user_message or conversation.ai_rating == 'negative':
+                return  # Already negative or no message
+            
+            message_lower = user_message.lower()
+            
+            # Strong negative indicators (multi-language)
+            negative_phrases = [
+                # English
+                "don't like", "dont like", "not happy", "unhappy", "frustrated",
+                "angry", "terrible", "horrible", "awful", "worst", "hate",
+                "disappointed", "useless", "waste of time", "doesn't work",
+                "not working", "broken", "stupid", "idiot", "ridiculous",
+                "unacceptable", "disgusting", "pathetic", "complaint",
+                # Ukrainian
+                "не подобається", "незадоволен", "розчарован", "злий", "жахлив",
+                "огидн", "безнадійн", "марн", "не працює", "зламан", "дурн",
+                "неприйнятн", "скарг",
+                # German
+                "nicht zufrieden", "enttäuscht", "frustriert", "wütend", "schrecklich",
+                "furchtbar", "nutzlos", "funktioniert nicht", "kaputt", "dumm",
+                "unakzeptabel", "beschwerde",
+                # French
+                "pas content", "mécontent", "déçu", "frustré", "en colère", "terrible",
+                "horrible", "inutile", "ne fonctionne pas", "cassé", "stupide",
+                "inacceptable", "plainte",
+            ]
+            
+            # Check for negative indicators
+            is_negative = any(phrase in message_lower for phrase in negative_phrases)
+            
+            if is_negative:
+                logger.info(f"🔴 Real-time NEGATIVE detected in conversation {conversation.id}: '{user_message[:100]}...'")
+                
+                # Update ai_rating to negative
+                conversation.ai_rating = 'negative'
+                conversation.rating_timestamp = timezone.now()
+                conversation.save(update_fields=['ai_rating', 'rating_timestamp', 'updated_at'])
+                
+                # Trigger immediate email alert
+                from MASTER.clients.tasks import close_session_and_send_email
+                close_session_and_send_email.delay(conversation.id, force_send=True)
+                logger.info(f"🔴 Immediate alert email triggered for conversation {conversation.id}")
+                
+        except Exception as e:
+            logger.warning(f"Error in real-time sentiment check: {e}", exc_info=True)
 
