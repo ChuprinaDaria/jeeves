@@ -371,6 +371,12 @@ CORS_ALLOWED_ORIGINS = [
     "https://w020c360.kasserver.com",
 ]
 
+# Allow any Nexelin subdomain (useful for white-label + app/api)
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https:\/\/.*\.nexelin\.com$",
+    r"^https:\/\/app\.nexelin\.com$",
+]
+
 # Додатково дозволяємо домени через змінну середовища (для динамічного додавання)
 CORS_EXTRA_ORIGINS = env.list("CORS_EXTRA_ORIGINS", default=[])
 if CORS_EXTRA_ORIGINS:

@@ -2892,34 +2892,36 @@ class ManualReportView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        # Manual trigger: run synchronously to get result immediately
+        # Manual trigger: schedule async task to avoid gateway timeout
         from MASTER.clients.tasks import close_session_and_send_email
         
         try:
-            result = close_session_and_send_email(conversation.id, force_send=True)
-            
-            email_result = result.get('email_result') if result else None
-            email_sent = email_result.get('success', False) if email_result else False
-            
+            async_result = close_session_and_send_email.delay(conversation.id, force_send=True)
             return Response(
                 {
                     'success': True,
                     'conversation_id': conversation.id,
-                    'email_sent': email_sent,
-                    'email_result': email_result,
-                    'message': 'Email sent successfully' if email_sent else 'Email sending attempted',
+                    'scheduled': True,
+                    'task_id': getattr(async_result, 'id', None),
+                    'email_sent': False,
+                    'email_result': {
+                        'success': True,
+                        'message': 'Email sending scheduled',
+                    },
+                    'message': 'Email scheduled for sending',
                 },
-                status=status.HTTP_200_OK if email_sent else status.HTTP_202_ACCEPTED,
+                status=status.HTTP_202_ACCEPTED,
             )
         except Exception as e:
-            logger.error(f"Error sending email for conversation {conversation.id}: {e}", exc_info=True)
+            logger.error(f"Error scheduling email for conversation {conversation.id}: {e}", exc_info=True)
             return Response(
                 {
                     'success': False,
                     'conversation_id': conversation.id,
+                    'scheduled': False,
                     'email_sent': False,
                     'email_result': {'success': False, 'error': str(e)},
-                    'message': f'Email sending failed: {str(e)}',
+                    'message': f'Email scheduling failed: {str(e)}',
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )

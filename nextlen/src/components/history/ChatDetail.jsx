@@ -146,6 +146,13 @@ const ChatDetail = ({ chat }) => {
         return;
       }
       
+      // Якщо email запланований (async)
+      if (response.data?.scheduled === true) {
+        console.log('⏳ Email scheduled for sending');
+        alert(t('history.emailScheduled') || 'Email scheduled for sending');
+        return;
+      }
+      
       // Перевіряємо, чи email був відправлений
       if (response.data?.email_sent === true) {
         console.log('✅ Email sent successfully');

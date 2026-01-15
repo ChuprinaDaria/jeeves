@@ -1857,8 +1857,14 @@ def _send_daily_digest_email(
     """Send ONE digest email per client (one message, multiple attachments)."""
     from django.core.mail import get_connection, EmailMultiAlternatives
 
-    use_tls = client.email_smtp_use_tls
-    use_ssl = (not use_tls) and int(getattr(client, 'email_smtp_port', 0) or 0) == 465
+    port = int(getattr(client, 'email_smtp_port', 0) or 0)
+    # Port 465 = SSL (implicit TLS), should NOT use STARTTLS
+    if port == 465:
+        use_ssl = True
+        use_tls = False
+    else:
+        use_tls = client.email_smtp_use_tls
+        use_ssl = False
 
     from_email = client.email_from_address or client.email_smtp_username
     from_name = client.email_from_name or client.company_name or "AI Assistant"
