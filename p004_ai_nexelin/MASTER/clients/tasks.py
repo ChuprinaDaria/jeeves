@@ -1619,8 +1619,14 @@ def send_chat_summary_email(conversation, chat_text, recipients=None, subject_pr
         # Determine use_tls and use_ssl based on client settings
         # If use_tls is True, use STARTTLS (port 587)
         # If use_tls is False and port is 465, use SSL
-        use_tls = conversation.client.email_smtp_use_tls
-        use_ssl = not use_tls and conversation.client.email_smtp_port == 465
+        port = int(getattr(conversation.client, 'email_smtp_port', 0) or 0)
+        if port == 465:
+            # SSL (implicit TLS) for port 465
+            use_ssl = True
+            use_tls = False
+        else:
+            use_tls = conversation.client.email_smtp_use_tls
+            use_ssl = False
         
         # Get from_email address
         from_email = conversation.client.email_from_address or conversation.client.email_smtp_username
@@ -1643,6 +1649,7 @@ def send_chat_summary_email(conversation, chat_text, recipients=None, subject_pr
             password=conversation.client.email_smtp_password,
             use_tls=use_tls,
             use_ssl=use_ssl,
+            timeout=30,
         )
         
         # Prepare email
