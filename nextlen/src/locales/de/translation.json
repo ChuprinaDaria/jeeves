@@ -381,6 +381,8 @@
     "reportSendError": "Tagesbericht konnte nicht geplant werden",
     "reportInvalidEmail": "Ungültige E-Mail-Adresse",
     "reportMaxRecipients": "Sie können bis zu 5 Empfänger hinzufügen",
+    "notificationLanguageLabel": "Benachrichtigungssprache",
+    "notificationLanguageDescription": "Sprache für Tagesberichte, E-Mail-Benachrichtigungen und Manager-Nachrichten. Kunden-Chat-Antworten verwenden die Sprache des Kunden.",
     "accountInfo": "Kontoinformationen",
     "salonName": "Firmenname",
     "email": "E-Mail",

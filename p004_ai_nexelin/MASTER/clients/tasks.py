@@ -988,10 +988,13 @@ def close_session_and_send_email(self, conversation_id: int, force_send: bool = 
             logger.info(f"Conversation {conversation_id} email already sent, skipping")
             return {"status": "skipped", "message": "Email already sent"}
         
+        # Get notification language for reports
+        notification_lang = getattr(conversation.client, 'notification_language', 'en') or 'en'
+        
         # Generate summary if not exists - no fallback, must succeed
         if not conversation.summary:
-            logger.info(f"🔄 Generating summary for conversation {conversation_id} in close_session_and_send_email")
-            summary = generate_chat_summary(conversation)
+            logger.info(f"🔄 Generating summary for conversation {conversation_id} in close_session_and_send_email (lang={notification_lang})")
+            summary = generate_chat_summary(conversation, report_language=notification_lang)
             if summary and summary.strip():
                 conversation.summary = summary
                 conversation.save(update_fields=['summary'])
@@ -1107,12 +1110,18 @@ def close_session_and_send_email(self, conversation_id: int, force_send: bool = 
         raise self.retry(exc=e, countdown=300)  # Retry after 5 minutes
 
 
-def generate_chat_summary(conversation):
+def generate_chat_summary(conversation, report_language: str = None):
     """
     Generate AI summary of the conversation.
     Only includes messages from this session (between started_at and ended_at/now).
     Uses conversationmessage_set.all() to get messages from database.
     ALWAYS returns a summary - never returns None or empty string.
+    
+    Args:
+        conversation: ClientWhatsAppConversation instance
+        report_language: Optional language code (en, de, fr, es, it, nl, da) to use for the summary.
+                        If not provided, language is auto-detected from messages.
+                        Use client.notification_language for owner/manager reports.
     """
     from MASTER.rag.llm_client import LLMClient
     from django.utils import timezone
@@ -1211,11 +1220,16 @@ def generate_chat_summary(conversation):
         logger.error(f"❌ Error formatting messages for conversation {conversation.id}: {str(e)}", exc_info=True)
         raise ValueError(f"Error formatting messages: {str(e)}")
     
-    # Detect language from messages
-    # Convert session_messages to format expected by detect_language_from_messages
-    messages_for_detection = session_messages if isinstance(session_messages, list) else list(session_messages)
-    detected_language = detect_language_from_messages(messages_for_detection)
-    language = detected_language if detected_language else (conversation.language or 'en')
+    # Determine language for summary
+    # If report_language is provided (for owner/manager reports), use it
+    # Otherwise, auto-detect from conversation messages
+    if report_language:
+        language = report_language
+    else:
+        # Detect language from messages
+        messages_for_detection = session_messages if isinstance(session_messages, list) else list(session_messages)
+        detected_language = detect_language_from_messages(messages_for_detection)
+        language = detected_language if detected_language else (conversation.language or 'en')
     
     lang_map = {
         'uk': 'Ukrainian',
@@ -1813,15 +1827,43 @@ def _get_last_user_quote(conversation, max_len: int = 180) -> str:
     return ""
 
 
-def _generate_daily_meta_summary(client, summaries: list[str]) -> str:
+def _generate_daily_meta_summary(client, summaries: list[str], language: str = None) -> str:
     """
     Generate a "Daily Meta-Summary" via the existing LLM client.
     Keep the prompt short and token-safe.
+    
+    Args:
+        client: Client instance
+        summaries: List of individual chat summaries
+        language: Language code for the summary (defaults to client.notification_language or 'en')
     """
     if not summaries:
-        return "No chats for today."
+        lang = language or getattr(client, 'notification_language', 'en') or 'en'
+        no_chats_msg = {
+            'en': "No chats for today.",
+            'de': "Heute keine Chats.",
+            'fr': "Pas de chats aujourd'hui.",
+            'es': "Sin chats hoy.",
+            'it': "Nessuna chat oggi.",
+            'nl': "Geen chats vandaag.",
+            'da': "Ingen chats i dag.",
+        }
+        return no_chats_msg.get(lang, "No chats for today.")
 
     from MASTER.rag.llm_client import LLMClient
+
+    # Determine language for meta-summary
+    lang = language or getattr(client, 'notification_language', 'en') or 'en'
+    lang_map = {
+        'en': 'English',
+        'de': 'German',
+        'fr': 'French',
+        'es': 'Spanish',
+        'it': 'Italian',
+        'nl': 'Dutch',
+        'da': 'Danish',
+    }
+    lang_name = lang_map.get(lang, 'English')
 
     # Token safety: include up to 40 short summaries
     clipped = [s.strip() for s in summaries if s and s.strip()]
@@ -1829,14 +1871,14 @@ def _generate_daily_meta_summary(client, summaries: list[str]) -> str:
     clipped = [s[:240] + ("…" if len(s) > 240 else "") for s in clipped]
 
     prompt = (
-        "You are preparing a daily digest for a business owner.\n"
-        "Based on the chat summaries below, write a short meta-summary with:\n"
-        "1) Most frequent topics\n"
-        "2) Overall sentiment\n"
-        "3) Business advice / next actions\n\n"
-        "Chat summaries:\n"
+        f"You are preparing a daily digest for a business owner.\n"
+        f"Based on the chat summaries below, write a short meta-summary with:\n"
+        f"1) Most frequent topics\n"
+        f"2) Overall sentiment\n"
+        f"3) Business advice / next actions\n\n"
+        f"Chat summaries:\n"
         + "\n".join([f"- {s}" for s in clipped])
-        + "\n\nRespond concisely in English."
+        + f"\n\nRespond concisely in {lang_name}."
     )
 
     llm = LLMClient()
@@ -1908,7 +1950,7 @@ def _send_daily_digest_email(
 
 
 @shared_task
-def send_daily_digest(manual: bool = False):
+def send_daily_digest(manual: bool = False, client_id: int = None):
     """
     Daily digest at 17:00 (scheduled via CELERY_BEAT_SCHEDULE).
 
@@ -1920,6 +1962,8 @@ def send_daily_digest(manual: bool = False):
     Args:
         manual: If True, uses last 24 hours instead of today 09:00-17:00 window.
                 This allows immediate testing without waiting for scheduled time.
+        client_id: If provided, only send digest for this specific client.
+                   If None, send to all clients with email_report_enabled=True.
     """
     from datetime import datetime, time, timedelta
     from django.utils import timezone
@@ -1935,7 +1979,7 @@ def send_daily_digest(manual: bool = False):
         start = now - timedelta(hours=24)
         end = now
         today = timezone.localdate()
-        logger.info(f"📊 Manual daily digest triggered: {start} to {end}")
+        logger.info(f"📊 Manual daily digest triggered: {start} to {end}" + (f" for client_id={client_id}" if client_id else " for ALL clients"))
     else:
         # Scheduled: today 09:00 -> 17:00 (or now if before 17:00)
         today = timezone.localdate()
@@ -1946,7 +1990,12 @@ def send_daily_digest(manual: bool = False):
 
     results: list[dict] = []
 
-    clients = Client.objects.filter(email_report_enabled=True).select_related('active_custom_prompt')
+    # Filter clients: specific client or all with reports enabled
+    if client_id:
+        clients = Client.objects.filter(id=client_id, email_report_enabled=True).select_related('active_custom_prompt')
+    else:
+        clients = Client.objects.filter(email_report_enabled=True).select_related('active_custom_prompt')
+    
     for client in clients:
         # Only send if SMTP is usable
         if not client.email_smtp_enabled:
@@ -1997,12 +2046,16 @@ def send_daily_digest(manual: bool = False):
             platform = _get_conversation_platform(conv)
             platform_counts[platform] = platform_counts.get(platform, 0) + 1
 
+        # Get notification language for reports
+        notification_lang = getattr(client, 'notification_language', 'en') or 'en'
+        
         # Ensure summaries exist + collect them
         summaries: list[str] = []
         for conv in conversations:
             if not (conv.summary or '').strip():
                 try:
-                    summary = generate_chat_summary(conv)
+                    # Generate summary in notification language for owner reports
+                    summary = generate_chat_summary(conv, report_language=notification_lang)
                     if summary and summary.strip():
                         conv.summary = summary.strip()
                         conv.save(update_fields=['summary'])
@@ -2011,7 +2064,7 @@ def send_daily_digest(manual: bool = False):
             if (conv.summary or '').strip():
                 summaries.append(conv.summary.strip())
 
-        meta_summary = _generate_daily_meta_summary(client, summaries)
+        meta_summary = _generate_daily_meta_summary(client, summaries, language=notification_lang)
 
         # Highlight positives (top 5 by rating_timestamp, fallback started_at)
         positives = sorted(
@@ -2235,20 +2288,108 @@ def notify_manager_of_escalation(self, conversation_id: int, question_summary: s
         customer_id = conversation.customer_phone or conversation.telegram_chat_id or f"Conv #{conversation.id}"
         platform = conversation.context_metadata.get('platform', 'unknown') if conversation.context_metadata else 'unknown'
         
+        # Get last 3 messages from conversation for context
+        recent_context = ""
+        if conversation.messages and isinstance(conversation.messages, list):
+            # Take only last 3 messages
+            last_messages = conversation.messages[-3:]
+            context_lines = []
+            for msg in last_messages:
+                if isinstance(msg, dict):
+                    role = msg.get('role', 'unknown').upper()
+                    content = msg.get('content', '')[:300]  # Limit each message to 300 chars
+                    if content:
+                        context_lines.append(f"<b>{role}:</b> {escape_html(content)}")
+            if context_lines:
+                recent_context = "\n".join(context_lines)
+        
         # Escape special characters in user-provided content
         escaped_company = escape_html(client.company_name)
         escaped_customer = escape_html(str(customer_id))
-        escaped_question = escape_html(question_summary)
         
-        message = (
-            f"🆘 <b>ESCALATION NEEDED</b>\n\n"
-            f"<b>Client:</b> {escaped_company}\n"
-            f"<b>Customer:</b> {escaped_customer}\n"
-            f"<b>Platform:</b> {platform}\n"
-            f"<b>Conversation ID:</b> {conversation.id}\n\n"
-            f"<b>Question:</b>\n{escaped_question}\n\n"
-            f"💬 Reply to this message with your answer. The AI will rephrase it and send to the customer."
-        )
+        # Get notification language for manager messages
+        notification_lang = getattr(client, 'notification_language', 'en') or 'en'
+        
+        # Localized message templates with last 3 messages context
+        context_label = {
+            'en': 'Recent conversation (last 3 messages)',
+            'de': 'Letzte Unterhaltung (letzte 3 Nachrichten)',
+            'fr': 'Conversation récente (3 derniers messages)',
+            'es': 'Conversación reciente (últimos 3 mensajes)',
+            'it': 'Conversazione recente (ultimi 3 messaggi)',
+            'nl': 'Recente conversatie (laatste 3 berichten)',
+            'da': 'Seneste samtale (sidste 3 beskeder)',
+        }
+        
+        context_section = f"\n\n<b>{context_label.get(notification_lang, context_label['en'])}:</b>\n{recent_context}" if recent_context else ""
+        
+        escalation_messages = {
+            'en': (
+                f"🆘 <b>ESCALATION NEEDED</b>\n\n"
+                f"<b>Client:</b> {escaped_company}\n"
+                f"<b>Customer:</b> {escaped_customer}\n"
+                f"<b>Platform:</b> {platform}\n"
+                f"<b>Conversation ID:</b> {conversation.id}"
+                f"{context_section}\n\n"
+                f"💬 Reply to this message with your answer. The AI will rephrase it and send to the customer."
+            ),
+            'de': (
+                f"🆘 <b>ESKALATION ERFORDERLICH</b>\n\n"
+                f"<b>Kunde:</b> {escaped_company}\n"
+                f"<b>Kundenanfrage:</b> {escaped_customer}\n"
+                f"<b>Plattform:</b> {platform}\n"
+                f"<b>Konversations-ID:</b> {conversation.id}"
+                f"{context_section}\n\n"
+                f"💬 Antworten Sie auf diese Nachricht. Die KI wird Ihre Antwort umformulieren und an den Kunden senden."
+            ),
+            'fr': (
+                f"🆘 <b>ESCALADE NÉCESSAIRE</b>\n\n"
+                f"<b>Client:</b> {escaped_company}\n"
+                f"<b>Demande client:</b> {escaped_customer}\n"
+                f"<b>Plateforme:</b> {platform}\n"
+                f"<b>ID Conversation:</b> {conversation.id}"
+                f"{context_section}\n\n"
+                f"💬 Répondez à ce message. L'IA reformulera votre réponse et l'enverra au client."
+            ),
+            'es': (
+                f"🆘 <b>ESCALACIÓN REQUERIDA</b>\n\n"
+                f"<b>Cliente:</b> {escaped_company}\n"
+                f"<b>Usuario:</b> {escaped_customer}\n"
+                f"<b>Plataforma:</b> {platform}\n"
+                f"<b>ID de conversación:</b> {conversation.id}"
+                f"{context_section}\n\n"
+                f"💬 Responda a este mensaje con su respuesta. La IA la reformulará y se la enviará al cliente."
+            ),
+            'it': (
+                f"🆘 <b>ESCALATION RICHIESTA</b>\n\n"
+                f"<b>Cliente:</b> {escaped_company}\n"
+                f"<b>Richiesta:</b> {escaped_customer}\n"
+                f"<b>Piattaforma:</b> {platform}\n"
+                f"<b>ID Conversazione:</b> {conversation.id}"
+                f"{context_section}\n\n"
+                f"💬 Rispondi a questo messaggio. L'IA riformulerà la tua risposta e la invierà al cliente."
+            ),
+            'nl': (
+                f"🆘 <b>ESCALATIE NODIG</b>\n\n"
+                f"<b>Klant:</b> {escaped_company}\n"
+                f"<b>Aanvraag:</b> {escaped_customer}\n"
+                f"<b>Platform:</b> {platform}\n"
+                f"<b>Conversatie-ID:</b> {conversation.id}"
+                f"{context_section}\n\n"
+                f"💬 Beantwoord dit bericht. De AI zal uw antwoord herformuleren en naar de klant sturen."
+            ),
+            'da': (
+                f"🆘 <b>ESKALERING NØDVENDIG</b>\n\n"
+                f"<b>Kunde:</b> {escaped_company}\n"
+                f"<b>Forespørgsel:</b> {escaped_customer}\n"
+                f"<b>Platform:</b> {platform}\n"
+                f"<b>Samtale-ID:</b> {conversation.id}"
+                f"{context_section}\n\n"
+                f"💬 Besvar denne besked. AI'en vil omformulere dit svar og sende det til kunden."
+            ),
+        }
+        
+        message = escalation_messages.get(notification_lang, escalation_messages['en'])
         
         # Send to all valid managers (not customers)
         results = []
@@ -2384,6 +2525,11 @@ Respond in the same language as the customer's question."""
             # This is a placeholder - implement based on your WhatsApp integration
             logger.info(f"WhatsApp response would be sent to {conversation.customer_phone}")
             send_success = True  # Assume success for now, implement WhatsApp sending
+        elif platform in ('web', 'web_widget', 'iframe'):
+            # For web chat, the message is saved to conversation.messages
+            # and the client will receive it via polling/API call
+            logger.info(f"Web chat HITL response saved for conversation {conversation_id}, client will receive via polling")
+            send_success = True
         else:
             logger.warning(f"Unknown platform {platform} for conversation {conversation_id}")
         

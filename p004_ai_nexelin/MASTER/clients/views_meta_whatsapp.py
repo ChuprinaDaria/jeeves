@@ -419,7 +419,7 @@ class MetaWhatsAppWebhookView(View):
                     'en': "I'm still waiting for confirmation from my colleague. Please hold on, I'll get back to you shortly.",
                     'de': "Ich warte noch auf die Bestätigung von meinem Kollegen. Bitte warten Sie einen Moment.",
                     'fr': "J'attends toujours la confirmation de mon collègue. Veuillez patienter.",
-                    'es': "Todavía estoy esperando la confirmación de mi colega. Por favor espere un momento.",
+                    'es': "Sigo esperando la confirmación de un colega. Por favor, espere un momento; le responderé en breve.",
                     'it': "Sto ancora aspettando la conferma dal mio collega. Attenda un momento per favore.",
                     'nl': "Ik wacht nog op bevestiging van mijn collega. Even geduld alstublieft.",
                     'da': "Jeg venter stadig på bekræftelse fra min kollega. Vent venligst et øjeblik.",

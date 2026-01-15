@@ -1306,6 +1306,7 @@ class ClientEmailSMTPConfigView(APIView):
             'email_from_name': getattr(client, 'email_from_name', ''),
             'email_report_enabled': getattr(client, 'email_report_enabled', False),
             'email_report_recipients': getattr(client, 'email_report_recipients', []),
+            'notification_language': getattr(client, 'notification_language', 'en'),
             'password_configured': bool(getattr(client, 'email_smtp_password', '')),  # Flag if password exists
         }
         return Response(data)
@@ -1337,6 +1338,7 @@ class ClientEmailSMTPConfigView(APIView):
             'email_from_name',
             'email_report_enabled',
             'email_report_recipients',
+            'notification_language',
         }
         
         changed = []
@@ -1396,6 +1398,7 @@ class SendDailyDigestNowView(APIView):
     POST /api/clients/reports/daily-digest/send/
 
     Uses last 24 hours instead of today's 09:00-17:00 window for immediate results.
+    Only sends digest for the requesting client, not all clients.
     """
     permission_classes = []  # client auth via get_client_from_request
 
@@ -1407,14 +1410,14 @@ class SendDailyDigestNowView(APIView):
         from MASTER.clients.tasks import send_daily_digest
 
         try:
-            # Pass manual=True to use last 24 hours window
-            async_result = send_daily_digest.delay(manual=True)
+            # Pass manual=True to use last 24 hours window, and client_id to only send for this client
+            async_result = send_daily_digest.delay(manual=True, client_id=client.id)
             return Response(
                 {'success': True, 'scheduled': True, 'task_id': getattr(async_result, 'id', None)},
                 status=202,
             )
         except Exception as e:
-            logger.error(f"Failed to schedule send_daily_digest: {e}", exc_info=True)
+            logger.error(f"Failed to schedule send_daily_digest for client {client.id}: {e}", exc_info=True)
             return Response({'success': False, 'error': str(e)}, status=500)
 
 
@@ -2549,11 +2552,54 @@ class ClientConversationDetailView(APIView):
 
 class ClientWebConversationView(APIView):
     """
-    API endpoint для збереження web розмов
+    API endpoint для збереження та отримання web розмов
     POST /api/clients/web-conversations/
     Body: { "session_id": "...", "message": "...", "response": "...", "platform": "web" }
+    
+    GET /api/clients/web-conversations/?session_id=...&last_count=N
+    Returns new messages if any (for HITL polling)
     """
     permission_classes = []
+    
+    def get(self, request):
+        """Poll for new messages (especially HITL responses)"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        client = get_client_from_request(request)
+        if not client:
+            return Response({'error': 'Client not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        session_id = request.query_params.get('session_id', '')
+        last_count = int(request.query_params.get('last_count', 0))
+        
+        if not session_id:
+            return Response({'error': 'session_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            conversation = ClientWhatsAppConversation.objects.get(
+                client=client,
+                session_id=session_id
+            )
+        except ClientWhatsAppConversation.DoesNotExist:
+            return Response({'messages': [], 'total': 0, 'has_new': False})
+        
+        messages = conversation.messages or []
+        total = len(messages)
+        
+        # Return new messages if any (messages added after last_count)
+        new_messages = []
+        if total > last_count:
+            new_messages = messages[last_count:]
+            logger.info(f"📨 Web chat poll: {len(new_messages)} new messages for session {session_id[:20]}...")
+        
+        return Response({
+            'messages': new_messages,
+            'total': total,
+            'has_new': len(new_messages) > 0,
+            'conversation_id': conversation.id,
+            'is_waiting_for_manager': conversation.is_waiting_for_manager,
+        })
     
     def post(self, request):
         """Зберегти повідомлення web розмови"""
@@ -2683,6 +2729,18 @@ class ClientWebConversationView(APIView):
                 "pas content", "mécontent", "déçu", "frustré", "en colère", "terrible",
                 "horrible", "inutile", "ne fonctionne pas", "cassé", "stupide",
                 "inacceptable", "plainte",
+                # Spanish
+                # Use some stems to cover gender/plural forms (e.g., "insatisfech" => insatisfecho/insatisfecha)
+                "no me gusta",
+                "no estoy content", "no estoy satisfech", "insatisfech",
+                "decepcionad", "me decepciona", "frustrad", "enojad", "enfadad", "furios",
+                "terrible", "horrible", "espantoso", "pésimo", "pesimo", "malísimo", "malisimo", "fatal", "muy mal", "peor",
+                "odio",
+                "inútil", "inutil", "no sirve", "no sirve para nada", "pérdida de tiempo", "perdida de tiempo",
+                "no funciona", "no funciona bien", "no anda", "no va", "no responde", "no está funcionando", "no esta funcionando",
+                "roto", "estúpido", "estupido", "ridículo", "ridiculo", "inaceptable", "asqueroso", "patético", "patetico",
+                "queja", "quejarme", "reclamo", "reclamación", "reclamacion",
+                "molest", "una basura", "esto es una basura", "una estafa", "fraude",
             ]
             
             # Check for negative indicators

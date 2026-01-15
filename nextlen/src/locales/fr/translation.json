@@ -358,7 +358,9 @@
     "reportScheduled": "Rapport planifié",
     "reportSendError": "Impossible de planifier le rapport du jour",
     "reportInvalidEmail": "Adresse e-mail invalide",
-    "reportMaxRecipients": "Vous pouvez ajouter jusqu’à 5 destinataires"
+    "reportMaxRecipients": "Vous pouvez ajouter jusqu'à 5 destinataires",
+    "notificationLanguageLabel": "Langue des notifications",
+    "notificationLanguageDescription": "Langue pour les rapports quotidiens, les notifications par e-mail et les messages aux managers. Les réponses du chat client utilisent la langue du client."
   },
   "infoCenter": {
     "title": "Centre d'Information",

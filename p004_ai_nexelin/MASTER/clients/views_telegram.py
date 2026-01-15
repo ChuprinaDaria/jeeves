@@ -1048,7 +1048,7 @@ class TelegramWebhookView(View):
                         'en': "I'm still waiting for confirmation from my colleague. Please hold on, I'll get back to you shortly.",
                         'de': "Ich warte noch auf die Bestätigung von meinem Kollegen. Bitte warten Sie einen Moment.",
                         'fr': "J'attends toujours la confirmation de mon collègue. Veuillez patienter.",
-                        'es': "Todavía estoy esperando la confirmación de mi colega. Por favor espere un momento.",
+                        'es': "Sigo esperando la confirmación de un colega. Por favor, espere un momento; le responderé en breve.",
                         'it': "Sto ancora aspettando la conferma dal mio collega. Attenda un momento per favore.",
                         'nl': "Ik wacht nog op bevestiging van mijn collega. Even geduld alstublieft.",
                         'da': "Jeg venter stadig på bekræftelse fra min kollega. Vent venligst et øjeblik.",
@@ -1361,6 +1361,18 @@ class TelegramWebhookView(View):
                 "pas content", "mécontent", "déçu", "frustré", "en colère", "terrible",
                 "horrible", "inutile", "ne fonctionne pas", "cassé", "stupide",
                 "inacceptable", "plainte",
+                # Spanish
+                # Use some stems to cover gender/plural forms (e.g., "insatisfech" => insatisfecho/insatisfecha)
+                "no me gusta",
+                "no estoy content", "no estoy satisfech", "insatisfech",
+                "decepcionad", "me decepciona", "frustrad", "enojad", "enfadad", "furios",
+                "terrible", "horrible", "espantoso", "pésimo", "pesimo", "malísimo", "malisimo", "fatal", "muy mal", "peor",
+                "odio",
+                "inútil", "inutil", "no sirve", "no sirve para nada", "pérdida de tiempo", "perdida de tiempo",
+                "no funciona", "no funciona bien", "no anda", "no va", "no responde", "no está funcionando", "no esta funcionando",
+                "roto", "estúpido", "estupido", "ridículo", "ridiculo", "inaceptable", "asqueroso", "patético", "patetico",
+                "queja", "quejarme", "reclamo", "reclamación", "reclamacion",
+                "molest", "una basura", "esto es una basura", "una estafa", "fraude",
             ]
             
             # Check for negative indicators

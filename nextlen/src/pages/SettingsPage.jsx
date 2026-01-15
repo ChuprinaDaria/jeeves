@@ -20,6 +20,18 @@ const SettingsPage = () => {
   const [reportSaving, setReportSaving] = useState(false);
   const [reportSending, setReportSending] = useState(false);
   const [reportMessage, setReportMessage] = useState('');
+  const [notificationLanguage, setNotificationLanguage] = useState('en');
+
+  // Notification language options
+  const notificationLanguageOptions = [
+    { value: 'en', label: 'English', flag: '🇬🇧' },
+    { value: 'de', label: 'Deutsch', flag: '🇩🇪' },
+    { value: 'fr', label: 'Français', flag: '🇫🇷' },
+    { value: 'es', label: 'Español', flag: '🇪🇸' },
+    { value: 'it', label: 'Italiano', flag: '🇮🇹' },
+    { value: 'nl', label: 'Nederlands', flag: '🇳🇱' },
+    { value: 'da', label: 'Dansk', flag: '🇩🇰' },
+  ];
 
   useEffect(() => {
     if (authLoading) {
@@ -64,6 +76,7 @@ const SettingsPage = () => {
       setReportEnabled(!!res.data?.email_report_enabled);
       const recipients = res.data?.email_report_recipients;
       setReportRecipients(Array.isArray(recipients) ? recipients : []);
+      setNotificationLanguage(res.data?.notification_language || 'en');
     } catch (err) {
       // Silent: report settings are optional
       console.error('Failed to load report settings:', err);
@@ -203,6 +216,7 @@ const SettingsPage = () => {
       await api.patch('/clients/email-smtp/config/', {
         email_report_enabled: reportEnabled,
         email_report_recipients: reportRecipients,
+        notification_language: notificationLanguage,
       });
 
       setReportMessage(t('settings.reportSaved') || t('common.success') || 'Saved');
@@ -367,6 +381,27 @@ const SettingsPage = () => {
                 {t('settings.reportEnabledLabel') || 'Enable daily reports'}
               </span>
             </label>
+
+            {/* Notification Language Selector */}
+            <div>
+              <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-gray-100">
+                {t('settings.notificationLanguageLabel') || 'Notification Language'}
+              </label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                {t('settings.notificationLanguageDescription') || 'Language for daily reports, email notifications, and manager messages. Customer chat responses use the customer\'s language.'}
+              </p>
+              <select
+                value={notificationLanguage}
+                onChange={(e) => setNotificationLanguage(e.target.value)}
+                className="input w-full max-w-xs"
+              >
+                {notificationLanguageOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.flag} {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <div>
               <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-gray-100">

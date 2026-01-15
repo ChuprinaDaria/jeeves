@@ -227,6 +227,23 @@ class Client(models.Model):
         blank=True,
         help_text="List of email addresses to receive chat summary reports. Example: ['owner@example.com', 'support@example.com']"
     )
+    
+    # Default language for notifications (emails, reports, manager messages)
+    NOTIFICATION_LANGUAGE_CHOICES = [
+        ('en', 'English'),
+        ('de', 'Deutsch'),
+        ('fr', 'Français'),
+        ('es', 'Español'),
+        ('it', 'Italiano'),
+        ('nl', 'Nederlands'),
+        ('da', 'Dansk'),
+    ]
+    notification_language = models.CharField(
+        max_length=5,
+        choices=NOTIFICATION_LANGUAGE_CHOICES,
+        default='en',
+        help_text="Default language for email reports, daily digests, and manager notifications. Customer-facing AI responses use customer's language."
+    )
 
     # HITL (Human-in-the-Loop) configuration for manager escalation
     hitl_enabled = models.BooleanField(

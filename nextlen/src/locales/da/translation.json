@@ -89,7 +89,9 @@
     "reportScheduled": "Daglig rapport planlagt",
     "reportSendError": "Kunne ikke planlægge daglig rapport",
     "reportInvalidEmail": "Ugyldig email-adresse",
-    "reportMaxRecipients": "Du kan tilføje op til 5 modtagere"
+    "reportMaxRecipients": "Du kan tilføje op til 5 modtagere",
+    "notificationLanguageLabel": "Notifikationssprog",
+    "notificationLanguageDescription": "Sprog til daglige rapporter, e-mail-notifikationer og beskeder til managere. Kundens chat-svar bruger kundens sprog."
   },
   "infoCenter": {
     "title": "Informationscenter",

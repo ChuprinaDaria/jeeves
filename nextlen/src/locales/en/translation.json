@@ -444,7 +444,9 @@
     "reportScheduled": "Daily report scheduled",
     "reportSendError": "Failed to schedule daily report",
     "reportInvalidEmail": "Invalid email address",
-    "reportMaxRecipients": "You can add up to 5 recipients"
+    "reportMaxRecipients": "You can add up to 5 recipients",
+    "notificationLanguageLabel": "Notification Language",
+    "notificationLanguageDescription": "Language for daily reports, email notifications, and manager messages. Customer chat responses use the customer's language."
   },
   "pricing": {
     "title": "Choose Your Plan",

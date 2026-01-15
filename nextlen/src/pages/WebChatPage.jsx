@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Send, Loader2, Image, Moon, Sun, Download, Trash2, Mic, Menu, X, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Send, Loader2, Image, Moon, Sun, Download, Trash2, Mic, Menu, X } from 'lucide-react';
 import api from '../api/axios';
 import { ragAPI } from '../api/agent';
 import { clientAPI } from '../api/client';
@@ -18,7 +18,6 @@ const WebChatPage = () => {
   const [conversationDbId, setConversationDbId] = useState(null); // ID з бази даних для оцінки
   const [selectedImage, setSelectedImage] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [showRatingButtons, setShowRatingButtons] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('web_chat_dark_mode');
     return saved ? saved === 'true' : false;
@@ -127,6 +126,44 @@ const WebChatPage = () => {
       inputRef.current.focus();
     }
   }, [messages, loading]);
+
+  // Polling for HITL responses (manager responses)
+  useEffect(() => {
+    if (!conversationId || !tag) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await api.get('/clients/web-conversations/', {
+          params: {
+            session_id: conversationId,
+            last_count: messages.length,
+          },
+        });
+
+        if (response.data?.has_new && response.data?.messages?.length > 0) {
+          // Add new messages (HITL responses) to the chat
+          const newMessages = response.data.messages.map((msg, idx) => ({
+            id: `hitl_${Date.now()}_${idx}`,
+            role: msg.role,
+            content: msg.content,
+            timestamp: msg.timestamp,
+          }));
+          
+          setMessages(prev => [...prev, ...newMessages]);
+          
+          // Update conversationDbId if available
+          if (response.data.conversation_id && !conversationDbId) {
+            setConversationDbId(response.data.conversation_id);
+          }
+        }
+      } catch (error) {
+        // Silent fail - polling errors shouldn't disrupt the user
+        console.debug('Polling error:', error);
+      }
+    }, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [conversationId, tag, messages.length, conversationDbId]);
 
   // Обробка resize для мобільної клавіатури
   useEffect(() => {
@@ -416,24 +453,13 @@ const WebChatPage = () => {
 
       if (response.data?.response) {
         const responseText = response.data.response || '';
-        const isRatingRequest = responseText.includes('оцініть') || 
-                                 responseText.includes('👍') || 
-                                 responseText.includes('👎') ||
-                                 responseText.toLowerCase().includes('rate') ||
-                                 responseText.toLowerCase().includes('оцен');
         
         const assistantMessage = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
           content: responseText,
           timestamp: new Date().toISOString(),
-          isRatingRequest: isRatingRequest,
         };
-        
-        // Показуємо кнопки оцінки якщо це запит на оцінку
-        if (isRatingRequest) {
-          setShowRatingButtons(true);
-        }
         
         setMessages(prev => {
           const updatedMessages = [...prev, assistantMessage];
@@ -522,31 +548,6 @@ const WebChatPage = () => {
   const handleFontSizeChange = (size) => {
     if (size === 'sm' || size === 'md' || size === 'lg') {
       setFontSize(size);
-    }
-  };
-
-  const handleRate = async (rating) => {
-    if (!conversationDbId) {
-      console.error('No conversation ID for rating');
-      return;
-    }
-
-    try {
-      await clientAPI.rateConversation(conversationDbId, rating);
-      setShowRatingButtons(false);
-      // Додаємо повідомлення про успішну оцінку мовою користувача
-      // t() автоматично використовує поточну мову з i18n.language
-      const ratingMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: rating === 'positive' 
-          ? (t('webChat.ratingThankYouPositive') || 'Thank you for your positive rating! 👍')
-          : (t('webChat.ratingThankYouNegative') || 'Thank you for your feedback! 👎'),
-        timestamp: new Date().toISOString(),
-      };
-      setMessages(prev => [...prev, ratingMessage]);
-    } catch (error) {
-      console.error('Failed to save rating:', error);
     }
   };
 
@@ -836,25 +837,6 @@ const WebChatPage = () => {
               )}
               {message.content && (
                 <p className={`${messageFontClass} whitespace-pre-wrap`}>{message.content}</p>
-              )}
-              {/* Rating buttons for rating request messages */}
-              {message.isRatingRequest && showRatingButtons && (
-                <div className="flex gap-2 mt-3 pt-3 border-t border-gray-300 dark:border-gray-600">
-                  <button
-                    onClick={() => handleRate('positive')}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors text-sm"
-                  >
-                    <ThumbsUp size={16} />
-                    <span>{t('webChat.ratePositive') || '👍'}</span>
-                  </button>
-                  <button
-                    onClick={() => handleRate('negative')}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors text-sm"
-                  >
-                    <ThumbsDown size={16} />
-                    <span>{t('webChat.rateNegative') || '👎'}</span>
-                  </button>
-                </div>
               )}
             </div>
           </div>

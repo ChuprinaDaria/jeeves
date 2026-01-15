@@ -75,7 +75,9 @@
     "reportScheduled": "Reporte diario programado",
     "reportSendError": "No se pudo programar el reporte diario",
     "reportInvalidEmail": "Dirección de correo inválida",
-    "reportMaxRecipients": "Puede agregar hasta 5 destinatarios"
+    "reportMaxRecipients": "Puede agregar hasta 5 destinatarios",
+    "notificationLanguageLabel": "Idioma de notificaciones",
+    "notificationLanguageDescription": "Idioma para informes diarios, notificaciones por correo y mensajes al gerente. Las respuestas del chat del cliente usan el idioma del cliente."
   },
   "infoCenter": {
     "title": "Centro de Información",
