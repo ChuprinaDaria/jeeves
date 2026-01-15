@@ -134,6 +134,7 @@ class ResponseGenerator:
                 branch=branch,
                 embedding_model=embedding_model,
                 embedding_tokens=query_tokens,
+                language=language or 'en',
             )
     
     def _generate_complete(
@@ -146,6 +147,7 @@ class ResponseGenerator:
         branch: Branch | None,
         embedding_model: EmbeddingModel | None = None,
         embedding_tokens: int = 0,
+        language: str = 'en',
     ) -> RAGResponse:
         """Generate complete (non-streaming) response."""
         llm_result = self.llm_client.generate_response(
@@ -170,9 +172,36 @@ class ResponseGenerator:
             llm_model = ''
             llm_provider = ''
         
-        # HITL: Detect escalation token in response
+        # HITL: Detect escalation token in response OR refusal phrases
         requires_escalation = False
         escalation_summary = ""
+        
+        # Check if client has HITL enabled for fallback detection
+        hitl_enabled = client and getattr(client, 'hitl_enabled', False)
+        manager_ids = client.get_manager_telegram_ids() if client and hasattr(client, 'get_manager_telegram_ids') else []
+        hitl_available = hitl_enabled and len(manager_ids) > 0
+        
+        # Fallback: detect refusal phrases even if LLM didn't output escalation token
+        # This catches cases where LLM says "can't help" but didn't follow the escalation protocol
+        refusal_phrases = [
+            # English
+            "can't help", "cannot help", "cannot assist", "can't assist",
+            "unable to help", "unable to assist", "i don't have information",
+            "i cannot provide", "i can't provide", "not able to",
+            "beyond my capabilities", "outside my knowledge",
+            # Ukrainian
+            "не можу допомогти", "не маю інформації", "не можу відповісти",
+            # Russian  
+            "не могу помочь", "не могу ответить", "не располагаю информацией",
+            # German
+            "kann nicht helfen", "kann ich nicht", "keine informationen",
+            # French
+            "ne peux pas aider", "je ne peux pas", "pas d'information",
+        ]
+        
+        answer_lower = answer.lower()
+        is_refusal = any(phrase in answer_lower for phrase in refusal_phrases)
+        
         if '[[ESCALATE_TO_MANAGER]]' in answer:
             requires_escalation = True
             # Extract the summary after the token
@@ -215,6 +244,14 @@ class ResponseGenerator:
                     answer = "One moment, let me verify this information with my colleague to give you an accurate answer..."
             
             logger.info(f"HITL escalation detected for query: {query[:100]}..., summary: {escalation_summary}")
+        
+        # Fallback: If HITL is available and LLM gave a refusal response, trigger escalation
+        elif is_refusal and hitl_available:
+            requires_escalation = True
+            escalation_summary = query[:200]
+            # Replace the refusal with a waiting message
+            answer = self._get_hitl_waiting_message(language)
+            logger.info(f"HITL escalation triggered by refusal detection for query: {query[:100]}...")
         
         sources = self._format_sources(context_chunks)
         
@@ -373,6 +410,21 @@ class ResponseGenerator:
         
         # Final event
         yield "data: [DONE]\n\n"
+    
+    def _get_hitl_waiting_message(self, language: str = 'en') -> str:
+        """Get localized waiting message for HITL escalation."""
+        messages = {
+            'en': "One moment, let me verify this information with my colleague to give you an accurate answer...",
+            'de': "Einen Moment bitte, ich überprüfe diese Information mit meinem Kollegen, um Ihnen eine genaue Antwort zu geben...",
+            'fr': "Un instant, je vérifie cette information avec mon collègue pour vous donner une réponse précise...",
+            'es': "Un momento, permítame verificar esta información con mi colega para darle una respuesta precisa...",
+            'it': "Un momento, verifico questa informazione con il mio collega per darle una risposta accurata...",
+            'nl': "Een moment alstublieft, ik verifieer deze informatie met mijn collega om u een nauwkeurig antwoord te geven...",
+            'da': "Et øjeblik, jeg bekræfter denne information med min kollega for at give dig et præcist svar...",
+            'uk': "Зачекайте, я перевірю цю інформацію з колегою, щоб дати вам точну відповідь...",
+            'ru': "Минуту, я уточню эту информацию у коллеги, чтобы дать вам точный ответ...",
+        }
+        return messages.get(language, messages['en'])
     
     def _format_sources(self, chunks: list[ContextChunk]) -> list[dict[str, Any]]:
         """Format context chunks as source citations."""
