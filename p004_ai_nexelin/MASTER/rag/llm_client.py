@@ -298,6 +298,10 @@ class LLMClient:
                 email_info = self._get_email_capabilities_info(client)
                 if email_info:
                     client_prompt = client_prompt + "\n\n" + email_info
+                # Add HITL escalation instruction if enabled
+                hitl_info = self._get_hitl_instruction(client)
+                if hitl_info:
+                    client_prompt = client_prompt + "\n\n" + hitl_info
                 logger.info(f"Using custom prompt for client: {client.user}")
                 return client_prompt
         
@@ -324,8 +328,39 @@ class LLMClient:
             email_info = self._get_email_capabilities_info(client)
             if email_info:
                 default_prompt = default_prompt + "\n\n" + email_info
+            # Add HITL escalation instruction if enabled
+            hitl_info = self._get_hitl_instruction(client)
+            if hitl_info:
+                default_prompt = default_prompt + "\n\n" + hitl_info
         
         return default_prompt
+    
+    def _get_hitl_instruction(self, client: Client) -> str | None:
+        """Get HITL (Human-in-the-Loop) instruction if enabled for the client."""
+        if not getattr(client, 'hitl_enabled', False):
+            return None
+        
+        # Check if manager Telegram IDs are configured
+        manager_ids = getattr(client, 'manager_telegram_ids', [])
+        if not manager_ids or (isinstance(manager_ids, list) and len(manager_ids) == 0):
+            return None
+        
+        return """ESCALATION PROTOCOL (CRITICAL):
+When you cannot provide a confident answer based on the provided context, you MUST NOT hallucinate or guess.
+
+If any of these conditions are met:
+- The question is about specific details not present in the context (prices, dates, availability, appointments)
+- The question requires real-time information you don't have
+- The question is complex and needs human judgment
+- You are genuinely uncertain about the answer
+
+Then you MUST output EXACTLY this format:
+[[ESCALATE_TO_MANAGER]]Question summary: <one sentence summary of what the customer is asking>
+
+After outputting the escalation token, you may add a brief message to the customer like:
+"One moment, let me verify this information with my colleague to give you an accurate answer..."
+
+DO NOT answer if you are not sure. It is better to escalate than to provide wrong information."""
     
     def _get_email_capabilities_info(self, client: Client) -> str | None:
         """Get email capabilities information for system prompt if email is enabled."""

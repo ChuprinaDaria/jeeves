@@ -413,6 +413,21 @@ class MetaWhatsAppWebhookView(View):
         try:
             client = conversation.client
             
+            # HITL: Check if conversation is waiting for manager response
+            if getattr(conversation, 'is_waiting_for_manager', False):
+                waiting_messages = {
+                    'en': "I'm still waiting for confirmation from my colleague. Please hold on, I'll get back to you shortly.",
+                    'de': "Ich warte noch auf die Bestätigung von meinem Kollegen. Bitte warten Sie einen Moment.",
+                    'fr': "J'attends toujours la confirmation de mon collègue. Veuillez patienter.",
+                    'es': "Todavía estoy esperando la confirmación de mi colega. Por favor espere un momento.",
+                    'it': "Sto ancora aspettando la conferma dal mio collega. Attenda un momento per favore.",
+                    'nl': "Ik wacht nog op bevestiging van mijn collega. Even geduld alstublieft.",
+                    'da': "Jeg venter stadig på bekræftelse fra min kollega. Vent venligst et øjeblik.",
+                    'uk': "I'm still checking with my colleague. Please wait a moment.",
+                }
+                lang = getattr(conversation, 'language', 'en') or 'en'
+                return waiting_messages.get(lang, waiting_messages['en'])
+            
             # Використовуємо RAG API
             try:
                 from MASTER.rag.response_generator import ResponseGenerator, RAGResponse
@@ -446,12 +461,21 @@ class MetaWhatsAppWebhookView(View):
                             conversation.save(update_fields=['context_metadata', 'updated_at'])
                     except Exception as e:
                         logger.warning(f"Failed to store RAG sources for conversation {getattr(conversation, 'id', None)}: {e}")
+                    
+                    # HITL: Check if escalation is required
+                    if rag_response.requires_escalation and getattr(client, 'hitl_enabled', False):
+                        manager_ids = client.get_manager_telegram_ids() if hasattr(client, 'get_manager_telegram_ids') else []
+                        if manager_ids:
+                            # Trigger escalation
+                            from MASTER.clients.tasks import notify_manager_of_escalation
+                            notify_manager_of_escalation.delay(conversation.id, rag_response.escalation_summary or message_body[:200])
+                            logger.info(f"HITL escalation triggered for Meta WhatsApp conversation {conversation.id}")
                 else:
-                    response_text = "Вибачте, виникла помилка при генерації відповіді."
+                    response_text = "Sorry, an error occurred while generating the response."
                 
             except Exception as e:
                 logger.error(f"RAG generation failed: {str(e)}", exc_info=True)
-                response_text = f"Дякую за повідомлення! Як можу допомогти?"
+                response_text = f"Thank you for your message! How can I help you?"
             
             # Зберігаємо повідомлення в розмову
             if isinstance(conversation, ClientWhatsAppConversation):
@@ -477,7 +501,7 @@ class MetaWhatsAppWebhookView(View):
             
         except Exception as e:
             logger.error(f"Error generating RAG response: {str(e)}", exc_info=True)
-            return "Вибачте, виникла помилка. Спробуйте ще раз."
+            return "Sorry, an error occurred. Please try again."
     
     def verify_signature(self, ref_data, table_number, signature):
         """Перевіряє HMAC підпис START2 команди"""

@@ -7,6 +7,7 @@ import WebWidgetSetup from '../components/integrations/WebWidgetSetup';
 import EmailSetup from '../components/integrations/EmailSetup';
 import TelegramSetup from '../components/integrations/TelegramSetup';
 import ChromeExtensionSetup from '../components/integrations/ChromeExtensionSetup';
+import HITLSetup from '../components/integrations/HITLSetup';
 
 const IntegrationsPage = () => {
   const { t } = useTranslation();
@@ -34,8 +35,10 @@ const IntegrationsPage = () => {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showTelegramModal, setShowTelegramModal] = useState(false);
   const [showChromeExtensionModal, setShowChromeExtensionModal] = useState(false);
+  const [showHITLModal, setShowHITLModal] = useState(false);
   const [emailEnabled, setEmailEnabled] = useState(false);
   const [telegramEnabled, setTelegramEnabled] = useState(false);
+  const [hitlEnabled, setHitlEnabled] = useState(false);
   const [clientType, setClientType] = useState(null);
   const [clientInfo, setClientInfo] = useState(null);
 
@@ -46,15 +49,17 @@ const IntegrationsPage = () => {
       api.get('/clients/whatsapp/meta/config/'),
       api.get('/clients/me/'),
       api.get('/clients/email-smtp/config/').catch(() => ({ data: { email_smtp_enabled: false } })),
-      api.get('/clients/telegram/config/').catch(() => ({ data: { telegram_enabled: false } }))
+      api.get('/clients/telegram/config/').catch(() => ({ data: { telegram_enabled: false } })),
+      api.get('/clients/hitl/config/').catch(() => ({ data: { hitl_enabled: false } }))
     ])
-      .then(([whatsappRes, clientRes, emailRes, telegramRes]) => {
+      .then(([whatsappRes, clientRes, emailRes, telegramRes, hitlRes]) => {
         if (!mounted) return;
         setForm(prev => ({ ...prev, ...whatsappRes.data }));
         setClientType(clientRes.data?.client_type || null);
         setClientInfo(clientRes.data);
         setEmailEnabled(emailRes.data?.email_smtp_enabled || false);
         setTelegramEnabled(telegramRes.data?.telegram_enabled || false);
+        setHitlEnabled(hitlRes.data?.hitl_enabled || false);
       })
       .catch(() => {})
       .finally(() => mounted && setLoading(false));
@@ -545,6 +550,40 @@ const IntegrationsPage = () => {
           
           <button
             onClick={() => setShowEmailModal(true)}
+            className="w-full btn-primary"
+          >
+            {t('integrations.configure')}
+          </button>
+        </div>
+
+        {/* Human-in-the-Loop (HITL) - Manager Escalation */}
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 hover:shadow-lg transition-shadow">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center">
+                <svg className="w-7 h-7 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">HITL (Manager)</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Escalate to human managers via Telegram</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between mb-4">
+            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+              hitlEnabled
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+            }`}>
+              {hitlEnabled ? t('integrations.connected') : t('integrations.notConnected')}
+            </span>
+          </div>
+          
+          <button
+            onClick={() => setShowHITLModal(true)}
             className="w-full btn-primary"
           >
             {t('integrations.configure')}
@@ -1051,6 +1090,18 @@ const IntegrationsPage = () => {
         <ChromeExtensionSetup 
           onClose={() => {
             setShowChromeExtensionModal(false);
+          }} 
+        />
+      )}
+
+      {showHITLModal && (
+        <HITLSetup 
+          onClose={() => {
+            setShowHITLModal(false);
+            // Reload HITL status
+            api.get('/clients/hitl/config/')
+              .then(res => setHitlEnabled(res.data?.hitl_enabled || false))
+              .catch(() => {});
           }} 
         />
       )}

@@ -39,6 +39,9 @@ class RAGResponse:
     context_used: str
     num_chunks: int
     total_tokens: int
+    # HITL escalation fields
+    requires_escalation: bool = False
+    escalation_summary: str = ""
 
 
 class ResponseGenerator:
@@ -167,6 +170,52 @@ class ResponseGenerator:
             llm_model = ''
             llm_provider = ''
         
+        # HITL: Detect escalation token in response
+        requires_escalation = False
+        escalation_summary = ""
+        if '[[ESCALATE_TO_MANAGER]]' in answer:
+            requires_escalation = True
+            # Extract the summary after the token
+            parts = answer.split('[[ESCALATE_TO_MANAGER]]', 1)
+            if len(parts) > 1:
+                summary_part = parts[1].strip()
+                # Try to extract "Question summary: ..." line
+                if 'Question summary:' in summary_part:
+                    summary_lines = summary_part.split('\n')
+                    for line in summary_lines:
+                        if line.strip().startswith('Question summary:'):
+                            escalation_summary = line.replace('Question summary:', '').strip()
+                            break
+                if not escalation_summary:
+                    # Just take the first line after the token as summary
+                    escalation_summary = summary_part.split('\n')[0].strip()[:200]
+                if not escalation_summary:
+                    escalation_summary = query[:200]  # Fallback to original query
+            
+            # Clean the answer: keep only the customer-facing message (after removing the token and summary)
+            # Usually the message is after the summary line
+            clean_parts = answer.split('[[ESCALATE_TO_MANAGER]]')
+            if len(clean_parts) > 1:
+                after_token = clean_parts[1]
+                # Remove the "Question summary: ..." line from the response
+                lines = after_token.strip().split('\n')
+                customer_message_lines = []
+                skip_next = False
+                for line in lines:
+                    if line.strip().startswith('Question summary:'):
+                        skip_next = True
+                        continue
+                    if skip_next and not line.strip():
+                        skip_next = False
+                        continue
+                    customer_message_lines.append(line)
+                answer = '\n'.join(customer_message_lines).strip()
+                if not answer:
+                    # Fallback: provide a waiting message
+                    answer = "One moment, let me verify this information with my colleague to give you an accurate answer..."
+            
+            logger.info(f"HITL escalation detected for query: {query[:100]}..., summary: {escalation_summary}")
+        
         sources = self._format_sources(context_chunks)
         
         # Get embedding model if not provided
@@ -284,6 +333,8 @@ class ResponseGenerator:
             context_used=context if settings.DEBUG else "",  # Only in debug
             num_chunks=len(context_chunks),
             total_tokens=self.context_builder._count_tokens(context + answer),
+            requires_escalation=requires_escalation,
+            escalation_summary=escalation_summary,
         )
     
     def _generate_streaming(

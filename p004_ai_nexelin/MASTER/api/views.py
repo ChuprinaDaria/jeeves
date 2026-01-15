@@ -405,6 +405,35 @@ class PublicRAGChatView(APIView):
             specialization = getattr(client, 'specialization', None)
             branch = getattr(specialization, 'branch', None) if specialization else None
 
+            # HITL: Check if conversation is waiting for manager response (only for session-based chats)
+            if session_id and str(session_id).strip() and not str(session_id).startswith('sandbox_'):
+                try:
+                    from MASTER.clients.models import ClientWhatsAppConversation
+                    conv = ClientWhatsAppConversation.objects.filter(
+                        client=client,
+                        session_id=session_id,
+                    ).first()
+                    if conv and getattr(conv, 'is_waiting_for_manager', False):
+                        waiting_messages = {
+                            'en': "I'm still waiting for confirmation from my colleague. Please hold on, I'll get back to you shortly.",
+                            'de': "Ich warte noch auf die Bestätigung von meinem Kollegen. Bitte warten Sie einen Moment.",
+                            'fr': "J'attends toujours la confirmation de mon collègue. Veuillez patienter.",
+                            'es': "Todavía estoy esperando la confirmación de mi colega. Por favor espere un momento.",
+                            'it': "Sto ancora aspettando la conferma dal mio collega. Attenda un momento per favore.",
+                            'nl': "Ik wacht nog op bevestiging van mijn collega. Even geduld alstublieft.",
+                            'da': "Jeg venter stadig på bekræftelse fra min kollega. Vent venligst et øjeblik.",
+                        }
+                        return Response({
+                            'response': waiting_messages.get(language, waiting_messages['en']),
+                            'sources': [],
+                            'num_chunks': 0,
+                            'total_tokens': 0,
+                            'language': language,
+                            'waiting_for_manager': True,
+                        })
+                except Exception:
+                    pass  # Continue if error checking HITL status
+
             # Передаємо client, specialization та branch для багаторівневого пошуку:
             # - Client embeddings (приватні дані клієнта)
             # - Specialization embeddings (спільні дані для всіх клієнтів цієї спеціалізації)
@@ -417,6 +446,26 @@ class PublicRAGChatView(APIView):
                 stream=False,
                 language=language,
             )
+            
+            # HITL: Check if escalation is required (only for session-based chats, not sandbox)
+            if getattr(rag_response, 'requires_escalation', False) and getattr(client, 'hitl_enabled', False):
+                if session_id and str(session_id).strip() and not str(session_id).startswith('sandbox_'):
+                    manager_ids = client.get_manager_telegram_ids() if hasattr(client, 'get_manager_telegram_ids') else []
+                    if manager_ids:
+                        try:
+                            from MASTER.clients.models import ClientWhatsAppConversation
+                            conv = ClientWhatsAppConversation.objects.filter(
+                                client=client,
+                                session_id=session_id,
+                            ).first()
+                            if conv:
+                                from MASTER.clients.tasks import notify_manager_of_escalation
+                                escalation_summary = getattr(rag_response, 'escalation_summary', '') or message[:200]
+                                notify_manager_of_escalation.delay(conv.id, escalation_summary)
+                                logger.info(f"HITL escalation triggered for web conversation {conv.id}")
+                        except Exception as e:
+                            logger.warning(f"Failed to trigger HITL escalation: {e}")
+            
             response_data = {
                 'response': getattr(rag_response, 'answer', ''),
                 'sources': getattr(rag_response, 'sources', []),

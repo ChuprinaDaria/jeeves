@@ -268,6 +268,14 @@ class TelegramWebhookView(View):
                 logger.debug(f"Received non-message update: {data}")
                 return HttpResponse("OK")
             
+            # Check if this is a manager reply to an escalation
+            message = data['message']
+            reply_to = message.get('reply_to_message')
+            if reply_to and client_hint:
+                manager_result = self.handle_manager_reply(message, reply_to, client_hint)
+                if manager_result:
+                    return manager_result
+            
             message = data['message']
             chat_id = message.get('chat', {}).get('id')
             message_text = message.get('text', '')
@@ -684,6 +692,66 @@ class TelegramWebhookView(View):
             send_telegram_message(self._get_bot_token_for_chat(chat_id), chat_id, "Вибачте, виникла помилка. Спробуйте пізніше.")
             return HttpResponse("Error processing message", status=500)
     
+    def handle_manager_reply(self, message, reply_to, client_hint):
+        """
+        Handle manager's reply to an HITL escalation message.
+        
+        Returns HttpResponse if this was a manager reply, None otherwise.
+        """
+        try:
+            from_user = message.get('from', {})
+            sender_id = from_user.get('id')
+            message_text = message.get('text', '')
+            reply_message_id = reply_to.get('message_id')
+            
+            if not sender_id or not message_text or not reply_message_id:
+                return None
+            
+            # Check if sender is a manager for this client
+            manager_ids = client_hint.get_manager_telegram_ids() if hasattr(client_hint, 'get_manager_telegram_ids') else []
+            if sender_id not in manager_ids:
+                return None  # Not a manager, process as regular message
+            
+            # Find conversation waiting for this manager's response
+            conversation = ClientWhatsAppConversation.objects.filter(
+                client=client_hint,
+                is_waiting_for_manager=True,
+                last_escalation_message_id=str(reply_message_id)
+            ).first()
+            
+            if not conversation:
+                # Also try to find by escalation_manager_id
+                conversation = ClientWhatsAppConversation.objects.filter(
+                    client=client_hint,
+                    is_waiting_for_manager=True,
+                    escalation_manager_id=str(sender_id)
+                ).first()
+            
+            if not conversation:
+                logger.debug(f"No waiting conversation found for manager {sender_id} reply")
+                return None  # No matching escalation found
+            
+            # Process the manager's response
+            from MASTER.clients.tasks import process_manager_hitl_response
+            
+            logger.info(f"Manager {sender_id} replied to escalation for conversation {conversation.id}")
+            
+            # Send confirmation to manager
+            bot_token = client_hint.telegram_bot_token
+            if bot_token:
+                chat_id = message.get('chat', {}).get('id')
+                confirm_msg = f"✅ Got it! Processing your response and sending to the customer..."
+                send_telegram_message(bot_token, chat_id, confirm_msg)
+            
+            # Process asynchronously
+            process_manager_hitl_response.delay(conversation.id, message_text, sender_id)
+            
+            return HttpResponse("OK")
+            
+        except Exception as e:
+            logger.error(f"Error handling manager reply: {e}", exc_info=True)
+            return None
+    
     def handle_callback_query(self, callback_query, client_hint=None):
         """
         Обробляє callback_query від Telegram (натискання на кнопки)
@@ -844,6 +912,22 @@ class TelegramWebhookView(View):
         try:
             client = conversation.client
             
+            # HITL: Check if conversation is waiting for manager response
+            if getattr(conversation, 'is_waiting_for_manager', False):
+                # Get waiting message based on language
+                waiting_messages = {
+                    'en': "I'm still waiting for confirmation from my colleague. Please hold on, I'll get back to you shortly.",
+                    'de': "Ich warte noch auf die Bestätigung von meinem Kollegen. Bitte warten Sie einen Moment.",
+                    'fr': "J'attends toujours la confirmation de mon collègue. Veuillez patienter.",
+                    'es': "Todavía estoy esperando la confirmación de mi colega. Por favor espere un momento.",
+                    'it': "Sto ancora aspettando la conferma dal mio collega. Attenda un momento per favore.",
+                    'nl': "Ik wacht nog op bevestiging van mijn collega. Even geduld alstublieft.",
+                    'da': "Jeg venter stadig på bekræftelse fra min kollega. Vent venligst et øjeblik.",
+                    'uk': "I'm still checking with my colleague. Please wait a moment.",
+                }
+                lang = getattr(conversation, 'language', 'en') or 'en'
+                return waiting_messages.get(lang, waiting_messages['en'])
+            
             # Формуємо контекст з історії розмови
             context_messages = []
             if conversation.messages:
@@ -912,6 +996,15 @@ class TelegramWebhookView(View):
                         conversation.save(update_fields=['context_metadata', 'updated_at'])
                     except Exception as e:
                         logger.warning(f"Failed to store RAG sources for conversation {conversation.id}: {e}")
+                    
+                    # HITL: Check if escalation is required
+                    if rag_response.requires_escalation and getattr(client, 'hitl_enabled', False):
+                        manager_ids = client.get_manager_telegram_ids() if hasattr(client, 'get_manager_telegram_ids') else []
+                        if manager_ids:
+                            # Trigger escalation
+                            from MASTER.clients.tasks import notify_manager_of_escalation
+                            notify_manager_of_escalation.delay(conversation.id, rag_response.escalation_summary or message_body[:200])
+                            logger.info(f"HITL escalation triggered for conversation {conversation.id}")
                 else:
                     logger.error("Unexpected generator response when stream=False")
                     response_text = "Вибачте, виникла помилка при генерації відповіді." if language == 'uk' else "Sorry, an error occurred while generating the response."

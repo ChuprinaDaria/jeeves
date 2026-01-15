@@ -224,6 +224,17 @@ class Client(models.Model):
         help_text="List of email addresses to receive chat summary reports. Example: ['owner@example.com', 'support@example.com']"
     )
 
+    # HITL (Human-in-the-Loop) configuration for manager escalation
+    hitl_enabled = models.BooleanField(
+        default=False,
+        help_text="Enable Human-in-the-Loop escalation to managers when AI cannot answer"
+    )
+    manager_telegram_ids = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of manager Telegram user IDs for escalation. Example: [123456789, 987654321]. Managers receive questions when AI cannot answer."
+    )
+
     # Dashboard visibility settings
     dashboard_show_info_center = models.BooleanField(
         default=True,
@@ -362,6 +373,36 @@ class Client(models.Model):
                 break
 
         return cleaned
+
+    def get_manager_telegram_ids(self) -> list[int]:
+        """
+        Return list of manager Telegram user IDs for HITL escalation.
+        
+        Validates that IDs are integers and removes duplicates.
+        """
+        raw = getattr(self, "manager_telegram_ids", None)
+        if not raw:
+            return []
+        
+        if isinstance(raw, list):
+            ids: list[int] = []
+            seen: set[int] = set()
+            for item in raw:
+                try:
+                    tid = int(item)
+                    if tid > 0 and tid not in seen:
+                        seen.add(tid)
+                        ids.append(tid)
+                except (ValueError, TypeError):
+                    continue
+            return ids
+        
+        # Single value case
+        try:
+            tid = int(raw)
+            return [tid] if tid > 0 else []
+        except (ValueError, TypeError):
+            return []
 
 
 class ClientAPIConfig(models.Model):
@@ -1374,6 +1415,33 @@ class ClientWhatsAppConversation(models.Model):
         blank=True,
         verbose_name='Last Activity',
         help_text='Timestamp of last message in conversation'
+    )
+    
+    # HITL (Human-in-the-Loop) escalation fields
+    is_waiting_for_manager = models.BooleanField(
+        default=False,
+        verbose_name='Waiting for Manager',
+        help_text='True when AI escalated the question to a human manager'
+    )
+    
+    manager_escalation_context = models.TextField(
+        blank=True,
+        verbose_name='Escalation Context',
+        help_text='Stores the question and context while waiting for manager response'
+    )
+    
+    last_escalation_message_id = models.CharField(
+        max_length=64,
+        blank=True,
+        verbose_name='Escalation Message ID',
+        help_text='Telegram message_id of the escalation notification sent to manager (for reply tracking)'
+    )
+    
+    escalation_manager_id = models.CharField(
+        max_length=64,
+        blank=True,
+        verbose_name='Escalation Manager ID',
+        help_text='Telegram user_id of the manager who received the escalation'
     )
     
     class Meta:

@@ -126,6 +126,18 @@ class ClientAdmin(admin.ModelAdmin):
             'classes': ('collapse',),
             'description': 'Email configuration for sending chat summary reports. Enabled by default.'
         }),
+        ('HITL (Human-in-the-Loop)', {
+            'fields': ('hitl_enabled', 'manager_telegram_ids'),
+            'classes': ('collapse',),
+            'description': '''
+                Human-in-the-Loop configuration for manager escalation.
+                When enabled, the AI will escalate questions it cannot confidently answer to human managers via Telegram.
+                
+                Manager Telegram IDs: Add Telegram user IDs (not usernames) of managers who should receive escalations.
+                To get a user ID, ask the manager to message @userinfobot on Telegram.
+                Example: [123456789, 987654321]
+            '''
+        }),
         ('Chat Statistics', {
             'fields': ('chats_statistics',),
             'classes': ('collapse',),

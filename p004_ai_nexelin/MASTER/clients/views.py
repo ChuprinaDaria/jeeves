@@ -1403,6 +1403,97 @@ class SendDailyDigestNowView(APIView):
             return Response({'success': False, 'error': str(e)}, status=500)
 
 
+class ClientHITLConfigView(APIView):
+    """Get/Update per-client HITL (Human-in-the-Loop) configuration.
+    
+    HITL allows AI to escalate questions to human managers when it cannot answer confidently.
+    Managers are notified via Telegram and can reply to provide answers.
+    """
+    permission_classes = []  # Public, identification via middleware/api_key/tag
+
+    def get(self, request):
+        client = get_client_from_request(request)
+        if not client:
+            return Response({'error': 'Client not found'}, status=401)
+        
+        data = {
+            'hitl_enabled': getattr(client, 'hitl_enabled', False),
+            'manager_telegram_ids': getattr(client, 'manager_telegram_ids', []),
+            'telegram_enabled': getattr(client, 'telegram_enabled', False),
+            'telegram_bot_configured': bool(getattr(client, 'telegram_bot_token', '')),
+        }
+        return Response(data)
+
+    def post(self, request):
+        return self._update(request)
+
+    def patch(self, request):
+        return self._update(request)
+
+    def _update(self, request):
+        client = get_client_from_request(request)
+        if not client:
+            return Response({'error': 'Client not found'}, status=401)
+        
+        data = request.data or {}
+        changed = []
+        
+        # Update hitl_enabled
+        if 'hitl_enabled' in data:
+            client.hitl_enabled = bool(data['hitl_enabled'])
+            changed.append('hitl_enabled')
+        
+        # Update manager_telegram_ids (validate and limit to 5)
+        if 'manager_telegram_ids' in data:
+            raw_ids = data['manager_telegram_ids']
+            validated_ids = []
+            
+            if isinstance(raw_ids, list):
+                for item in raw_ids[:5]:  # Limit to 5 managers
+                    try:
+                        tid = int(item)
+                        if tid > 0:
+                            validated_ids.append(tid)
+                    except (ValueError, TypeError):
+                        continue
+            elif raw_ids:
+                # Single value
+                try:
+                    tid = int(raw_ids)
+                    if tid > 0:
+                        validated_ids.append(tid)
+                except (ValueError, TypeError):
+                    pass
+            
+            client.manager_telegram_ids = validated_ids
+            changed.append('manager_telegram_ids')
+        
+        if not changed:
+            return Response({'error': 'No fields to update'}, status=400)
+        
+        # Validate HITL prerequisites
+        if client.hitl_enabled:
+            if not client.telegram_enabled or not client.telegram_bot_token:
+                return Response({
+                    'error': 'HITL requires Telegram Bot to be configured and enabled first',
+                    'hitl_enabled': False,
+                }, status=400)
+            
+            if not client.manager_telegram_ids:
+                return Response({
+                    'error': 'HITL requires at least one manager Telegram ID',
+                    'hitl_enabled': False,
+                }, status=400)
+        
+        client.save(update_fields=changed)
+        
+        return Response({
+            'success': True,
+            'hitl_enabled': client.hitl_enabled,
+            'manager_telegram_ids': client.manager_telegram_ids,
+        })
+
+
 class ClientExtensionPageView(APIView):
     """
     API endpoint for Google Chrome extension.
@@ -2585,13 +2676,21 @@ class ConversationRatingView(APIView):
 
         # Smart alert: immediate email ONLY for negative rating (critical)
         if rating == 'negative':
+
+        # Smart alert: immediate email ONLY for negative rating (critical)
+        if rating == 'negative':
             from MASTER.clients.tasks import close_session_and_send_email
             try:
                 close_session_and_send_email.delay(conversation.id, force_send=True)
                 logger.info(
                     f"🔴 Negative rating received for conversation {conversation_id}, scheduling urgent email"
                 )
+                close_session_and_send_email.delay(conversation.id, force_send=True)
+                logger.info(
+                    f"🔴 Negative rating received for conversation {conversation_id}, scheduling urgent email"
+                )
             except Exception as e:
+                logger.error(f"Failed to schedule email for negative rating: {e}")
                 logger.error(f"Failed to schedule email for negative rating: {e}")
         
         return Response({
@@ -2710,6 +2809,7 @@ class ManualReportView(APIView):
     def post(self, request, conversation_id):
         from MASTER.clients.models import ClientWhatsAppConversation
         from MASTER.clients.tasks import close_session_and_send_email
+        from MASTER.clients.tasks import close_session_and_send_email
         
         client = get_client_from_request(request)
         if not client:
@@ -2734,8 +2834,18 @@ class ManualReportView(APIView):
 
         return Response(
             {
+        # Manual trigger: schedule task with force_send=True (no spam logic bypassed)
+        close_session_and_send_email.delay(conversation.id, force_send=True)
+
+        return Response(
+            {
                 'success': True,
                 'conversation_id': conversation.id,
+                'scheduled': True,
+                'message': 'Report email scheduled',
+            },
+            status=status.HTTP_202_ACCEPTED,
+        )
                 'scheduled': True,
                 'message': 'Report email scheduled',
             },

@@ -346,6 +346,21 @@ class TwilioWhatsAppWebhookView(View):
             # Перевіряємо чи це ClientWhatsAppConversation
             is_client_conversation = isinstance(conversation, ClientWhatsAppConversation)
             
+            # HITL: Check if conversation is waiting for manager response
+            if getattr(conversation, 'is_waiting_for_manager', False):
+                waiting_messages = {
+                    'en': "I'm still waiting for confirmation from my colleague. Please hold on, I'll get back to you shortly.",
+                    'de': "Ich warte noch auf die Bestätigung von meinem Kollegen. Bitte warten Sie einen Moment.",
+                    'fr': "J'attends toujours la confirmation de mon collègue. Veuillez patienter.",
+                    'es': "Todavía estoy esperando la confirmación de mi colega. Por favor espere un momento.",
+                    'it': "Sto ancora aspettando la conferma dal mio collega. Attenda un momento per favore.",
+                    'nl': "Ik wacht nog op bevestiging van mijn collega. Even geduld alstublieft.",
+                    'da': "Jeg venter stadig på bekræftelse fra min kollega. Vent venligst et øjeblik.",
+                    'uk': "I'm still checking with my colleague. Please wait a moment.",
+                }
+                lang = getattr(conversation, 'language', 'en') or 'en'
+                return waiting_messages.get(lang, waiting_messages['en'])
+            
             # Формуємо контекст з історії розмови
             context_messages = []
             if conversation.messages:
@@ -395,22 +410,31 @@ class TwilioWhatsAppWebhookView(View):
                             conversation.save(update_fields=['context_metadata', 'updated_at'])
                     except Exception as e:
                         logger.warning(f"Failed to store RAG sources for conversation {getattr(conversation, 'id', None)}: {e}")
+                    
+                    # HITL: Check if escalation is required
+                    if rag_response.requires_escalation and getattr(client, 'hitl_enabled', False):
+                        manager_ids = client.get_manager_telegram_ids() if hasattr(client, 'get_manager_telegram_ids') else []
+                        if manager_ids:
+                            # Trigger escalation
+                            from MASTER.clients.tasks import notify_manager_of_escalation
+                            notify_manager_of_escalation.delay(conversation.id, rag_response.escalation_summary or message_body[:200])
+                            logger.info(f"HITL escalation triggered for WhatsApp conversation {conversation.id}")
                 else:
                     # Це не повинно статися з stream=False, але для безпеки
                     logger.error("Unexpected generator response when stream=False")
-                    response_text = "Вибачте, виникла помилка при генерації відповіді."
+                    response_text = "Sorry, an error occurred while generating the response."
                 
             except Exception as e:
                 logger.error(f"RAG generation failed: {str(e)}", exc_info=True)
-                # Фолбек на просту логіку
-                if any(word in message_body.lower() for word in ['меню', 'menu', 'їжа', 'страви']):
-                    response_text = f"Ось наше меню! У нас є смачні страви. Чи хочете щось конкретне?"
-                elif any(word in message_body.lower() for word in ['замовлення', 'order', 'замовити']):
-                    response_text = f"Звичайно! Що б ви хотіли замовити?"
-                elif any(word in message_body.lower() for word in ['рахунок', 'bill', 'оплата']):
-                    response_text = f"Зараз принесу рахунок! Чи потрібно щось ще?"
+                # Fallback logic
+                if any(word in message_body.lower() for word in ['menu', 'food', 'dishes']):
+                    response_text = f"Here's our menu! We have delicious dishes. Would you like something specific?"
+                elif any(word in message_body.lower() for word in ['order', 'book']):
+                    response_text = f"Of course! What would you like to order?"
+                elif any(word in message_body.lower() for word in ['bill', 'payment', 'check']):
+                    response_text = f"I'll bring the bill! Is there anything else you need?"
                 else:
-                    response_text = f"Дякую за повідомлення! Як можу допомогти з вашим замовленням?"
+                    response_text = f"Thank you for your message! How can I help you?"
             
             # Зберігаємо повідомлення в розмову
             # Використовуємо метод add_message якщо це ClientWhatsAppConversation
