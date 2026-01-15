@@ -1964,6 +1964,10 @@ def send_daily_digest(manual: bool = False):
         positive_q = Q(user_rating='positive') | Q(ai_rating='positive')
         negative_count = qs.filter(negative_q).count()
         positive_count = qs.filter(positive_q).count()
+        
+        # HITL Escalations - when AI didn't have enough knowledge
+        escalation_q = Q(is_waiting_for_manager=True) | ~Q(manager_escalation_context='')
+        escalation_count = qs.filter(escalation_q).count()
 
         # Top activity hours (by started_at)
         hours = list(
@@ -2023,6 +2027,18 @@ def send_daily_digest(manual: bool = False):
             }
             for c in negatives
         ]
+        
+        # HITL Escalations - conversations where AI needed human help
+        escalations = [c for c in conversations if c.is_waiting_for_manager or (c.manager_escalation_context or '').strip()]
+        escalation_rows = [
+            {
+                "id": c.id,
+                "user": c.customer_phone,
+                "question": (c.manager_escalation_context or "").strip()[:200],
+                "resolved": not c.is_waiting_for_manager,
+            }
+            for c in escalations
+        ]
 
         attachments: list[tuple[str, bytes, str]] = []
         for c in negatives:
@@ -2040,6 +2056,9 @@ def send_daily_digest(manual: bool = False):
         subject_prefix = "🔴 " if negative_count > 0 else ""
         subject = f"{subject_prefix}Daily Digest - {client.company_name} - {today.isoformat()}"
 
+        # Build escalation status emoji
+        escalation_emoji = "🟢" if escalation_count == 0 else ("🟡" if escalation_count <= 2 else "🔴")
+        
         body_html = f"""
         <html>
         <body>
@@ -2053,11 +2072,18 @@ def send_daily_digest(manual: bool = False):
             <li><strong>Web:</strong> {platform_counts.get('web', 0)}</li>
             <li><strong>Positive:</strong> {positive_count}</li>
             <li><strong>Negative:</strong> {negative_count}</li>
+            <li><strong>{escalation_emoji} AI Knowledge Gaps (Escalations):</strong> {escalation_count}</li>
             <li><strong>Top hours:</strong> {hours_str or 'N/A'}</li>
           </ul>
 
           <h3>Daily Meta-Summary</h3>
           <p>{(meta_summary or 'N/A').replace(chr(10), '<br>')}</p>
+
+          <h3>🧠 AI Knowledge Gaps (Escalations)</h3>
+          <p><em>Questions where AI didn't have enough information and needed human help:</em></p>
+          <ul>
+            {''.join([f"<li><strong>{r['user']}</strong> (conv #{r['id']}): {r['question'] or 'No context saved'} {'✅ Resolved' if r['resolved'] else '⏳ Pending'}</li>" for r in escalation_rows]) or "<li>✅ No escalations - AI had sufficient knowledge for all conversations!</li>"}
+          </ul>
 
           <h3>Top 5 Positive Feedback</h3>
           <ol>
@@ -2083,6 +2109,7 @@ def send_daily_digest(manual: bool = False):
             f"Web: {platform_counts.get('web', 0)}\n"
             f"Positive: {positive_count}\n"
             f"Negative: {negative_count}\n"
+            f"{escalation_emoji} AI Knowledge Gaps (Escalations): {escalation_count}\n"
             f"Top hours: {hours_str or 'N/A'}\n\n"
             f"Daily Meta-Summary:\n{meta_summary}\n"
         )
@@ -2102,6 +2129,7 @@ def send_daily_digest(manual: bool = False):
                 "client": client.company_name,
                 "total_chats": total_chats,
                 "negative": negative_count,
+                "escalations": escalation_count,
                 "sent": bool(send_result.get("success")),
                 "send_result": send_result,
             }
