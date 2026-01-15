@@ -2129,6 +2129,16 @@ def notify_manager_of_escalation(self, conversation_id: int, question_summary: s
     import requests
     from MASTER.clients.models import Client, ClientWhatsAppConversation
     
+    def escape_html(text: str) -> str:
+        """Escape HTML special characters for Telegram HTML parse_mode."""
+        if not text:
+            return text
+        return (
+            text.replace('&', '&amp;')
+            .replace('<', '&lt;')
+            .replace('>', '&gt;')
+        )
+    
     try:
         conversation = ClientWhatsAppConversation.objects.select_related('client').get(id=conversation_id)
         client = conversation.client
@@ -2144,38 +2154,80 @@ def notify_manager_of_escalation(self, conversation_id: int, question_summary: s
             logger.warning(f"No manager Telegram IDs configured for client {client.id}")
             return {"success": False, "error": "No managers configured"}
         
+        # CRITICAL: Filter out IDs that belong to existing customers (not managers)
+        # This prevents accidentally sending escalation to customers who wrote /start
+        customer_chat_ids = set(
+            ClientWhatsAppConversation.objects.filter(
+                client=client,
+                telegram_chat_id__isnull=False
+            ).exclude(
+                telegram_chat_id=''
+            ).values_list('telegram_chat_id', flat=True)
+        )
+        
+        # Convert to int set for comparison
+        customer_ids_int = set()
+        for cid in customer_chat_ids:
+            try:
+                customer_ids_int.add(int(cid))
+            except (ValueError, TypeError):
+                continue
+        
+        # Filter out customer IDs from manager list
+        valid_manager_ids = [mid for mid in manager_ids if mid not in customer_ids_int]
+        
+        if not valid_manager_ids:
+            logger.error(
+                f"All manager IDs for client {client.id} are customer chat IDs! "
+                f"Manager IDs: {manager_ids}, Customer IDs: {customer_ids_int}. "
+                f"Please configure correct manager Telegram IDs."
+            )
+            return {"success": False, "error": "All manager IDs are customer chat IDs - misconfigured"}
+        
+        if len(valid_manager_ids) < len(manager_ids):
+            filtered_out = set(manager_ids) - set(valid_manager_ids)
+            logger.warning(
+                f"Filtered out {len(filtered_out)} customer IDs from manager list: {filtered_out}. "
+                f"These IDs belong to existing customers, not managers."
+            )
+        
         # Check if client has Telegram bot token
         bot_token = client.telegram_bot_token
         if not bot_token:
             logger.error(f"No Telegram bot token for client {client.id}")
             return {"success": False, "error": "No bot token"}
         
-        # Build the escalation message
+        # Build the escalation message - use HTML parse_mode to avoid markdown issues
         customer_id = conversation.customer_phone or conversation.telegram_chat_id or f"Conv #{conversation.id}"
         platform = conversation.context_metadata.get('platform', 'unknown') if conversation.context_metadata else 'unknown'
         
+        # Escape special characters in user-provided content
+        escaped_company = escape_html(client.company_name)
+        escaped_customer = escape_html(str(customer_id))
+        escaped_question = escape_html(question_summary)
+        
         message = (
-            f"🆘 *ESCALATION NEEDED*\n\n"
-            f"*Client:* {client.company_name}\n"
-            f"*Customer:* {customer_id}\n"
-            f"*Platform:* {platform}\n"
-            f"*Conversation ID:* {conversation.id}\n\n"
-            f"*Question:*\n{question_summary}\n\n"
+            f"🆘 <b>ESCALATION NEEDED</b>\n\n"
+            f"<b>Client:</b> {escaped_company}\n"
+            f"<b>Customer:</b> {escaped_customer}\n"
+            f"<b>Platform:</b> {platform}\n"
+            f"<b>Conversation ID:</b> {conversation.id}\n\n"
+            f"<b>Question:</b>\n{escaped_question}\n\n"
             f"💬 Reply to this message with your answer. The AI will rephrase it and send to the customer."
         )
         
-        # Send to all managers
+        # Send to all valid managers (not customers)
         results = []
         first_message_id = None
         first_manager_id = None
         
-        for manager_id in manager_ids:
+        for manager_id in valid_manager_ids:
             try:
                 url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
                 payload = {
                     "chat_id": manager_id,
                     "text": message,
-                    "parse_mode": "Markdown"
+                    "parse_mode": "HTML"
                 }
                 response = requests.post(url, json=payload, timeout=10)
                 response_data = response.json()
@@ -2215,7 +2267,8 @@ def notify_manager_of_escalation(self, conversation_id: int, question_summary: s
             "success": successful > 0,
             "conversation_id": conversation_id,
             "managers_notified": successful,
-            "total_managers": len(manager_ids),
+            "total_managers": len(valid_manager_ids),
+            "filtered_customer_ids": len(manager_ids) - len(valid_manager_ids),
             "results": results
         }
         
