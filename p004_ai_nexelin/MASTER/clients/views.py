@@ -33,6 +33,7 @@ from MASTER.clients.models import (
     ClientEmbedding,
     ExtensionPage,
     ExtensionEntity,
+    ClientCustomPrompt,
 )
 from MASTER.clients.serializers import (
     ClientSerializer,
@@ -2676,21 +2677,13 @@ class ConversationRatingView(APIView):
 
         # Smart alert: immediate email ONLY for negative rating (critical)
         if rating == 'negative':
-
-        # Smart alert: immediate email ONLY for negative rating (critical)
-        if rating == 'negative':
             from MASTER.clients.tasks import close_session_and_send_email
             try:
                 close_session_and_send_email.delay(conversation.id, force_send=True)
                 logger.info(
                     f"🔴 Negative rating received for conversation {conversation_id}, scheduling urgent email"
                 )
-                close_session_and_send_email.delay(conversation.id, force_send=True)
-                logger.info(
-                    f"🔴 Negative rating received for conversation {conversation_id}, scheduling urgent email"
-                )
             except Exception as e:
-                logger.error(f"Failed to schedule email for negative rating: {e}")
                 logger.error(f"Failed to schedule email for negative rating: {e}")
         
         return Response({
@@ -2834,18 +2827,8 @@ class ManualReportView(APIView):
 
         return Response(
             {
-        # Manual trigger: schedule task with force_send=True (no spam logic bypassed)
-        close_session_and_send_email.delay(conversation.id, force_send=True)
-
-        return Response(
-            {
                 'success': True,
                 'conversation_id': conversation.id,
-                'scheduled': True,
-                'message': 'Report email scheduled',
-            },
-            status=status.HTTP_202_ACCEPTED,
-        )
                 'scheduled': True,
                 'message': 'Report email scheduled',
             },
