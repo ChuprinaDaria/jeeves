@@ -1071,7 +1071,17 @@ def close_session_and_send_email(self, conversation_id: int, force_send: bool = 
         # Generate full chat text
         chat_text = format_chat_as_text(conversation)
 
-        subject_prefix = "🔴 URGENT NEGATIVE " if is_negative else ""
+        notification_lang = _get_notification_language(conversation.client)
+        subject_prefix_map = {
+            'en': "🔴 URGENT NEGATIVE ",
+            'de': "🔴 DRINGEND NEGATIV ",
+            'fr': "🔴 URGENT NÉGATIF ",
+            'es': "🔴 URGENTE NEGATIVO ",
+            'it': "🔴 URGENTE NEGATIVO ",
+            'nl': "🔴 DRINGEND NEGATIEF ",
+            'da': "🔴 HASTER NEGATIV ",
+        }
+        subject_prefix = subject_prefix_map.get(notification_lang, subject_prefix_map['en']) if is_negative else ""
         email_result = send_chat_summary_email(
             conversation,
             chat_text,
@@ -1476,6 +1486,12 @@ def _generate_fallback_summary(conversation, messages_text, lang_name):
         return f"Conversation summary: {conversation.total_messages} messages exchanged."
 
 
+def _get_notification_language(client, default: str = 'en') -> str:
+    supported = {'en', 'de', 'fr', 'es', 'it', 'nl', 'da'}
+    lang = getattr(client, 'notification_language', None) or default
+    return lang if lang in supported else default
+
+
 def format_chat_as_text(conversation):
     """
     Format full conversation as text for email attachment.
@@ -1541,29 +1557,159 @@ def format_chat_as_text(conversation):
     # Refresh conversation from database to ensure we have latest rating
     conversation.refresh_from_db(fields=['user_rating', 'ai_rating', 'summary'])
     
+    lang = _get_notification_language(conversation.client)
+    labels = {
+        'en': {
+            'report_title': 'Chat Session Report',
+            'client': 'Client',
+            'customer': 'Customer',
+            'session_id': 'Session ID',
+            'started': 'Started',
+            'ended': 'Ended',
+            'total_messages': 'Total Messages',
+            'language': 'Language',
+            'rating': 'Rating',
+            'conversation': 'CONVERSATION',
+            'summary': 'SUMMARY',
+            'summary_failed': 'Summary generation failed due to an error.',
+        },
+        'de': {
+            'report_title': 'Chat-Sitzungsbericht',
+            'client': 'Kunde',
+            'customer': 'Benutzer',
+            'session_id': 'Sitzungs-ID',
+            'started': 'Beginn',
+            'ended': 'Ende',
+            'total_messages': 'Gesamtzahl Nachrichten',
+            'language': 'Sprache',
+            'rating': 'Bewertung',
+            'conversation': 'KONVERSATION',
+            'summary': 'ZUSAMMENFASSUNG',
+            'summary_failed': 'Zusammenfassung konnte aufgrund eines Fehlers nicht erstellt werden.',
+        },
+        'fr': {
+            'report_title': 'Rapport de session de chat',
+            'client': 'Client',
+            'customer': 'Utilisateur',
+            'session_id': 'ID de session',
+            'started': 'Début',
+            'ended': 'Fin',
+            'total_messages': 'Messages totaux',
+            'language': 'Langue',
+            'rating': 'Évaluation',
+            'conversation': 'CONVERSATION',
+            'summary': 'RÉSUMÉ',
+            'summary_failed': 'La génération du résumé a échoué en raison d’une erreur.',
+        },
+        'es': {
+            'report_title': 'Informe de sesión de chat',
+            'client': 'Cliente',
+            'customer': 'Usuario',
+            'session_id': 'ID de sesión',
+            'started': 'Inicio',
+            'ended': 'Fin',
+            'total_messages': 'Mensajes totales',
+            'language': 'Idioma',
+            'rating': 'Calificación',
+            'conversation': 'CONVERSACIÓN',
+            'summary': 'RESUMEN',
+            'summary_failed': 'La generación del resumen falló por un error.',
+        },
+        'it': {
+            'report_title': 'Rapporto sessione chat',
+            'client': 'Cliente',
+            'customer': 'Utente',
+            'session_id': 'ID sessione',
+            'started': 'Inizio',
+            'ended': 'Fine',
+            'total_messages': 'Messaggi totali',
+            'language': 'Lingua',
+            'rating': 'Valutazione',
+            'conversation': 'CONVERSAZIONE',
+            'summary': 'RIEPILOGO',
+            'summary_failed': 'La generazione del riepilogo non è riuscita a causa di un errore.',
+        },
+        'nl': {
+            'report_title': 'Chatsessierapport',
+            'client': 'Klant',
+            'customer': 'Gebruiker',
+            'session_id': 'Sessies-ID',
+            'started': 'Start',
+            'ended': 'Einde',
+            'total_messages': 'Totaal berichten',
+            'language': 'Taal',
+            'rating': 'Beoordeling',
+            'conversation': 'CONVERSATIE',
+            'summary': 'SAMENVATTING',
+            'summary_failed': 'Samenvatting genereren is mislukt door een fout.',
+        },
+        'da': {
+            'report_title': 'Chat-session rapport',
+            'client': 'Kunde',
+            'customer': 'Bruger',
+            'session_id': 'Session-ID',
+            'started': 'Start',
+            'ended': 'Slut',
+            'total_messages': 'Samlede beskeder',
+            'language': 'Sprog',
+            'rating': 'Vurdering',
+            'conversation': 'Samtale',
+            'summary': 'Resumé',
+            'summary_failed': 'Generering af resumé mislykkedes på grund af en fejl.',
+        },
+    }
+    label = labels.get(lang, labels['en'])
+    
     # Get rating - check both user_rating and ai_rating, handle empty strings
-    rating = conversation.user_rating or conversation.ai_rating
-    if not rating or rating.strip() == '':
-        rating = 'Not rated'
-    elif rating == 'positive':
-        rating = '👍 Positive'
-    elif rating == 'negative':
-        rating = '👎 Negative'
+    rating_key = (conversation.user_rating or conversation.ai_rating or '').strip()
+    rating_labels = {
+        'positive': {
+            'en': '👍 Positive',
+            'de': '👍 Positiv',
+            'fr': '👍 Positif',
+            'es': '👍 Positivo',
+            'it': '👍 Positivo',
+            'nl': '👍 Positief',
+            'da': '👍 Positiv',
+        },
+        'negative': {
+            'en': '👎 Negative',
+            'de': '👎 Negativ',
+            'fr': '👎 Négatif',
+            'es': '👎 Negativo',
+            'it': '👎 Negativo',
+            'nl': '👎 Negatief',
+            'da': '👎 Negativ',
+        },
+    }
+    not_rated = {
+        'en': 'Not rated',
+        'de': 'Nicht bewertet',
+        'fr': 'Non évalué',
+        'es': 'Sin calificación',
+        'it': 'Non valutato',
+        'nl': 'Niet beoordeeld',
+        'da': 'Ikke vurderet',
+    }
+    if rating_key in rating_labels:
+        rating = rating_labels[rating_key].get(lang, rating_labels[rating_key]['en'])
+    else:
+        rating = not_rated.get(lang, not_rated['en'])
     
     lines = [
-        f"Chat Session Report",
+        label['report_title'],
         f"{'=' * 50}",
-        f"Client: {conversation.client.company_name}",
-        f"Customer: {conversation.customer_phone}",
-        f"Session ID: {conversation.session_id or 'N/A'}",
-        f"Started: {conversation.started_at.strftime('%Y-%m-%d %H:%M:%S') if conversation.started_at else 'N/A'}",
-        f"Ended: {conversation.ended_at.strftime('%Y-%m-%d %H:%M:%S') if conversation.ended_at else 'N/A'}",
-        f"Total Messages: {len(session_messages)}",
-        f"Language: {conversation.language}",
-        f"Rating: {rating}",
+        f"{label['client']}: {conversation.client.company_name}",
+        f"{label['customer']}: {conversation.customer_phone}",
+        f"{label['session_id']}: {conversation.session_id or 'N/A'}",
+        f"{label['started']}: {conversation.started_at.strftime('%Y-%m-%d %H:%M:%S') if conversation.started_at else 'N/A'}",
+        f"{label['ended']}: {conversation.ended_at.strftime('%Y-%m-%d %H:%M:%S') if conversation.ended_at else 'N/A'}",
+        f"{label['total_messages']}: {len(session_messages)}",
+        f"{label['language']}: {conversation.language}",
+        f"{label['rating']}: {rating}",
         f"{'=' * 50}",
         "",
-        "CONVERSATION:",
+        f"{label['conversation']}:",
         "",
     ]
     
@@ -1591,11 +1737,11 @@ def format_chat_as_text(conversation):
     
     # Always add summary section - show error message if generation failed
     lines.append("")
-    lines.append("SUMMARY:")
+    lines.append(f"{label['summary']}:")
     if conversation.summary:
         lines.append(conversation.summary)
     else:
-        lines.append("Summary generation failed due to an error.")
+        lines.append(label['summary_failed'])
     
     return "\n".join(lines)
 
@@ -1666,55 +1812,180 @@ def send_chat_summary_email(conversation, chat_text, recipients=None, subject_pr
             timeout=30,
         )
         
+        lang = _get_notification_language(conversation.client)
+        labels = {
+            'en': {
+                'subject': 'Chat Session Summary',
+                'client': 'Client',
+                'customer': 'Customer',
+                'session_id': 'Session ID',
+                'started': 'Started',
+                'ended': 'Ended',
+                'total_messages': 'Total Messages',
+                'rating': 'Rating',
+                'summary': 'Summary',
+                'no_summary': 'No summary available.',
+                'attachment_note': 'Full conversation transcript is attached as a text file.',
+            },
+            'de': {
+                'subject': 'Chat-Sitzungszusammenfassung',
+                'client': 'Kunde',
+                'customer': 'Benutzer',
+                'session_id': 'Sitzungs-ID',
+                'started': 'Beginn',
+                'ended': 'Ende',
+                'total_messages': 'Gesamtzahl Nachrichten',
+                'rating': 'Bewertung',
+                'summary': 'Zusammenfassung',
+                'no_summary': 'Keine Zusammenfassung verfügbar.',
+                'attachment_note': 'Das vollständige Gesprächsprotokoll ist als Textdatei beigefügt.',
+            },
+            'fr': {
+                'subject': 'Résumé de session de chat',
+                'client': 'Client',
+                'customer': 'Utilisateur',
+                'session_id': 'ID de session',
+                'started': 'Début',
+                'ended': 'Fin',
+                'total_messages': 'Messages totaux',
+                'rating': 'Évaluation',
+                'summary': 'Résumé',
+                'no_summary': 'Aucun résumé disponible.',
+                'attachment_note': 'La transcription complète de la conversation est jointe en tant que fichier texte.',
+            },
+            'es': {
+                'subject': 'Resumen de sesión de chat',
+                'client': 'Cliente',
+                'customer': 'Usuario',
+                'session_id': 'ID de sesión',
+                'started': 'Inicio',
+                'ended': 'Fin',
+                'total_messages': 'Mensajes totales',
+                'rating': 'Calificación',
+                'summary': 'Resumen',
+                'no_summary': 'No hay resumen disponible.',
+                'attachment_note': 'La transcripción completa de la conversación está adjunta como archivo de texto.',
+            },
+            'it': {
+                'subject': 'Riepilogo sessione chat',
+                'client': 'Cliente',
+                'customer': 'Utente',
+                'session_id': 'ID sessione',
+                'started': 'Inizio',
+                'ended': 'Fine',
+                'total_messages': 'Messaggi totali',
+                'rating': 'Valutazione',
+                'summary': 'Riepilogo',
+                'no_summary': 'Nessun riepilogo disponibile.',
+                'attachment_note': 'La trascrizione completa della conversazione è allegata come file di testo.',
+            },
+            'nl': {
+                'subject': 'Samenvatting chatsessie',
+                'client': 'Klant',
+                'customer': 'Gebruiker',
+                'session_id': 'Sessies-ID',
+                'started': 'Start',
+                'ended': 'Einde',
+                'total_messages': 'Totaal berichten',
+                'rating': 'Beoordeling',
+                'summary': 'Samenvatting',
+                'no_summary': 'Geen samenvatting beschikbaar.',
+                'attachment_note': 'Het volledige gesprek is als tekstbestand bijgevoegd.',
+            },
+            'da': {
+                'subject': 'Resumé af chat-session',
+                'client': 'Kunde',
+                'customer': 'Bruger',
+                'session_id': 'Session-ID',
+                'started': 'Start',
+                'ended': 'Slut',
+                'total_messages': 'Samlede beskeder',
+                'rating': 'Vurdering',
+                'summary': 'Resumé',
+                'no_summary': 'Intet resumé tilgængeligt.',
+                'attachment_note': 'Den fulde samtale er vedhæftet som en tekstfil.',
+            },
+        }
+        label = labels.get(lang, labels['en'])
+        
         # Prepare email
         prefix = (subject_prefix or "").strip()
         if prefix:
             prefix = prefix + " "
-        subject = f"{prefix}Chat Session Summary - {conversation.client.company_name}"
+        subject = f"{prefix}{label['subject']} - {conversation.client.company_name}"
         
         # Email body with summary
-        summary_html = conversation.summary.replace(chr(10), '<br>') if conversation.summary else 'No summary available.'
-        rating_display = conversation.user_rating or conversation.ai_rating or 'Not rated'
-        if rating_display == 'positive':
-            rating_display = '👍 Positive'
-        elif rating_display == 'negative':
-            rating_display = '👎 Negative'
+        summary_html = conversation.summary.replace(chr(10), '<br>') if conversation.summary else label['no_summary']
+        rating_key = (conversation.user_rating or conversation.ai_rating or '').strip()
+        rating_labels = {
+            'positive': {
+                'en': '👍 Positive',
+                'de': '👍 Positiv',
+                'fr': '👍 Positif',
+                'es': '👍 Positivo',
+                'it': '👍 Positivo',
+                'nl': '👍 Positief',
+                'da': '👍 Positiv',
+            },
+            'negative': {
+                'en': '👎 Negative',
+                'de': '👎 Negativ',
+                'fr': '👎 Négatif',
+                'es': '👎 Negativo',
+                'it': '👎 Negativo',
+                'nl': '👎 Negatief',
+                'da': '👎 Negativ',
+            },
+        }
+        not_rated = {
+            'en': 'Not rated',
+            'de': 'Nicht bewertet',
+            'fr': 'Non évalué',
+            'es': 'Sin calificación',
+            'it': 'Non valutato',
+            'nl': 'Niet beoordeeld',
+            'da': 'Ikke vurderet',
+        }
+        if rating_key in rating_labels:
+            rating_display = rating_labels[rating_key].get(lang, rating_labels[rating_key]['en'])
+        else:
+            rating_display = not_rated.get(lang, not_rated['en'])
         
         body_html = f"""
         <html>
         <body>
-            <h2>Chat Session Summary</h2>
-            <p><strong>Client:</strong> {conversation.client.company_name}</p>
-            <p><strong>Customer:</strong> {conversation.customer_phone}</p>
-            <p><strong>Session ID:</strong> {conversation.session_id or 'N/A'}</p>
-            <p><strong>Started:</strong> {conversation.started_at.strftime('%Y-%m-%d %H:%M:%S') if conversation.started_at else 'N/A'}</p>
-            <p><strong>Ended:</strong> {conversation.ended_at.strftime('%Y-%m-%d %H:%M:%S') if conversation.ended_at else 'N/A'}</p>
-            <p><strong>Total Messages:</strong> {conversation.total_messages}</p>
-            <p><strong>Rating:</strong> {rating_display}</p>
+            <h2>{label['subject']}</h2>
+            <p><strong>{label['client']}:</strong> {conversation.client.company_name}</p>
+            <p><strong>{label['customer']}:</strong> {conversation.customer_phone}</p>
+            <p><strong>{label['session_id']}:</strong> {conversation.session_id or 'N/A'}</p>
+            <p><strong>{label['started']}:</strong> {conversation.started_at.strftime('%Y-%m-%d %H:%M:%S') if conversation.started_at else 'N/A'}</p>
+            <p><strong>{label['ended']}:</strong> {conversation.ended_at.strftime('%Y-%m-%d %H:%M:%S') if conversation.ended_at else 'N/A'}</p>
+            <p><strong>{label['total_messages']}:</strong> {conversation.total_messages}</p>
+            <p><strong>{label['rating']}:</strong> {rating_display}</p>
             
-            <h3>Summary:</h3>
+            <h3>{label['summary']}:</h3>
             <p>{summary_html}</p>
             
-            <p><em>Full conversation transcript is attached as a text file.</em></p>
+            <p><em>{label['attachment_note']}</em></p>
         </body>
         </html>
         """
         
         body_text = f"""
-Chat Session Summary
+{label['subject']}
 
-Client: {conversation.client.company_name}
-Customer: {conversation.customer_phone}
-Session ID: {conversation.session_id or 'N/A'}
-Started: {conversation.started_at.strftime('%Y-%m-%d %H:%M:%S') if conversation.started_at else 'N/A'}
-Ended: {conversation.ended_at.strftime('%Y-%m-%d %H:%M:%S') if conversation.ended_at else 'N/A'}
-Total Messages: {conversation.total_messages}
-Rating: {rating_display}
+{label['client']}: {conversation.client.company_name}
+{label['customer']}: {conversation.customer_phone}
+{label['session_id']}: {conversation.session_id or 'N/A'}
+{label['started']}: {conversation.started_at.strftime('%Y-%m-%d %H:%M:%S') if conversation.started_at else 'N/A'}
+{label['ended']}: {conversation.ended_at.strftime('%Y-%m-%d %H:%M:%S') if conversation.ended_at else 'N/A'}
+{label['total_messages']}: {conversation.total_messages}
+{label['rating']}: {rating_display}
 
-Summary:
-{conversation.summary or 'No summary available.'}
+{label['summary']}:
+{conversation.summary or label['no_summary']}
 
-Full conversation transcript is attached as a text file.
+{label['attachment_note']}
         """
         
         # Determine recipient emails
@@ -2120,7 +2391,171 @@ def send_daily_digest(manual: bool = False, client_id: int = None):
             [f"{(h.get('hour') if h.get('hour') is not None else 'N/A')}:00 ({h.get('count', 0)})" for h in hours]
         )
         subject_prefix = "🔴 " if negative_count > 0 else ""
-        subject = f"{subject_prefix}Daily Digest - {client.company_name} - {today.isoformat()}"
+        digest_labels = {
+            'en': {
+                'subject': 'Daily Digest',
+                'client': 'Client',
+                'stats': 'Stats',
+                'total_chats': 'Total chats',
+                'positive': 'Positive',
+                'negative': 'Negative',
+                'top_hours': 'Top hours',
+                'meta_summary': 'Daily Meta-Summary',
+                'escalations_title': '🧠 AI Knowledge Gaps (Escalations)',
+                'escalations_desc': "Questions where AI didn't have enough information and needed human help:",
+                'escalation_none': "✅ No escalations - AI had sufficient knowledge for all conversations!",
+                'no_context': 'No context saved',
+                'no_summary': 'No summary',
+                'resolved': '✅ Resolved',
+                'pending': '⏳ Pending',
+                'top_positive': 'Top 5 Positive Feedback',
+                'all_negative': 'All Negative Conversations',
+                'note': 'Note:',
+                'note_text': 'Full transcripts are attached for negative conversations.',
+                'none': 'None',
+                'na': 'N/A',
+            },
+            'de': {
+                'subject': 'Tägliche Übersicht',
+                'client': 'Kunde',
+                'stats': 'Statistik',
+                'total_chats': 'Gesamtchats',
+                'positive': 'Positiv',
+                'negative': 'Negativ',
+                'top_hours': 'Top-Zeiten',
+                'meta_summary': 'Tägliche Meta-Zusammenfassung',
+                'escalations_title': '🧠 Wissenslücken der KI (Eskalationen)',
+                'escalations_desc': 'Fragen, bei denen der KI Informationen fehlten und menschliche Hilfe nötig war:',
+                'escalation_none': '✅ Keine Eskalationen – die KI hatte für alle Gespräche ausreichend Wissen.',
+                'no_context': 'Kein Kontext gespeichert',
+                'no_summary': 'Keine Zusammenfassung',
+                'resolved': '✅ Erledigt',
+                'pending': '⏳ Ausstehend',
+                'top_positive': 'Top 5 positives Feedback',
+                'all_negative': 'Alle negativen Gespräche',
+                'note': 'Hinweis:',
+                'note_text': 'Vollständige Transkripte sind für negative Gespräche beigefügt.',
+                'none': 'Keine',
+                'na': 'k. A.',
+            },
+            'fr': {
+                'subject': 'Résumé quotidien',
+                'client': 'Client',
+                'stats': 'Statistiques',
+                'total_chats': 'Chats totaux',
+                'positive': 'Positif',
+                'negative': 'Négatif',
+                'top_hours': 'Heures principales',
+                'meta_summary': 'Méta-résumé quotidien',
+                'escalations_title': '🧠 Lacunes de connaissance de l’IA (escalades)',
+                'escalations_desc': "Questions pour lesquelles l’IA n’avait pas assez d’informations et a eu besoin d’aide humaine :",
+                'escalation_none': "✅ Aucune escalade — l’IA avait suffisamment de connaissances pour toutes les conversations.",
+                'no_context': 'Aucun contexte enregistré',
+                'no_summary': 'Aucun résumé',
+                'resolved': '✅ Résolu',
+                'pending': '⏳ En attente',
+                'top_positive': 'Top 5 des retours positifs',
+                'all_negative': 'Toutes les conversations négatives',
+                'note': 'Note :',
+                'note_text': 'Les transcriptions complètes sont jointes pour les conversations négatives.',
+                'none': 'Aucun',
+                'na': 'N/D',
+            },
+            'es': {
+                'subject': 'Resumen diario',
+                'client': 'Cliente',
+                'stats': 'Estadísticas',
+                'total_chats': 'Chats totales',
+                'positive': 'Positivo',
+                'negative': 'Negativo',
+                'top_hours': 'Horas principales',
+                'meta_summary': 'Meta-resumen diario',
+                'escalations_title': '🧠 Brechas de conocimiento de la IA (escalaciones)',
+                'escalations_desc': 'Preguntas en las que la IA no tuvo suficiente información y necesitó ayuda humana:',
+                'escalation_none': '✅ Sin escalaciones: la IA tuvo suficiente conocimiento para todas las conversaciones.',
+                'no_context': 'Sin contexto guardado',
+                'no_summary': 'Sin resumen',
+                'resolved': '✅ Resuelto',
+                'pending': '⏳ Pendiente',
+                'top_positive': 'Top 5 de comentarios positivos',
+                'all_negative': 'Todas las conversaciones negativas',
+                'note': 'Nota:',
+                'note_text': 'Se adjuntan transcripciones completas para las conversaciones negativas.',
+                'none': 'Ninguna',
+                'na': 'N/D',
+            },
+            'it': {
+                'subject': 'Riepilogo giornaliero',
+                'client': 'Cliente',
+                'stats': 'Statistiche',
+                'total_chats': 'Chat totali',
+                'positive': 'Positivo',
+                'negative': 'Negativo',
+                'top_hours': 'Ore principali',
+                'meta_summary': 'Meta-riepilogo giornaliero',
+                'escalations_title': '🧠 Lacune di conoscenza dell’IA (escalation)',
+                'escalations_desc': "Domande per cui l’IA non aveva informazioni sufficienti e ha richiesto aiuto umano:",
+                'escalation_none': '✅ Nessuna escalation: l’IA aveva conoscenze sufficienti per tutte le conversazioni.',
+                'no_context': 'Nessun contesto salvato',
+                'no_summary': 'Nessun riepilogo',
+                'resolved': '✅ Risolto',
+                'pending': '⏳ In sospeso',
+                'top_positive': 'Top 5 feedback positivi',
+                'all_negative': 'Tutte le conversazioni negative',
+                'note': 'Nota:',
+                'note_text': 'Le trascrizioni complete sono allegate per le conversazioni negative.',
+                'none': 'Nessuna',
+                'na': 'N/D',
+            },
+            'nl': {
+                'subject': 'Dagelijks overzicht',
+                'client': 'Klant',
+                'stats': 'Statistieken',
+                'total_chats': 'Totaal chats',
+                'positive': 'Positief',
+                'negative': 'Negatief',
+                'top_hours': 'Topuren',
+                'meta_summary': 'Dagelijkse meta-samenvatting',
+                'escalations_title': '🧠 Kennisgaten van de AI (escalaties)',
+                'escalations_desc': 'Vragen waarbij de AI onvoldoende informatie had en menselijke hulp nodig was:',
+                'escalation_none': '✅ Geen escalaties — de AI had voldoende kennis voor alle gesprekken.',
+                'no_context': 'Geen context opgeslagen',
+                'no_summary': 'Geen samenvatting',
+                'resolved': '✅ Opgelost',
+                'pending': '⏳ In behandeling',
+                'top_positive': 'Top 5 positieve feedback',
+                'all_negative': 'Alle negatieve gesprekken',
+                'note': 'Opmerking:',
+                'note_text': 'Volledige transcripties zijn bijgevoegd voor negatieve gesprekken.',
+                'none': 'Geen',
+                'na': 'N.v.t.',
+            },
+            'da': {
+                'subject': 'Daglig oversigt',
+                'client': 'Kunde',
+                'stats': 'Statistik',
+                'total_chats': 'Samlede chats',
+                'positive': 'Positiv',
+                'negative': 'Negativ',
+                'top_hours': 'Top-timer',
+                'meta_summary': 'Daglig meta-resumé',
+                'escalations_title': '🧠 AI-videnshuller (escalationer)',
+                'escalations_desc': 'Spørgsmål hvor AI’en ikke havde nok information og havde brug for menneskelig hjælp:',
+                'escalation_none': '✅ Ingen escalationer – AI’en havde tilstrækkelig viden til alle samtaler.',
+                'no_context': 'Ingen kontekst gemt',
+                'no_summary': 'Intet resumé',
+                'resolved': '✅ Løst',
+                'pending': '⏳ Afventer',
+                'top_positive': 'Top 5 positive tilbagemeldinger',
+                'all_negative': 'Alle negative samtaler',
+                'note': 'Bemærk:',
+                'note_text': 'Fuldstændige transskriptioner er vedhæftet for negative samtaler.',
+                'none': 'Ingen',
+                'na': 'N/A',
+            },
+        }
+        dlabel = digest_labels.get(notification_lang, digest_labels['en'])
+        subject = f"{subject_prefix}{dlabel['subject']} - {client.company_name} - {today.isoformat()}"
 
         # Build escalation status emoji
         escalation_emoji = "🟢" if escalation_count == 0 else ("🟡" if escalation_count <= 2 else "🔴")
@@ -2128,56 +2563,56 @@ def send_daily_digest(manual: bool = False, client_id: int = None):
         body_html = f"""
         <html>
         <body>
-          <h2>Daily Digest — {today.isoformat()}</h2>
-          <p><strong>Client:</strong> {client.company_name}</p>
-          <h3>Stats</h3>
+          <h2>{dlabel['subject']} — {today.isoformat()}</h2>
+          <p><strong>{dlabel['client']}:</strong> {client.company_name}</p>
+          <h3>{dlabel['stats']}</h3>
           <ul>
-            <li><strong>Total chats:</strong> {total_chats}</li>
+            <li><strong>{dlabel['total_chats']}:</strong> {total_chats}</li>
             <li><strong>WhatsApp:</strong> {platform_counts.get('whatsapp', 0)}</li>
             <li><strong>Telegram:</strong> {platform_counts.get('telegram', 0)}</li>
             <li><strong>Web:</strong> {platform_counts.get('web', 0)}</li>
-            <li><strong>Positive:</strong> {positive_count}</li>
-            <li><strong>Negative:</strong> {negative_count}</li>
-            <li><strong>{escalation_emoji} AI Knowledge Gaps (Escalations):</strong> {escalation_count}</li>
-            <li><strong>Top hours:</strong> {hours_str or 'N/A'}</li>
+            <li><strong>{dlabel['positive']}:</strong> {positive_count}</li>
+            <li><strong>{dlabel['negative']}:</strong> {negative_count}</li>
+            <li><strong>{escalation_emoji} {dlabel['escalations_title']}:</strong> {escalation_count}</li>
+            <li><strong>{dlabel['top_hours']}:</strong> {hours_str or dlabel['na']}</li>
           </ul>
 
-          <h3>Daily Meta-Summary</h3>
-          <p>{(meta_summary or 'N/A').replace(chr(10), '<br>')}</p>
+          <h3>{dlabel['meta_summary']}</h3>
+          <p>{(meta_summary or dlabel['na']).replace(chr(10), '<br>')}</p>
 
-          <h3>🧠 AI Knowledge Gaps (Escalations)</h3>
-          <p><em>Questions where AI didn't have enough information and needed human help:</em></p>
+          <h3>{dlabel['escalations_title']}</h3>
+          <p><em>{dlabel['escalations_desc']}</em></p>
           <ul>
-            {''.join([f"<li><strong>{r['user']}</strong> (conv #{r['id']}): {r['question'] or 'No context saved'} {'✅ Resolved' if r['resolved'] else '⏳ Pending'}</li>" for r in escalation_rows]) or "<li>✅ No escalations - AI had sufficient knowledge for all conversations!</li>"}
+            {''.join([f"<li><strong>{r['user']}</strong> (conv #{r['id']}): {r['question'] or dlabel['no_context']} {dlabel['resolved'] if r['resolved'] else dlabel['pending']}</li>" for r in escalation_rows]) or f"<li>{dlabel['escalation_none']}</li>"}
           </ul>
 
-          <h3>Top 5 Positive Feedback</h3>
+          <h3>{dlabel['top_positive']}</h3>
           <ol>
-            {''.join([f"<li><strong>{r['user']}</strong>: {r['quote'] or r['summary'][:180]}</li>" for r in positive_rows]) or "<li>N/A</li>"}
+            {''.join([f"<li><strong>{r['user']}</strong>: {r['quote'] or r['summary'][:180]}</li>" for r in positive_rows]) or f"<li>{dlabel['na']}</li>"}
           </ol>
 
-          <h3>All Negative Conversations</h3>
+          <h3>{dlabel['all_negative']}</h3>
           <ul>
-            {''.join([f"<li><strong>{r['user']}</strong> (conv #{r['id']}): {r['summary'] or 'No summary'}</li>" for r in negative_rows]) or "<li>None</li>"}
+            {''.join([f"<li><strong>{r['user']}</strong> (conv #{r['id']}): {r['summary'] or dlabel['no_summary']}</li>" for r in negative_rows]) or f"<li>{dlabel['none']}</li>"}
           </ul>
 
-          <p><em>Note:</em> Full transcripts are attached for negative conversations.</p>
+          <p><em>{dlabel['note']}</em> {dlabel['note_text']}</p>
         </body>
         </html>
         """
 
         body_text = (
-            f"Daily Digest — {today.isoformat()}\n"
-            f"Client: {client.company_name}\n\n"
-            f"Total chats: {total_chats}\n"
+            f"{dlabel['subject']} — {today.isoformat()}\n"
+            f"{dlabel['client']}: {client.company_name}\n\n"
+            f"{dlabel['total_chats']}: {total_chats}\n"
             f"WhatsApp: {platform_counts.get('whatsapp', 0)}\n"
             f"Telegram: {platform_counts.get('telegram', 0)}\n"
             f"Web: {platform_counts.get('web', 0)}\n"
-            f"Positive: {positive_count}\n"
-            f"Negative: {negative_count}\n"
-            f"{escalation_emoji} AI Knowledge Gaps (Escalations): {escalation_count}\n"
-            f"Top hours: {hours_str or 'N/A'}\n\n"
-            f"Daily Meta-Summary:\n{meta_summary}\n"
+            f"{dlabel['positive']}: {positive_count}\n"
+            f"{dlabel['negative']}: {negative_count}\n"
+            f"{escalation_emoji} {dlabel['escalations_title']}: {escalation_count}\n"
+            f"{dlabel['top_hours']}: {hours_str or dlabel['na']}\n\n"
+            f"{dlabel['meta_summary']}:\n{meta_summary or dlabel['na']}\n"
         )
 
         send_result = _send_daily_digest_email(

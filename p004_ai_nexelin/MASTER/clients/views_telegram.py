@@ -275,17 +275,26 @@ class TelegramWebhookView(View):
             sender_id = from_user.get('id')
             
             # First, check if this is a reply to an escalation message
-            if reply_to and client_hint:
+            if reply_to:
                 manager_result = self.handle_manager_reply(message, reply_to, client_hint)
                 if manager_result:
                     return manager_result
             
             # Second, check if sender is a manager with ANY waiting conversation (even without reply)
             # This handles cases where manager just types a response without using Telegram's "Reply"
-            if sender_id and client_hint:
+            if sender_id:
                 manager_result = self.handle_manager_direct_message(message, sender_id, client_hint)
                 if manager_result:
                     return manager_result
+
+            # If sender is a manager but no escalation matched, do NOT process as customer
+            if sender_id:
+                manager_client = self._get_manager_client_by_sender(sender_id, client_hint)
+                if manager_client:
+                    logger.info(
+                        f"HITL: Ignoring manager message without active escalation (sender_id={sender_id}, client={manager_client.id})"
+                    )
+                    return HttpResponse("OK")
             
             chat_id = message.get('chat', {}).get('id')
             message_text = message.get('text', '')
@@ -719,33 +728,17 @@ class TelegramWebhookView(View):
                 logger.debug(f"HITL: Missing data - sender_id={sender_id}, text={bool(message_text)}, reply_id={reply_message_id}")
                 return None
             
-            # Check if sender is a manager for this client
+            # Check if sender is a manager for this client (or resolve by sender_id)
+            manager_client = self._get_manager_client_by_sender(sender_id, client_hint)
+            if not manager_client:
+                return None
+            
+            client_hint = manager_client
             manager_ids = client_hint.get_manager_telegram_ids() if hasattr(client_hint, 'get_manager_telegram_ids') else []
             logger.info(f"HITL: Client {client_hint.id if client_hint else 'None'} manager_ids={manager_ids}, sender_id={sender_id}")
-            
             if sender_id not in manager_ids:
-                logger.info(f"HITL: Sender {sender_id} is NOT in manager list {manager_ids}, checking other clients...")
-                
-                # Try to find ANY client where this sender is a manager with a waiting conversation
-                from MASTER.clients.models import Client
-                for client in Client.objects.filter(hitl_enabled=True):
-                    client_manager_ids = client.get_manager_telegram_ids()
-                    if sender_id in client_manager_ids:
-                        # Found a client where sender is a manager, check for waiting conversations
-                        conv = ClientWhatsAppConversation.objects.filter(
-                            client=client,
-                            is_waiting_for_manager=True,
-                            last_escalation_message_id=str(reply_message_id)
-                        ).first()
-                        if conv:
-                            logger.info(f"HITL: Found waiting conversation {conv.id} for manager {sender_id} on client {client.id}")
-                            client_hint = client
-                            manager_ids = client_manager_ids
-                            break
-                
-                if sender_id not in manager_ids:
-                    logger.debug(f"HITL: Sender {sender_id} is not a manager for any client")
-                    return None  # Not a manager, process as regular message
+                logger.debug(f"HITL: Sender {sender_id} is not a manager for client {client_hint.id if client_hint else 'None'}")
+                return None
             
             # Find conversation waiting for this manager's response
             conversation = ClientWhatsAppConversation.objects.filter(
@@ -804,27 +797,8 @@ class TelegramWebhookView(View):
             if not message_text:
                 return None
             
-            # Check if sender is a manager for this client or any HITL-enabled client
-            from MASTER.clients.models import Client
-            
-            manager_client = None
-            manager_ids = []
-            
-            # First check current client_hint
-            if client_hint and hasattr(client_hint, 'get_manager_telegram_ids'):
-                manager_ids = client_hint.get_manager_telegram_ids()
-                if sender_id in manager_ids:
-                    manager_client = client_hint
-            
-            # If not found, search all HITL-enabled clients
-            if not manager_client:
-                for client in Client.objects.filter(hitl_enabled=True):
-                    client_manager_ids = client.get_manager_telegram_ids()
-                    if sender_id in client_manager_ids:
-                        manager_client = client
-                        manager_ids = client_manager_ids
-                        break
-            
+            # Check if sender is a manager for this client (or resolve by sender_id)
+            manager_client = self._get_manager_client_by_sender(sender_id, client_hint)
             if not manager_client:
                 return None  # Not a manager
             
@@ -991,7 +965,18 @@ class TelegramWebhookView(View):
                 client = Client.objects.filter(telegram_enabled=True).first()
             
             if not client:
-                return "Привіт! Для початку роботи надішліть команду START2 з QR-коду."
+                default_lang = getattr(self, '_current_client_hint', None)
+                lang = getattr(default_lang, 'notification_language', 'en') if default_lang else 'en'
+                fallback_messages = {
+                    'en': "Hi! To get started, please send the START2 command from the QR code.",
+                    'de': "Hallo! Um zu starten, senden Sie bitte den START2-Befehl vom QR-Code.",
+                    'fr': "Bonjour ! Pour commencer, veuillez envoyer la commande START2 depuis le QR code.",
+                    'es': "¡Hola! Para comenzar, envíe el comando START2 desde el código QR.",
+                    'it': "Ciao! Per iniziare, invia il comando START2 dal codice QR.",
+                    'nl': "Hallo! Stuur om te beginnen het START2-commando vanaf de QR-code.",
+                    'da': "Hej! For at komme i gang, send START2-kommandoen fra QR-koden.",
+                }
+                return fallback_messages.get(lang, fallback_messages['en'])
             
             # Використовуємо RAG API для генерації відповіді
             try:
@@ -1013,7 +998,17 @@ class TelegramWebhookView(View):
                 
             except Exception as e:
                 logger.error(f"RAG generation failed (no conversation): {str(e)}", exc_info=True)
-                response_text = "Привіт! Як можу допомогти? Надішліть команду START2 з QR-коду для кращої допомоги."
+                lang = getattr(client, 'notification_language', 'en') if client else 'en'
+                fallback_messages = {
+                    'en': "Hi! How can I help? Please send the START2 command from the QR code for better assistance.",
+                    'de': "Hallo! Wie kann ich helfen? Senden Sie bitte den START2-Befehl vom QR-Code für bessere Unterstützung.",
+                    'fr': "Bonjour ! Comment puis-je vous aider ? Veuillez envoyer la commande START2 depuis le QR code pour une meilleure aide.",
+                    'es': "¡Hola! ¿En qué puedo ayudar? Envíe el comando START2 desde el código QR para una mejor asistencia.",
+                    'it': "Ciao! Come posso aiutarti? Invia il comando START2 dal codice QR per un'assistenza migliore.",
+                    'nl': "Hallo! Hoe kan ik helpen? Stuur het START2-commando vanaf de QR-code voor betere hulp.",
+                    'da': "Hej! Hvordan kan jeg hjælpe? Send START2-kommandoen fra QR-koden for bedre hjælp.",
+                }
+                response_text = fallback_messages.get(lang, fallback_messages['en'])
             
             return response_text
             
@@ -1245,6 +1240,27 @@ class TelegramWebhookView(View):
         except Exception as e:
             logger.error(f"Error getting client from request: {str(e)}", exc_info=True)
             return None
+
+    def _get_manager_client_by_sender(self, sender_id, client_hint=None):
+        """
+        Return the client for which the sender is a configured HITL manager.
+        Managers are unique across clients.
+        """
+        if not sender_id:
+            return None
+        try:
+            sender_id_int = int(sender_id)
+        except (ValueError, TypeError):
+            return None
+        
+        if client_hint and hasattr(client_hint, 'get_manager_telegram_ids'):
+            if sender_id_int in client_hint.get_manager_telegram_ids():
+                return client_hint
+        
+        return Client.objects.filter(
+            hitl_enabled=True,
+            manager_telegram_ids__contains=[sender_id_int]
+        ).first()
     
     def _get_bot_token_for_chat(self, chat_id: int, client_hint=None) -> str:
         """
@@ -1315,8 +1331,33 @@ class TelegramWebhookView(View):
                 return welcome_text
             
             # 2. Fallback: базове привітання (якщо кастомне не налаштовано)
-            greeting = f"Привіт{', ' + first_name if first_name else ''}! 👋\n\n"
-            fallback_text = greeting + f"Вітаємо в {client.company_name}!\n\nЧим можу допомогти?"
+            lang = getattr(client, 'notification_language', 'en') or 'en'
+            greeting_prefix = {
+                'en': "Hi",
+                'de': "Hallo",
+                'fr': "Bonjour",
+                'es': "Hola",
+                'it': "Ciao",
+                'nl': "Hallo",
+                'da': "Hej",
+                
+            }
+            welcome_template = {
+                'en': "Welcome to {company}!\n\nHow can I help you?",
+                'de': "Willkommen bei {company}!\n\nWie kann ich helfen?",
+                'fr': "Bienvenue chez {company} !\n\nComment puis-je vous aider ?",
+                'es': "¡Bienvenido/a a {company}!\n\n¿En qué puedo ayudarte?",
+                'it': "Benvenuto/a in {company}!\n\nCome posso aiutarti?",
+                'nl': "Welkom bij {company}!\n\nHoe kan ik helpen?",
+                'da': "Velkommen hos {company}!\n\nHvordan kan jeg hjælpe?",
+                'uk': "Вітаємо в {company}!\n\nЧим можу допомогти?",
+            }
+            greeting_word = greeting_prefix.get(lang, greeting_prefix['en'])
+            greeting_name = f", {first_name}" if first_name else ""
+            greeting = f"{greeting_word}{greeting_name}! 👋\n\n"
+            fallback_text = greeting + welcome_template.get(lang, welcome_template['en']).format(
+                company=client.company_name
+            )
             
             logger.info(f"Using default welcome message for client: {client.company_name} (no custom message configured)")
             return fallback_text
@@ -1324,8 +1365,33 @@ class TelegramWebhookView(View):
         except Exception as e:
             logger.error(f"Error generating welcome message: {e}", exc_info=True)
             # Останній fallback при помилці
-            greeting = f"Привіт{', ' + first_name if first_name else ''}! 👋\n\n"
-            return greeting + f"Вітаємо в {client.company_name}. Чим можу допомогти?"
+            lang = getattr(client, 'notification_language', 'en') or 'en'
+            greeting_prefix = {
+                'en': "Hi",
+                'de': "Hallo",
+                'fr': "Bonjour",
+                'es': "Hola",
+                'it': "Ciao",
+                'nl': "Hallo",
+                'da': "Hej",
+                
+            }
+            welcome_template = {
+                'en': "Welcome to {company}. How can I help you?",
+                'de': "Willkommen bei {company}. Wie kann ich helfen?",
+                'fr': "Bienvenue chez {company}. Comment puis-je vous aider ?",
+                'es': "Bienvenido/a a {company}. ¿En qué puedo ayudarte?",
+                'it': "Benvenuto/a in {company}. Come posso aiutarti?",
+                'nl': "Welkom bij {company}. Hoe kan ik helpen?",
+                'da': "Velkommen hos {company}. Hvordan kan jeg hjælpe?",
+                
+            }
+            greeting_word = greeting_prefix.get(lang, greeting_prefix['en'])
+            greeting_name = f", {first_name}" if first_name else ""
+            greeting = f"{greeting_word}{greeting_name}! 👋\n\n"
+            return greeting + welcome_template.get(lang, welcome_template['en']).format(
+                company=client.company_name
+            )
     
     def _check_realtime_negative_sentiment(self, conversation, user_message: str):
         """

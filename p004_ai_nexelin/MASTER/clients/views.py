@@ -1485,6 +1485,33 @@ class ClientHITLConfigView(APIView):
                 except (ValueError, TypeError):
                     pass
             
+            # De-duplicate while preserving order
+            deduped_ids = []
+            seen_ids = set()
+            for tid in validated_ids:
+                if tid not in seen_ids:
+                    seen_ids.add(tid)
+                    deduped_ids.append(tid)
+            validated_ids = deduped_ids
+
+            # Enforce global uniqueness: manager can belong to only one client
+            conflicts = []
+            for tid in validated_ids:
+                conflict_qs = Client.objects.exclude(id=client.id).filter(
+                    manager_telegram_ids__contains=[tid]
+                )
+                if conflict_qs.exists():
+                    conflicts.append({
+                        'manager_telegram_id': tid,
+                        'client_ids': list(conflict_qs.values_list('id', flat=True)),
+                        'client_tags': list(conflict_qs.values_list('tag', flat=True)),
+                    })
+            if conflicts:
+                return Response({
+                    'error': 'Manager Telegram ID already assigned to another client',
+                    'conflicts': conflicts,
+                }, status=400)
+
             client.manager_telegram_ids = validated_ids
             changed.append('manager_telegram_ids')
         

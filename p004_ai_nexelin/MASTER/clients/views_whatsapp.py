@@ -199,14 +199,55 @@ class TwilioWhatsAppWebhookView(View):
                 })
                 conversation.save()
             
-            # Створюємо відповідь
+            # Створюємо відповідь (language based on client.notification_language)
+            lang = getattr(client, 'notification_language', 'en') or 'en'
+            location_fallback = {
+                'en': "this QR code",
+                'de': "diesen QR-Code",
+                'fr': "ce QR code",
+                'es': "este código QR",
+                'it': "questo QR code",
+                'nl': "deze QR-code",
+                'da': "denne QR-kode",
+            }
             if qr_code:
-                location_name = qr_code.name or qr_code.location or "цей QR код"
-                response_text = f"Привіт! Ви зайшли через {location_name} в {client.company_name}. Чим можу допомогти?"
+                location_name = qr_code.name or qr_code.location or location_fallback.get(lang, location_fallback['en'])
+                templates = {
+                    'en': "Hi! You entered via {location} at {company}. How can I help?",
+                    'de': "Hallo! Sie sind über {location} bei {company} eingestiegen. Wie kann ich helfen?",
+                    'fr': "Bonjour ! Vous êtes entré via {location} chez {company}. Comment puis-je vous aider ?",
+                    'es': "¡Hola! Entraste a través de {location} en {company}. ¿En qué puedo ayudarte?",
+                    'it': "Ciao! Sei entrato tramite {location} da {company}. Come posso aiutarti?",
+                    'nl': "Hallo! Je bent via {location} bij {company} binnengekomen. Hoe kan ik helpen?",
+                    'da': "Hej! Du kom ind via {location} hos {company}. Hvordan kan jeg hjælpe?",
+                }
+                response_text = templates.get(lang, templates['en']).format(
+                    location=location_name, company=client.company_name
+                )
             elif table:
-                response_text = f"Привіт! Ви зайшли до столика {table_number} в {client.company_name}. Чим можу допомогти?"
+                templates = {
+                    'en': "Hi! You entered at table {table} in {company}. How can I help?",
+                    'de': "Hallo! Sie sind am Tisch {table} bei {company} eingestiegen. Wie kann ich helfen?",
+                    'fr': "Bonjour ! Vous êtes entré à la table {table} chez {company}. Comment puis-je vous aider ?",
+                    'es': "¡Hola! Entraste en la mesa {table} en {company}. ¿En qué puedo ayudarte?",
+                    'it': "Ciao! Sei entrato al tavolo {table} da {company}. Come posso aiutarti?",
+                    'nl': "Hallo! Je bent bij tafel {table} bij {company} binnengekomen. Hoe kan ik helpen?",
+                    'da': "Hej! Du kom ind ved bord {table} hos {company}. Hvordan kan jeg hjælpe?",
+                }
+                response_text = templates.get(lang, templates['en']).format(
+                    table=table_number, company=client.company_name
+                )
             else:
-                response_text = f"Привіт! Вітаємо в {client.company_name}. Чим можу допомогти?"
+                templates = {
+                    'en': "Hi! Welcome to {company}. How can I help?",
+                    'de': "Hallo! Willkommen bei {company}. Wie kann ich helfen?",
+                    'fr': "Bonjour ! Bienvenue chez {company}. Comment puis-je vous aider ?",
+                    'es': "¡Hola! Bienvenido/a a {company}. ¿En qué puedo ayudarte?",
+                    'it': "Ciao! Benvenuto/a in {company}. Come posso aiutarti?",
+                    'nl': "Hallo! Welkom bij {company}. Hoe kan ik helpen?",
+                    'da': "Hej! Velkommen hos {company}. Hvordan kan jeg hjælpe?",
+                }
+                response_text = templates.get(lang, templates['en']).format(company=client.company_name)
             
             # Додаємо відповідь асистента до розмови
             if not conversation.messages:
