@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MessageSquare, Loader2, Globe, Send, Monitor } from 'lucide-react';
 import { clientAPI } from '../../api/client';
@@ -8,6 +8,7 @@ const ChatList = ({ onSelectChat, selectedChatId }) => {
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const isInitialLoad = useRef(true); // flag for first load
   
   useEffect(() => {
     loadConversations();
@@ -26,10 +27,16 @@ const ChatList = ({ onSelectChat, selectedChatId }) => {
         return acc;
       }, {}));
       setChats(conversations);
+      
+      // choose first chat for first load
+      if (isInitialLoad.current && conversations.length > 0) {
+        onSelectChat(conversations[0]);
+        isInitialLoad.current = false;
+      }
     } catch (err) {
       console.error('Failed to load conversations:', err);
       setError(t('history.loadError') || 'Failed to load conversations');
-      // Fallback на порожній список
+      // Fallback to empty 
       setChats([]);
     } finally {
       setLoading(false);
