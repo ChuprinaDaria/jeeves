@@ -1024,33 +1024,60 @@ class TelegramWebhookView(View):
             client = conversation.client
             
             # HITL: Check if conversation is waiting for manager response
+            # NEW ARCHITECTURE: Allow chat to continue, but inform user about pending escalation
+            pending_escalation_notice = ""
             if getattr(conversation, 'is_waiting_for_manager', False):
-                # Check timeout - if waiting for more than 30 minutes, cancel waiting state
+                # Check timeout using escalation_started_at field
                 from datetime import timedelta
-                timeout_minutes = 30
-                escalation_timeout = timezone.now() - timedelta(minutes=timeout_minutes)
+                timeout_minutes = 10
+                escalation_started = getattr(conversation, 'escalation_started_at', None)
                 
-                if conversation.updated_at and conversation.updated_at < escalation_timeout:
+                if escalation_started and (timezone.now() - escalation_started) > timedelta(minutes=timeout_minutes):
                     # Timeout reached - reset waiting state and continue with normal response
                     logger.info(f"HITL: Timeout reached for conversation {conversation.id}, resetting waiting state")
+                    lang = getattr(conversation, 'escalation_language', None) or getattr(conversation, 'language', 'en') or 'en'
+                    timeout_messages = {
+                        'en': "I apologize, but I wasn't able to get confirmation from my colleague in time. Let me try to help you directly.",
+                        'de': "Es tut mir leid, aber ich konnte keine rechtzeitige Bestätigung von meinem Kollegen erhalten. Lassen Sie mich versuchen, Ihnen direkt zu helfen.",
+                        'fr': "Je suis désolé, mais je n'ai pas pu obtenir la confirmation de mon collègue à temps. Permettez-moi d'essayer de vous aider directement.",
+                        'es': "Lo siento, pero no pude obtener la confirmación de mi colega a tiempo. Permítame intentar ayudarle directamente.",
+                        'it': "Mi scuso, ma non sono riuscito a ottenere la conferma dal mio collega in tempo. Permettetemi di provare ad aiutarvi direttamente.",
+                        'nl': "Het spijt me, maar ik kon niet op tijd bevestiging krijgen van mijn collega. Laat me proberen u direct te helpen.",
+                        'da': "Jeg beklager, men jeg kunne ikke få bekræftelse fra min kollega i tide. Lad mig prøve at hjælpe dig direkte.",
+                        'uk': "Вибачте, але я не зміг отримати підтвердження від колеги вчасно. Дозвольте мені спробувати допомогти вам безпосередньо.",
+                        'ru': "Извините, но я не смог получить подтверждение от коллеги вовремя. Позвольте мне попробовать помочь вам напрямую.",
+                    }
+                    pending_escalation_notice = timeout_messages.get(lang, timeout_messages['en']) + "\n\n"
                     conversation.is_waiting_for_manager = False
                     conversation.manager_escalation_context = ''
-                    conversation.save(update_fields=['is_waiting_for_manager', 'manager_escalation_context', 'updated_at'])
-                    # Continue to generate normal response below
+                    conversation.escalation_started_at = None
+                    conversation.escalation_original_query = ''
+                    conversation.escalation_language = ''
+                    conversation.save(update_fields=[
+                        'is_waiting_for_manager', 
+                        'manager_escalation_context', 
+                        'escalation_started_at',
+                        'escalation_original_query',
+                        'escalation_language',
+                        'updated_at'
+                    ])
+                    # Continue to generate normal response below with timeout notice
                 else:
-                    # Still within timeout - return waiting message
-                    waiting_messages = {
-                        'en': "I'm still waiting for confirmation from my colleague. Please hold on, I'll get back to you shortly.",
-                        'de': "Ich warte noch auf die Bestätigung von meinem Kollegen. Bitte warten Sie einen Moment.",
-                        'fr': "J'attends toujours la confirmation de mon collègue. Veuillez patienter.",
-                        'es': "Sigo esperando la confirmación de un colega. Por favor, espere un momento; le responderé en breve.",
-                        'it': "Sto ancora aspettando la conferma dal mio collega. Attenda un momento per favore.",
-                        'nl': "Ik wacht nog op bevestiging van mijn collega. Even geduld alstublieft.",
-                        'da': "Jeg venter stadig på bekræftelse fra min kollega. Vent venligst et øjeblik.",
-                        'uk': "I'm still checking with my colleague. Please wait a moment.",
+                    # Still within timeout - add a note but continue with normal response
+                    # This allows the user to continue chatting while waiting
+                    waiting_notes = {
+                        'en': "(Note: I'm still waiting for confirmation from my colleague on a previous question. I'll update you when I hear back.)\n\n",
+                        'de': "(Hinweis: Ich warte noch auf Bestätigung von meinem Kollegen zu einer früheren Frage. Ich melde mich, sobald ich Antwort habe.)\n\n",
+                        'fr': "(Note: J'attends toujours la confirmation de mon collègue sur une question précédente. Je vous tiendrai informé.)\n\n",
+                        'es': "(Nota: Todavía estoy esperando la confirmación de mi colega sobre una pregunta anterior. Le informaré cuando tenga respuesta.)\n\n",
+                        'it': "(Nota: Sto ancora aspettando la conferma dal mio collega su una domanda precedente. La informerò quando avrò notizie.)\n\n",
+                        'nl': "(Opmerking: Ik wacht nog op bevestiging van mijn collega over een eerdere vraag. Ik laat het u weten zodra ik iets hoor.)\n\n",
+                        'da': "(Bemærk: Jeg venter stadig på bekræftelse fra min kollega om et tidligere spørgsmål. Jeg giver dig besked, når jeg hører noget.)\n\n",
+                        'uk': "(Примітка: Я все ще чекаю на підтвердження від колеги щодо попереднього питання. Повідомлю вас, як тільки отримаю відповідь.)\n\n",
+                        'ru': "(Примечание: Я всё ещё жду подтверждения от коллеги по предыдущему вопросу. Сообщу вам, когда получу ответ.)\n\n",
                     }
                     lang = getattr(conversation, 'language', 'en') or 'en'
-                    return waiting_messages.get(lang, waiting_messages['en'])
+                    pending_escalation_notice = waiting_notes.get(lang, waiting_notes['en'])
             
             # Формуємо контекст з історії розмови
             context_messages = []
@@ -1136,6 +1163,10 @@ class TelegramWebhookView(View):
             except Exception as e:
                 logger.error(f"RAG generation failed: {str(e)}", exc_info=True)
                 response_text = "Дякую за повідомлення! Як можу допомогти?" if language == 'uk' else "Thank you for your message! How can I help you?"
+            
+            # Add pending escalation notice if there's an active escalation
+            if pending_escalation_notice:
+                response_text = pending_escalation_notice + response_text
             
             # Зберігаємо повідомлення в розмову
             conversation.add_message('user', message_body)

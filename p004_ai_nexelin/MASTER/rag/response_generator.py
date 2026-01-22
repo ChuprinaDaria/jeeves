@@ -172,7 +172,7 @@ class ResponseGenerator:
             llm_model = ''
             llm_provider = ''
         
-        # HITL: Detect escalation token in response OR refusal phrases
+        # HITL: Detect escalation token in response OR refusal phrases OR [escalate] tag in query
         requires_escalation = False
         escalation_summary = ""
         
@@ -180,6 +180,12 @@ class ResponseGenerator:
         hitl_enabled = client and getattr(client, 'hitl_enabled', False)
         manager_ids = client.get_manager_telegram_ids() if client and hasattr(client, 'get_manager_telegram_ids') else []
         hitl_available = hitl_enabled and len(manager_ids) > 0
+        
+        # Check for [escalate] tag in query (forced escalation from system prompt)
+        # This allows users to add [escalate] markers in their prompts for specific questions
+        forced_escalation = '[escalate]' in query.lower()
+        if forced_escalation:
+            logger.info(f"HITL: Forced escalation detected via [escalate] tag in query")
         
         # Fallback: detect refusal phrases even if LLM didn't output escalation token
         # This catches cases where LLM says "can't help" but didn't follow the escalation protocol
@@ -252,6 +258,16 @@ class ResponseGenerator:
             # Replace the refusal with a waiting message
             answer = self._get_hitl_waiting_message(language)
             logger.info(f"HITL escalation triggered by refusal detection for query: {query[:100]}...")
+        
+        # Forced escalation via [escalate] tag - always trigger if HITL is available
+        elif forced_escalation and hitl_available:
+            requires_escalation = True
+            # Remove [escalate] tag from query for summary
+            clean_query = query.lower().replace('[escalate]', '').strip()
+            escalation_summary = clean_query[:200] if clean_query else query[:200]
+            # Keep the original answer but add waiting notice
+            answer = f"{answer}\n\n{self._get_hitl_waiting_message(language)}"
+            logger.info(f"HITL escalation triggered by [escalate] tag for query: {query[:100]}...")
         
         sources = self._format_sources(context_chunks)
         

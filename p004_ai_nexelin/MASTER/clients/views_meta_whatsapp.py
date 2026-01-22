@@ -77,14 +77,46 @@ class MetaWhatsAppWebhookView(View):
         mode = request.GET.get("hub.mode")
         token = request.GET.get("hub.verify_token")
         challenge = request.GET.get("hub.challenge")
+        
+        # Логуємо вхідні параметри для відлагодження
+        logger.info(f"Meta WhatsApp webhook verification request: mode={mode}, token_length={len(token) if token else 0}, challenge_length={len(challenge) if challenge else 0}")
+        
+        # Перевіряємо mode
+        if mode != "subscribe":
+            logger.warning(f"Meta WhatsApp webhook verification failed: invalid mode={mode}")
+            return HttpResponse(status=403)
+        
+        if not token:
+            logger.warning("Meta WhatsApp webhook verification failed: missing verify_token")
+            return HttpResponse(status=403)
+        
+        if not challenge:
+            logger.warning("Meta WhatsApp webhook verification failed: missing challenge")
+            return HttpResponse(status=403)
+        
         # Спроба знайти клієнта за verify_token (пер-клієнтна перевірка)
         from MASTER.clients.models import Client
         client = Client.objects.filter(meta_verify_token=token, whatsapp_meta_enabled=True).first()
-
-        if mode == "subscribe" and client is not None:
-            logger.info("Meta WhatsApp webhook verified successfully")
+        
+        if client is not None:
+            logger.info(f"Meta WhatsApp webhook verified successfully for client: {client.id} ({client.company_name})")
             return HttpResponse(challenge)
-        logger.warning(f"Meta WhatsApp webhook verification failed: mode={mode}, token_match={token == settings.META_VERIFY_TOKEN}")
+        
+        # Fallback до глобального токену, якщо per-client не знайдено
+        global_token = getattr(settings, 'META_VERIFY_TOKEN', '')
+        if global_token and token == global_token:
+            logger.info("Meta WhatsApp webhook verified successfully using global META_VERIFY_TOKEN")
+            return HttpResponse(challenge)
+        
+        # Детальне логування для відлагодження
+        logger.warning(f"Meta WhatsApp webhook verification failed:")
+        logger.warning(f"  - Received token: {token[:10]}... (length: {len(token)})")
+        logger.warning(f"  - Clients with this token: {Client.objects.filter(meta_verify_token=token).count()}")
+        logger.warning(f"  - Clients with enabled WhatsApp: {Client.objects.filter(whatsapp_meta_enabled=True).count()}")
+        logger.warning(f"  - Global token set: {bool(global_token)}")
+        if global_token:
+            logger.warning(f"  - Global token match: {token == global_token}")
+        
         return HttpResponse(status=403)
 
     def post(self, request, *args, **kwargs):
@@ -414,19 +446,58 @@ class MetaWhatsAppWebhookView(View):
             client = conversation.client
             
             # HITL: Check if conversation is waiting for manager response
+            # NEW ARCHITECTURE: Allow chat to continue, but inform user about pending escalation
+            pending_escalation_notice = ""
             if getattr(conversation, 'is_waiting_for_manager', False):
-                waiting_messages = {
-                    'en': "I'm still waiting for confirmation from my colleague. Please hold on, I'll get back to you shortly.",
-                    'de': "Ich warte noch auf die Bestätigung von meinem Kollegen. Bitte warten Sie einen Moment.",
-                    'fr': "J'attends toujours la confirmation de mon collègue. Veuillez patienter.",
-                    'es': "Sigo esperando la confirmación de un colega. Por favor, espere un momento; le responderé en breve.",
-                    'it': "Sto ancora aspettando la conferma dal mio collega. Attenda un momento per favore.",
-                    'nl': "Ik wacht nog op bevestiging van mijn collega. Even geduld alstublieft.",
-                    'da': "Jeg venter stadig på bekræftelse fra min kollega. Vent venligst et øjeblik.",
-                    'uk': "I'm still checking with my colleague. Please wait a moment.",
-                }
-                lang = getattr(conversation, 'language', 'en') or 'en'
-                return waiting_messages.get(lang, waiting_messages['en'])
+                # Check timeout using escalation_started_at field
+                from datetime import timedelta
+                timeout_minutes = 10
+                escalation_started = getattr(conversation, 'escalation_started_at', None)
+                
+                if escalation_started and (timezone.now() - escalation_started) > timedelta(minutes=timeout_minutes):
+                    # Timeout reached - reset waiting state
+                    logger.info(f"HITL: Timeout reached for Meta WhatsApp conversation {conversation.id}, resetting waiting state")
+                    lang = getattr(conversation, 'escalation_language', None) or getattr(conversation, 'language', 'en') or 'en'
+                    timeout_messages = {
+                        'en': "I apologize, but I wasn't able to get confirmation from my colleague in time. Let me try to help you directly.\n\n",
+                        'de': "Es tut mir leid, aber ich konnte keine rechtzeitige Bestätigung von meinem Kollegen erhalten. Lassen Sie mich versuchen, Ihnen direkt zu helfen.\n\n",
+                        'fr': "Je suis désolé, mais je n'ai pas pu obtenir la confirmation de mon collègue à temps. Permettez-moi d'essayer de vous aider directement.\n\n",
+                        'es': "Lo siento, pero no pude obtener la confirmación de mi colega a tiempo. Permítame intentar ayudarle directamente.\n\n",
+                        'it': "Mi scuso, ma non sono riuscito a ottenere la conferma dal mio collega in tempo. Permettetemi di provare ad aiutarvi direttamente.\n\n",
+                        'nl': "Het spijt me, maar ik kon niet op tijd bevestiging krijgen van mijn collega. Laat me proberen u direct te helpen.\n\n",
+                        'da': "Jeg beklager, men jeg kunne ikke få bekræftelse fra min kollega i tide. Lad mig prøve at hjælpe dig direkte.\n\n",
+                        'uk': "Вибачте, але я не зміг отримати підтвердження від колеги вчасно. Дозвольте мені спробувати допомогти вам безпосередньо.\n\n",
+                        'ru': "Извините, но я не смог получить подтверждение от коллеги вовремя. Позвольте мне попробовать помочь вам напрямую.\n\n",
+                    }
+                    pending_escalation_notice = timeout_messages.get(lang, timeout_messages['en'])
+                    conversation.is_waiting_for_manager = False
+                    conversation.manager_escalation_context = ''
+                    conversation.escalation_started_at = None
+                    conversation.escalation_original_query = ''
+                    conversation.escalation_language = ''
+                    conversation.save(update_fields=[
+                        'is_waiting_for_manager', 
+                        'manager_escalation_context', 
+                        'escalation_started_at',
+                        'escalation_original_query',
+                        'escalation_language',
+                        'updated_at'
+                    ])
+                else:
+                    # Still within timeout - add a note but continue with normal response
+                    waiting_notes = {
+                        'en': "(Note: I'm still waiting for confirmation from my colleague on a previous question. I'll update you when I hear back.)\n\n",
+                        'de': "(Hinweis: Ich warte noch auf Bestätigung von meinem Kollegen zu einer früheren Frage. Ich melde mich, sobald ich Antwort habe.)\n\n",
+                        'fr': "(Note: J'attends toujours la confirmation de mon collègue sur une question précédente. Je vous tiendrai informé.)\n\n",
+                        'es': "(Nota: Todavía estoy esperando la confirmación de mi colega sobre una pregunta anterior. Le informaré cuando tenga respuesta.)\n\n",
+                        'it': "(Nota: Sto ancora aspettando la conferma dal mio collega su una domanda precedente. La informerò quando avrò notizie.)\n\n",
+                        'nl': "(Opmerking: Ik wacht nog op bevestiging van mijn collega over een eerdere vraag. Ik laat het u weten zodra ik iets hoor.)\n\n",
+                        'da': "(Bemærk: Jeg venter stadig på bekræftelse fra min kollega om et tidligere spørgsmål. Jeg giver dig besked, når jeg hører noget.)\n\n",
+                        'uk': "(Примітка: Я все ще чекаю на підтвердження від колеги щодо попереднього питання. Повідомлю вас, як тільки отримаю відповідь.)\n\n",
+                        'ru': "(Примечание: Я всё ещё жду подтверждения от коллеги по предыдущему вопросу. Сообщу вам, когда получу ответ.)\n\n",
+                    }
+                    lang = getattr(conversation, 'language', 'en') or 'en'
+                    pending_escalation_notice = waiting_notes.get(lang, waiting_notes['en'])
             
             # Використовуємо RAG API
             try:
@@ -476,6 +547,10 @@ class MetaWhatsAppWebhookView(View):
             except Exception as e:
                 logger.error(f"RAG generation failed: {str(e)}", exc_info=True)
                 response_text = f"Thank you for your message! How can I help you?"
+            
+            # Add pending escalation notice if there's an active escalation
+            if pending_escalation_notice:
+                response_text = pending_escalation_notice + response_text
             
             # Зберігаємо повідомлення в розмову
             if isinstance(conversation, ClientWhatsAppConversation):

@@ -2861,6 +2861,15 @@ def notify_manager_of_escalation(self, conversation_id: int, question_summary: s
         # Update conversation with escalation status
         conversation.is_waiting_for_manager = True
         conversation.manager_escalation_context = question_summary
+        conversation.escalation_started_at = timezone.now()
+        # Store original query and language for context when manager responds
+        if conversation.messages:
+            # Get the last user message as original query
+            for msg in reversed(conversation.messages):
+                if msg.get('role') == 'user':
+                    conversation.escalation_original_query = msg.get('content', '')[:500]
+                    break
+        conversation.escalation_language = getattr(conversation, 'language', 'en') or 'en'
         if first_message_id:
             conversation.last_escalation_message_id = first_message_id
         if first_manager_id:
@@ -2869,7 +2878,10 @@ def notify_manager_of_escalation(self, conversation_id: int, question_summary: s
             'is_waiting_for_manager', 
             'manager_escalation_context',
             'last_escalation_message_id',
-            'escalation_manager_id'
+            'escalation_manager_id',
+            'escalation_started_at',
+            'escalation_original_query',
+            'escalation_language',
         ])
         
         successful = sum(1 for r in results if r.get('success'))
@@ -2986,6 +2998,9 @@ Respond in the same language as the customer's question."""
         conversation.manager_escalation_context = ""
         conversation.last_escalation_message_id = ""
         conversation.escalation_manager_id = ""
+        conversation.escalation_started_at = None
+        conversation.escalation_original_query = ""
+        conversation.escalation_language = ""
         conversation.total_messages = len(conversation.messages)
         conversation.last_activity_at = timezone.now()
         
@@ -2995,6 +3010,9 @@ Respond in the same language as the customer's question."""
             'manager_escalation_context',
             'last_escalation_message_id',
             'escalation_manager_id',
+            'escalation_started_at',
+            'escalation_original_query',
+            'escalation_language',
             'total_messages',
             'last_activity_at'
         ])
@@ -3013,5 +3031,100 @@ Respond in the same language as the customer's question."""
         return {"success": False, "error": "Conversation not found"}
     except Exception as e:
         logger.error(f"Error processing manager HITL response: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}
+
+
+@shared_task
+def check_escalation_timeouts() -> Dict[str, Any]:
+    """
+    Check for escalations that have timed out and reset them.
+    
+    This task should be scheduled to run periodically (e.g., every 5 minutes).
+    Default timeout is 30 minutes - after that, the escalation is cancelled
+    and the conversation returns to normal AI mode.
+    
+    Returns:
+        Dict with count of timed out escalations
+    """
+    from datetime import timedelta
+    from MASTER.clients.models import ClientWhatsAppConversation
+    
+    # Default timeout: 30 minutes
+    ESCALATION_TIMEOUT_MINUTES = 10
+    timeout_threshold = timezone.now() - timedelta(minutes=ESCALATION_TIMEOUT_MINUTES)
+    
+    try:
+        # Find all conversations waiting for manager that have timed out
+        timed_out_conversations = ClientWhatsAppConversation.objects.filter(
+            is_waiting_for_manager=True,
+            escalation_started_at__lt=timeout_threshold
+        )
+        
+        count = 0
+        for conversation in timed_out_conversations:
+            try:
+                # Get timeout message in the conversation's language
+                lang = conversation.escalation_language or getattr(conversation, 'language', 'en') or 'en'
+                timeout_messages = {
+                    'en': "I apologize, but I wasn't able to get confirmation from my colleague in time. Please feel free to ask your question again, and I'll do my best to help you directly.",
+                    'de': "Es tut mir leid, aber ich konnte keine rechtzeitige Bestätigung von meinem Kollegen erhalten. Bitte stellen Sie Ihre Frage gerne erneut, und ich werde mein Bestes tun, Ihnen direkt zu helfen.",
+                    'fr': "Je suis désolé, mais je n'ai pas pu obtenir la confirmation de mon collègue à temps. N'hésitez pas à reposer votre question, et je ferai de mon mieux pour vous aider directement.",
+                    'es': "Lo siento, pero no pude obtener la confirmación de mi colega a tiempo. Por favor, siéntase libre de hacer su pregunta de nuevo, y haré todo lo posible para ayudarle directamente.",
+                    'it': "Mi scuso, ma non sono riuscito a ottenere la conferma dal mio collega in tempo. Non esiti a riporre la sua domanda, farò del mio meglio per aiutarla direttamente.",
+                    'nl': "Het spijt me, maar ik kon niet op tijd bevestiging krijgen van mijn collega. Stel gerust uw vraag opnieuw, en ik zal mijn best doen om u direct te helpen.",
+                    'da': "Jeg beklager, men jeg kunne ikke få bekræftelse fra min kollega i tide. Du er velkommen til at stille dit spørgsmål igen, og jeg vil gøre mit bedste for at hjælpe dig direkte.",
+                    'uk': "Вибачте, але я не зміг отримати підтвердження від колеги вчасно. Будь ласка, поставте своє питання ще раз, і я зроблю все можливе, щоб допомогти вам безпосередньо.",
+                    'ru': "Извините, но я не смог получить подтверждение от коллеги вовремя. Пожалуйста, задайте свой вопрос снова, и я сделаю всё возможное, чтобы помочь вам напрямую.",
+                }
+                timeout_message = timeout_messages.get(lang, timeout_messages['en'])
+                
+                # Add timeout message to conversation
+                if not conversation.messages:
+                    conversation.messages = []
+                conversation.messages.append({
+                    'role': 'assistant',
+                    'content': timeout_message,
+                    'timestamp': timezone.now().isoformat(),
+                    'metadata': {'escalation_timeout': True}
+                })
+                
+                # Reset escalation state
+                conversation.is_waiting_for_manager = False
+                conversation.manager_escalation_context = ""
+                conversation.last_escalation_message_id = ""
+                conversation.escalation_manager_id = ""
+                conversation.escalation_started_at = None
+                conversation.escalation_original_query = ""
+                conversation.escalation_language = ""
+                conversation.total_messages = len(conversation.messages)
+                conversation.last_activity_at = timezone.now()
+                
+                conversation.save(update_fields=[
+                    'messages',
+                    'is_waiting_for_manager',
+                    'manager_escalation_context',
+                    'last_escalation_message_id',
+                    'escalation_manager_id',
+                    'escalation_started_at',
+                    'escalation_original_query',
+                    'escalation_language',
+                    'total_messages',
+                    'last_activity_at'
+                ])
+                
+                count += 1
+                logger.info(f"Escalation timeout for conversation {conversation.id}, reset to normal mode")
+                
+            except Exception as e:
+                logger.error(f"Error resetting timed out escalation for conversation {conversation.id}: {e}")
+        
+        return {
+            "success": True,
+            "timed_out_count": count,
+            "timeout_minutes": ESCALATION_TIMEOUT_MINUTES
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in check_escalation_timeouts: {e}", exc_info=True)
         return {"success": False, "error": str(e)}
 

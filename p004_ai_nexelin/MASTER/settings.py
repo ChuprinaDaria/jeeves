@@ -243,6 +243,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'MASTER.clients.tasks.send_daily_digest',
         'schedule': crontab(hour=17, minute=0),  # Every day at 17:00 (Europe/Kyiv)
     },
+    'check-escalation-timeouts': {
+        'task': 'MASTER.clients.tasks.check_escalation_timeouts',
+        'schedule': 300.0,  # Run every 5 minutes to check for timed out escalations
+    },
 }
 
 # === RAG CONFIGS (SHORTENED) ===

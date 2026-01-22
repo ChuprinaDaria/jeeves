@@ -1465,6 +1465,26 @@ class ClientWhatsAppConversation(models.Model):
         help_text='Telegram user_id of the manager who received the escalation'
     )
     
+    escalation_started_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Escalation Started At',
+        help_text='When the escalation was triggered (for timeout tracking)'
+    )
+    
+    escalation_original_query = models.TextField(
+        blank=True,
+        verbose_name='Original Escalation Query',
+        help_text='The original user query that triggered escalation (for context when manager responds)'
+    )
+    
+    escalation_language = models.CharField(
+        max_length=10,
+        blank=True,
+        verbose_name='Escalation Language',
+        help_text='Language of the original query for localized responses'
+    )
+    
     class Meta:
         verbose_name = 'Client WhatsApp Conversation'
         verbose_name_plural = 'Client WhatsApp Conversations'

@@ -406,32 +406,55 @@ class PublicRAGChatView(APIView):
             branch = getattr(specialization, 'branch', None) if specialization else None
 
             # HITL: Check if conversation is waiting for manager response (only for session-based chats)
+            # NEW ARCHITECTURE: Allow chat to continue while waiting, but inform user about pending escalation
+            pending_escalation_info = None
             if session_id and str(session_id).strip() and not str(session_id).startswith('sandbox_'):
                 try:
                     from MASTER.clients.models import ClientWhatsAppConversation
+                    from datetime import timedelta
                     conv = ClientWhatsAppConversation.objects.filter(
                         client=client,
                         session_id=session_id,
                     ).first()
                     if conv and getattr(conv, 'is_waiting_for_manager', False):
-                        waiting_messages = {
-                            'en': "I'm still waiting for confirmation from my colleague. Please hold on, I'll get back to you shortly.",
-                            'de': "Ich warte noch auf die Bestätigung von meinem Kollegen. Bitte warten Sie einen Moment.",
-                            'fr': "J'attends toujours la confirmation de mon collègue. Veuillez patienter.",
-                            'es': "Todavía estoy esperando la confirmación de mi colega. Por favor espere un momento.",
-                            'it': "Sto ancora aspettando la conferma dal mio collega. Attenda un momento per favore.",
-                            'nl': "Ik wacht nog op bevestiging van mijn collega. Even geduld alstublieft.",
-                            'da': "Jeg venter stadig på bekræftelse fra min kollega. Vent venligst et øjeblik.",
-                        }
-                        return Response({
-                            'response': waiting_messages.get(language, waiting_messages['en']),
-                            'sources': [],
-                            'num_chunks': 0,
-                            'total_tokens': 0,
-                            'language': language,
-                            'waiting_for_manager': True,
-                        })
-                except Exception:
+                        # Check if escalation has timed out (30 minutes)
+                        escalation_started = getattr(conv, 'escalation_started_at', None)
+                        timeout_minutes = 10
+                        if escalation_started and (timezone.now() - escalation_started) > timedelta(minutes=timeout_minutes):
+                            # Timeout reached - reset escalation state
+                            conv.is_waiting_for_manager = False
+                            conv.manager_escalation_context = ""
+                            conv.escalation_started_at = None
+                            conv.escalation_original_query = ""
+                            conv.escalation_language = ""
+                            conv.save(update_fields=[
+                                'is_waiting_for_manager', 
+                                'manager_escalation_context',
+                                'escalation_started_at',
+                                'escalation_original_query',
+                                'escalation_language',
+                            ])
+                            logger.info(f"HITL: Escalation timeout for web conversation {conv.id}")
+                        else:
+                            # Still waiting - add info to response but DON'T block the chat
+                            waiting_messages = {
+                                'en': "Note: I'm still waiting for confirmation from my colleague on a previous question. I'll let you know as soon as I hear back.",
+                                'de': "Hinweis: Ich warte noch auf die Bestätigung von meinem Kollegen zu einer früheren Frage. Ich melde mich, sobald ich Antwort habe.",
+                                'fr': "Note: J'attends toujours la confirmation de mon collègue concernant une question précédente. Je vous tiendrai informé dès que j'aurai des nouvelles.",
+                                'es': "Nota: Todavía estoy esperando la confirmación de mi colega sobre una pregunta anterior. Le informaré tan pronto como tenga respuesta.",
+                                'it': "Nota: Sto ancora aspettando la conferma dal mio collega riguardo una domanda precedente. La informerò non appena avrò notizie.",
+                                'nl': "Opmerking: Ik wacht nog op bevestiging van mijn collega over een eerdere vraag. Ik laat het u weten zodra ik iets hoor.",
+                                'da': "Bemærk: Jeg venter stadig på bekræftelse fra min kollega om et tidligere spørgsmål. Jeg giver dig besked, så snart jeg hører noget.",
+                                'uk': "Примітка: Я все ще чекаю на підтвердження від колеги щодо попереднього питання. Повідомлю вас, як тільки отримаю відповідь.",
+                                'ru': "Примечание: Я всё ещё жду подтверждения от коллеги по предыдущему вопросу. Сообщу вам, как только получу ответ.",
+                            }
+                            pending_escalation_info = {
+                                'waiting_for_manager': True,
+                                'escalation_context': getattr(conv, 'manager_escalation_context', '')[:100],
+                                'waiting_message': waiting_messages.get(language, waiting_messages['en']),
+                            }
+                except Exception as e:
+                    logger.warning(f"Error checking HITL status: {e}")
                     pass  # Continue if error checking HITL status
 
             # Передаємо client, specialization та branch для багаторівневого пошуку:
@@ -478,6 +501,11 @@ class PublicRAGChatView(APIView):
             # Додаємо email результат якщо є
             if email_result:
                 response_data['email_action'] = email_result
+            
+            # Add pending escalation info if there's an active escalation
+            # This allows the frontend to show a notification without blocking the chat
+            if pending_escalation_info:
+                response_data['pending_escalation'] = pending_escalation_info
             
             return Response(response_data)
         except Exception as e:
