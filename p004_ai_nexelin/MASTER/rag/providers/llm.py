@@ -17,10 +17,10 @@ class OpenAILLMProvider(BaseLLMProvider):
         temperature = kwargs.get('temperature', 0.7)
         max_tokens = kwargs.get('max_tokens', 2000)
         
-        # GPT-5.x та o1 моделі використовують max_completion_tokens замість max_tokens
+        # GPT-5.x, o1, o3 моделі використовують max_completion_tokens замість max_tokens
         # і не дозволяють змінювати temperature (потрібно залишати дефолтне значення)
         model_name = self.model_name or ""
-        is_gpt5_plus = model_name.startswith("gpt-5") or model_name.startswith("o1")
+        is_reasoning_model = any(model_name.startswith(prefix) for prefix in ["gpt-5", "o1", "o3"])
 
         params: Dict[str, Any] = {
             "model": model_name,
@@ -28,7 +28,7 @@ class OpenAILLMProvider(BaseLLMProvider):
             "stream": False,
         }
 
-        if is_gpt5_plus:
+        if is_reasoning_model:
             params["max_completion_tokens"] = max_tokens
             # Не передаємо temperature — використовуємо дефолт, який очікує модель
         else:

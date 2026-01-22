@@ -3047,9 +3047,10 @@ def check_escalation_timeouts() -> Dict[str, Any]:
         Dict with count of timed out escalations
     """
     from datetime import timedelta
+    from django.utils import timezone
     from MASTER.clients.models import ClientWhatsAppConversation
     
-    # Default timeout: 30 minutes
+    # Default timeout: 10 minutes
     ESCALATION_TIMEOUT_MINUTES = 10
     timeout_threshold = timezone.now() - timedelta(minutes=ESCALATION_TIMEOUT_MINUTES)
     
