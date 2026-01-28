@@ -2724,6 +2724,9 @@ def notify_manager_of_escalation(self, conversation_id: int, question_summary: s
         customer_id = conversation.customer_phone or conversation.telegram_chat_id or f"Conv #{conversation.id}"
         platform = conversation.context_metadata.get('platform', 'unknown') if conversation.context_metadata else 'unknown'
         
+        # Get notification language for manager messages (validated)
+        notification_lang = _get_notification_language(client)
+        
         # Get last 3 messages from conversation for context
         recent_context = ""
         if conversation.messages and isinstance(conversation.messages, list):
@@ -2739,12 +2742,22 @@ def notify_manager_of_escalation(self, conversation_id: int, question_summary: s
             if context_lines:
                 recent_context = "\n".join(context_lines)
         
+        # Translate customer messages to manager's language (notification_language)
+        if recent_context and notification_lang != 'en':
+            try:
+                from MASTER.clients.news_utils import translate_text
+                # Translate the entire context to manager's language
+                translated_context = translate_text(recent_context, notification_lang, max_tokens=1000)
+                if translated_context:
+                    recent_context = translated_context
+                    logger.info(f"Translated escalation context to {notification_lang} for conversation {conversation_id}")
+            except Exception as e:
+                logger.warning(f"Failed to translate escalation context to {notification_lang}: {e}")
+                # Continue with original context
+        
         # Escape special characters in user-provided content
         escaped_company = escape_html(client.company_name)
         escaped_customer = escape_html(str(customer_id))
-        
-        # Get notification language for manager messages (validated)
-        notification_lang = _get_notification_language(client)
         
         # Localized message templates with last 3 messages context
         context_label = {
@@ -2931,17 +2944,27 @@ def process_manager_hitl_response(conversation_id: int, manager_response: str, m
             logger.warning(f"Conversation {conversation_id} was not waiting for manager response")
             return {"success": False, "error": "Not waiting for manager"}
         
-        # Use LLM to rephrase manager's response to maintain tone
+        # Get customer's language from escalation context
+        customer_language = conversation.escalation_language or 'en'
+        logger.info(f"Processing manager response for conversation {conversation_id}, customer language: {customer_language}")
+        
+        # Use LLM to rephrase manager's response to maintain tone AND translate to customer's language
         llm_client = LLMClient()
         
-        rephrase_prompt = f"""The customer asked: "{conversation.manager_escalation_context}"
+        # Get language name for better LLM understanding
+        from MASTER.clients.news_utils import LANGUAGE_NAMES
+        customer_lang_name = LANGUAGE_NAMES.get(customer_language, customer_language.upper())
+        
+        rephrase_prompt = f"""The customer asked (in {customer_lang_name}): "{conversation.manager_escalation_context}"
 
 A human supervisor provided this answer: "{manager_response}"
 
+IMPORTANT: You MUST respond in {customer_lang_name} language.
+
 Please rephrase this answer in a professional and friendly tone, as if you (the AI assistant) verified the information. 
-Start with something like "Thank you for waiting. I've confirmed the details..." or similar.
+Start with something appropriate like "Thank you for waiting. I've confirmed the details..." (translated to {customer_lang_name}).
 Keep the core information accurate but make it sound natural.
-Respond in the same language as the customer's question."""
+The entire response MUST be in {customer_lang_name}."""
 
         try:
             result = llm_client.generate_response(
@@ -2955,10 +2978,35 @@ Respond in the same language as the customer's question."""
                 final_response = result.get('content', manager_response)
             else:
                 final_response = str(result) if result else manager_response
+            
+            # Fallback: if the response is still not in customer's language, translate it explicitly
+            # This can happen if LLM doesn't follow language instructions
+            if customer_language not in ('en', 'english'):
+                try:
+                    from MASTER.clients.news_utils import translate_text
+                    # Quick heuristic: check if response starts with common English phrases
+                    english_starters = ['thank you', 'thanks', 'hello', 'hi ', 'dear', 'i have', "i've", 'we have', "we've"]
+                    response_lower = final_response.lower().strip()
+                    if any(response_lower.startswith(starter) for starter in english_starters):
+                        logger.info(f"Response appears to be in English, translating to {customer_language}")
+                        final_response = translate_text(final_response, customer_language, max_tokens=1000)
+                except Exception as te:
+                    logger.warning(f"Translation fallback failed: {te}")
                 
         except Exception as e:
-            logger.warning(f"Failed to rephrase manager response: {e}, using original")
-            final_response = f"Thank you for waiting. Here's the information: {manager_response}"
+            logger.warning(f"Failed to rephrase manager response: {e}, using original with translation")
+            # Try to at least translate the original response
+            try:
+                from MASTER.clients.news_utils import translate_text
+                translated_response = translate_text(
+                    f"Thank you for waiting. Here's the information: {manager_response}",
+                    customer_language,
+                    max_tokens=1000
+                )
+                final_response = translated_response
+            except Exception as te:
+                logger.warning(f"Translation fallback also failed: {te}")
+                final_response = f"Thank you for waiting. Here's the information: {manager_response}"
         
         # Send response to customer based on platform
         platform = conversation.context_metadata.get('platform', 'unknown') if conversation.context_metadata else 'unknown'

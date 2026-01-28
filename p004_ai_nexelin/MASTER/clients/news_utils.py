@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 # Supported languages in the app (matching frontend locales: en, de, fr, es, it, nl, da)
 SUPPORTED_LANGUAGES = ['en', 'de', 'es', 'fr', 'it', 'nl', 'da']
 
-# Language names for translation prompts
+# Extended language names for translation prompts (includes customer languages)
 LANGUAGE_NAMES = {
     'en': 'English',
     'de': 'German',
@@ -21,6 +21,24 @@ LANGUAGE_NAMES = {
     'it': 'Italian',
     'nl': 'Dutch',
     'da': 'Danish',
+    'uk': 'Ukrainian',
+    'ru': 'Russian',
+    'pl': 'Polish',
+    'pt': 'Portuguese',
+    'zh': 'Chinese',
+    'ja': 'Japanese',
+    'ko': 'Korean',
+    'ar': 'Arabic',
+    'tr': 'Turkish',
+    'he': 'Hebrew',
+    'sv': 'Swedish',
+    'no': 'Norwegian',
+    'fi': 'Finnish',
+    'cs': 'Czech',
+    'ro': 'Romanian',
+    'hu': 'Hungarian',
+    'bg': 'Bulgarian',
+    'el': 'Greek',
 }
 
 
@@ -139,23 +157,27 @@ def create_feature_news(feature_name, description=None):
     )
 
 
-def translate_text(text: str, target_language: str) -> str:
+def translate_text(text: str, target_language: str, max_tokens: int = 500) -> str:
     """
     Translate text to target language using OpenAI API.
     
     Args:
         text: Text to translate
-        target_language: Target language code (en, de, es, fr, it, nl, da)
+        target_language: Target language code (en, de, es, fr, it, nl, da, uk, ru, etc.)
+        max_tokens: Maximum tokens for translation (default 500, increase for longer texts)
     
     Returns:
         Translated text or original text if translation fails
     """
-    if target_language == 'en':
-        return text  # English is the default
-    
-    if target_language not in SUPPORTED_LANGUAGES:
-        logger.warning(f"Unsupported language: {target_language}")
+    if not text or not text.strip():
         return text
+    
+    # Get language name, default to the code itself if unknown
+    language_name = LANGUAGE_NAMES.get(target_language, target_language.upper())
+    
+    # Skip translation if target language is not recognized at all
+    if target_language not in LANGUAGE_NAMES:
+        logger.warning(f"Unknown language code: {target_language}, will attempt translation anyway")
     
     try:
         from openai import OpenAI
@@ -167,14 +189,13 @@ def translate_text(text: str, target_language: str) -> str:
             return text
         
         client = OpenAI(api_key=api_key)
-        language_name = LANGUAGE_NAMES.get(target_language, target_language)
         
         response = client.chat.completions.create(
             model="gpt-4o-mini",  # Use cheap model for translations
             messages=[
                 {
                     "role": "system",
-                    "content": f"You are a professional translator. Translate the following text to {language_name}. Return only the translation, no explanations."
+                    "content": f"You are a professional translator. Translate the following text to {language_name}. Return only the translation, no explanations. Preserve any formatting, HTML tags, or special characters."
                 },
                 {
                     "role": "user",
@@ -182,7 +203,7 @@ def translate_text(text: str, target_language: str) -> str:
                 }
             ],
             temperature=0.3,
-            max_tokens=500
+            max_tokens=max_tokens
         )
         
         translated = response.choices[0].message.content.strip()
@@ -192,6 +213,38 @@ def translate_text(text: str, target_language: str) -> str:
     except Exception as e:
         logger.error(f"Translation failed for {target_language}: {e}", exc_info=True)
         return text  # Return original text on failure
+
+
+def translate_conversation_context(messages: list, target_language: str) -> str:
+    """
+    Translate conversation messages for manager escalation.
+    
+    Args:
+        messages: List of message dicts with 'role' and 'content'
+        target_language: Target language code for manager
+    
+    Returns:
+        Translated context as formatted string
+    """
+    if not messages:
+        return ""
+    
+    # Build context string from messages
+    context_lines = []
+    for msg in messages:
+        if isinstance(msg, dict):
+            role = msg.get('role', 'unknown').upper()
+            content = msg.get('content', '')[:300]  # Limit each message
+            if content:
+                context_lines.append(f"{role}: {content}")
+    
+    if not context_lines:
+        return ""
+    
+    original_context = "\n".join(context_lines)
+    
+    # Translate the entire context at once (more efficient)
+    return translate_text(original_context, target_language, max_tokens=1000)
 
 
 def generate_translations(title: str, description: str) -> dict:
