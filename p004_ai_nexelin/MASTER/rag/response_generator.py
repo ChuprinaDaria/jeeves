@@ -259,8 +259,8 @@ class ResponseGenerator:
                     customer_message_lines.append(line)
                 answer = '\n'.join(customer_message_lines).strip()
                 if not answer:
-                    # Fallback: provide a waiting message
-                    answer = "One moment, let me verify this information with my colleague to give you an accurate answer..."
+                    # Fallback: provide a waiting message in customer's language
+                    answer = self._get_hitl_waiting_message(language)
             
             logger.info(f"HITL escalation detected for query: {query[:100]}..., summary: {escalation_summary}")
         

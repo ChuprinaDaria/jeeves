@@ -2780,14 +2780,19 @@ def notify_manager_of_escalation(self, conversation_id: int, question_summary: s
                 recent_context = "\n".join(context_lines)
         
         # Translate customer messages to manager's language (notification_language)
-        if recent_context and notification_lang != 'en':
+        # Always translate if customer language differs from manager language
+        customer_lang_for_translation = conversation.escalation_language or getattr(conversation, 'language', 'en') or 'en'
+        if recent_context and customer_lang_for_translation != notification_lang:
             try:
                 from MASTER.clients.news_utils import translate_text
                 # Translate the entire context to manager's language
                 translated_context = translate_text(recent_context, notification_lang, max_tokens=1000)
                 if translated_context:
                     recent_context = translated_context
-                    logger.info(f"Translated escalation context to {notification_lang} for conversation {conversation_id}")
+                    logger.info(
+                        f"Translated escalation context from {customer_lang_for_translation} to {notification_lang} "
+                        f"for conversation {conversation_id}"
+                    )
             except Exception as e:
                 logger.warning(f"Failed to translate escalation context to {notification_lang}: {e}")
                 # Continue with original context
