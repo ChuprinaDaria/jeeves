@@ -3007,26 +3007,36 @@ def process_manager_hitl_response(conversation_id: int, manager_response: str, m
         from MASTER.clients.news_utils import LANGUAGE_NAMES
         customer_lang_name = LANGUAGE_NAMES.get(customer_language, customer_language.upper())
         
-        rephrase_prompt = f"""CRITICAL TASK: Translate and deliver the manager's response to the customer.
+        rephrase_prompt = f"""CRITICAL TASK: Interpret the manager's instructions and deliver them naturally to the customer.
 
-MANAGER'S EXACT RESPONSE: "{manager_response}"
+MANAGER'S MESSAGE: "{manager_response}"
+
+CONTEXT: The customer asked: "{conversation.manager_escalation_context}"
 
 YOUR TASK:
-1. Translate the manager's response to {customer_lang_name}
-2. Add a brief intro like "Thank you for waiting." (in {customer_lang_name})
-3. Keep the EXACT meaning and instructions from the manager
-4. DO NOT add your own information, opinions, or refuse anything
+1. Understand what the manager wants you to tell/do for the customer
+2. If the manager gives you INSTRUCTIONS (like "tell him...", "say to customer...", "ask him to..."), interpret them and deliver the message naturally
+3. If the manager gives you INFORMATION to share, present it professionally
+4. Add a brief intro like "Thank you for waiting" (in {customer_lang_name})
+5. Write everything in {customer_lang_name} language
+
+EXAMPLES:
+- Manager: "Tell him to ask for water at reception"
+  → You: "Thank you for waiting. I've checked with my colleague. You can ask for water at the reception desk."
+  
+- Manager: "Say he should calm down and ask water at reception"
+  → You: "Thank you for waiting. I've received a response. Please feel free to ask for water at the reception desk."
+  
+- Manager: "Скажіть клієнту, нехай заспокоїться і запитає воду на рецепції"
+  → You (in Ukrainian): "Дякую за очікування. Я отримав відповідь. Будь ласка, зверніться до рецепції та попросіть води."
 
 OUTPUT FORMAT (in {customer_lang_name}):
-"[Thank you for waiting intro]. [Manager's translated message]"
+"[Thank you for waiting intro]. [Natural, customer-friendly message based on manager's instructions]"
 
-STRICTLY FORBIDDEN:
-- Adding information the manager didn't provide
-- Saying "I cannot", "unfortunately", or refusing anything unless the manager explicitly said that
-- Changing or ignoring what the manager said
-- Making up your own response
-
-The manager's message is the ONLY source of truth. Just translate and format it nicely."""
+IMPORTANT:
+- Remove phrases like "tell the customer", "say to him" - these are instructions FOR YOU, not text FOR the customer
+- Make it sound like YOU are directly helping the customer, not relaying a message
+- Keep the manager's intent but make it natural and professional"""
 
         try:
             result = llm_client.generate_response(

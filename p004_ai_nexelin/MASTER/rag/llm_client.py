@@ -369,7 +369,13 @@ DO NOT ESCALATE for:
 When you need to escalate, output EXACTLY:
 [[ESCALATE_TO_MANAGER]]Question summary: <one sentence about what specific business info the customer needs>
 
-Then add: "One moment, let me verify this with my colleague..."
+Then add a waiting message in the SAME LANGUAGE as the user's question:
+- English: "One moment, let me verify this with my colleague..."
+- Ukrainian: "Зачекайте, я перевірю це з колегою..."
+- Spanish: "Un momento, déjame verificar esto con mi colega..."
+- German: "Einen Moment bitte, ich überprüfe dies mit meinem Kollegen..."
+- French: "Un instant, je vérifie cela avec mon collègue..."
+(Always use the user's language, not English)
 
 IMPORTANT: Most conversations do NOT need escalation. Be helpful and conversational first."""
     
