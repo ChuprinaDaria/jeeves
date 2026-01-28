@@ -2656,6 +2656,7 @@ def notify_manager_of_escalation(self, conversation_id: int, question_summary: s
         Dict with success status and details
     """
     import requests
+    from django.utils import timezone
     from MASTER.clients.models import Client, ClientWhatsAppConversation
     
     def escape_html(text: str) -> str:
