@@ -11,60 +11,97 @@ logger = logging.getLogger(__name__)
 def detect_language_from_messages(messages):
     """
     Detect language from conversation messages.
-    Returns language code (uk, en, de, fr, es, it, nl, da) based on message content.
+    Returns language code (uk, ru, en, de, fr, es, it, nl, da) based on message content.
+    
+    Priority: Analyze USER messages first (not assistant), and check Cyrillic scripts early
+    since they're unambiguous indicators.
     """
     if not messages:
         return 'en'
     
-    # Collect all user and assistant messages
+    # Collect only USER messages for language detection (not assistant responses)
+    user_text = ''
     all_text = ''
     for msg in messages:
         if isinstance(msg, dict) and msg.get('content'):
-            all_text += ' ' + msg.get('content', '').lower()
+            content = msg.get('content', '').lower()
+            all_text += ' ' + content
+            # Prioritize user messages for language detection
+            if msg.get('role') == 'user':
+                user_text += ' ' + content
     
-    if not all_text:
+    # Use user_text if available, otherwise fall back to all_text
+    detect_text = user_text.strip() if user_text.strip() else all_text.strip()
+    
+    if not detect_text:
         return 'en'
     
-    # Language detection patterns
-    # English
-    eng_words = ['hello', 'hi', 'who', 'are', 'you', 'what', 'how', 'can', 'help', 'please', 'thank', 'thanks', 'yes', 'no', 'ok', 'okay']
-    if any(word in all_text for word in eng_words):
-        return 'en'
+    # FIRST: Check for Cyrillic scripts (unambiguous indicators)
+    # Ukrainian-specific characters
+    uk_specific = ['і', 'ї', 'є', 'ґ']
+    uk_words = ['привіт', 'допомога', 'дякую', 'будь ласка', 'так', 'ні', 'добре', 'вітаю', 'підкажіть', 'скажіть', 'менеджер', 'поклич']
     
-    # German
-    de_words = ['hallo', 'guten', 'tag', 'morgen', 'abend', 'bitte', 'danke', 'hilfe', 'können', 'sie', 'wie', 'was']
-    if any(word in all_text for word in de_words):
-        return 'de'
+    # Russian-specific characters and words
+    ru_specific = ['ы', 'э', 'ъ']
+    ru_words = ['привет', 'помощь', 'спасибо', 'пожалуйста', 'да', 'нет', 'хорошо', 'здравствуйте', 'подскажите']
+    
+    # Check Ukrainian first (more specific)
+    if any(char in detect_text for char in uk_specific) or any(word in detect_text for word in uk_words):
+        return 'uk'
+    
+    # Check Russian
+    if any(char in detect_text for char in ru_specific) or any(word in detect_text for word in ru_words):
+        return 'ru'
+    
+    # Check for any Cyrillic characters (fallback to Ukrainian for general Cyrillic)
+    cyrillic_range = any('\u0400' <= char <= '\u04FF' for char in detect_text)
+    if cyrillic_range:
+        return 'uk'  # Default Cyrillic to Ukrainian
+    
+    # German (check before English because some words overlap)
+    de_words = ['hallo', 'guten', 'tag', 'morgen', 'abend', 'bitte', 'danke', 'hilfe', 'können', 'wie', 'was', 'ich', 'nicht', 'und', 'ist']
+    de_count = sum(1 for word in de_words if word in detect_text)
     
     # French
-    fr_words = ['bonjour', 'bonsoir', 'salut', 'merci', 'aider', 'pouvez', 'comment', 'quoi', 'oui', 'non']
-    if any(word in all_text for word in fr_words):
-        return 'fr'
+    fr_words = ['bonjour', 'bonsoir', 'salut', 'merci', 'aider', 'pouvez', 'comment', 'quoi', 'oui', 'non', "c'est", 'je', 'vous', 'est']
+    fr_count = sum(1 for word in fr_words if word in detect_text)
     
     # Spanish
-    es_words = ['hola', 'buenos', 'días', 'tardes', 'gracias', 'ayuda', 'puede', 'cómo', 'qué', 'sí', 'no']
-    if any(word in all_text for word in es_words):
-        return 'es'
+    es_words = ['hola', 'buenos', 'días', 'tardes', 'gracias', 'ayuda', 'puede', 'cómo', 'qué', 'sí', 'está', 'usted', 'tengo']
+    es_count = sum(1 for word in es_words if word in detect_text)
     
     # Italian
-    it_words = ['ciao', 'buongiorno', 'buonasera', 'grazie', 'aiuto', 'può', 'come', 'cosa', 'sì', 'no']
-    if any(word in all_text for word in it_words):
-        return 'it'
+    it_words = ['ciao', 'buongiorno', 'buonasera', 'grazie', 'aiuto', 'può', 'come', 'cosa', 'sì', 'sono', 'questo', 'molto']
+    it_count = sum(1 for word in it_words if word in detect_text)
     
     # Dutch
-    nl_words = ['hallo', 'goedemorgen', 'goedenavond', 'dank', 'help', 'kunt', 'hoe', 'wat', 'ja', 'nee']
-    if any(word in all_text for word in nl_words):
-        return 'nl'
+    nl_words = ['hallo', 'goedemorgen', 'goedenavond', 'dank', 'help', 'kunt', 'hoe', 'wat', 'ja', 'nee', 'bent', 'hebben', 'deze']
+    nl_count = sum(1 for word in nl_words if word in detect_text)
     
     # Danish
-    da_words = ['hej', 'godmorgen', 'goddag', 'tak', 'hjælp', 'kan', 'hvordan', 'hvad', 'ja', 'nej']
-    if any(word in all_text for word in da_words):
-        return 'da'
+    da_words = ['hej', 'godmorgen', 'goddag', 'tak', 'hjælp', 'kan', 'hvordan', 'hvad', 'ja', 'nej', 'denne', 'meget']
+    da_count = sum(1 for word in da_words if word in detect_text)
     
-    # Ukrainian/Russian (check for Cyrillic characters)
-    uk_chars = ['і', 'ї', 'є', 'ґ', 'привіт', 'допомога', 'дякую', 'так', 'ні']
-    if any(char in all_text for char in uk_chars):
-        return 'uk'
+    # English
+    eng_words = ['hello', 'hi', 'who', 'are', 'you', 'what', 'how', 'can', 'help', 'please', 'thank', 'thanks', 'yes', 'no', 'okay', 'the', 'is', 'this']
+    eng_count = sum(1 for word in eng_words if word in detect_text)
+    
+    # Return language with highest count (minimum 1 match required)
+    lang_counts = [
+        ('de', de_count),
+        ('fr', fr_count),
+        ('es', es_count),
+        ('it', it_count),
+        ('nl', nl_count),
+        ('da', da_count),
+        ('en', eng_count),
+    ]
+    
+    # Sort by count descending
+    lang_counts.sort(key=lambda x: x[1], reverse=True)
+    
+    if lang_counts[0][1] >= 1:
+        return lang_counts[0][0]
     
     # Default to English
     return 'en'
@@ -2883,7 +2920,10 @@ def notify_manager_of_escalation(self, conversation_id: int, question_summary: s
                 if msg.get('role') == 'user':
                     conversation.escalation_original_query = msg.get('content', '')[:500]
                     break
-        conversation.escalation_language = getattr(conversation, 'language', 'en') or 'en'
+        # Detect customer language from messages (more reliable than conversation.language)
+        detected_lang = detect_language_from_messages(conversation.messages) if conversation.messages else 'en'
+        conversation.escalation_language = detected_lang or getattr(conversation, 'language', 'en') or 'en'
+        logger.info(f"HITL escalation: detected customer language = {conversation.escalation_language}")
         if first_message_id:
             conversation.last_escalation_message_id = first_message_id
         if first_manager_id:
@@ -2937,12 +2977,19 @@ def process_manager_hitl_response(conversation_id: int, manager_response: str, m
     from MASTER.clients.views_telegram import send_telegram_message
     
     try:
-        conversation = ClientWhatsAppConversation.objects.select_related('client').get(id=conversation_id)
-        client = conversation.client
-        
-        if not conversation.is_waiting_for_manager:
-            logger.warning(f"Conversation {conversation_id} was not waiting for manager response")
-            return {"success": False, "error": "Not waiting for manager"}
+        # Use select_for_update to lock the row and prevent race conditions when multiple managers respond
+        from django.db import transaction
+        with transaction.atomic():
+            conversation = ClientWhatsAppConversation.objects.select_for_update().select_related('client').get(id=conversation_id)
+            client = conversation.client
+            
+            # Check if still waiting for manager (another manager might have already responded)
+            if not conversation.is_waiting_for_manager:
+                logger.warning(
+                    f"Conversation {conversation_id} was not waiting for manager response "
+                    f"(likely already handled by another manager {manager_telegram_id})"
+                )
+                return {"success": False, "error": "Not waiting for manager", "already_handled": True}
         
         # Get customer's language from escalation context
         customer_language = conversation.escalation_language or 'en'
@@ -2979,17 +3026,32 @@ The entire response MUST be in {customer_lang_name}."""
             else:
                 final_response = str(result) if result else manager_response
             
-            # Fallback: if the response is still not in customer's language, translate it explicitly
-            # This can happen if LLM doesn't follow language instructions
-            if customer_language not in ('en', 'english'):
+            # Always translate to customer's language if not English
+            # LLM often ignores language instructions, so we force translation
+            if customer_language and customer_language.lower() not in ('en', 'english'):
                 try:
                     from MASTER.clients.news_utils import translate_text
-                    # Quick heuristic: check if response starts with common English phrases
-                    english_starters = ['thank you', 'thanks', 'hello', 'hi ', 'dear', 'i have', "i've", 'we have', "we've"]
+                    # Check if response is in English (common English words/phrases)
+                    english_indicators = [
+                        'thank you', 'thanks', 'hello', 'hi ', 'dear', 'i have', "i've", 
+                        'we have', "we've", 'please', 'sorry', 'unfortunately', 'however',
+                        'the ', 'this ', 'that ', 'with ', 'for ', 'and ', 'but ', 'or ',
+                        'confirmed', 'information', 'details', 'waiting', 'apologize'
+                    ]
                     response_lower = final_response.lower().strip()
-                    if any(response_lower.startswith(starter) for starter in english_starters):
-                        logger.info(f"Response appears to be in English, translating to {customer_language}")
+                    
+                    # Count how many English indicators are present
+                    english_count = sum(1 for indicator in english_indicators if indicator in response_lower)
+                    
+                    # If response has multiple English indicators, it's likely English - translate it
+                    if english_count >= 2:
+                        logger.info(
+                            f"Response appears to be in English (found {english_count} indicators), "
+                            f"translating to {customer_language}"
+                        )
                         final_response = translate_text(final_response, customer_language, max_tokens=1000)
+                    else:
+                        logger.info(f"Response appears to already be in customer language {customer_language}")
                 except Exception as te:
                     logger.warning(f"Translation fallback failed: {te}")
                 
@@ -3042,31 +3104,53 @@ The entire response MUST be in {customer_lang_name}."""
             'metadata': {'hitl_response': True, 'manager_id': manager_telegram_id}
         })
         
-        # Reset escalation state
-        conversation.is_waiting_for_manager = False
-        conversation.manager_escalation_context = ""
-        conversation.last_escalation_message_id = ""
-        conversation.escalation_manager_id = ""
-        conversation.escalation_started_at = None
-        conversation.escalation_original_query = ""
-        conversation.escalation_language = ""
-        conversation.total_messages = len(conversation.messages)
-        conversation.last_activity_at = timezone.now()
+        # Atomically reset escalation state to prevent other managers from processing
+        # Use update() with condition to ensure only one manager's response is processed
+        from django.utils import timezone as tz
         
-        conversation.save(update_fields=[
-            'messages', 
-            'is_waiting_for_manager',
-            'manager_escalation_context',
-            'last_escalation_message_id',
-            'escalation_manager_id',
-            'escalation_started_at',
-            'escalation_original_query',
-            'escalation_language',
-            'total_messages',
-            'last_activity_at'
-        ])
+        # First, add message to conversation
+        if not conversation.messages:
+            conversation.messages = []
+        conversation.messages.append({
+            'role': 'assistant',
+            'content': final_response,
+            'timestamp': timezone.now().isoformat(),
+            'metadata': {'hitl_response': True, 'manager_id': manager_telegram_id}
+        })
         
-        logger.info(f"HITL response processed for conversation {conversation_id}")
+        # Atomically update conversation state (only if still waiting for manager)
+        updated = ClientWhatsAppConversation.objects.filter(
+            id=conversation_id,
+            is_waiting_for_manager=True  # Only update if still waiting
+        ).update(
+            is_waiting_for_manager=False,
+            manager_escalation_context="",
+            last_escalation_message_id="",
+            escalation_manager_id="",
+            escalation_started_at=None,
+            escalation_original_query="",
+            escalation_language="",
+            messages=conversation.messages,  # Update messages list
+            total_messages=len(conversation.messages),
+            last_activity_at=tz.now()
+        )
+        
+        if updated == 0:
+            # Another manager already processed this conversation
+            logger.warning(
+                f"Conversation {conversation_id} was already processed by another manager "
+                f"(attempted by manager {manager_telegram_id})"
+            )
+            return {
+                "success": False,
+                "error": "Conversation already processed by another manager",
+                "already_handled": True
+            }
+        
+        logger.info(
+            f"HITL response processed for conversation {conversation_id} "
+            f"by manager {manager_telegram_id} (customer language: {customer_language})"
+        )
         
         return {
             "success": send_success,

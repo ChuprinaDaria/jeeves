@@ -767,11 +767,22 @@ class TelegramWebhookView(View):
             
             logger.info(f"Manager {sender_id} replied to escalation for conversation {conversation.id}")
             
-            # Send confirmation to manager
+            # Send confirmation to manager in their notification language
             bot_token = client_hint.telegram_bot_token
             if bot_token:
                 chat_id = message.get('chat', {}).get('id')
-                confirm_msg = f"✅ Got it! Processing your response and sending to the customer..."
+                # Get manager's notification language
+                notification_lang = getattr(client_hint, 'notification_language', 'en') or 'en'
+                confirm_messages = {
+                    'en': "✅ Got it! Processing your response and sending to the customer...",
+                    'de': "✅ Verstanden! Verarbeite deine Antwort und sende sie an den Kunden...",
+                    'fr': "✅ Compris ! Traitement de votre réponse et envoi au client...",
+                    'es': "✅ ¡Entendido! Procesando tu respuesta y enviándola al cliente...",
+                    'it': "✅ Capito! Elaborazione della risposta e invio al cliente...",
+                    'nl': "✅ Begrepen! Je antwoord wordt verwerkt en naar de klant gestuurd...",
+                    'da': "✅ Forstået! Behandler dit svar og sender til kunden...",
+                }
+                confirm_msg = confirm_messages.get(notification_lang, confirm_messages['en'])
                 send_telegram_message(bot_token, chat_id, confirm_msg)
             
             # Process asynchronously
@@ -825,12 +836,23 @@ class TelegramWebhookView(View):
             # Process the manager's response
             from MASTER.clients.tasks import process_manager_hitl_response
             
-            # Send confirmation to manager
+            # Send confirmation to manager in their notification language
             bot_token = manager_client.telegram_bot_token
             if bot_token:
                 chat_id = message.get('chat', {}).get('id')
                 customer_id = conversation.customer_phone or conversation.telegram_chat_id or f"Conv #{conversation.id}"
-                confirm_msg = f"✅ Got it! Sending your response to customer {customer_id}..."
+                # Get manager's notification language
+                notification_lang = getattr(manager_client, 'notification_language', 'en') or 'en'
+                confirm_messages = {
+                    'en': f"✅ Got it! Sending your response to customer {customer_id}...",
+                    'de': f"✅ Verstanden! Sende deine Antwort an Kunde {customer_id}...",
+                    'fr': f"✅ Compris ! Envoi de votre réponse au client {customer_id}...",
+                    'es': f"✅ ¡Entendido! Enviando tu respuesta al cliente {customer_id}...",
+                    'it': f"✅ Capito! Invio della risposta al cliente {customer_id}...",
+                    'nl': f"✅ Begrepen! Je antwoord wordt naar klant {customer_id} gestuurd...",
+                    'da': f"✅ Forstået! Sender dit svar til kunde {customer_id}...",
+                }
+                confirm_msg = confirm_messages.get(notification_lang, confirm_messages['en'])
                 send_telegram_message(bot_token, chat_id, confirm_msg)
             
             # Process asynchronously
