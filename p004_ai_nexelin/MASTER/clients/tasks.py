@@ -3002,16 +3002,26 @@ def process_manager_hitl_response(conversation_id: int, manager_response: str, m
         from MASTER.clients.news_utils import LANGUAGE_NAMES
         customer_lang_name = LANGUAGE_NAMES.get(customer_language, customer_language.upper())
         
-        rephrase_prompt = f"""The customer asked (in {customer_lang_name}): "{conversation.manager_escalation_context}"
+        rephrase_prompt = f"""CRITICAL TASK: Translate and deliver the manager's response to the customer.
 
-A human supervisor provided this answer: "{manager_response}"
+MANAGER'S EXACT RESPONSE: "{manager_response}"
 
-IMPORTANT: You MUST respond in {customer_lang_name} language.
+YOUR TASK:
+1. Translate the manager's response to {customer_lang_name}
+2. Add a brief intro like "Thank you for waiting." (in {customer_lang_name})
+3. Keep the EXACT meaning and instructions from the manager
+4. DO NOT add your own information, opinions, or refuse anything
 
-Please rephrase this answer in a professional and friendly tone, as if you (the AI assistant) verified the information. 
-Start with something appropriate like "Thank you for waiting. I've confirmed the details..." (translated to {customer_lang_name}).
-Keep the core information accurate but make it sound natural.
-The entire response MUST be in {customer_lang_name}."""
+OUTPUT FORMAT (in {customer_lang_name}):
+"[Thank you for waiting intro]. [Manager's translated message]"
+
+STRICTLY FORBIDDEN:
+- Adding information the manager didn't provide
+- Saying "I cannot", "unfortunately", or refusing anything unless the manager explicitly said that
+- Changing or ignoring what the manager said
+- Making up your own response
+
+The manager's message is the ONLY source of truth. Just translate and format it nicely."""
 
         try:
             result = llm_client.generate_response(
