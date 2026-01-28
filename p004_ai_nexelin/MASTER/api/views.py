@@ -598,8 +598,11 @@ class PublicRAGChatView(APIView):
                     if api_key:
                         openai_client = OpenAI(api_key=api_key)
                         effective_model = model_name or 'gpt-4o-mini'
-                        # o1/o3 reasoning models don't support temperature parameter
-                        is_reasoning_model = any(prefix in effective_model.lower() for prefix in ['o1-', 'o3-'])
+                        # Some models don't support temperature parameter (only default=1 allowed):
+                        # - o1/o3 reasoning models (o1, o1-preview, o1-mini, o3, o3-mini)
+                        # - gpt-5.1 models (gpt-5.1-chat-latest, etc.)
+                        no_temperature_models = ('o1', 'o3', 'gpt-5.1')
+                        is_reasoning_model = effective_model.lower().startswith(no_temperature_models)
                         
                         create_params = {
                             "model": effective_model,

@@ -18,9 +18,13 @@ class OpenAILLMProvider(BaseLLMProvider):
         max_tokens = kwargs.get('max_tokens', 2000)
         
         # Modern OpenAI models use max_completion_tokens instead of max_tokens
-        # o1/o3 reasoning models don't support temperature parameter
+        # Some models don't support temperature parameter (only default=1 allowed):
+        # - o1/o3 reasoning models (o1, o1-preview, o1-mini, o3, o3-mini)
+        # - gpt-5.1 models (gpt-5.1-chat-latest, etc.)
         model_name = self.model_name or ""
-        is_reasoning_model = any(prefix in model_name.lower() for prefix in ["o1-", "o3-"])
+        model_lower = model_name.lower()
+        no_temperature_models = ("o1", "o3", "gpt-5.1")
+        is_reasoning_model = model_lower.startswith(no_temperature_models)
 
         params: Dict[str, Any] = {
             "model": model_name,
