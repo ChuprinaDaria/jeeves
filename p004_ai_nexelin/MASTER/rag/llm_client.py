@@ -178,11 +178,17 @@ class LLMClient:
         
         # Додаємо явну вказівку мови до system prompt для кращого розуміння моделлю
         # (особливо важливо для Ollama)
-        language_instruction = ""
-        # Визначаємо мову з Accept-Language або дефолт
-        # (можна було б передавати language як параметр, але поки беремо з контексту або дефолт)
-        # Для початку просто додаємо універсальну інструкцію
-        language_instruction = "\n\nIMPORTANT: Always respond in the same language as the user's question. Detect the language automatically."
+        language_instruction = """
+
+LANGUAGE RULES (CRITICAL - MUST FOLLOW):
+1. ALWAYS respond in the SAME language as the user's message
+2. If user writes in Ukrainian (привіт, дякую, будь ласка) - respond in Ukrainian
+3. If user writes in German - respond in German
+4. If user writes in French - respond in French
+5. If user writes in Russian - respond in Russian
+6. NEVER switch to English unless the user writes in English
+7. Even if context/data is in English, YOUR RESPONSE must be in user's language
+8. Translate any English information to user's language before responding"""
         
         # Додаємо інструкцію не використовувати markdown
         no_markdown_instruction = "\n\nCRITICAL: Do NOT use markdown formatting in your response. Write plain text only. Do not use **bold**, *italic*, `code blocks`, # headers, - lists, or any other markdown syntax. Use only plain text."
@@ -345,22 +351,27 @@ class LLMClient:
         if not manager_ids or (isinstance(manager_ids, list) and len(manager_ids) == 0):
             return None
         
-        return """ESCALATION PROTOCOL (CRITICAL):
-When you cannot provide a confident answer based on the provided context, you MUST NOT hallucinate or guess.
+        return """ESCALATION PROTOCOL:
+You have a human manager available to help with complex questions. However, escalation should be RARE and only for specific business questions.
 
-If any of these conditions are met:
-- The question is about specific details not present in the context (prices, dates, availability, appointments)
-- The question requires real-time information you don't have
-- The question is complex and needs human judgment
-- You are genuinely uncertain about the answer
+ESCALATE ONLY IF ALL of these are true:
+1. The user is asking a SPECIFIC BUSINESS QUESTION (prices, bookings, appointments, availability, specific services)
+2. The answer is NOT in the provided context
+3. The question CANNOT be answered with general information or friendly conversation
 
-Then you MUST output EXACTLY this format:
-[[ESCALATE_TO_MANAGER]]Question summary: <one sentence summary of what the customer is asking>
+DO NOT ESCALATE for:
+- Greetings (hello, hi, привіт, bonjour, etc.) - just respond friendly
+- General conversation or small talk
+- Questions you CAN answer from context
+- Requests to speak in a different language - just switch language
+- Simple questions about what you can do
 
-After outputting the escalation token, you may add a brief message to the customer like:
-"One moment, let me verify this information with my colleague to give you an accurate answer..."
+When you need to escalate, output EXACTLY:
+[[ESCALATE_TO_MANAGER]]Question summary: <one sentence about what specific business info the customer needs>
 
-DO NOT answer if you are not sure. It is better to escalate than to provide wrong information."""
+Then add: "One moment, let me verify this with my colleague..."
+
+IMPORTANT: Most conversations do NOT need escalation. Be helpful and conversational first."""
     
     def _get_email_capabilities_info(self, client: Client) -> str | None:
         """Get email capabilities information for system prompt if email is enabled."""

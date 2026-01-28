@@ -191,25 +191,35 @@ class ResponseGenerator:
             logger.info(f"HITL: Forced escalation detected via [escalate] tag in query")
         
         # Fallback: detect refusal phrases even if LLM didn't output escalation token
-        # This catches cases where LLM says "can't help" but didn't follow the escalation protocol
+        # This catches cases where LLM explicitly refuses to answer a business question
+        # IMPORTANT: Only count as refusal if the phrase indicates inability to answer a SPECIFIC question
         refusal_phrases = [
-            # English
-            "can't help", "cannot help", "cannot assist", "can't assist",
-            "unable to help", "unable to assist", "i don't have information",
-            "i cannot provide", "i can't provide", "not able to",
-            "beyond my capabilities", "outside my knowledge",
+            # English - specific inability phrases
+            "i don't have that specific information",
+            "i don't have information about that",
+            "i cannot provide specific details",
+            "i don't have access to that data",
+            "i cannot answer that specific question",
+            "that information is not available to me",
             # Ukrainian
-            "не можу допомогти", "не маю інформації", "не можу відповісти",
+            "не маю цієї конкретної інформації",
+            "не маю інформації про це",
+            "не можу надати конкретні деталі",
             # Russian  
-            "не могу помочь", "не могу ответить", "не располагаю информацией",
+            "у меня нет этой конкретной информации",
+            "не располагаю этой информацией",
             # German
-            "kann nicht helfen", "kann ich nicht", "keine informationen",
+            "ich habe diese spezifischen informationen nicht",
+            "diese information liegt mir nicht vor",
             # French
-            "ne peux pas aider", "je ne peux pas", "pas d'information",
+            "je n'ai pas cette information spécifique",
+            "je ne dispose pas de cette information",
         ]
         
         answer_lower = answer.lower()
-        is_refusal = any(phrase in answer_lower for phrase in refusal_phrases)
+        # Only trigger refusal if it's a CLEAR refusal about specific information
+        # AND the answer is relatively short (actual refusals are usually brief)
+        is_refusal = any(phrase in answer_lower for phrase in refusal_phrases) and len(answer) < 500
         
         if '[[ESCALATE_TO_MANAGER]]' in answer:
             requires_escalation = True
