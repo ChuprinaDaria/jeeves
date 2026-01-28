@@ -255,23 +255,34 @@ class PublicRAGChatView(APIView):
             if not message and not image_file:
                 return Response({'error': 'message or image is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Language detection: support explicit language from body or Accept-Language header
+            # Language detection: support explicit language from body, Accept-Language header, or detect from message
             # Default to 'en' if not provided
-            # LLM will automatically respond in user's language based on their question
             language = ''
             try:
                 if isinstance(request.data, dict):
                     language = str(request.data.get('language') or '').strip().lower()
             except Exception:
                 language = ''
+            
             # If not provided explicitly, try Accept-Language header
             if not language:
                 accept_lang = request.headers.get('Accept-Language') or ''
                 if accept_lang:
                     # Take first language from header, without region (it-IT -> it)
                     language = accept_lang.split(',')[0].split(';')[0].strip().split('-')[0].lower()
+            
+            # If still not detected, try to detect from message content
+            if not language and message:
+                try:
+                    from MASTER.clients.tasks import detect_language_from_messages
+                    detected = detect_language_from_messages([{'role': 'user', 'content': message}])
+                    if detected and detected != 'en':  # Only use if detected non-English
+                        language = detected
+                except Exception as e:
+                    logger.warning(f"Failed to detect language from message: {e}")
+            
             # Normalize to supported languages
-            supported_langs = {'en', 'de', 'fr', 'it', 'nl', 'da', 'es'}
+            supported_langs = {'en', 'de', 'fr', 'it', 'nl', 'da', 'es', 'uk', 'ru'}
             if not language:
                 language = 'en'
             elif language not in supported_langs:
