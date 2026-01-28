@@ -181,6 +181,9 @@ class ResponseGenerator:
         manager_ids = client.get_manager_telegram_ids() if client and hasattr(client, 'get_manager_telegram_ids') else []
         hitl_available = hitl_enabled and len(manager_ids) > 0
         
+        # Debug logging for HITL status
+        logger.info(f"HITL status: enabled={hitl_enabled}, manager_ids={manager_ids}, available={hitl_available}")
+        
         # Check for [escalate] tag in query (forced escalation from system prompt)
         # This allows users to add [escalate] markers in their prompts for specific questions
         forced_escalation = '[escalate]' in query.lower()

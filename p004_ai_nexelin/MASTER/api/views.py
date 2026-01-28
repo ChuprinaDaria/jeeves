@@ -597,9 +597,9 @@ class PublicRAGChatView(APIView):
                     api_key = getattr(settings, 'OPENAI_API_KEY', '').strip()
                     if api_key:
                         openai_client = OpenAI(api_key=api_key)
-                        # Use max_completion_tokens for o1/o3 models, max_tokens for others
                         effective_model = model_name or 'gpt-4o-mini'
-                        is_reasoning_model = any(prefix in effective_model.lower() for prefix in ['o1', 'o3'])
+                        # o1/o3 reasoning models don't support temperature parameter
+                        is_reasoning_model = any(prefix in effective_model.lower() for prefix in ['o1-', 'o3-'])
                         
                         create_params = {
                             "model": effective_model,
@@ -608,14 +608,13 @@ class PublicRAGChatView(APIView):
                                 {"role": "system", "content": system_prompt},
                                 {"role": "user", "content": user_content},
                             ],
+                            # Use max_completion_tokens for all modern OpenAI models
+                            "max_completion_tokens": 300,
                         }
                         
-                        # o1/o3 models don't support temperature and use max_completion_tokens
-                        if is_reasoning_model:
-                            create_params["max_completion_tokens"] = 300
-                        else:
+                        # Only add temperature for non-reasoning models
+                        if not is_reasoning_model:
                             create_params["temperature"] = 0
-                            create_params["max_tokens"] = 300
                         
                         response = openai_client.chat.completions.create(**create_params)
                         raw_response_text = response.choices[0].message.content or ""
