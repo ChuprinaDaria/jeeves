@@ -2743,8 +2743,8 @@ def notify_manager_of_escalation(self, conversation_id: int, question_summary: s
         escaped_company = escape_html(client.company_name)
         escaped_customer = escape_html(str(customer_id))
         
-        # Get notification language for manager messages
-        notification_lang = getattr(client, 'notification_language', 'en') or 'en'
+        # Get notification language for manager messages (validated)
+        notification_lang = _get_notification_language(client)
         
         # Localized message templates with last 3 messages context
         context_label = {
