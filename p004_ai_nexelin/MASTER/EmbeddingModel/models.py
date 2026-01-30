@@ -169,10 +169,12 @@ class LLMProvider(models.Model):
 
 class ModelPair(models.Model):
     """
-    Model pair (LLM + Embedding) with GUID for usage statistics.
-    GUID identifies the pair in mg.nexelin.com API.
-    Statistics are sent with combined tokens (embedding + LLM) and cost for the pair.
-    If statistics is only for LLM or only for embedding, we count 0 + statistics.
+    Model pair (LLM + Embedding) with GUID.
+    
+    NOTE: This model is deprecated for usage statistics.
+    Statistics are now sent separately for embedding and LLM models using their own GUIDs
+    (EmbeddingModel.external_guid and LLMProvider.external_guid).
+    This model may be kept for other purposes or removed in the future.
     """
     llm_provider = models.ForeignKey(
         LLMProvider,

@@ -1,5 +1,5 @@
 from django.db import models
-from MASTER.EmbeddingModel.models import EmbeddingModel
+from MASTER.EmbeddingModel.models import EmbeddingModel, LLMProvider
 
 
 class UsageStats(models.Model):
@@ -8,6 +8,8 @@ class UsageStats(models.Model):
         ('query', 'Query'),
         ('scan_qr', 'Scan QR'),
         ('rag_chat', 'RAG Chat'),
+        ('rag_chat_embedding', 'RAG Chat Embedding'),
+        ('rag_chat_llm', 'RAG Chat LLM'),
     ]
 
     branch = models.ForeignKey(
@@ -35,7 +37,19 @@ class UsageStats(models.Model):
     embedding_model = models.ForeignKey(
         EmbeddingModel, 
         on_delete=models.PROTECT,
-        related_name='usage_stats'
+        null=True,
+        blank=True,
+        related_name='usage_stats',
+        help_text='Embedding model for embedding operations'
+    )
+    
+    llm_provider = models.ForeignKey(
+        LLMProvider,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='usage_stats',
+        help_text='LLM provider for LLM operations'
     )
     
     operation_type = models.CharField(max_length=20, choices=OPERATION_TYPES)
@@ -66,10 +80,17 @@ class UsageStats(models.Model):
                     models.Q(branch__isnull=True, specialization__isnull=True, client__isnull=False)
                 ),
                 name='only_one_entity_set'
+            ),
+            models.CheckConstraint(
+                check=(
+                    models.Q(embedding_model__isnull=False) | models.Q(llm_provider__isnull=False)
+                ),
+                name='at_least_one_model_set'
             )
         ]
 
     def __str__(self):
         target = self.branch or self.specialization or self.client
-        return f"{target} - {self.tokens_used} tokens - ${self.cost}"
+        model = self.embedding_model or self.llm_provider
+        return f"{target} - {model} - {self.tokens_used} tokens - ${self.cost}"
 

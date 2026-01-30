@@ -81,35 +81,44 @@ def _resolve_ai_model(usage: UsageStats) -> str:
     """
     Resolve AI model GUID identifier for mg.nexelin API.
     
+    Now uses separate GUIDs for embedding and LLM models:
+    - For embedding operations: uses EmbeddingModel.external_guid
+    - For LLM operations: uses LLMProvider.external_guid
+    
     Priority:
-    1. metadata['ai_model_guid'] (preferred - GUID from ModelPair for LLM + Embedding pair)
-    2. EmbeddingModel.external_guid if exists (GUID from mg.nexelin, fallback for embedding-only)
-    3. EmbeddingModel.id as fallback (API accepts ID if GUID not available)
+    1. LLMProvider.external_guid (for LLM operations)
+    2. EmbeddingModel.external_guid (for embedding operations)
+    3. Model ID as fallback (if GUID not available)
     
-    Note: API expects GUID for model pair (LLM + Embedding). Statistics are sent with combined tokens.
+    Each model (embedding and LLM) has its own GUID from mg.nexelin.
+    Statistics are sent separately for each model type.
     """
-    metadata = getattr(usage, 'metadata', {}) or {}
-    if isinstance(metadata, dict):
-        # Try to get GUID from metadata (preferred - this is ModelPair GUID)
-        ai_model_guid = metadata.get('ai_model_guid')
-        if ai_model_guid:
-            return str(ai_model_guid).strip()
-    
-    # Try to get GUID from EmbeddingModel (fallback for embedding-only operations)
-    model = usage.embedding_model
-    if not model:
+    # For LLM operations - use LLMProvider GUID
+    if usage.llm_provider:
+        llm_provider = usage.llm_provider
+        if hasattr(llm_provider, 'external_guid') and llm_provider.external_guid:
+            return str(llm_provider.external_guid).strip()
+        # Fallback: use LLM provider ID
+        llm_id = getattr(llm_provider, 'pk', None) or getattr(llm_provider, 'id', None)
+        if llm_id:
+            logger.warning(f"UsageStats {usage.id}: LLMProvider {llm_id} has no external_guid, using ID as fallback")
+            return str(llm_id)
         return "unknown"
     
-    # Check if model has external_guid field (GUID from mg.nexelin)
-    if hasattr(model, 'external_guid') and model.external_guid:
-        return str(model.external_guid).strip()
+    # For embedding operations - use EmbeddingModel GUID
+    if usage.embedding_model:
+        embedding_model = usage.embedding_model
+        if hasattr(embedding_model, 'external_guid') and embedding_model.external_guid:
+            return str(embedding_model.external_guid).strip()
+        # Fallback: use embedding model ID
+        emb_id = getattr(embedding_model, 'pk', None) or getattr(embedding_model, 'id', None)
+        if emb_id:
+            logger.warning(f"UsageStats {usage.id}: EmbeddingModel {emb_id} has no external_guid, using ID as fallback")
+            return str(emb_id)
+        return "unknown"
     
-    # Fallback: use model id (API accepts ID if GUID not available)
-    # Per developer: "we waiting GUID, no esli hochesh mogu zamenit' na ID"
-    model_id = getattr(model, 'pk', None) or getattr(model, 'id', None)
-    if model_id:
-        return str(model_id)
-    
+    # No model specified
+    logger.error(f"UsageStats {usage.id}: Neither embedding_model nor llm_provider is set")
     return "unknown"
 
 
@@ -176,8 +185,10 @@ def send_usage_to_mg(usage: UsageStats) -> Optional[dict]:
         
         # Validate ai_model_guid - API requires valid GUID, not "unknown"
         if ai_model_guid == "unknown":
+            model_type = "LLMProvider" if usage.llm_provider else "EmbeddingModel"
+            model_id = usage.llm_provider_id if usage.llm_provider else (usage.embedding_model_id if usage.embedding_model else None)
             logger.error(f"UsageStats {usage.id}: Cannot send to MG - ai_model_guid is 'unknown'. "
-                        f"Please configure ModelPair.external_guid or EmbeddingModel.external_guid for client {client.id if client else 'N/A'}")
+                        f"Please configure {model_type}.external_guid for model {model_id} (client {client.id if client else 'N/A'})")
             return None
         
         payload = {

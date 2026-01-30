@@ -288,12 +288,12 @@ class ResponseGenerator:
         if not embedding_model:
             embedding_model = self._get_embedding_model(client, specialization, branch)
         
-        # Find model pair GUID for statistics and get LLMProvider for cost calculation
-        model_pair_guid = None
-        llm_provider_obj = None  # Will be reused for cost calculation
-        if client and embedding_model:
+        # Get LLMProvider for cost calculation and statistics
+        # Each model (embedding and LLM) has its own GUID from mg.nexelin
+        llm_provider_obj = None
+        if client:
             try:
-                from MASTER.EmbeddingModel.models import ModelPair, LLMProvider
+                from MASTER.EmbeddingModel.models import LLMProvider
                 # Get LLMProvider from client
                 if hasattr(client, 'llm_provider_model') and client.llm_provider_model:
                     llm_provider_obj = client.llm_provider_model
@@ -307,37 +307,46 @@ class ResponseGenerator:
                             model_name=llm_model_name,
                             is_active=True
                         ).first()
-                
-                # Find ModelPair by LLMProvider + EmbeddingModel
-                if llm_provider_obj:
-                    model_pair = ModelPair.objects.filter(
-                        llm_provider=llm_provider_obj,
-                        embedding_model=embedding_model,
-                        is_active=True
-                    ).first()
-                    if model_pair and model_pair.external_guid:
-                        model_pair_guid = model_pair.external_guid
             except Exception as e:
-                logger.debug(f"Failed to find model pair GUID: {e}")
+                logger.debug(f"Failed to find LLMProvider: {e}")
         
-        # Create ONE combined UsageStats record with embedding + LLM tokens if we have usage info
-        if client and embedding_model:
+        # Create SEPARATE UsageStats records for embedding and LLM tokens
+        # Each model (embedding and LLM) has its own GUID from mg.nexelin
+        if client:
             try:
                 from MASTER.processing.models import UsageStats
                 from MASTER.processing.usage_sync import send_usage_to_mg_async_delay
                 from decimal import Decimal
                 
-                # Calculate embedding cost
-                emb_price = Decimal(str(embedding_model.cost_per_1k_tokens))
-                embedding_cost = (Decimal(embedding_tokens) / Decimal('1000')) * emb_price if embedding_tokens > 0 else Decimal('0')
+                # Create embedding usage stats if we have embedding tokens
+                if embedding_model and embedding_tokens > 0:
+                    emb_price = Decimal(str(embedding_model.cost_per_1k_tokens))
+                    embedding_cost = (Decimal(embedding_tokens) / Decimal('1000')) * emb_price
+                    
+                    embedding_metadata = {
+                        'query': query[:200],
+                        'operation': 'rag_chat_embedding',
+                        'embedding_tokens': embedding_tokens,
+                    }
+                    
+                    embedding_usage_stat = UsageStats.objects.create(
+                        client=client,
+                        embedding_model=embedding_model,
+                        llm_provider=None,
+                        operation_type='rag_chat_embedding',
+                        tokens_used=embedding_tokens,
+                        cost=embedding_cost,
+                        metadata=embedding_metadata,
+                    )
+                    
+                    # Send embedding stats to MG asynchronously
+                    try:
+                        send_usage_to_mg_async_delay(embedding_usage_stat.id)
+                    except Exception:
+                        pass  # Best-effort sync
                 
-                # Calculate LLM cost and tokens
-                llm_tokens = 0
-                llm_cost = Decimal('0')
-                prompt_tokens = 0
-                completion_tokens = 0
-                
-                if llm_usage:
+                # Create LLM usage stats if we have LLM tokens
+                if llm_provider_obj and llm_usage:
                     llm_tokens = int(llm_usage.get('total_tokens', 0))
                     if llm_tokens > 0:
                         prompt_tokens = int(llm_usage.get('prompt_tokens', 0))
@@ -345,7 +354,6 @@ class ResponseGenerator:
                         
                         # Calculate cost using LLMProvider pricing
                         if llm_provider_obj:
-                            # Use real pricing from LLMProvider (separate input and output costs)
                             in_price = Decimal(str(llm_provider_obj.cost_per_1k_input_tokens))
                             out_price = Decimal(str(llm_provider_obj.cost_per_1k_output_tokens))
                             llm_cost = (Decimal(prompt_tokens) / Decimal('1000') * in_price) + \
@@ -354,43 +362,34 @@ class ResponseGenerator:
                             # Fallback: use default cost if provider not found
                             logger.warning(f"LLMProvider not found for client {client.id}, using default cost $0.002 per 1k tokens")
                             llm_cost = Decimal(str(llm_tokens)) / Decimal('1000') * Decimal('0.002')
-                
-                # Only create UsageStats if we have tokens (embedding or LLM)
-                total_tokens_combined = embedding_tokens + llm_tokens
-                if total_tokens_combined > 0:
-                    # Create ONE combined UsageStats record with sum of embedding + LLM tokens
-                    metadata = {
-                        'query': query[:200],  # Store first 200 chars of query
-                        'embedding_tokens': embedding_tokens,
-                        'llm_tokens': llm_tokens,
-                        'llm_model': llm_model,
-                        'llm_provider': llm_provider,
-                        'prompt_tokens': prompt_tokens,
-                        'completion_tokens': completion_tokens,
-                    }
-                    # Add model pair GUID if found (REQUIRED for API)
-                    if model_pair_guid:
-                        metadata['ai_model_guid'] = model_pair_guid
-                    else:
-                        logger.warning(f"ModelPair GUID not found for client {client.id}, LLM {llm_provider_obj}, Embedding {embedding_model.id}")
-                    
-                    combined_usage_stat = UsageStats.objects.create(
-                        client=client,
-                        embedding_model=embedding_model,
-                        operation_type='rag_chat',
-                        tokens_used=total_tokens_combined,  # Total tokens = embedding + LLM (sum)
-                        cost=embedding_cost + llm_cost,  # Combined cost = embedding cost + LLM cost
-                        metadata=metadata,
-                    )
-                    
-                    # Send to MG asynchronously (non-blocking)
-                    # API expects: tokens = sum(embedding + LLM), ai_model = ModelPair.external_guid
-                    try:
-                        send_usage_to_mg_async_delay(combined_usage_stat.id)
-                    except Exception:
-                        pass  # Best-effort sync
+                        
+                        llm_metadata = {
+                            'query': query[:200],
+                            'operation': 'rag_chat_llm',
+                            'llm_tokens': llm_tokens,
+                            'llm_model': llm_model,
+                            'llm_provider': llm_provider,
+                            'prompt_tokens': prompt_tokens,
+                            'completion_tokens': completion_tokens,
+                        }
+                        
+                        llm_usage_stat = UsageStats.objects.create(
+                            client=client,
+                            embedding_model=None,
+                            llm_provider=llm_provider_obj,
+                            operation_type='rag_chat_llm',
+                            tokens_used=llm_tokens,
+                            cost=llm_cost,
+                            metadata=llm_metadata,
+                        )
+                        
+                        # Send LLM stats to MG asynchronously
+                        try:
+                            send_usage_to_mg_async_delay(llm_usage_stat.id)
+                        except Exception:
+                            pass  # Best-effort sync
             except Exception as e:
-                logger.warning(f"Failed to create combined UsageStats: {e}")
+                logger.warning(f"Failed to create separate UsageStats: {e}")
         
         return RAGResponse(
             answer=answer,

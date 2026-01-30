@@ -6,11 +6,11 @@ from .models import UsageStats
 
 @admin.register(UsageStats)
 class UsageStatsAdmin(admin.ModelAdmin):
-    list_display = ['entity_display', 'embedding_model', 'operation_type', 'tokens_used', 'cost_display', 'date']
-    list_filter = ['operation_type', 'embedding_model', 'date']
-    search_fields = ['client__user__username', 'branch__name', 'specialization__name']
+    list_display = ['entity_display', 'model_display', 'operation_type', 'tokens_used', 'cost_display', 'date']
+    list_filter = ['operation_type', 'embedding_model', 'llm_provider', 'date']
+    search_fields = ['client__user__username', 'branch__name', 'specialization__name', 'embedding_model__name', 'llm_provider__name']
     ordering = ['-created_at']
-    readonly_fields = ['branch', 'specialization', 'client', 'embedding_model', 'operation_type', 'tokens_used', 'cost', 'date', 'created_at', 'metadata']
+    readonly_fields = ['branch', 'specialization', 'client', 'embedding_model', 'llm_provider', 'operation_type', 'tokens_used', 'cost', 'date', 'created_at', 'metadata']
     
     date_hierarchy = 'date'
     
@@ -19,7 +19,7 @@ class UsageStatsAdmin(admin.ModelAdmin):
             'fields': ('client', 'branch', 'specialization')
         }),
         ('Usage Info', {
-            'fields': ('embedding_model', 'operation_type', 'tokens_used', 'cost')
+            'fields': ('embedding_model', 'llm_provider', 'operation_type', 'tokens_used', 'cost')
         }),
         ('Timestamps', {
             'fields': ('date', 'created_at', 'metadata'),
@@ -35,6 +35,14 @@ class UsageStatsAdmin(admin.ModelAdmin):
             return f"BRANCH: {obj.branch.name}"
         elif obj.specialization:
             return f"SPEC: {obj.specialization.name}"
+        return "Unknown"
+    
+    @admin.display(description='Model')
+    def model_display(self, obj):
+        if obj.llm_provider:
+            return f"LLM: {obj.llm_provider.name}"
+        elif obj.embedding_model:
+            return f"EMB: {obj.embedding_model.name}"
         return "Unknown"
     
     
