@@ -281,6 +281,36 @@ LANGUAGE RULES (CRITICAL - MUST FOLLOW):
             yield content
         return _one_shot()
     
+    def get_response(
+        self,
+        messages: list[dict[str, str]],
+        client: Client | None = None,
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+    ) -> str:
+        """
+        Simple method to get LLM response from messages list.
+        
+        Args:
+            messages: List of message dicts with 'role' and 'content' keys
+            client: Client for provider selection (optional)
+            temperature: Temperature for generation (default: 0.7)
+            max_tokens: Max tokens for generation (default: from config)
+            
+        Returns:
+            Response content as string
+        """
+        provider = self._get_provider(client)
+        max_tokens = max_tokens or self.max_tokens
+        
+        result = provider.generate(
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+        
+        return cast(str, result.get('content', ''))
+    
     def _get_system_prompt(
         self,
         client: Client | None,

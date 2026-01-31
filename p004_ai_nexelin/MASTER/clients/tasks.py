@@ -3004,103 +3004,45 @@ def process_manager_hitl_response(conversation_id: int, manager_response: str, m
                 return {"success": False, "error": "Not waiting for manager", "already_handled": True}
         
         # Get customer's language from escalation context
-        customer_language = conversation.escalation_language or 'en'
+        customer_language = conversation.escalation_language or getattr(conversation, 'language', None) or 'en'
         logger.info(f"Processing manager response for conversation {conversation_id}, customer language: {customer_language}")
         
-        # Use LLM to rephrase manager's response to maintain tone AND translate to customer's language
-        llm_client = LLMClient()
-        
-        # Get language name for better LLM understanding
-        from MASTER.clients.news_utils import LANGUAGE_NAMES
-        customer_lang_name = LANGUAGE_NAMES.get(customer_language, customer_language.upper())
-        
-        rephrase_prompt = f"""CRITICAL TASK: Interpret the manager's instructions and deliver them naturally to the customer.
-
-MANAGER'S MESSAGE: "{manager_response}"
-
-CONTEXT: The customer asked: "{conversation.manager_escalation_context}"
-
-YOUR TASK:
-1. Understand what the manager wants you to tell/do for the customer
-2. If the manager gives you INSTRUCTIONS (like "tell him...", "say to customer...", "ask him to..."), interpret them and deliver the message naturally
-3. If the manager gives you INFORMATION to share, present it professionally
-4. Add a brief intro like "Thank you for waiting" (in {customer_lang_name})
-5. Write everything in {customer_lang_name} language
-
-EXAMPLES:
-- Manager: "Tell him to ask for water at reception"
-  → You: "Thank you for waiting. I've checked with my colleague. You can ask for water at the reception desk."
-  
-- Manager: "Say he should calm down and ask water at reception"
-  → You: "Thank you for waiting. I've received a response. Please feel free to ask for water at the reception desk."
-  
-- Manager: "Скажіть клієнту, нехай заспокоїться і запитає воду на рецепції"
-  → You (in Ukrainian): "Дякую за очікування. Я отримав відповідь. Будь ласка, зверніться до рецепції та попросіть води."
-
-OUTPUT FORMAT (in {customer_lang_name}):
-"[Thank you for waiting intro]. [Natural, customer-friendly message based on manager's instructions]"
-
-IMPORTANT:
-- Remove phrases like "tell the customer", "say to him" - these are instructions FOR YOU, not text FOR the customer
-- Make it sound like YOU are directly helping the customer, not relaying a message
-- Keep the manager's intent but make it natural and professional"""
-
+        # 1. AI Rephrasing & Translation
         try:
-            result = llm_client.generate_response(
-                user_query=rephrase_prompt,
-                context="",
-                client=client,
-                stream=False
+            llm_client = LLMClient()
+            
+            system_prompt = (
+                "You are a helpful hotel concierge assistant. "
+                "Refine the manager's raw input into a polite, professional response directly to the guest. "
+                f"Output ONLY the final message in {customer_language} language."
             )
             
-            if isinstance(result, dict):
-                final_response = result.get('content', manager_response)
-            else:
-                final_response = str(result) if result else manager_response
+            user_prompt = f"Manager raw input: {manager_response}"
             
-            # Always translate to customer's language if not English
-            # LLM often ignores language instructions, so we force translation
-            if customer_language and customer_language.lower() not in ('en', 'english'):
-                try:
-                    from MASTER.clients.news_utils import translate_text
-                    # Check if response is in English (common English words/phrases)
-                    english_indicators = [
-                        'thank you', 'thanks', 'hello', 'hi ', 'dear', 'i have', "i've", 
-                        'we have', "we've", 'please', 'sorry', 'unfortunately', 'however',
-                        'the ', 'this ', 'that ', 'with ', 'for ', 'and ', 'but ', 'or ',
-                        'confirmed', 'information', 'details', 'waiting', 'apologize'
-                    ]
-                    response_lower = final_response.lower().strip()
-                    
-                    # Count how many English indicators are present
-                    english_count = sum(1 for indicator in english_indicators if indicator in response_lower)
-                    
-                    # If response has multiple English indicators, it's likely English - translate it
-                    if english_count >= 2:
-                        logger.info(
-                            f"Response appears to be in English (found {english_count} indicators), "
-                            f"translating to {customer_language}"
-                        )
-                        final_response = translate_text(final_response, customer_language, max_tokens=1000)
-                    else:
-                        logger.info(f"Response appears to already be in customer language {customer_language}")
-                except Exception as te:
-                    logger.warning(f"Translation fallback failed: {te}")
-                
+            # Виклик твого стандартного клієнта
+            ai_response = llm_client.get_response(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                client=client,
+                temperature=0.7
+            )
+            
+            final_response = ai_response if ai_response else manager_response
+            logger.info(f"AI rephrased manager response for conv {conversation_id}")
+
         except Exception as e:
-            logger.warning(f"Failed to rephrase manager response: {e}, using original with translation")
-            # Try to at least translate the original response
+            logger.error(f"LLM rephrasing failed: {e}. Falling back to raw translation.")
+            # Fallback: simple translation if LLM fails
             try:
                 from MASTER.clients.news_utils import translate_text
-                translated_response = translate_text(
-                    f"Thank you for waiting. Here's the information: {manager_response}",
-                    customer_language,
-                    max_tokens=1000
-                )
-                final_response = translated_response
+                final_response = translate_text(manager_response, customer_language, max_tokens=1000)
+                if not final_response or not final_response.strip():
+                    final_response = manager_response
             except Exception as te:
-                logger.warning(f"Translation fallback also failed: {te}")
-                final_response = f"Thank you for waiting. Here's the information: {manager_response}"
+                logger.error(f"Translation fallback also failed: {te}")
+                final_response = manager_response
         
         # Send response to customer based on platform
         platform = conversation.context_metadata.get('platform', 'unknown') if conversation.context_metadata else 'unknown'
