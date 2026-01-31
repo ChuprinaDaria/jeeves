@@ -2779,23 +2779,30 @@ def notify_manager_of_escalation(self, conversation_id: int, question_summary: s
             if context_lines:
                 recent_context = "\n".join(context_lines)
         
-        # Translate customer messages to manager's language (notification_language)
-        # Always translate if customer language differs from manager language
-        customer_lang_for_translation = conversation.escalation_language or getattr(conversation, 'language', 'en') or 'en'
-        if recent_context and customer_lang_for_translation != notification_lang:
+        # ALWAYS translate context to manager's notification language
+        # This ensures manager sees messages in their preferred language
+        customer_lang_for_translation = conversation.escalation_language or getattr(conversation, 'language', None) or 'en'
+
+        logger.info(
+            f"Escalation context translation: conv_id={conversation_id}, "
+            f"customer_lang={customer_lang_for_translation}, notification_lang={notification_lang}, "
+            f"context_length={len(recent_context) if recent_context else 0}"
+        )
+
+        if recent_context and notification_lang:
+            # Always attempt translation - even if languages seem the same,
+            # the customer might have mixed languages in their messages
             try:
                 from MASTER.clients.news_utils import translate_text
-                # Translate the entire context to manager's language
                 translated_context = translate_text(recent_context, notification_lang, max_tokens=1000)
-                if translated_context:
+                if translated_context and translated_context.strip():
                     recent_context = translated_context
-                    logger.info(
-                        f"Translated escalation context from {customer_lang_for_translation} to {notification_lang} "
-                        f"for conversation {conversation_id}"
-                    )
+                    logger.info(f"Successfully translated escalation context to {notification_lang} for conversation {conversation_id}")
+                else:
+                    logger.warning(f"Translation returned empty result for conversation {conversation_id}, keeping original")
             except Exception as e:
-                logger.warning(f"Failed to translate escalation context to {notification_lang}: {e}")
-                # Continue with original context
+                logger.error(f"Failed to translate escalation context to {notification_lang} for conversation {conversation_id}: {e}")
+                # Keep original context - better than nothing
         
         # Escape special characters in user-provided content
         escaped_company = escape_html(client.company_name)
