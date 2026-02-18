@@ -37,6 +37,8 @@ class ClientAdmin(admin.ModelAdmin):
         'llm_model_name',
         'is_active',
         'telegram_enabled',
+        'matrix_hitl_enabled',
+        'matrix_managers_count',
         'extension_enabled',
         'logo_preview',
         'api_keys_count',
@@ -138,6 +140,21 @@ class ClientAdmin(admin.ModelAdmin):
                 Example: [123456789, 987654321]
             '''
         }),
+        ('Matrix.org HITL (Unified Interface)', {
+            'fields': ('matrix_hitl_enabled', 'matrix_manager_user_ids', 'matrix_homeserver_url'),
+            'classes': ('collapse',),
+            'description': '''
+                Matrix.org HITL configuration for unified escalation interface.
+                When enabled, escalations are created in Matrix rooms where managers can collaborate.
+                Supports all channels (Telegram, WhatsApp, Web) in one unified interface.
+                
+                Matrix Manager User IDs: Add Matrix user IDs (e.g., @manager1:matrix.org) of managers.
+                Managers will receive invitations to Matrix rooms for escalations.
+                Example: ["@manager1:matrix.org", "@manager2:matrix.org"]
+                
+                Matrix Homeserver URL: Your Matrix homeserver (default: https://matrix.org)
+            '''
+        }),
         ('Chat Statistics', {
             'fields': ('chats_statistics',),
             'classes': ('collapse',),
@@ -169,6 +186,21 @@ class ClientAdmin(admin.ModelAdmin):
     @admin.display(description='Active API Keys')
     def api_keys_count(self, obj):
         return obj.api_keys.filter(is_active=True).count()
+    
+    @admin.display(description='Matrix Managers')
+    def matrix_managers_count(self, obj):
+        """Показує кількість Matrix менеджерів для клієнта"""
+        if not obj.pk:
+            return '-'
+        manager_ids = getattr(obj, 'matrix_manager_user_ids', [])
+        if isinstance(manager_ids, list):
+            count = len([m for m in manager_ids if m and str(m).strip()])
+            if count > 0:
+                return format_html(
+                    '<span style="color: green; font-weight: bold;">{}</span>',
+                    count
+                )
+        return format_html('<span style="color: gray;">0</span>')
     
     @admin.display(description='Chats Statistics')
     def chats_statistics(self, obj):

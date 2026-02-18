@@ -154,6 +154,31 @@ services:
       - web
     networks: [nexelin_network]
 
+  # =================== INTEGRATION SERVICE ==================
+  integration-service:
+    build:
+      context: ../services/integration-service
+      dockerfile: Dockerfile
+    container_name: ai_nexelin_integration_service
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - MATRIX_HOMESERVER_URL=${MATRIX_HOMESERVER_URL:-https://matrix.org}
+      - MATRIX_BOT_USER_ID=${MATRIX_BOT_USER_ID:-}
+      - MATRIX_BOT_ACCESS_TOKEN=${MATRIX_BOT_ACCESS_TOKEN:-}
+      - DJANGO_API_URL=http://web:8000
+      - DJANGO_API_TOKEN=${DJANGO_API_TOKEN:-}
+      - PORT=8080
+    depends_on:
+      - web
+    networks: [nexelin_network]
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
 # ===================== NETWORKS & VOLUMES ====================
 networks:
   nexelin_network:
