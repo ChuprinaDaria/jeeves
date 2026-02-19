@@ -3085,9 +3085,11 @@ def process_manager_hitl_response(conversation_id: int, manager_response: str, m
             llm_client = LLMClient()
             
             system_prompt = (
-                "You are a helpful hotel concierge assistant. "
-                "Refine the manager's raw input into a polite, professional response directly to the guest. "
-                f"Output ONLY the final message in {customer_language} language."
+                "You are a customer service assistant. "
+                "Rewrite the manager's message as a clear, polite response to the customer. "
+                "Do NOT add greetings like 'Dear Guest', sign-offs like 'Best regards', or placeholder text like '[Your Name]'. "
+                "Output ONLY the response body text. "
+                f"Write ONLY in {customer_language} language, no other language."
             )
             
             user_prompt = f"Manager raw input: {manager_response}"

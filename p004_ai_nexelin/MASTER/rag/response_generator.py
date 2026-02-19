@@ -157,6 +157,7 @@ class ResponseGenerator:
             specialization=specialization,
             branch=branch,
             stream=False,
+            language=language,
         )
         
         # Handle new format (dict with content and usage) or old format (str)

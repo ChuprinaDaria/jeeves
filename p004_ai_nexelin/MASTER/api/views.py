@@ -514,28 +514,31 @@ class PublicRAGChatView(APIView):
             # HITL: Matrix escalation (independent from Telegram)
             if getattr(rag_response, 'requires_escalation', False) and getattr(client, 'matrix_hitl_enabled', False):
                 if hitl_conv:
-                    matrix_manager_user_ids = getattr(client, 'matrix_manager_user_ids', []) or []
-                    if matrix_manager_user_ids:
-                        try:
-                            escalation_summary = getattr(rag_response, 'escalation_summary', '') or message[:200]
-                            payload = {
-                                "session_id": str(session_id),
-                                "client_id": client.id,
-                                "client_name": str(client.company_name or ''),
-                                "conversation_id": hitl_conv.id,
-                                "channel": "web_widget",
-                                "message": escalation_summary,
-                                "question": escalation_summary,
-                                "manager_user_ids": matrix_manager_user_ids,
-                            }
-                            resp = requests.post(
-                                "http://integration-service:8080/api/v1/hitl/escalate",
-                                json=payload,
-                                timeout=10,
-                            )
-                            logger.info(f"Matrix HITL escalation triggered: status={resp.status_code}, conv={hitl_conv.id}")
-                        except Exception as e:
-                            logger.warning(f"Failed to trigger Matrix HITL escalation: {e}")
+                    if hitl_conv.matrix_room_id and hitl_conv.matrix_escalation_active:
+                        logger.info(f"Matrix escalation already active for conversation {hitl_conv.id} (room {hitl_conv.matrix_room_id}), skipping")
+                    else:
+                        matrix_manager_user_ids = getattr(client, 'matrix_manager_user_ids', []) or []
+                        if matrix_manager_user_ids:
+                            try:
+                                escalation_summary = getattr(rag_response, 'escalation_summary', '') or message[:200]
+                                payload = {
+                                    "session_id": str(session_id),
+                                    "client_id": client.id,
+                                    "client_name": str(client.company_name or ''),
+                                    "conversation_id": hitl_conv.id,
+                                    "channel": "web_widget",
+                                    "message": escalation_summary,
+                                    "question": escalation_summary,
+                                    "manager_user_ids": matrix_manager_user_ids,
+                                }
+                                resp = requests.post(
+                                    "http://integration-service:8080/api/v1/hitl/escalate",
+                                    json=payload,
+                                    timeout=10,
+                                )
+                                logger.info(f"Matrix HITL escalation triggered: status={resp.status_code}, conv={hitl_conv.id}")
+                            except Exception as e:
+                                logger.warning(f"Failed to trigger Matrix HITL escalation: {e}")
             
             response_data = {
                 'response': getattr(rag_response, 'answer', ''),

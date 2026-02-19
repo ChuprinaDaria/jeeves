@@ -151,6 +151,7 @@ class LLMClient:
         specialization: Specialization | None = None,
         branch: Branch | None = None,
         stream: bool = True,
+        language: str = 'en',
     ) -> str | Generator[str, None, None] | dict[str, Any]:
         """
         Generate response from LLM.
@@ -178,17 +179,18 @@ class LLMClient:
         
         # Додаємо явну вказівку мови до system prompt для кращого розуміння моделлю
         # (особливо важливо для Ollama)
-        language_instruction = """
+        lang_names = {
+            'uk': 'Ukrainian', 'de': 'German', 'fr': 'French', 'it': 'Italian',
+            'nl': 'Dutch', 'da': 'Danish', 'es': 'Spanish', 'ru': 'Russian', 'en': 'English',
+        }
+        lang_name = lang_names.get(language, 'English')
+        language_instruction = f"""
 
 LANGUAGE RULES (CRITICAL - MUST FOLLOW):
-1. ALWAYS respond in the SAME language as the user's message
-2. If user writes in Ukrainian (привіт, дякую, будь ласка) - respond in Ukrainian
-3. If user writes in German - respond in German
-4. If user writes in French - respond in French
-5. If user writes in Russian - respond in Russian
-6. NEVER switch to English unless the user writes in English
-7. Even if context/data is in English, YOUR RESPONSE must be in user's language
-8. Translate any English information to user's language before responding"""
+You MUST respond ONLY in {lang_name} (language code: {language}).
+Do NOT respond in English unless {lang_name} is English.
+Even if the knowledge base context is in English, translate your answer to {lang_name}.
+Do NOT mix languages."""
         
         # Додаємо інструкцію не використовувати markdown
         no_markdown_instruction = "\n\nCRITICAL: Do NOT use markdown formatting in your response. Write plain text only. Do not use **bold**, *italic*, `code blocks`, # headers, - lists, or any other markdown syntax. Use only plain text."
