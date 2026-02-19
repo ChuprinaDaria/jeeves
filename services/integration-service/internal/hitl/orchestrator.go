@@ -73,6 +73,7 @@ func (o *Orchestrator) HandleEscalation(ctx context.Context, escalation *models.
 
 	// 4. Register bridge for this conversation
 	o.bridge.RegisterConversation(escalation.ConversationID, roomID, escalation.Channel, escalation.ClientID)
+	log.Printf("DEBUG: Registered bridge mapping: conversation=%d -> room=%s", escalation.ConversationID, roomID)
 
 	log.Printf("Escalation handled: conversation_id=%d, room_id=%s", escalation.ConversationID, roomID)
 	return nil
@@ -172,8 +173,11 @@ func (o *Orchestrator) handleMatrixEvent(ctx context.Context, event *gomatrix.Ev
 	// Check if this is a message in an escalation room
 	roomID := event.RoomID
 
+	log.Printf("DEBUG: Received event in room=%s, sender=%s, type=%s", event.RoomID, event.Sender, event.Type)
+
 	conversationID, channel, clientID, found := o.bridge.GetConversationByRoom(roomID)
 	if !found {
+		log.Printf("DEBUG: Room %s not found in bridge. Registered rooms: %v", roomID, o.bridge.GetAllRooms())
 		// Not an escalation room, ignore
 		return
 	}
