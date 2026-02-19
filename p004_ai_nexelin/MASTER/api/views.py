@@ -435,7 +435,7 @@ class PublicRAGChatView(APIView):
                         # Check if escalation has timed out (30 minutes)
                         escalation_started = getattr(conv, 'escalation_started_at', None)
                         timeout_minutes = 10
-                        if escalation_started and (timezone.now() - escalation_started) > timedelta(minutes=timeout_minutes):
+                        if escalation_started and (now() - escalation_started) > timedelta(minutes=timeout_minutes):
                             # Timeout reached - reset escalation state
                             conv.is_waiting_for_manager = False
                             conv.manager_escalation_context = ""
