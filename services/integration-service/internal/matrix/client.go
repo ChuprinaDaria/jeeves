@@ -85,7 +85,7 @@ func (c *Client) SendFormattedMessage(ctx context.Context, roomID, message, form
 
 // InviteUser invites a user to a Matrix room
 func (c *Client) InviteUser(ctx context.Context, roomID, userID string) error {
-	err := c.client.InviteUser(roomID, &gomatrix.ReqInviteUser{
+	_, err := c.client.InviteUser(roomID, &gomatrix.ReqInviteUser{
 		UserID: userID,
 	})
 	if err != nil {

@@ -67,7 +67,8 @@ func (sh *SyncHandler) syncLoop(ctx context.Context) {
 			return
 		default:
 			// Perform sync request
-			resp, err := sh.client.GetClient().SyncRequest(syncToken, timeout, false, "")
+			// SyncRequest signature: (timeout, since, filter, fullState, setPresence)
+			resp, err := sh.client.GetClient().SyncRequest(timeout, syncToken, "", false, "")
 			if err != nil {
 				log.Printf("Matrix sync error: %v, retrying in %v", err, retryDelay)
 				time.Sleep(retryDelay)
