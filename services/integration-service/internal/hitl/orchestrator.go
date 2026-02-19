@@ -96,23 +96,23 @@ func (o *Orchestrator) formatEscalationMessage(escalation *models.Escalation) st
 		formatContext(escalation.Context),
 	)
 
-	// Plain text fallback
-	plain := fmt.Sprintf(
-		`🆘 ESCALATION NEEDED
-
-Customer: %s
-Channel: %s
-Question: %s
-Language: %s
-%s
-
-Please respond in this room. Your response will be forwarded to the customer.`,
-		escalation.CustomerName,
-		escalation.Channel,
-		escalation.Question,
-		escalation.Language,
-		escalation.Context,
-	)
+	// Plain text fallback (commented out - using HTML only)
+	// plain := fmt.Sprintf(
+	// 	`🆘 ESCALATION NEEDED
+	//
+	// Customer: %s
+	// Channel: %s
+	// Question: %s
+	// Language: %s
+	// %s
+	//
+	// Please respond in this room. Your response will be forwarded to the customer.`,
+	// 	escalation.CustomerName,
+	// 	escalation.Channel,
+	// 	escalation.Question,
+	// 	escalation.Language,
+	// 	escalation.Context,
+	// )
 
 	// Return HTML, Matrix client will handle fallback
 	return html
