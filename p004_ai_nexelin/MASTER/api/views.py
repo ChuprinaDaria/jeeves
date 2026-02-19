@@ -485,40 +485,57 @@ class PublicRAGChatView(APIView):
                 language=language,
             )
             
-            # HITL: Check if escalation is required (only for session-based chats, not sandbox)
-            if getattr(rag_response, 'requires_escalation', False) and getattr(client, 'hitl_enabled', False):
-                if session_id and str(session_id).strip() and not str(session_id).startswith('sandbox_'):
-                    manager_ids = client.get_manager_telegram_ids() if hasattr(client, 'get_manager_telegram_ids') else []
-                    if manager_ids:
-                        try:
-                            from MASTER.clients.models import ClientWhatsAppConversation
-                            conv = ClientWhatsAppConversation.objects.filter(
-                                client=client,
-                                session_id=session_id,
-                            ).first()
-                            if conv:
-                                from MASTER.clients.tasks import notify_manager_of_escalation
-                                escalation_summary = getattr(rag_response, 'escalation_summary', '') or message[:200]
-                                notify_manager_of_escalation.delay(conv.id, escalation_summary)
-                                logger.info(f"HITL escalation triggered for web conversation {conv.id}")
-                        except Exception as e:
-                            logger.warning(f"Failed to trigger HITL escalation: {e}")
-            
-            # Matrix HITL (parallel with Telegram)
+            # HITL: Look up conversation once for both escalation channels
+            hitl_conv = None
             if getattr(rag_response, 'requires_escalation', False):
                 if session_id and str(session_id).strip() and not str(session_id).startswith('sandbox_'):
                     try:
                         from MASTER.clients.models import ClientWhatsAppConversation
-                        from MASTER.clients.tasks import send_matrix_escalation
-                        conv = ClientWhatsAppConversation.objects.filter(
+                        hitl_conv = ClientWhatsAppConversation.objects.filter(
                             client=client,
                             session_id=session_id,
                         ).first()
-                        if conv:
-                            escalation_summary = getattr(rag_response, 'escalation_summary', '') or message[:200]
-                            send_matrix_escalation(conv, client, "web", message, escalation_summary, language)
                     except Exception as e:
-                        logger.warning(f"Failed to trigger Matrix HITL escalation: {e}")
+                        logger.warning(f"Failed to load conversation for HITL: {e}")
+
+            # HITL: Telegram escalation
+            if getattr(rag_response, 'requires_escalation', False) and getattr(client, 'hitl_enabled', False):
+                if hitl_conv:
+                    manager_ids = client.get_manager_telegram_ids() if hasattr(client, 'get_manager_telegram_ids') else []
+                    if manager_ids:
+                        try:
+                            from MASTER.clients.tasks import notify_manager_of_escalation
+                            escalation_summary = getattr(rag_response, 'escalation_summary', '') or message[:200]
+                            notify_manager_of_escalation.delay(hitl_conv.id, escalation_summary)
+                            logger.info(f"HITL escalation triggered for web conversation {hitl_conv.id}")
+                        except Exception as e:
+                            logger.warning(f"Failed to trigger HITL escalation: {e}")
+
+            # HITL: Matrix escalation (independent from Telegram)
+            if getattr(rag_response, 'requires_escalation', False) and getattr(client, 'matrix_hitl_enabled', False):
+                if hitl_conv:
+                    matrix_manager_user_ids = getattr(client, 'matrix_manager_user_ids', []) or []
+                    if matrix_manager_user_ids:
+                        try:
+                            escalation_summary = getattr(rag_response, 'escalation_summary', '') or message[:200]
+                            payload = {
+                                "session_id": str(session_id),
+                                "client_id": client.id,
+                                "client_name": str(client.company_name or ''),
+                                "conversation_id": hitl_conv.id,
+                                "channel": "web_widget",
+                                "message": escalation_summary,
+                                "question": escalation_summary,
+                                "manager_user_ids": matrix_manager_user_ids,
+                            }
+                            resp = requests.post(
+                                "http://integration-service:8080/api/v1/hitl/escalate",
+                                json=payload,
+                                timeout=10,
+                            )
+                            logger.info(f"Matrix HITL escalation triggered: status={resp.status_code}, conv={hitl_conv.id}")
+                        except Exception as e:
+                            logger.warning(f"Failed to trigger Matrix HITL escalation: {e}")
             
             response_data = {
                 'response': getattr(rag_response, 'answer', ''),
