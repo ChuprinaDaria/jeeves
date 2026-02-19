@@ -84,6 +84,7 @@ func (sh *SyncHandler) syncLoop(ctx context.Context) {
 			for roomID, roomData := range resp.Rooms.Join {
 				for _, event := range roomData.Timeline.Events {
 					if event.Type == "m.room.message" {
+						event.RoomID = roomID
 						select {
 						case sh.eventChan <- &event:
 							// Event sent successfully
