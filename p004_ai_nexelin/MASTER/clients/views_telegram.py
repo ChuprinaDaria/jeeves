@@ -1178,6 +1178,11 @@ class TelegramWebhookView(View):
                             from MASTER.clients.tasks import notify_manager_of_escalation
                             notify_manager_of_escalation.delay(conversation.id, rag_response.escalation_summary or message_body[:200])
                             logger.info(f"HITL escalation triggered for conversation {conversation.id}")
+                    
+                    # Matrix HITL (parallel with Telegram)
+                    if rag_response.requires_escalation:
+                        from MASTER.clients.tasks import send_matrix_escalation
+                        send_matrix_escalation(conversation, client, "telegram", message_body, rag_response.escalation_summary, language)
                 else:
                     logger.error("Unexpected generator response when stream=False")
                     response_text = "Вибачте, виникла помилка при генерації відповіді." if language == 'uk' else "Sorry, an error occurred while generating the response."

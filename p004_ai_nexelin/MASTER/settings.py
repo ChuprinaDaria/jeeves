@@ -232,6 +232,9 @@ CELERY_TASK_ANNOTATIONS = {
 }
 CELERY_WORKER_CONCURRENCY = env.int("CELERY_WORKER_CONCURRENCY", default=1)
 
+# === INTEGRATION SERVICE (Matrix HITL) ===
+INTEGRATION_SERVICE_URL = env("INTEGRATION_SERVICE_URL", default="http://ai_nexelin_integration_service:8080")
+
 # Celery Beat schedule for periodic tasks
 from celery.schedules import crontab
 CELERY_BEAT_SCHEDULE = {

@@ -43,4 +43,7 @@ urlpatterns = [
     path('webchat/manifest.json', views.WebChatManifestView.as_view(), name='webchat-manifest'),
     # Package API endpoint (from mg.nexelin)
     path('package/', views.PackageReceiveView.as_view(), name='package-receive'),
+    # Integration Service endpoints (for Matrix HITL)
+    path('v1/integration/update-room', views.integration_update_room, name='integration-update-room'),
+    path('v1/integration/forward-message', views.integration_forward_message, name='integration-forward-message'),
 ]

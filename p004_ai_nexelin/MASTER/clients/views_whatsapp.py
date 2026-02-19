@@ -499,6 +499,11 @@ class TwilioWhatsAppWebhookView(View):
                             from MASTER.clients.tasks import notify_manager_of_escalation
                             notify_manager_of_escalation.delay(conversation.id, rag_response.escalation_summary or message_body[:200])
                             logger.info(f"HITL escalation triggered for WhatsApp conversation {conversation.id}")
+                    
+                    # Matrix HITL (parallel with Telegram)
+                    if rag_response.requires_escalation:
+                        from MASTER.clients.tasks import send_matrix_escalation
+                        send_matrix_escalation(conversation, client, "whatsapp", message_body, rag_response.escalation_summary, language)
                 else:
                     # Це не повинно статися з stream=False, але для безпеки
                     logger.error("Unexpected generator response when stream=False")

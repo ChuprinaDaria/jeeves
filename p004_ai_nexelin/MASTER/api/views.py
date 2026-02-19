@@ -15,9 +15,13 @@ from django.utils.crypto import get_random_string
 from django.utils.text import slugify
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+from django.http import JsonResponse
 import hashlib
 from MASTER.accounts.models import User as AppUser
 import requests
+import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -499,6 +503,22 @@ class PublicRAGChatView(APIView):
                                 logger.info(f"HITL escalation triggered for web conversation {conv.id}")
                         except Exception as e:
                             logger.warning(f"Failed to trigger HITL escalation: {e}")
+            
+            # Matrix HITL (parallel with Telegram)
+            if getattr(rag_response, 'requires_escalation', False):
+                if session_id and str(session_id).strip() and not str(session_id).startswith('sandbox_'):
+                    try:
+                        from MASTER.clients.models import ClientWhatsAppConversation
+                        from MASTER.clients.tasks import send_matrix_escalation
+                        conv = ClientWhatsAppConversation.objects.filter(
+                            client=client,
+                            session_id=session_id,
+                        ).first()
+                        if conv:
+                            escalation_summary = getattr(rag_response, 'escalation_summary', '') or message[:200]
+                            send_matrix_escalation(conv, client, "web", message, escalation_summary, language)
+                    except Exception as e:
+                        logger.warning(f"Failed to trigger Matrix HITL escalation: {e}")
             
             response_data = {
                 'response': getattr(rag_response, 'answer', ''),
@@ -3038,3 +3058,92 @@ class PackageReceiveView(APIView):
                 'is_active': client.is_active,
             }
         }, status=status.HTTP_200_OK)
+
+
+# =============================================================================
+# Integration Service API Endpoints (for Matrix HITL)
+# =============================================================================
+
+@csrf_exempt
+@require_POST
+def integration_update_room(request):
+    """
+    Called by Integration Service after Matrix room is created.
+    Updates conversation with Matrix room ID.
+    
+    Expected JSON from Integration Service:
+    {
+        "conversation_id": 123,
+        "matrix_room_id": "!abc123:grot.de",
+        "matrix_room_alias": "#escalation-123:grot.de",
+        "matrix_event_id": "$event123",
+        "matrix_escalation_active": true
+    }
+    """
+    try:
+        data = json.loads(request.body)
+        conversation_id = data.get('conversation_id')
+        matrix_room_id = data.get('matrix_room_id')
+        matrix_room_alias = data.get('matrix_room_alias') or data.get('room_alias', '')
+        matrix_event_id = data.get('matrix_event_id') or data.get('event_id', '')
+        matrix_escalation_active = data.get('matrix_escalation_active', True)
+        
+        if not conversation_id or not matrix_room_id:
+            return JsonResponse({'error': 'conversation_id and matrix_room_id are required'}, status=400)
+        
+        from MASTER.clients.models import ClientWhatsAppConversation
+        conv = ClientWhatsAppConversation.objects.get(id=conversation_id)
+        conv.matrix_room_id = matrix_room_id
+        if matrix_room_alias:
+            conv.matrix_room_alias = matrix_room_alias
+        if matrix_event_id:
+            conv.matrix_last_event_id = matrix_event_id
+        conv.matrix_escalation_active = matrix_escalation_active
+        conv.save(update_fields=['matrix_room_id', 'matrix_room_alias', 'matrix_last_event_id', 'matrix_escalation_active'])
+        
+        logger.info(f"Updated Matrix room for conversation {conversation_id}: {matrix_room_id}")
+        return JsonResponse({'status': 'ok'})
+    except ClientWhatsAppConversation.DoesNotExist:
+        return JsonResponse({'error': 'Conversation not found'}, status=404)
+    except Exception as e:
+        logger.error(f"Error updating Matrix room: {e}", exc_info=True)
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@csrf_exempt
+@require_POST
+def integration_forward_message(request):
+    """
+    Called by Integration Service when manager replies in Matrix room.
+    Forwards the message to the original channel via process_manager_hitl_response.
+    """
+    try:
+        data = json.loads(request.body)
+        conversation_id = data.get('conversation_id')
+        message = data.get('message')
+        channel = data.get('channel')  # "telegram", "whatsapp", "web"
+        
+        if not conversation_id or not message:
+            return JsonResponse({'error': 'conversation_id and message are required'}, status=400)
+        
+        # Update conversation context_metadata with platform info if not set
+        from MASTER.clients.models import ClientWhatsAppConversation
+        try:
+            conv = ClientWhatsAppConversation.objects.get(id=conversation_id)
+            if not conv.context_metadata:
+                conv.context_metadata = {}
+            if 'platform' not in conv.context_metadata or conv.context_metadata.get('platform') == 'unknown':
+                conv.context_metadata['platform'] = channel
+                conv.save(update_fields=['context_metadata'])
+        except ClientWhatsAppConversation.DoesNotExist:
+            return JsonResponse({'error': 'Conversation not found'}, status=404)
+        
+        from MASTER.clients.tasks import process_manager_hitl_response
+        # manager_telegram_id=None for Matrix responses (will be handled in task)
+        process_manager_hitl_response.delay(conversation_id, message, None)
+        
+        logger.info(f"Forwarded Matrix message to conversation {conversation_id} via channel {channel}")
+        return JsonResponse({'status': 'ok'})
+    except Exception as e:
+        logger.error(f"Error forwarding Matrix message: {e}", exc_info=True)
+        return JsonResponse({'error': str(e)}, status=400)

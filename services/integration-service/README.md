@@ -48,9 +48,10 @@ go mod download
 
 3. Налаштуйте змінні оточення:
 ```bash
-export MATRIX_HOMESERVER_URL=https://matrix.org
-export MATRIX_BOT_USER_ID=@nexelin-bot:matrix.org
-export MATRIX_BOT_ACCESS_TOKEN=your_access_token
+# Production (grot.de)
+export MATRIX_HOMESERVER_URL=https://matrix.grot.de
+export MATRIX_BOT_USER_ID=@nexelin-bot:grot.de
+export MATRIX_BOT_ACCESS_TOKEN=syt_bmV4ZWxpbi1ib3Q_fuwbUhVuxZFcJwDQiBac_4cfwL6
 export DJANGO_API_URL=http://localhost:8000
 export DJANGO_API_TOKEN=optional_api_token
 export PORT=8080
@@ -65,9 +66,10 @@ go run cmd/server/main.go
 
 1. Створіть `.env` файл:
 ```bash
-MATRIX_HOMESERVER_URL=https://matrix.org
-MATRIX_BOT_USER_ID=@nexelin-bot:matrix.org
-MATRIX_BOT_ACCESS_TOKEN=your_access_token
+# Production (grot.de)
+MATRIX_HOMESERVER_URL=https://matrix.grot.de
+MATRIX_BOT_USER_ID=@nexelin-bot:grot.de
+MATRIX_BOT_ACCESS_TOKEN=syt_bmV4ZWxpbi1ib3Q_fuwbUhVuxZFcJwDQiBac_4cfwL6
 DJANGO_API_URL=http://django:8000
 DJANGO_API_TOKEN=optional_api_token
 ```
