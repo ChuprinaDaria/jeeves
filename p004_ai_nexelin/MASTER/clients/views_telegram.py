@@ -681,10 +681,10 @@ class TelegramWebhookView(View):
                 # Оновлюємо last_activity_at для відстеження неактивності
                 conversation.last_activity_at = timezone.now()
                 
-                # Detect and update language if not set or was default
-                if not conversation.language or conversation.language == 'uk':
-                    from MASTER.clients.tasks import detect_language_from_messages
-                    detected_language = detect_language_from_messages(conversation.messages)
+                # Detect language from latest messages and update (supports language switching)
+                from MASTER.clients.tasks import detect_language_from_messages
+                detected_language = detect_language_from_messages(conversation.messages)
+                if detected_language != conversation.language:
                     conversation.language = detected_language
                     updated_fields.append('language')
                 
@@ -1125,11 +1125,9 @@ class TelegramWebhookView(View):
             all_messages.append({'role': 'user', 'content': message_body})
             detected_language = detect_language_from_messages(all_messages)
             
-            if conversation.language and conversation.language != 'uk' and conversation.language in ['en', 'de', 'fr', 'es', 'it', 'nl', 'da']:
-                language = conversation.language
-            else:
-                # Use detected language and update conversation
-                language = detected_language
+            # Always use detected language (supports language switching mid-conversation)
+            language = detected_language
+            if language != conversation.language:
                 conversation.language = language
                 conversation.save(update_fields=['language'])
             
@@ -1198,11 +1196,6 @@ class TelegramWebhookView(View):
             # Зберігаємо повідомлення в розмову
             conversation.add_message('user', message_body)
             conversation.add_message('assistant', response_text)
-            
-            # Update conversation language if not set or was default
-            if not conversation.language or conversation.language == 'uk':
-                conversation.language = language
-                conversation.save(update_fields=['language'])
             
             # Real-time negative sentiment detection
             # Check user message for negative indicators and trigger immediate alert

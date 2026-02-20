@@ -237,6 +237,8 @@ class Client(models.Model):
         ('it', 'Italiano'),
         ('nl', 'Nederlands'),
         ('da', 'Dansk'),
+        ('uk', 'Українська'),
+        ('ru', 'Русский'),
     ]
     notification_language = models.CharField(
         max_length=5,
@@ -1363,7 +1365,8 @@ class ClientWhatsAppConversation(models.Model):
     
     language = models.CharField(
         max_length=10,
-        default='uk',
+        default='',
+        blank=True,
         verbose_name='Language'
     )
     

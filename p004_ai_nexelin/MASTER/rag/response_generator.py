@@ -518,7 +518,7 @@ class ResponseGenerator:
         lang = (language or '').lower()
         # Відповіді локалізуємо для it, nl, de, en, fr.
         # Якщо мова інша — використовуємо англійський варіант, але сам lang не змінюємо.
-        supported = {'en', 'de', 'fr', 'it', 'nl'}
+        supported = {'en', 'de', 'fr', 'it', 'nl', 'es', 'da', 'uk', 'ru'}
         loc_lang = lang if lang in supported else 'en'
         localized = {
             'en': "I couldn't find enough relevant information to answer precisely. Please rephrase your question or add more details.",
@@ -526,6 +526,10 @@ class ResponseGenerator:
             'fr': "Je n'ai pas trouvé suffisamment d'informations pertinentes pour répondre précisément. Veuillez reformuler votre question ou ajouter des détails.",
             'it': "Non ho trovato informazioni sufficientemente pertinenti per rispondere con precisione. Per favore riformula la domanda o aggiungi dettagli.",
             'nl': "Ik kon niet genoeg relevante informatie vinden om precies te antwoorden. Formuleer je vraag opnieuw of voeg meer details toe.",
+            'es': "No pude encontrar suficiente información relevante para responder con precisión. Reformule su pregunta o añada más detalles.",
+            'da': "Jeg kunne ikke finde nok relevant information til at svare præcist. Omformuler venligst dit spørgsmål eller tilføj flere detaljer.",
+            'uk': "Не вдалося знайти достатньо релевантної інформації для точної відповіді. Будь ласка, переформулюйте запитання або додайте більше деталей.",
+            'ru': "Не удалось найти достаточно релевантной информации для точного ответа. Пожалуйста, переформулируйте вопрос или добавьте больше деталей.",
         }
         return RAGResponse(
             answer=localized[loc_lang],
@@ -539,7 +543,7 @@ class ResponseGenerator:
     def _insufficient_context_response(self, query: str, search_results, language: str | None) -> RAGResponse:
         """Response when insufficient context found."""
         lang = (language or '').lower()
-        supported = {'en', 'de', 'fr', 'it', 'nl'}
+        supported = {'en', 'de', 'fr', 'it', 'nl', 'es', 'da', 'uk', 'ru'}
         loc_lang = lang if lang in supported else 'en'
         base = {
             'en': "I found some related information, but it may be insufficient for a complete answer.",
@@ -547,6 +551,10 @@ class ResponseGenerator:
             'fr': "J'ai trouvé quelques informations liées, mais elles peuvent être insuffisantes pour une réponse complète.",
             'it': "Ho trovato alcune informazioni correlate, ma potrebbero non essere sufficienti per una risposta completa.",
             'nl': "Ik heb wat gerelateerde informatie gevonden, maar die is mogelijk niet voldoende voor een volledig antwoord.",
+            'es': "Encontré información relacionada, pero puede ser insuficiente para una respuesta completa.",
+            'da': "Jeg fandt noget relateret information, men det er muligvis ikke tilstrækkeligt til et fuldstændigt svar.",
+            'uk': "Знайдено деяку пов'язану інформацію, але її може бути недостатньо для повної відповіді.",
+            'ru': "Найдена некоторая связанная информация, но её может быть недостаточно для полного ответа.",
         }
         return RAGResponse(
             answer=f"{base[loc_lang]} ({len(search_results)} chunks)",

@@ -2727,10 +2727,10 @@ class ClientWebConversationView(APIView):
             'timestamp': now.isoformat()
         })
         
-        # Detect and update language from user messages if not set
-        if not conversation.language or conversation.language == 'uk':
-            from MASTER.clients.tasks import detect_language_from_messages
-            detected_language = detect_language_from_messages(conversation.messages)
+        # Detect language from latest messages and update (supports language switching)
+        from MASTER.clients.tasks import detect_language_from_messages
+        detected_language = detect_language_from_messages(conversation.messages)
+        if detected_language != conversation.language:
             conversation.language = detected_language
         
         conversation.total_messages = len(conversation.messages)

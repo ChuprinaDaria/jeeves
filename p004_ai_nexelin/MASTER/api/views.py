@@ -268,22 +268,22 @@ class PublicRAGChatView(APIView):
             except Exception:
                 language = ''
             
-            # If not provided explicitly, try Accept-Language header
+            # If not provided explicitly, detect from message content first (most accurate)
+            if not language and message:
+                try:
+                    from MASTER.clients.tasks import detect_language_from_messages
+                    detected = detect_language_from_messages([{'role': 'user', 'content': message}])
+                    if detected:
+                        language = detected
+                except Exception as e:
+                    logger.warning(f"Failed to detect language from message: {e}")
+
+            # Fall back to Accept-Language header
             if not language:
                 accept_lang = request.headers.get('Accept-Language') or ''
                 if accept_lang:
                     # Take first language from header, without region (it-IT -> it)
                     language = accept_lang.split(',')[0].split(';')[0].strip().split('-')[0].lower()
-            
-            # If still not detected, try to detect from message content
-            if not language and message:
-                try:
-                    from MASTER.clients.tasks import detect_language_from_messages
-                    detected = detect_language_from_messages([{'role': 'user', 'content': message}])
-                    if detected and detected != 'en':  # Only use if detected non-English
-                        language = detected
-                except Exception as e:
-                    logger.warning(f"Failed to detect language from message: {e}")
             
             # Normalize to supported languages
             supported_langs = {'en', 'de', 'fr', 'it', 'nl', 'da', 'es', 'uk', 'ru'}
@@ -523,8 +523,12 @@ class PublicRAGChatView(APIView):
                         if matrix_manager_user_ids:
                             try:
                                 escalation_summary = getattr(rag_response, 'escalation_summary', '') or message[:200]
-                                # Set escalation language before sending to Matrix
-                                detected_lang = language or 'en'
+                                # Detect language from user's actual message text, not browser header
+                                try:
+                                    from MASTER.clients.tasks import detect_language_from_messages
+                                    detected_lang = detect_language_from_messages([{'role': 'user', 'content': message}]) or 'en'
+                                except Exception:
+                                    detected_lang = 'en'
                                 hitl_conv.escalation_language = detected_lang
                                 hitl_conv.escalation_started_at = now()
                                 hitl_conv.save(update_fields=['escalation_language', 'escalation_started_at'])

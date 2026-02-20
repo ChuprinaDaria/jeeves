@@ -632,7 +632,7 @@ def send_rating_request(self, conversation_id: int):
         detected_language = detect_language_from_messages(conversation.messages)
         
         # Update conversation.language if not set or was default/invalid
-        if not conversation.language or conversation.language == 'uk' or conversation.language not in ['en', 'de', 'fr', 'es', 'it', 'nl', 'da']:
+        if not conversation.language:
             conversation.language = detected_language
             conversation.save(update_fields=['language'])
         
@@ -1524,7 +1524,7 @@ def _generate_fallback_summary(conversation, messages_text, lang_name):
 
 
 def _get_notification_language(client, default: str = 'en') -> str:
-    supported = {'en', 'de', 'fr', 'es', 'it', 'nl', 'da'}
+    supported = {'en', 'de', 'fr', 'es', 'it', 'nl', 'da', 'uk', 'ru'}
     lang = getattr(client, 'notification_language', None) or default
     return lang if lang in supported else default
 
@@ -2817,6 +2817,8 @@ def notify_manager_of_escalation(self, conversation_id: int, question_summary: s
             'it': 'Conversazione recente (ultimi 3 messaggi)',
             'nl': 'Recente conversatie (laatste 3 berichten)',
             'da': 'Seneste samtale (sidste 3 beskeder)',
+            'uk': 'Нещодавня розмова (останні 3 повідомлення)',
+            'ru': 'Недавний разговор (последние 3 сообщения)',
         }
         
         context_section = f"\n\n<b>{context_label.get(notification_lang, context_label['en'])}:</b>\n{recent_context}" if recent_context else ""
@@ -2884,6 +2886,24 @@ def notify_manager_of_escalation(self, conversation_id: int, question_summary: s
                 f"<b>Samtale-ID:</b> {conversation.id}"
                 f"{context_section}\n\n"
                 f"💬 Besvar denne besked. AI'en vil omformulere dit svar og sende det til kunden."
+            ),
+            'uk': (
+                f"🆘 <b>ПОТРІБНА ЕСКАЛАЦІЯ</b>\n\n"
+                f"<b>Клієнт:</b> {escaped_company}\n"
+                f"<b>Запит:</b> {escaped_customer}\n"
+                f"<b>Платформа:</b> {platform}\n"
+                f"<b>ID розмови:</b> {conversation.id}"
+                f"{context_section}\n\n"
+                f"💬 Відповідайте на це повідомлення. ШІ переформулює вашу відповідь і надішле клієнту."
+            ),
+            'ru': (
+                f"🆘 <b>ТРЕБУЕТСЯ ЭСКАЛАЦИЯ</b>\n\n"
+                f"<b>Клиент:</b> {escaped_company}\n"
+                f"<b>Запрос:</b> {escaped_customer}\n"
+                f"<b>Платформа:</b> {platform}\n"
+                f"<b>ID разговора:</b> {conversation.id}"
+                f"{context_section}\n\n"
+                f"💬 Ответьте на это сообщение. ИИ перефразирует ваш ответ и отправит клиенту."
             ),
         }
         
