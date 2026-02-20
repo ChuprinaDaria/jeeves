@@ -498,6 +498,8 @@ class PublicRAGChatView(APIView):
                     except Exception as e:
                         logger.warning(f"Failed to load conversation for HITL: {e}")
 
+            print(f"HITL VIEWS: hitl_conv={hitl_conv}, requires_esc={getattr(rag_response, 'requires_escalation', False)}", flush=True)
+
             # HITL: Telegram escalation
             if getattr(rag_response, 'requires_escalation', False) and getattr(client, 'hitl_enabled', False):
                 if hitl_conv:
@@ -539,6 +541,7 @@ class PublicRAGChatView(APIView):
                                 # Reuse existing room if available
                                 if hitl_conv.matrix_room_id:
                                     payload["room_id"] = hitl_conv.matrix_room_id
+                                print(f"HITL MATRIX: sending escalation, conv={hitl_conv.id}, managers={matrix_manager_user_ids}", flush=True)
                                 resp = requests.post(
                                     "http://integration-service:8080/api/v1/hitl/escalate",
                                     json=payload,

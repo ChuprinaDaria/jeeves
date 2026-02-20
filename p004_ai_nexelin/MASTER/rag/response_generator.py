@@ -190,9 +190,10 @@ class ResponseGenerator:
         # Check for [escalate] tag in query (forced escalation from system prompt)
         # This allows users to add [escalate] markers in their prompts for specific questions
         forced_escalation = '[escalate]' in query.lower()
+        print(f"HITL DEBUG: enabled={hitl_enabled}, available={hitl_available}, forced={forced_escalation}, query={query[:80]}", flush=True)
         if forced_escalation:
             logger.info(f"HITL: Forced escalation detected via [escalate] tag in query")
-        
+
         # Fallback: detect refusal phrases even if LLM didn't output escalation token
         # This catches cases where LLM explicitly refuses to answer a business question
         # IMPORTANT: Only count as refusal if the phrase indicates inability to answer a SPECIFIC question
