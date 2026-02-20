@@ -38,6 +38,7 @@ func (h *Handlers) HandleEscalation(c *gin.Context) {
 		Context:        req.Context,
 		Language:       req.Language,
 		ManagerUserIDs: req.ManagerUserIDs,
+		RoomID:         req.RoomID,
 	}
 
 	err := h.orchestrator.HandleEscalation(c.Request.Context(), escalation)
@@ -49,6 +50,26 @@ func (h *Handlers) HandleEscalation(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status": "escalation_created",
 		"message": "Matrix room created and managers notified",
+	})
+}
+
+// HandleOnboardManager handles POST /api/v1/matrix/onboard-manager
+func (h *Handlers) HandleOnboardManager(c *gin.Context) {
+	var req models.OnboardManagerRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	roomID, err := h.orchestrator.OnboardManager(c.Request.Context(), req.ManagerUserID, req.ClientName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, models.OnboardManagerResponse{
+		Status: "ok",
+		RoomID: roomID,
 	})
 }
 

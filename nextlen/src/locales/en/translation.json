@@ -24,9 +24,11 @@
     "dashboard": "Dashboard",
     "training": "Train AI",
     "sandbox": "Sandbox",
+    "sandboxBadge": "Also in Train AI",
     "integrations": "Integrations",
     "history": "Activity",
-    "setup": "Knowledge Base",
+    "setup": "Prompt Book",
+    "promptBook": "Prompt Book",
     "settings": "Settings",
     "billing": "Billing"
   },
@@ -121,6 +123,14 @@
     "promptPlaceholder": "Enter your AI instructions...",
     "savePrompt": "Save Prompt",
     "resetDefault": "Reset to Default",
+    "currentPrompt": "Current",
+    "myPrompt": "My Prompt",
+    "fromPromptBook": "From Prompt Book",
+    "yourSavedPrompt": "Your saved prompt",
+    "emptyPrompt": "(empty prompt)",
+    "applyThisPrompt": "Apply This Prompt",
+    "applyPromptHint": "This will copy the prompt to your active prompt. You can then edit and save it.",
+    "removePrompt": "Remove",
     "trainingStatus": "Training Status",
     "uploadAndTrain": "Upload files and click train to start",
     "startTraining": "Start Training",
@@ -143,7 +153,26 @@
     "fileProcessed": "Processed",
     "uploadErrorTitle": "Failed to upload {{fileName}}",
     "uploadErrorDetails": "Error: {{message}}",
-    "uploadErrorSuggestion": "Try a different file format (PDF, DOCX, TXT) or reduce the file size and upload again."
+    "uploadErrorSuggestion": "Try a different file format (PDF, DOCX, TXT) or reduce the file size and upload again.",
+    "searchFiles": "Search files...",
+    "noFilesFound": "No files found",
+    "deleteFile": "Delete file",
+    "seeAllFiles": "See all files",
+    "allFiles": "All Files",
+    "of": "of",
+    "sort": {
+      "newestFirst": "Newest first",
+      "oldestFirst": "Oldest first",
+      "nameAZ": "Name (A → Z)",
+      "nameZA": "Name (Z → A)",
+      "sizeDesc": "Size (largest)",
+      "sizeAsc": "Size (smallest)"
+    },
+    "filter": {
+      "all": "All"
+    },
+    "sandboxDescription": "Test your AI assistant before going live",
+    "sandboxBadge": "Test Mode"
   },
   "sandbox": {
     "title": "Sandbox",
@@ -190,7 +219,10 @@
     "noDescriptionError": "No description available. Please analyze the image first.",
     "uploadNextImage": "Upload Next Image",
     "uploadNewImage": "Upload new image",
-    "uploadNew": "New Image"
+    "uploadNew": "New Image",
+    "newLocationTitle": "Sandbox is now also available in Train AI!",
+    "newLocationDescription": "For your convenience, you can now test your AI assistant directly on the Train AI page, right after configuring the AI behavior prompt.",
+    "goToTraining": "Go to Train AI"
   },
   "integrations": {
     "title": "Integrations",
@@ -350,6 +382,14 @@
     "copyPrompt": "Copy prompt",
     "copy": "Copy",
     "noPrompts": "No prompts found. Try adjusting your filters.",
+    "pageSubtitle": "Browse and use pre-built prompts for your AI assistant",
+    "use": "Use",
+    "usePrompt": "Use this prompt",
+    "useThisPrompt": "Use This Prompt in Train AI",
+    "applied": "Applied!",
+    "applying": "Applying...",
+    "appliedRedirecting": "Applied! Redirecting to Train AI...",
+    "applyError": "Failed to apply prompt",
     "promptTemplate": "Prompt Template",
     "variables": "Variables",
     "resources": "Top Prompt Engineering Resources",
@@ -492,6 +532,7 @@
     "add": "+ Add Block",
     "entries_one": "{{count}} entry",
     "entries_other": "{{count}} entries",
+    "entriesShort": "entries",
     "edit": "Edit Block",
     "delete": "Delete",
     "deleteConfirm": "Are you sure you want to delete this knowledge block?",
@@ -506,7 +547,23 @@
     "description": "Description",
     "descriptionPlaceholder": "Enter block description",
     "create": "Create Block",
-    "nameRequired": "Block name is required"
+    "nameRequired": "Block name is required",
+    "noBlocks": "No knowledge blocks yet",
+    "seeAll": "See all blocks",
+    "allBlocks": "All Knowledge Blocks",
+    "searchBlocks": "Search blocks...",
+    "noBlocksFound": "No blocks found",
+    "sort": {
+      "entriesDesc": "Most entries",
+      "entriesAsc": "Least entries",
+      "nameAZ": "Name (A → Z)",
+      "nameZA": "Name (Z → A)"
+    },
+    "filter": {
+      "all": "All",
+      "active": "Active",
+      "inactive": "Inactive"
+    }
   },
   "modelStatus": {
     "title": "Model Status",

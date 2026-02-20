@@ -8,6 +8,7 @@ import LLMProviderCard from '../components/training/LLMProviderCard';
 import KnowledgeBlocks from '../components/training/KnowledgeBlocks';
 import WebKnowledgeAdd from '../components/training/WebKnowledgeAdd';
 import TextAddModal from '../components/training/TextAddModal';
+import SandboxSection from '../components/training/SandboxSection';
 import { clientAPI } from '../api/client';
 import { FileText, Plus, AlertCircle } from 'lucide-react';
 
@@ -196,6 +197,7 @@ const TrainingPage = () => {
 
           <FileList files={files} onDelete={handleDeleteFile} loading={loading} />
           <PromptEditor />
+          <SandboxSection />
         </div>
         <div className="space-y-6">
           <LLMProviderCard />

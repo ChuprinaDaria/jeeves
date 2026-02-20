@@ -521,6 +521,11 @@ class PublicRAGChatView(APIView):
                         if matrix_manager_user_ids:
                             try:
                                 escalation_summary = getattr(rag_response, 'escalation_summary', '') or message[:200]
+                                # Set escalation language before sending to Matrix
+                                detected_lang = language or 'en'
+                                hitl_conv.escalation_language = detected_lang
+                                hitl_conv.escalation_started_at = now()
+                                hitl_conv.save(update_fields=['escalation_language', 'escalation_started_at'])
                                 payload = {
                                     "session_id": str(session_id),
                                     "client_id": client.id,
@@ -531,12 +536,15 @@ class PublicRAGChatView(APIView):
                                     "question": escalation_summary,
                                     "manager_user_ids": matrix_manager_user_ids,
                                 }
+                                # Reuse existing room if available
+                                if hitl_conv.matrix_room_id:
+                                    payload["room_id"] = hitl_conv.matrix_room_id
                                 resp = requests.post(
                                     "http://integration-service:8080/api/v1/hitl/escalate",
                                     json=payload,
                                     timeout=10,
                                 )
-                                logger.info(f"Matrix HITL escalation triggered: status={resp.status_code}, conv={hitl_conv.id}")
+                                logger.info(f"Matrix HITL escalation triggered: status={resp.status_code}, conv={hitl_conv.id}, reuse_room={bool(hitl_conv.matrix_room_id)}")
                             except Exception as e:
                                 logger.warning(f"Failed to trigger Matrix HITL escalation: {e}")
             

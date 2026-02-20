@@ -457,7 +457,28 @@ class ClientAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         if not change:
             obj.created_by = request.user
+
+        # Detect newly added Matrix manager IDs for admin feedback
+        old_manager_ids = set()
+        if change and obj.pk:
+            try:
+                from .models import Client
+                old = Client.objects.filter(pk=obj.pk).values_list(
+                    'matrix_manager_user_ids', flat=True
+                ).first()
+                old_manager_ids = set(old or [])
+            except Exception:
+                pass
+
         super().save_model(request, obj, form, change)
+
+        # Show feedback for newly added managers
+        if change:
+            new_manager_ids = set(obj.matrix_manager_user_ids or [])
+            added = new_manager_ids - old_manager_ids
+            for mid in added:
+                if mid and mid.strip():
+                    messages.success(request, f"Matrix welcome DM queued for {mid}")
 
     
 

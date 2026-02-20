@@ -3047,6 +3047,7 @@ def process_manager_hitl_response(conversation_id: int, manager_response: str, m
     """
     from MASTER.clients.models import ClientWhatsAppConversation
     from MASTER.rag.llm_client import LLMClient
+    from django.utils import timezone
     from MASTER.clients.views_telegram import send_telegram_message
     
     try:
@@ -3181,7 +3182,7 @@ def process_manager_hitl_response(conversation_id: int, manager_response: str, m
                 matrix_escalation_active=False,
                 messages=conversation.messages,  # Update messages list
                 total_messages=len(conversation.messages),
-                last_activity_at=tz.now()
+                last_activity_at=timezone.now()
             )
         else:
             # Update Telegram escalation state
@@ -3198,7 +3199,7 @@ def process_manager_hitl_response(conversation_id: int, manager_response: str, m
                 escalation_language="",
                 messages=conversation.messages,  # Update messages list
                 total_messages=len(conversation.messages),
-                last_activity_at=tz.now()
+                last_activity_at=timezone.now()
             )
         
         if updated == 0:
@@ -3327,4 +3328,34 @@ def check_escalation_timeouts() -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error in check_escalation_timeouts: {e}", exc_info=True)
         return {"success": False, "error": str(e)}
+
+
+@shared_task(bind=True, max_retries=3)
+def onboard_matrix_manager(self, client_id, manager_user_id, client_name):
+    """
+    Send a welcome DM to a newly added Matrix manager via the Integration Service.
+    """
+    import requests
+
+    url = "http://integration-service:8080/api/v1/matrix/onboard-manager"
+    payload = {
+        "manager_user_id": manager_user_id,
+        "client_name": client_name,
+    }
+
+    try:
+        resp = requests.post(url, json=payload, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+        logger.info(
+            f"Matrix manager onboarded: client_id={client_id}, "
+            f"manager={manager_user_id}, room_id={data.get('room_id')}"
+        )
+        return {"success": True, "room_id": data.get("room_id")}
+    except requests.RequestException as exc:
+        logger.error(
+            f"Failed to onboard Matrix manager {manager_user_id} "
+            f"for client {client_id}: {exc}"
+        )
+        raise self.retry(exc=exc, countdown=10)
 

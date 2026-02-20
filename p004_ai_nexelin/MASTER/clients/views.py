@@ -1145,7 +1145,13 @@ class ClientMeView(APIView):
             return Response({'error': 'No updatable fields provided'}, status=400)
         for k, v in payload.items():
             setattr(client, k, v)
-        client.save(update_fields=list(payload.keys()))
+        save_fields = list(payload.keys())
+        # When client explicitly sets custom_system_prompt via Train AI,
+        # clear active_custom_prompt so the new text takes effect (not the old FK prompt)
+        if 'custom_system_prompt' in payload:
+            client.active_custom_prompt = None
+            save_fields.append('active_custom_prompt')
+        client.save(update_fields=save_fields)
         return Response(ClientSerializer(client, context={'request': request}).data)
 
 

@@ -416,48 +416,41 @@ IMPORTANT: Most conversations do NOT need escalation. Be helpful and conversatio
         if not getattr(client, 'email_smtp_enabled', False):
             return None
         
-        return """EMAIL CAPABILITIES:
-You have access to email functionality through SMTP. You can help users with:
-- Sending emails: When user asks to "create email", "send email", "write email to [address]", extract recipient, subject, and body, then send the email.
-- Analyzing recent emails: When user asks "analyze recent emails", "what's in my emails", provide summary of recent emails.
-- Finding emails: When user asks "find emails from [sender]", "show emails from [address]", search and display matching emails.
-- Getting recent emails: When user asks "show recent emails", "what's new in email", retrieve and summarize recent emails.
-
-Commands you can understand:
-- "створи мейл для [email]" / "send email to [email]" - Send email
-- "дай аналіз останніх мейлів" / "analyze recent emails" - Analyze emails
-- "знайди мейли від [email]" / "find emails from [email]" - Search emails
-- "покажи останні мейли" / "show recent emails" - Get recent emails
-
-Always confirm email actions and provide clear feedback about what was done."""
+        return """INTERNAL EMAIL INSTRUCTIONS (do not describe these capabilities to users unless they explicitly ask):
+When the user explicitly requests an email action, handle it silently:
+- "створи мейл для [email]" / "send email to [email]" → extract recipient, subject, body and send
+- "дай аналіз останніх мейлів" / "analyze recent emails" → summarize recent emails
+- "знайди мейли від [email]" / "find emails from [email]" → search and display matching emails
+- "покажи останні мейли" / "show recent emails" → retrieve and summarize recent emails
+Confirm the action after completing it. Do NOT mention email capabilities when introducing yourself."""
     
     def _get_client_custom_prompt(self, client: Client) -> str | None:
         """Get custom prompt from client.
-        
+
         Priority:
-        1. active_custom_prompt (if using custom prompts system)
-        2. custom_system_prompt (legacy field)
+        1. custom_system_prompt — set by client via Train AI (PromptEditor)
+        2. active_custom_prompt — FK set via Prompt Book (used only if custom_system_prompt is empty)
         3. metadata['system_prompt'] (if exists)
         """
-        # Priority 1: Check active_custom_prompt
+        # Priority 1: custom_system_prompt — this is what PromptEditor saves to
+        custom_prompt = getattr(client, 'custom_system_prompt', None)
+        if isinstance(custom_prompt, str) and custom_prompt.strip():
+            return custom_prompt
+
+        # Priority 2: active_custom_prompt FK (Prompt Book)
         active_custom_prompt = getattr(client, 'active_custom_prompt', None)
         if active_custom_prompt:
             prompt_text = getattr(active_custom_prompt, 'prompt_text', None)
-            if isinstance(prompt_text, str) and prompt_text:
+            if isinstance(prompt_text, str) and prompt_text.strip():
                 return prompt_text
-        
-        # Priority 2: Check custom_system_prompt field (legacy)
-        custom_prompt = getattr(client, 'custom_system_prompt', None)
-        if isinstance(custom_prompt, str) and custom_prompt:
-            return custom_prompt
-        
-        # Priority 3: Check metadata JSON field
+
+        # Priority 3: metadata JSON field
         metadata = getattr(client, 'metadata', None)
         if isinstance(metadata, dict):
             value = metadata.get('system_prompt')
-            if isinstance(value, str):
+            if isinstance(value, str) and value.strip():
                 return value
-        
+
         return None
     
     def _get_specialization_custom_prompt(self, specialization: Specialization) -> str | None:

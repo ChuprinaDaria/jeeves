@@ -1,0 +1,14 @@
+{
+  "m.homeserver": {
+    "base_url": "https://matrix.grot.de"
+  },
+  "org.matrix.msc4143.rtc_foci": [
+    {
+      "type": "livekit",
+      "livekit_service_url": "https://livekit-jwt.grot.de"
+    }
+  ],
+  "org.matrix.msc3575.proxy": {
+    "url": "https://sliding.grot.de"
+  }
+}

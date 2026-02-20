@@ -22,6 +22,12 @@ func SetupRoutes(handlers *Handlers) *gin.Engine {
 		{
 			hitl.POST("/escalate", handlers.HandleEscalation)
 		}
+
+		// Matrix management
+		matrixGroup := v1.Group("/matrix")
+		{
+			matrixGroup.POST("/onboard-manager", handlers.HandleOnboardManager)
+		}
 	}
 
 	return router

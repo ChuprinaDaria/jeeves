@@ -11,6 +11,7 @@ type EscalationRequest struct {
 	Context        string   `json:"context"`
 	Language       string   `json:"language"`
 	ManagerUserIDs []string `json:"manager_user_ids" binding:"required"` // Matrix user IDs like ["@manager1:matrix.org"]
+	RoomID         string   `json:"room_id"`                             // Existing Matrix room ID to reuse
 }
 
 // Escalation represents an internal escalation object
@@ -24,6 +25,7 @@ type Escalation struct {
 	Context        string
 	Language       string
 	ManagerUserIDs []string
+	RoomID         string // Existing room to reuse (empty = create new)
 }
 
 // ConversationInfo represents conversation details fetched from Django
@@ -34,6 +36,18 @@ type ConversationInfo struct {
 	SessionID      string `json:"session_id,omitempty"`
 	Channel        string `json:"channel"`
 	ClientID       int64  `json:"client_id"`
+}
+
+// OnboardManagerRequest represents a request to send a welcome DM to a new Matrix manager
+type OnboardManagerRequest struct {
+	ManagerUserID string `json:"manager_user_id" binding:"required"`
+	ClientName    string `json:"client_name" binding:"required"`
+}
+
+// OnboardManagerResponse represents the response after onboarding a manager
+type OnboardManagerResponse struct {
+	Status string `json:"status"`
+	RoomID string `json:"room_id"`
 }
 
 // ForwardMessageRequest represents a request to forward a message to a channel

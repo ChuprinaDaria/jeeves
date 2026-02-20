@@ -47,13 +47,22 @@ func NewOrchestrator(
 
 // HandleEscalation handles a new escalation request
 func (o *Orchestrator) HandleEscalation(ctx context.Context, escalation *models.Escalation) error {
-	// 1. Create Matrix room
-	roomName := fmt.Sprintf("Escalation: %s - %s", escalation.ClientName, escalation.Channel)
-	roomTopic := fmt.Sprintf("Customer question requiring human assistance. Original channel: %s", escalation.Channel)
+	var roomID string
+	var err error
 
-	roomID, err := o.matrixClient.CreateRoom(ctx, roomName, roomTopic, escalation.ManagerUserIDs)
-	if err != nil {
-		return fmt.Errorf("failed to create Matrix room: %w", err)
+	if escalation.RoomID != "" {
+		// Reuse existing room
+		roomID = escalation.RoomID
+		log.Printf("Reusing existing Matrix room %s for conversation %d", roomID, escalation.ConversationID)
+	} else {
+		// Create new Matrix room
+		roomName := fmt.Sprintf("Escalation: %s - %s", escalation.ClientName, escalation.Channel)
+		roomTopic := fmt.Sprintf("Customer question requiring human assistance. Original channel: %s", escalation.Channel)
+
+		roomID, err = o.matrixClient.CreateRoom(ctx, roomName, roomTopic, escalation.ManagerUserIDs)
+		if err != nil {
+			return fmt.Errorf("failed to create Matrix room: %w", err)
+		}
 	}
 
 	// 2. Send escalation message to room
@@ -75,8 +84,37 @@ func (o *Orchestrator) HandleEscalation(ctx context.Context, escalation *models.
 	o.bridge.RegisterConversation(escalation.ConversationID, roomID, escalation.Channel, escalation.ClientID)
 	log.Printf("DEBUG: Registered bridge mapping: conversation=%d -> room=%s", escalation.ConversationID, roomID)
 
-	log.Printf("Escalation handled: conversation_id=%d, room_id=%s", escalation.ConversationID, roomID)
+	log.Printf("Escalation handled: conversation_id=%d, room_id=%s, reused=%v", escalation.ConversationID, roomID, escalation.RoomID != "")
 	return nil
+}
+
+// OnboardManager creates a DM room with a new manager and sends a welcome message
+func (o *Orchestrator) OnboardManager(ctx context.Context, managerUserID, clientName string) (string, error) {
+	log.Printf("Onboarding manager %s for client %s", managerUserID, clientName)
+
+	// Create a direct message room inviting the manager
+	roomName := fmt.Sprintf("Nexelin Bot — %s", clientName)
+	roomTopic := fmt.Sprintf("Welcome room for manager of %s", clientName)
+	roomID, err := o.matrixClient.CreateRoom(ctx, roomName, roomTopic, []string{managerUserID})
+	if err != nil {
+		return "", fmt.Errorf("failed to create DM room for manager %s: %w", managerUserID, err)
+	}
+
+	// Send welcome message
+	welcomeMsg := fmt.Sprintf(
+		`<p>👋 <strong>Welcome!</strong></p>`+
+			`<p>You have been added as a manager for <strong>%s</strong>.</p>`+
+			`<p>Escalation messages from customers will appear in dedicated rooms. Please respond directly in those rooms.</p>`+
+			`<p><em>This is an automated message from the Nexelin bot.</em></p>`,
+		escapeHTML(clientName),
+	)
+	_, err = o.matrixClient.SendFormattedMessage(ctx, roomID, welcomeMsg, "org.matrix.custom.html")
+	if err != nil {
+		log.Printf("Warning: failed to send welcome message to %s in room %s: %v", managerUserID, roomID, err)
+	}
+
+	log.Printf("Manager %s onboarded successfully, room_id=%s", managerUserID, roomID)
+	return roomID, nil
 }
 
 // formatEscalationMessage formats the escalation message for Matrix

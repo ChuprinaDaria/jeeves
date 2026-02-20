@@ -54,6 +54,19 @@ const ClientLoginPage = () => {
     }
   }, [searchParams, isAuthenticated, authLoading, loginByClientToken, loginAttempted]);
 
+  // Слухаємо подію навігації від інших компонентів (наприклад, PromptBook)
+  useEffect(() => {
+    const handleNavigate = (event) => {
+      const { view } = event.detail;
+      if (view) {
+        setCurrentView(view);
+      }
+    };
+
+    window.addEventListener('nexelin:navigate', handleNavigate);
+    return () => window.removeEventListener('nexelin:navigate', handleNavigate);
+  }, []);
+
   const loadClientData = async () => {
     try {
       const response = await clientAPI.getMe();

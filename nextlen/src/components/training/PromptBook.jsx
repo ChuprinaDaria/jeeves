@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
+import { clientAPI } from '../../api/client';
 import { 
   BookOpen, Search, Filter, Copy, ExternalLink, Sparkles, TrendingUp,
   Megaphone, Briefcase, Users, Headphones, Scale, DollarSign, Code, PenTool,
-  ShoppingBag, Heart, Building2, GraduationCap, ThumbsUp, ThumbsDown, Plus, X
+  ShoppingBag, Heart, Building2, GraduationCap, ThumbsUp, ThumbsDown, Plus, X,
+  Check, Zap
 } from 'lucide-react';
 
-const PromptBook = () => {
+const PromptBook = ({ onSelectPrompt, embedded = false, showHeader = true }) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedIndustry, setSelectedIndustry] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -16,6 +20,8 @@ const PromptBook = () => {
   const [prompts, setPrompts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [applyingPrompt, setApplyingPrompt] = useState(null);
+  const [appliedPrompt, setAppliedPrompt] = useState(null);
   const [newPrompt, setNewPrompt] = useState({
     title: '',
     category: 'marketing',
@@ -135,27 +141,84 @@ const PromptBook = () => {
     // Можна додати toast notification
   };
 
+  const handleApplyPrompt = async (prompt) => {
+    if (onSelectPrompt) {
+      // Якщо є callback (embedded mode), використовуємо його
+      onSelectPrompt(prompt);
+      return;
+    }
+
+    // Зберігаємо pending prompt в localStorage для PromptEditor
+    const pendingPrompt = {
+      id: prompt.id,
+      title: prompt.title,
+      template: prompt.prompt_template,
+    };
+    localStorage.setItem('nexelin_pending_prompt', JSON.stringify(pendingPrompt));
+
+    // Також відправляємо подію (для випадку коли вже на сторінці Train AI)
+    const event = new CustomEvent('promptbook:add', {
+      detail: pendingPrompt
+    });
+    window.dispatchEvent(event);
+
+    // Показуємо успіх
+    setAppliedPrompt(prompt.id);
+    
+    // Перенаправляємо на Train AI через 800ms
+    setTimeout(() => {
+      setAppliedPrompt(null);
+      
+      // Перевіряємо чи ми в режимі /l?tag=... (ClientLoginPage)
+      // Якщо так - відправляємо подію для зміни view
+      // Якщо ні - використовуємо React Router navigate
+      const isClientMode = window.location.pathname === '/l' && window.location.search.includes('tag=');
+      
+      if (isClientMode) {
+        // Відправляємо подію для ClientLoginPage щоб змінити view на training
+        window.dispatchEvent(new CustomEvent('nexelin:navigate', { detail: { view: 'training' } }));
+      } else {
+        navigate('/training');
+      }
+    }, 800);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-            <BookOpen size={28} className="text-primary-600 dark:text-primary-400" />
-            {t('promptBook.title') || 'Prompt Book'}
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
-            {t('promptBook.subtitle') || 'Prompt Engineering Resources by Industry'}
-          </p>
+      {showHeader && (
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+              <BookOpen size={28} className="text-primary-600 dark:text-primary-400" />
+              {t('promptBook.title') || 'Prompt Book'}
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mt-2">
+              {t('promptBook.subtitle') || 'Prompt Engineering Resources by Industry'}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="btn-primary flex items-center gap-2"
+          >
+            <Plus size={18} />
+            {t('promptBook.addPrompt') || 'Add Prompt'}
+          </button>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus size={18} />
-          {t('promptBook.addPrompt') || 'Add Prompt'}
-        </button>
-      </div>
+      )}
+
+      {/* Add Prompt Button - показуємо окремо якщо заголовок приховано */}
+      {!showHeader && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="btn-primary flex items-center gap-2"
+          >
+            <Plus size={18} />
+            {t('promptBook.addPrompt') || 'Add Prompt'}
+          </button>
+        </div>
+      )}
 
       {/* Search and Filters */}
       <div className="card">
@@ -295,16 +358,48 @@ const PromptBook = () => {
                       {prompt.dislikes_count || 0}
                     </button>
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCopyPrompt(prompt);
-                    }}
-                    className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 flex items-center gap-1"
-                    title={t('promptBook.copyPrompt') || 'Copy prompt'}
-                  >
-                    <Copy size={16} />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCopyPrompt(prompt);
+                      }}
+                      className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 flex items-center gap-1"
+                      title={t('promptBook.copyPrompt') || 'Copy prompt'}
+                    >
+                      <Copy size={16} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleApplyPrompt(prompt);
+                      }}
+                      disabled={applyingPrompt === prompt.id}
+                      className={`text-sm font-medium flex items-center gap-1 px-2 py-1 rounded transition-colors ${
+                        appliedPrompt === prompt.id
+                          ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                          : 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-200 dark:hover:bg-primary-900/50'
+                      }`}
+                      title={t('promptBook.usePrompt') || 'Use this prompt'}
+                    >
+                      {appliedPrompt === prompt.id ? (
+                        <>
+                          <Check size={14} />
+                          {t('promptBook.applied') || 'Applied!'}
+                        </>
+                      ) : applyingPrompt === prompt.id ? (
+                        <>
+                          <Zap size={14} className="animate-pulse" />
+                          ...
+                        </>
+                      ) : (
+                        <>
+                          <Zap size={14} />
+                          {t('promptBook.use') || 'Use'}
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -397,46 +492,76 @@ const PromptBook = () => {
                 </div>
               )}
 
-              <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                    <TrendingUp size={16} />
-                    {selectedPrompt.usage_count || 0} {t('promptBook.uses') || 'uses'}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleVote(selectedPrompt.id, 'like')}
-                      className={`flex items-center gap-1 text-sm ${
-                        selectedPrompt.user_vote === 'like'
-                          ? 'text-green-600 dark:text-green-400'
-                          : 'text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400'
-                      }`}
-                      disabled={voting[selectedPrompt.id]}
-                    >
-                      <ThumbsUp size={16} />
-                      {selectedPrompt.likes_count || 0}
-                    </button>
-                    <button
-                      onClick={() => handleVote(selectedPrompt.id, 'dislike')}
-                      className={`flex items-center gap-1 text-sm ${
-                        selectedPrompt.user_vote === 'dislike'
-                          ? 'text-red-600 dark:text-red-400'
-                          : 'text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400'
-                      }`}
-                      disabled={voting[selectedPrompt.id]}
-                    >
-                      <ThumbsDown size={16} />
-                      {selectedPrompt.dislikes_count || 0}
-                    </button>
+              <div className="flex flex-col gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                      <TrendingUp size={16} />
+                      {selectedPrompt.usage_count || 0} {t('promptBook.uses') || 'uses'}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleVote(selectedPrompt.id, 'like')}
+                        className={`flex items-center gap-1 text-sm ${
+                          selectedPrompt.user_vote === 'like'
+                            ? 'text-green-600 dark:text-green-400'
+                            : 'text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400'
+                        }`}
+                        disabled={voting[selectedPrompt.id]}
+                      >
+                        <ThumbsUp size={16} />
+                        {selectedPrompt.likes_count || 0}
+                      </button>
+                      <button
+                        onClick={() => handleVote(selectedPrompt.id, 'dislike')}
+                        className={`flex items-center gap-1 text-sm ${
+                          selectedPrompt.user_vote === 'dislike'
+                            ? 'text-red-600 dark:text-red-400'
+                            : 'text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400'
+                        }`}
+                        disabled={voting[selectedPrompt.id]}
+                      >
+                        <ThumbsDown size={16} />
+                        {selectedPrompt.dislikes_count || 0}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    {selectedPrompt.tags && selectedPrompt.tags.map(tag => (
+                      <span key={tag} className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">
+                        #{tag}
+                      </span>
+                    ))}
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  {selectedPrompt.tags && selectedPrompt.tags.map(tag => (
-                    <span key={tag} className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
+
+                {/* Use Prompt Button */}
+                <button
+                  onClick={() => handleApplyPrompt(selectedPrompt)}
+                  disabled={applyingPrompt === selectedPrompt.id}
+                  className={`w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors ${
+                    appliedPrompt === selectedPrompt.id
+                      ? 'bg-green-500 text-white'
+                      : 'bg-primary-600 dark:bg-primary-500 text-white hover:bg-primary-700 dark:hover:bg-primary-600'
+                  }`}
+                >
+                  {appliedPrompt === selectedPrompt.id ? (
+                    <>
+                      <Check size={20} />
+                      {t('promptBook.appliedRedirecting') || 'Applied! Redirecting to Train AI...'}
+                    </>
+                  ) : applyingPrompt === selectedPrompt.id ? (
+                    <>
+                      <Zap size={20} className="animate-pulse" />
+                      {t('promptBook.applying') || 'Applying...'}
+                    </>
+                  ) : (
+                    <>
+                      <Zap size={20} />
+                      {t('promptBook.useThisPrompt') || 'Use This Prompt in Train AI'}
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>

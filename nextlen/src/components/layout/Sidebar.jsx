@@ -72,10 +72,10 @@ const Sidebar = () => {
   const navItems = [
     { to: '/dashboard', icon: LayoutDashboard, label: t('nav.dashboard') },
     { to: '/training', icon: GraduationCap, label: t('nav.training') },
-    { to: '/sandbox', icon: FlaskConical, label: t('nav.sandbox') },
+    { to: '/sandbox', icon: FlaskConical, label: t('nav.sandbox'), badge: t('nav.sandboxBadge') || 'Also in Train AI' },
     { to: '/integrations', icon: Plug2, label: t('nav.integrations') },
     { to: '/history', icon: MessageSquare, label: t('nav.history') },
-    { to: '/setup', icon: BookOpen, label: t('nav.setup') },
+    { to: '/setup', icon: BookOpen, label: t('nav.promptBook') || 'Prompt Book' },
     { to: '/settings', icon: Settings, label: t('nav.settings') || 'Settings' },
   ];
   
@@ -224,7 +224,14 @@ const Sidebar = () => {
                 }
               >
                 <item.icon size={20} />
-                <span className="font-medium">{item.label}</span>
+                <div className="flex-1">
+                  <span className="font-medium">{item.label}</span>
+                  {item.badge && (
+                    <span className="block text-[10px] text-purple-500 dark:text-purple-400 font-normal mt-0.5">
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
               </NavLink>
             );
           })}

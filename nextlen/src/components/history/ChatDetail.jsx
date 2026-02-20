@@ -234,7 +234,7 @@ const ChatDetail = ({ chat }) => {
   return (
     <div className="card h-[600px] flex flex-col">
       <div className="pb-4 border-b border-gray-200 dark:border-gray-700 mb-4">
-        <div className="flex items-start justify-between mb-3">
+        <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{chat.customerName}</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">{t('history.lastActive')} {chat.timestamp}</p>
@@ -242,80 +242,80 @@ const ChatDetail = ({ chat }) => {
           <button
             onClick={handleAddChatToKnowledge}
             disabled={uploading.chat}
-            className="ml-4 px-3 py-1.5 bg-primary-600 dark:bg-primary-500 text-white rounded-lg shadow hover:bg-primary-700 dark:hover:bg-primary-600 transition flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="ml-4 px-4 py-2 bg-gradient-to-r from-primary-500 to-primary-600 dark:from-primary-600 dark:to-primary-700 text-white rounded-xl shadow-md hover:shadow-lg hover:from-primary-600 hover:to-primary-700 dark:hover:from-primary-500 dark:hover:to-primary-600 transition-all duration-200 flex items-center gap-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             title={t('history.addToKnowledge') || 'Add to Knowledge'}
           >
             {uploading.chat ? (
               <>
-                <Loader2 size={14} className="animate-spin" />
+                <Loader2 size={16} className="animate-spin" />
                 <span>{t('history.adding') || 'Adding...'}</span>
               </>
             ) : (
               <>
-                <Plus size={14} />
+                <Plus size={16} />
                 <span>{t('history.addToKnowledge') || 'Add to Knowledge'}</span>
               </>
             )}
           </button>
         </div>
         
-        {/* Action buttons */}
-        <div className="flex flex-wrap gap-2 mt-3">
+        {/* Action buttons - modern pill style */}
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleSendEmail}
             disabled={uploading.email}
-            className="px-3 py-1.5 bg-blue-600 dark:bg-blue-500 text-white rounded-lg shadow hover:bg-blue-700 dark:hover:bg-blue-600 transition flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 hover:border-blue-300 dark:hover:border-blue-700 transition-all duration-200 flex items-center gap-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             title={t('history.sendEmail') || 'Send summary to email'}
           >
             {uploading.email ? (
-              <Loader2 size={14} className="animate-spin" />
+              <Loader2 size={16} className="animate-spin" />
             ) : (
-              <Mail size={14} />
+              <Mail size={16} />
             )}
             <span>{t('history.sendEmail') || 'Send Email'}</span>
           </button>
           
-          <div className="flex gap-1">
+          <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-700/50 rounded-full">
             <button
               onClick={() => handleRate('positive')}
               disabled={uploading.rating}
-              className={`px-3 py-1.5 rounded-lg shadow transition flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`p-2 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
                 rating === 'positive'
-                  ? 'bg-green-600 dark:bg-green-500 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                  ? 'bg-green-500 text-white shadow-md'
+                  : 'text-gray-500 dark:text-gray-400 hover:bg-green-100 dark:hover:bg-green-900/30 hover:text-green-600 dark:hover:text-green-400'
               }`}
               title={t('history.ratePositive') || 'Rate positive'}
             >
-              {uploading.rating ? (
-                <Loader2 size={14} className="animate-spin" />
+              {uploading.rating && rating !== 'negative' ? (
+                <Loader2 size={16} className="animate-spin" />
               ) : (
-                <ThumbsUp size={14} />
+                <ThumbsUp size={16} />
               )}
             </button>
             <button
               onClick={() => handleRate('negative')}
               disabled={uploading.rating}
-              className={`px-3 py-1.5 rounded-lg shadow transition flex items-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`p-2 rounded-full transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
                 rating === 'negative'
-                  ? 'bg-red-600 dark:bg-red-500 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                  ? 'bg-red-500 text-white shadow-md'
+                  : 'text-gray-500 dark:text-gray-400 hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400'
               }`}
               title={t('history.rateNegative') || 'Rate negative'}
             >
-              {uploading.rating ? (
-                <Loader2 size={14} className="animate-spin" />
+              {uploading.rating && rating !== 'positive' ? (
+                <Loader2 size={16} className="animate-spin" />
               ) : (
-                <ThumbsDown size={14} />
+                <ThumbsDown size={16} />
               )}
             </button>
           </div>
           
           <button
             onClick={() => setShowNotesModal(true)}
-            className="px-3 py-1.5 bg-purple-600 dark:bg-purple-500 text-white rounded-lg shadow hover:bg-purple-700 dark:hover:bg-purple-600 transition flex items-center gap-2 text-sm"
+            className="px-4 py-2 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800 rounded-full hover:bg-purple-100 dark:hover:bg-purple-900/50 hover:border-purple-300 dark:hover:border-purple-700 transition-all duration-200 flex items-center gap-2 text-sm font-medium"
             title={t('history.addNotes') || 'Add notes'}
           >
-            <FileText size={14} />
+            <FileText size={16} />
             <span>{t('history.notes') || 'Notes'}</span>
           </button>
         </div>
