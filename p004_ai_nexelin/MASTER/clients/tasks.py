@@ -3109,12 +3109,16 @@ def send_matrix_escalation(conversation, client, channel, message_body, escalati
         import httpx
         from django.conf import settings
         
+        # Потік 1: Юзер → система → менеджер
+        # Завжди перекладаємо на мову з settings менеджера. Без виключень.
+        # AI тут не думає — просто translate.
         escalation_lang = getattr(conversation, 'forced_language', '') or getattr(conversation, 'last_user_language', '') or language or 'en'
         manager_lang = getattr(client, 'notification_language', 'en') or 'en'
 
         question_for_manager = message_body
         context_for_manager = escalation_summary or message_body[:200]
 
+        # Завжди перекладаємо на мову менеджера, якщо мови різні (без виключень, навіть якщо є forced_language)
         if manager_lang != escalation_lang:
             try:
                 from MASTER.clients.news_utils import translate_text
@@ -3211,14 +3215,17 @@ def process_manager_hitl_response(conversation_id: int, manager_response: str, m
                     )
                     return {"success": False, "error": "Not waiting for manager", "already_handled": True}
         
+        # Потік 2: Менеджер → система → юзер
+        # Менеджер відповів іспанською? Окей. Беремо мову останнього повідомлення юзера і перекладаємо на неї.
+        # Не мову settings, не першого повідомлення — саме останнього.
+        # Виняток: якщо юзер явно написав "говори тільки англійською" — фіксуємо до наступного явного запиту на зміну.
         customer_language = (
-            getattr(conversation, 'forced_language', '') or
-            getattr(conversation, 'last_user_language', '') or
-            conversation.escalation_language or
-            getattr(conversation, 'language', None) or
-            'en'
+            getattr(conversation, 'forced_language', '') or  # Явний запит юзера (найвищий пріоритет)
+            getattr(conversation, 'last_user_language', '') or  # Мова останнього повідомлення юзера
+            getattr(conversation, 'language', '') or  # Мова розмови (fallback)
+            'en'  # Останній fallback
         )
-        logger.info(f"Processing manager response for conversation {conversation_id}, customer language: {customer_language}")
+        logger.info(f"Processing manager response for conversation {conversation_id}, customer language: {customer_language} (from last_user_language)")
         
         # 1. AI Rephrasing & Translation
         try:

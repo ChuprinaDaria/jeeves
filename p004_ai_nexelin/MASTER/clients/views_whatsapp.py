@@ -455,7 +455,15 @@ class TwilioWhatsAppWebhookView(View):
                     conversation.forced_language = ''
                     lang_fields.append('forced_language')
                 conversation.save(update_fields=lang_fields)
-            language = getattr(conversation, 'forced_language', '') or detected_language or 'en'
+            # Потік 3: Бот → юзер (без ескалації)
+            # Те саме — відповідаємо мовою останнього повідомлення юзера.
+            # Виняток: якщо юзер явно написав "говори тільки англійською" — фіксуємо до наступного явного запиту на зміну.
+            language = (
+                getattr(conversation, 'forced_language', '') or  # Явний запит юзера (найвищий пріоритет)
+                getattr(conversation, 'last_user_language', '') or  # Мова останнього повідомлення юзера
+                detected_language or
+                'en'
+            )
 
             # Формуємо контекст з історії розмови
             context_messages = []
