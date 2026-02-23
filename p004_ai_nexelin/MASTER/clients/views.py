@@ -2727,15 +2727,30 @@ class ClientWebConversationView(APIView):
             'timestamp': now.isoformat()
         })
         
-        # Detect language from latest messages and update (supports language switching)
-        from MASTER.clients.tasks import detect_language_from_messages
-        detected_language = detect_language_from_messages(conversation.messages)
-        if detected_language != conversation.language:
-            conversation.language = detected_language
+        from MASTER.clients.tasks import detect_language_from_messages, detect_explicit_language_request
+        
+        detected_language = detect_language_from_messages([{'role': 'user', 'content': message}]) or 'en'
+        explicit_lang = detect_explicit_language_request(message)
+        
+        update_fields = ['messages', 'total_messages', 'updated_at', 'last_activity_at']
+        
+        if detected_language:
+            conversation.last_user_language = detected_language
+            update_fields.append('last_user_language')
+            if detected_language != conversation.language:
+                conversation.language = detected_language
+                update_fields.append('language')
+        
+        if explicit_lang:
+            conversation.forced_language = explicit_lang
+            update_fields.append('forced_language')
+        elif explicit_lang is not None:
+            conversation.forced_language = ''
+            update_fields.append('forced_language')
         
         conversation.total_messages = len(conversation.messages)
         conversation.last_activity_at = now
-        conversation.save(update_fields=['messages', 'total_messages', 'language', 'updated_at', 'last_activity_at'])
+        conversation.save(update_fields=update_fields)
         
         # Real-time negative sentiment detection (same as Telegram)
         self._check_realtime_negative_sentiment(conversation, message, logger)

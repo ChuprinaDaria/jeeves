@@ -343,11 +343,13 @@ class PublicRAGChatView(APIView):
             # This ensures sandbox conversations stay private and don't leak to Telegram/WhatsApp
             # Sandbox only uses 'context' parameter (localStorage history), never session_id
             session_id = request.data.get('session_id') or request.data.get('conversation_id')
+            conv = None
             # CRITICAL SECURITY: Only load conversation history if session_id is provided AND not empty
             # Sandbox never provides session_id, so it will never load or save conversations to database
             if session_id and str(session_id).strip() and not str(session_id).startswith('sandbox_'):
                 try:
                     from MASTER.clients.models import ClientWhatsAppConversation
+                    from MASTER.clients.tasks import detect_language_from_messages, detect_explicit_language_request
                     # CRITICAL: Always filter by client for security - sandbox chats must not leak
                     conv = ClientWhatsAppConversation.objects.filter(
                         client=client,
@@ -359,6 +361,28 @@ class PublicRAGChatView(APIView):
                             content = str(msg.get('content', '')).strip()
                             if content:
                                 history_lines.append(f"{role}: {content}")
+                    
+                    if conv and message:
+                        detected_lang = detect_language_from_messages([{'role': 'user', 'content': message}]) or 'en'
+                        explicit_lang = detect_explicit_language_request(message)
+                        
+                        update_fields = []
+                        if detected_lang:
+                            conv.last_user_language = detected_lang
+                            update_fields.append('last_user_language')
+                        
+                        if explicit_lang:
+                            conv.forced_language = explicit_lang
+                            update_fields.append('forced_language')
+                        elif explicit_lang is not None:
+                            conv.forced_language = ''
+                            update_fields.append('forced_language')
+                        
+                        if update_fields:
+                            conv.save(update_fields=update_fields)
+
+                    if conv:
+                        language = getattr(conv, 'forced_language', '') or getattr(conv, 'last_user_language', '') or language
                 except Exception:
                     # Не блокуємо запит, якщо щось пішло не так з загрузкою історії
                     pass
@@ -486,8 +510,8 @@ class PublicRAGChatView(APIView):
             )
             
             # HITL: Look up conversation once for both escalation channels
-            hitl_conv = None
-            if getattr(rag_response, 'requires_escalation', False):
+            hitl_conv = conv if conv else None
+            if getattr(rag_response, 'requires_escalation', False) and not hitl_conv:
                 if session_id and str(session_id).strip() and not str(session_id).startswith('sandbox_'):
                     try:
                         from MASTER.clients.models import ClientWhatsAppConversation
@@ -523,23 +547,36 @@ class PublicRAGChatView(APIView):
                         if matrix_manager_user_ids:
                             try:
                                 escalation_summary = getattr(rag_response, 'escalation_summary', '') or message[:200]
-                                # Detect language from user's actual message text, not browser header
-                                try:
-                                    from MASTER.clients.tasks import detect_language_from_messages
-                                    detected_lang = detect_language_from_messages([{'role': 'user', 'content': message}]) or 'en'
-                                except Exception:
-                                    detected_lang = 'en'
-                                hitl_conv.escalation_language = detected_lang
+                                escalation_lang = getattr(hitl_conv, 'forced_language', '') or getattr(hitl_conv, 'last_user_language', '') or 'en'
+                                hitl_conv.escalation_language = escalation_lang
                                 hitl_conv.escalation_started_at = now()
                                 hitl_conv.save(update_fields=['escalation_language', 'escalation_started_at'])
+
+                                manager_lang = getattr(client, 'notification_language', 'en') or 'en'
+                                question_for_manager = message
+                                summary_for_manager = escalation_summary
+                                if manager_lang != escalation_lang:
+                                    try:
+                                        from MASTER.clients.tasks import detect_language_from_messages
+                                        from MASTER.clients.news_utils import translate_text
+                                        translated_q = translate_text(message, manager_lang, max_tokens=500)
+                                        if translated_q and translated_q.strip():
+                                            question_for_manager = f"{message}\n\n[{manager_lang.upper()}]: {translated_q}"
+                                        if escalation_summary:
+                                            translated_s = translate_text(escalation_summary, manager_lang, max_tokens=500)
+                                            if translated_s and translated_s.strip():
+                                                summary_for_manager = f"{escalation_summary}\n\n[{manager_lang.upper()}]: {translated_s}"
+                                    except Exception as _te:
+                                        logger.warning(f"Manager translation failed: {_te}")
+
                                 payload = {
                                     "session_id": str(session_id),
                                     "client_id": client.id,
                                     "client_name": str(client.company_name or ''),
                                     "conversation_id": hitl_conv.id,
                                     "channel": "web_widget",
-                                    "message": escalation_summary,
-                                    "question": escalation_summary,
+                                    "message": summary_for_manager,
+                                    "question": question_for_manager,
                                     "manager_user_ids": matrix_manager_user_ids,
                                 }
                                 # Reuse existing room if available

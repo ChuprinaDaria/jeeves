@@ -1116,20 +1116,31 @@ class TelegramWebhookView(View):
                 'content': message_body
             })
             
-            # Визначаємо мову повідомлення
-            # Використовуємо conversation.language якщо встановлено, інакше визначаємо з повідомлень
-            from MASTER.clients.tasks import detect_language_from_messages
+            from MASTER.clients.tasks import detect_language_from_messages, detect_explicit_language_request
             
-            # Detect language from current message and existing messages
-            all_messages = list(conversation.messages) if conversation.messages else []
-            all_messages.append({'role': 'user', 'content': message_body})
-            detected_language = detect_language_from_messages(all_messages)
+            detected_language = detect_language_from_messages([{'role': 'user', 'content': message_body}]) or 'en'
+            explicit_lang = detect_explicit_language_request(message_body)
             
-            # Always use detected language (supports language switching mid-conversation)
-            language = detected_language
-            if language != conversation.language:
-                conversation.language = language
-                conversation.save(update_fields=['language'])
+            update_fields = []
+            
+            if detected_language:
+                conversation.last_user_language = detected_language
+                update_fields.append('last_user_language')
+                if detected_language != conversation.language:
+                    conversation.language = detected_language
+                    update_fields.append('language')
+            
+            if explicit_lang:
+                conversation.forced_language = explicit_lang
+                update_fields.append('forced_language')
+            elif explicit_lang is not None:
+                conversation.forced_language = ''
+                update_fields.append('forced_language')
+            
+            if update_fields:
+                conversation.save(update_fields=update_fields)
+            
+            language = getattr(conversation, 'forced_language', '') or detected_language or getattr(conversation, 'language', 'en') or 'en'
             
             logger.info(f"Using language '{language}' for conversation {conversation.id} (message: '{message_body[:30]}...')")
             
@@ -1180,7 +1191,8 @@ class TelegramWebhookView(View):
                     # Matrix HITL (parallel with Telegram)
                     if rag_response.requires_escalation:
                         from MASTER.clients.tasks import send_matrix_escalation
-                        send_matrix_escalation(conversation, client, "telegram", message_body, rag_response.escalation_summary, language)
+                        escalation_lang = getattr(conversation, 'forced_language', '') or getattr(conversation, 'last_user_language', '') or language or 'en'
+                        send_matrix_escalation(conversation, client, "telegram", message_body, rag_response.escalation_summary, escalation_lang)
                 else:
                     logger.error("Unexpected generator response when stream=False")
                     response_text = "Вибачте, виникла помилка при генерації відповіді." if language == 'uk' else "Sorry, an error occurred while generating the response."

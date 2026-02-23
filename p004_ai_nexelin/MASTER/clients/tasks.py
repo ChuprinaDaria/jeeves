@@ -107,6 +107,101 @@ def detect_language_from_messages(messages):
     return 'en'
 
 
+def detect_explicit_language_request(message: str) -> str | None:
+    """
+    Detect if user explicitly requests a language change.
+    Returns language code if explicit request found, None otherwise.
+    
+    Examples: "speak to me in German", "parlez-moi en français", "habla español"
+    """
+    if not message:
+        return None
+    
+    message_lower = message.lower()
+    
+    language_patterns = {
+        'en': [
+            r'speak\s+(?:to\s+me\s+)?in\s+english',
+            r'use\s+english',
+            r'english\s+please',
+            r'in\s+english',
+        ],
+        'de': [
+            r'speak\s+(?:to\s+me\s+)?in\s+german',
+            r'use\s+german',
+            r'german\s+please',
+            r'in\s+german',
+            r'auf\s+deutsch',
+            r'sprich\s+deutsch',
+        ],
+        'fr': [
+            r'speak\s+(?:to\s+me\s+)?in\s+french',
+            r'use\s+french',
+            r'french\s+please',
+            r'in\s+french',
+            r'en\s+français',
+            r'parlez\s+(?:-moi\s+)?en\s+français',
+        ],
+        'es': [
+            r'speak\s+(?:to\s+me\s+)?in\s+spanish',
+            r'use\s+spanish',
+            r'spanish\s+please',
+            r'in\s+spanish',
+            r'en\s+español',
+            r'habla\s+español',
+        ],
+        'it': [
+            r'speak\s+(?:to\s+me\s+)?in\s+italian',
+            r'use\s+italian',
+            r'italian\s+please',
+            r'in\s+italian',
+            r'in\s+italiano',
+            r'parla\s+italiano',
+        ],
+        'nl': [
+            r'speak\s+(?:to\s+me\s+)?in\s+dutch',
+            r'use\s+dutch',
+            r'dutch\s+please',
+            r'in\s+dutch',
+            r'in\s+het\s+nederlands',
+            r'spreek\s+nederlands',
+        ],
+        'da': [
+            r'speak\s+(?:to\s+me\s+)?in\s+danish',
+            r'use\s+danish',
+            r'danish\s+please',
+            r'in\s+danish',
+            r'på\s+dansk',
+            r'tal\s+dansk',
+        ],
+        'uk': [
+            r'speak\s+(?:to\s+me\s+)?in\s+ukrainian',
+            r'use\s+ukrainian',
+            r'ukrainian\s+please',
+            r'in\s+ukrainian',
+            r'українською',
+            r'розмовляй\s+українською',
+            r'говори\s+українською',
+        ],
+        'ru': [
+            r'speak\s+(?:to\s+me\s+)?in\s+russian',
+            r'use\s+russian',
+            r'russian\s+please',
+            r'in\s+russian',
+            r'по-русски',
+            r'говори\s+по-русски',
+        ],
+    }
+    
+    import re
+    for lang_code, patterns in language_patterns.items():
+        for pattern in patterns:
+            if re.search(pattern, message_lower):
+                return lang_code
+    
+    return None
+
+
 def get_rating_request_message(language: str) -> str:
     """
     Get localized rating request message based on language code.
@@ -3001,7 +3096,7 @@ def send_matrix_escalation(conversation, client, channel, message_body, escalati
         channel: "telegram", "whatsapp", or "web"
         message_body: Original user message/question
         escalation_summary: Summary from RAG response
-        language: Language code (en, uk, de, etc.)
+        language: Language code (en, uk, de, etc.) - deprecated, uses conversation.last_user_language instead
     """
     if not getattr(client, 'matrix_hitl_enabled', False):
         return
@@ -3014,24 +3109,43 @@ def send_matrix_escalation(conversation, client, channel, message_body, escalati
         import httpx
         from django.conf import settings
         
+        escalation_lang = getattr(conversation, 'forced_language', '') or getattr(conversation, 'last_user_language', '') or language or 'en'
+        manager_lang = getattr(client, 'notification_language', 'en') or 'en'
+
+        question_for_manager = message_body
+        context_for_manager = escalation_summary or message_body[:200]
+
+        if manager_lang != escalation_lang:
+            try:
+                from MASTER.clients.news_utils import translate_text
+                translated_q = translate_text(message_body, manager_lang, max_tokens=500)
+                if translated_q and translated_q.strip():
+                    question_for_manager = f"{message_body}\n\n[{manager_lang.upper()}]: {translated_q}"
+                if escalation_summary:
+                    translated_ctx = translate_text(escalation_summary, manager_lang, max_tokens=500)
+                    if translated_ctx and translated_ctx.strip():
+                        context_for_manager = f"{escalation_summary}\n\n[{manager_lang.upper()}]: {translated_ctx}"
+            except Exception as te:
+                logger.warning(f"Manager translation failed: {te}")
+
         # Determine customer name based on channel
         customer_name = "Customer"
         if channel == "telegram" and hasattr(conversation, 'telegram_chat_id') and conversation.telegram_chat_id:
             customer_name = f"Telegram User {conversation.telegram_chat_id}"
         elif channel == "whatsapp" and hasattr(conversation, 'customer_phone') and conversation.customer_phone:
             customer_name = conversation.customer_phone or "WhatsApp User"
-        elif channel == "web" and hasattr(conversation, 'session_id') and conversation.session_id:
+        elif channel in ("web", "web_widget") and hasattr(conversation, 'session_id') and conversation.session_id:
             customer_name = f"Web User {conversation.session_id[:8]}"
-        
+
         escalation_data = {
             "conversation_id": conversation.id,
             "client_id": client.id,
             "client_name": str(client.company_name or client.user),
             "customer_name": customer_name,
             "channel": channel,
-            "question": message_body,
-            "context": escalation_summary or message_body[:200],
-            "language": language or "en",
+            "question": question_for_manager,
+            "context": context_for_manager,
+            "language": escalation_lang,
             "manager_user_ids": matrix_manager_ids,
         }
         
@@ -3097,8 +3211,13 @@ def process_manager_hitl_response(conversation_id: int, manager_response: str, m
                     )
                     return {"success": False, "error": "Not waiting for manager", "already_handled": True}
         
-        # Get customer's language from escalation context
-        customer_language = conversation.escalation_language or getattr(conversation, 'language', None) or 'en'
+        customer_language = (
+            getattr(conversation, 'forced_language', '') or
+            getattr(conversation, 'last_user_language', '') or
+            conversation.escalation_language or
+            getattr(conversation, 'language', None) or
+            'en'
+        )
         logger.info(f"Processing manager response for conversation {conversation_id}, customer language: {customer_language}")
         
         # 1. AI Rephrasing & Translation

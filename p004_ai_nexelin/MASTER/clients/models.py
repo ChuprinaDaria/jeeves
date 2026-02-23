@@ -1370,6 +1370,22 @@ class ClientWhatsAppConversation(models.Model):
         verbose_name='Language'
     )
     
+    last_user_language = models.CharField(
+        max_length=10,
+        default='',
+        blank=True,
+        verbose_name='Last User Language',
+        help_text='Language of the most recent user message (updated on every incoming message)'
+    )
+    
+    forced_language = models.CharField(
+        max_length=10,
+        default='',
+        blank=True,
+        verbose_name='Forced Language',
+        help_text='Language explicitly requested by user (e.g., "speak to me in German"). Cleared only by another explicit request.'
+    )
+    
     context_metadata = models.JSONField(
         default=dict,
         blank=True,

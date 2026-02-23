@@ -499,6 +499,32 @@ class MetaWhatsAppWebhookView(View):
                     lang = getattr(conversation, 'language', 'en') or 'en'
                     pending_escalation_notice = waiting_notes.get(lang, waiting_notes['en'])
             
+            from MASTER.clients.tasks import detect_language_from_messages, detect_explicit_language_request
+            
+            detected_language = detect_language_from_messages([{'role': 'user', 'content': message_body}]) or 'en'
+            explicit_lang = detect_explicit_language_request(message_body)
+            
+            update_fields = []
+            
+            if detected_language:
+                conversation.last_user_language = detected_language
+                update_fields.append('last_user_language')
+                if detected_language != getattr(conversation, 'language', ''):
+                    conversation.language = detected_language
+                    update_fields.append('language')
+            
+            if explicit_lang:
+                conversation.forced_language = explicit_lang
+                update_fields.append('forced_language')
+            elif explicit_lang is not None:
+                conversation.forced_language = ''
+                update_fields.append('forced_language')
+            
+            if update_fields:
+                conversation.save(update_fields=update_fields)
+            
+            language = getattr(conversation, 'forced_language', '') or detected_language or getattr(conversation, 'language', 'en') or 'en'
+            
             # Використовуємо RAG API
             try:
                 from MASTER.rag.response_generator import ResponseGenerator, RAGResponse
@@ -507,7 +533,8 @@ class MetaWhatsAppWebhookView(View):
                 rag_response = generator.generate(
                     query=message_body,
                     client=client,
-                    stream=False
+                    stream=False,
+                    language=language
                 )
                 
                 if isinstance(rag_response, RAGResponse):
@@ -545,7 +572,8 @@ class MetaWhatsAppWebhookView(View):
                     # Matrix HITL (parallel with Telegram)
                     if rag_response.requires_escalation:
                         from MASTER.clients.tasks import send_matrix_escalation
-                        send_matrix_escalation(conversation, client, "whatsapp", message_body, rag_response.escalation_summary, language)
+                        escalation_lang = getattr(conversation, 'forced_language', '') or getattr(conversation, 'last_user_language', '') or language or 'en'
+                        send_matrix_escalation(conversation, client, "whatsapp", message_body, rag_response.escalation_summary, escalation_lang)
                 else:
                     response_text = "Sorry, an error occurred while generating the response."
                 

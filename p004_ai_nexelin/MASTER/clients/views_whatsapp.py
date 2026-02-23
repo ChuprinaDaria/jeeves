@@ -441,6 +441,22 @@ class TwilioWhatsAppWebhookView(View):
                     lang = getattr(conversation, 'language', 'en') or 'en'
                     pending_escalation_notice = waiting_notes.get(lang, waiting_notes['en'])
             
+            from MASTER.clients.tasks import detect_language_from_messages, detect_explicit_language_request
+            detected_language = detect_language_from_messages([{'role': 'user', 'content': message_body}]) or 'en'
+            explicit_lang = detect_explicit_language_request(message_body)
+            if is_client_conversation:
+                lang_fields = []
+                conversation.last_user_language = detected_language
+                lang_fields.append('last_user_language')
+                if explicit_lang:
+                    conversation.forced_language = explicit_lang
+                    lang_fields.append('forced_language')
+                elif explicit_lang is not None:
+                    conversation.forced_language = ''
+                    lang_fields.append('forced_language')
+                conversation.save(update_fields=lang_fields)
+            language = getattr(conversation, 'forced_language', '') or detected_language or 'en'
+
             # Формуємо контекст з історії розмови
             context_messages = []
             if conversation.messages:
@@ -464,9 +480,10 @@ class TwilioWhatsAppWebhookView(View):
                 rag_response = generator.generate(
                     query=message_body,
                     client=client,  # type: ignore
-                    stream=False
+                    stream=False,
+                    language=language,
                 )
-                
+
                 # Перевіряємо, що отримали RAGResponse, а не генератор
                 if isinstance(rag_response, RAGResponse):
                     response_text = rag_response.answer
