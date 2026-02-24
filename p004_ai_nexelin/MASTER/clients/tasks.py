@@ -2914,7 +2914,13 @@ def notify_manager_of_escalation(self, conversation_id: int, question_summary: s
         
         # ALWAYS translate context to manager's notification language
         # This ensures manager sees messages in their preferred language
-        customer_lang_for_translation = conversation.escalation_language or getattr(conversation, 'language', None) or 'en'
+        customer_lang_for_translation = (
+            getattr(conversation, 'forced_language', '') or
+            getattr(conversation, 'last_user_language', '') or
+            conversation.escalation_language or
+            getattr(conversation, 'language', None) or
+            'en'
+        )
 
         logger.info(
             f"Escalation context translation: conv_id={conversation_id}, "
