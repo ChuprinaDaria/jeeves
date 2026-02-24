@@ -36,6 +36,7 @@ const WebChatPage = () => {
   const inputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
+  const lastCountRef = useRef(0);
 
   useEffect(() => {
     if (!tag) {
@@ -120,9 +121,14 @@ const WebChatPage = () => {
         const response = await api.get('/clients/web-conversations/', {
           params: {
             session_id: conversationId,
-            last_count: messages.length,
+            last_count: lastCountRef.current,
           },
         });
+
+        // Update lastCount from server response to keep it synchronized
+        if (response.data?.total !== undefined) {
+          lastCountRef.current = response.data.total;
+        }
 
         if (response.data?.has_new && response.data?.messages?.length > 0) {
           const newMessages = response.data.messages.map((msg, idx) => ({
@@ -144,7 +150,7 @@ const WebChatPage = () => {
     }, 5000);
 
     return () => clearInterval(pollInterval);
-  }, [conversationId, tag, messages.length, conversationDbId]);
+  }, [conversationId, tag, conversationDbId]);
 
   useEffect(() => {
     let resizeTimer;
@@ -406,11 +412,15 @@ const WebChatPage = () => {
 
       if (response.data?.response) {
         const responseText = response.data.response || '';
-        
+        const waitingNotice = response.data?.pending_escalation?.waiting_message;
+        const fullContent = waitingNotice
+          ? `${responseText}\n\n_${waitingNotice}_`
+          : responseText;
+
         const assistantMessage = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: responseText,
+          content: fullContent,
           timestamp: new Date().toISOString(),
         };
         
@@ -443,6 +453,13 @@ const WebChatPage = () => {
           if (saveResponse.data?.conversation_id) {
             setConversationDbId(saveResponse.data.conversation_id);
             localStorage.setItem(`web_chat_conversation_db_id_${conversationId}`, saveResponse.data.conversation_id.toString());
+          }
+          // Update lastCount after saving message to server
+          // POST returns total_messages, GET returns total - support both
+          if (saveResponse.data?.total_messages !== undefined) {
+            lastCountRef.current = saveResponse.data.total_messages;
+          } else if (saveResponse.data?.total !== undefined) {
+            lastCountRef.current = saveResponse.data.total;
           }
         } catch (saveError) {
           console.error('Failed to save conversation:', saveError);

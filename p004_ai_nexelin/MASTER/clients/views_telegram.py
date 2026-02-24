@@ -1130,12 +1130,12 @@ class TelegramWebhookView(View):
                     conversation.language = detected_language
                     update_fields.append('language')
             
+            # forced_language зберігається до наступного явного запиту на зміну
+            # Якщо знайдено новий явний запит - оновлюємо, якщо ні - залишаємо як є
             if explicit_lang:
                 conversation.forced_language = explicit_lang
                 update_fields.append('forced_language')
-            elif explicit_lang is not None:
-                conversation.forced_language = ''
-                update_fields.append('forced_language')
+            # Якщо explicit_lang is None - не чіпаємо forced_language (залишаємо попереднє значення)
             
             if update_fields:
                 conversation.save(update_fields=update_fields)

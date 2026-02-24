@@ -2742,11 +2742,11 @@ class ClientWebConversationView(APIView):
                 update_fields.append('language')
         
         if explicit_lang:
+            # forced_language зберігається до наступного явного запиту на зміну
+            # Якщо знайдено новий явний запит - оновлюємо, якщо ні - залишаємо як є
             conversation.forced_language = explicit_lang
             update_fields.append('forced_language')
-        elif explicit_lang is not None:
-            conversation.forced_language = ''
-            update_fields.append('forced_language')
+        # Якщо explicit_lang is None - не чіпаємо forced_language (залишаємо попереднє значення)
         
         conversation.total_messages = len(conversation.messages)
         conversation.last_activity_at = now

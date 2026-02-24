@@ -121,58 +121,85 @@ def detect_explicit_language_request(message: str) -> str | None:
     
     language_patterns = {
         'en': [
-            r'speak\s+(?:to\s+me\s+)?in\s+english',
+            r'speak\s+(?:to\s+me\s+)?(?:in\s+)?english',
+            r'speak\s+english',
             r'use\s+english',
             r'english\s+please',
             r'in\s+english',
+            r'only\s+english',
+            r'just\s+english',
         ],
         'de': [
-            r'speak\s+(?:to\s+me\s+)?in\s+german',
+            r'speak\s+(?:to\s+me\s+)?(?:in\s+)?german',
+            r'speak\s+german',
             r'use\s+german',
             r'german\s+please',
             r'in\s+german',
             r'auf\s+deutsch',
             r'sprich\s+deutsch',
+            r'sprich\s+(?:mit\s+mir\s+)?(?:auf\s+)?deutsch',
+            r'nur\s+deutsch',
+            r'nur\s+auf\s+deutsch',
         ],
         'fr': [
-            r'speak\s+(?:to\s+me\s+)?in\s+french',
+            r'speak\s+(?:to\s+me\s+)?(?:in\s+)?french',
+            r'speak\s+french',
             r'use\s+french',
             r'french\s+please',
             r'in\s+french',
             r'en\s+français',
-            r'parlez\s+(?:-moi\s+)?en\s+français',
+            r'parlez\s+(?:-moi\s+)?(?:en\s+)?français',
+            r'parle\s+(?:-moi\s+)?(?:en\s+)?français',
+            r'seulement\s+en\s+français',
+            r'uniquement\s+en\s+français',
         ],
         'es': [
-            r'speak\s+(?:to\s+me\s+)?in\s+spanish',
+            r'speak\s+(?:to\s+me\s+)?(?:in\s+)?spanish',
+            r'speak\s+spanish',
             r'use\s+spanish',
             r'spanish\s+please',
             r'in\s+spanish',
             r'en\s+español',
             r'habla\s+español',
+            r'habla\s+(?:conmigo\s+)?(?:en\s+)?español',
+            r'solo\s+español',
+            r'solo\s+en\s+español',
         ],
         'it': [
-            r'speak\s+(?:to\s+me\s+)?in\s+italian',
+            r'speak\s+(?:to\s+me\s+)?(?:in\s+)?italian',
+            r'speak\s+italian',
             r'use\s+italian',
             r'italian\s+please',
             r'in\s+italian',
             r'in\s+italiano',
             r'parla\s+italiano',
+            r'parla\s+(?:con\s+me\s+)?(?:in\s+)?italiano',
+            r'solo\s+italiano',
+            r'solo\s+in\s+italiano',
         ],
         'nl': [
-            r'speak\s+(?:to\s+me\s+)?in\s+dutch',
+            r'speak\s+(?:to\s+me\s+)?(?:in\s+)?dutch',
+            r'speak\s+dutch',
             r'use\s+dutch',
             r'dutch\s+please',
             r'in\s+dutch',
             r'in\s+het\s+nederlands',
             r'spreek\s+nederlands',
+            r'spreek\s+(?:met\s+me\s+)?(?:in\s+het\s+)?nederlands',
+            r'alleen\s+nederlands',
+            r'alleen\s+in\s+het\s+nederlands',
         ],
         'da': [
-            r'speak\s+(?:to\s+me\s+)?in\s+danish',
+            r'speak\s+(?:to\s+me\s+)?(?:in\s+)?danish',
+            r'speak\s+danish',
             r'use\s+danish',
             r'danish\s+please',
             r'in\s+danish',
             r'på\s+dansk',
             r'tal\s+dansk',
+            r'tal\s+(?:med\s+mig\s+)?(?:på\s+)?dansk',
+            r'kun\s+dansk',
+            r'kun\s+på\s+dansk',
         ],
         'uk': [
             r'speak\s+(?:to\s+me\s+)?in\s+ukrainian',
@@ -180,8 +207,14 @@ def detect_explicit_language_request(message: str) -> str | None:
             r'ukrainian\s+please',
             r'in\s+ukrainian',
             r'українською',
+            r'кажи\s+українською',
+            r'кажіть\s+українською',
             r'розмовляй\s+українською',
+            r'розмовляйте\s+українською',
             r'говори\s+українською',
+            r'говоріть\s+українською',
+            r'пиши\s+українською',
+            r'пишіть\s+українською',
         ],
         'ru': [
             r'speak\s+(?:to\s+me\s+)?in\s+russian',
@@ -189,7 +222,12 @@ def detect_explicit_language_request(message: str) -> str | None:
             r'russian\s+please',
             r'in\s+russian',
             r'по-русски',
+            r'кажи\s+по-русски',
+            r'кажіть\s+по-русски',
             r'говори\s+по-русски',
+            r'говоріть\s+по-русски',
+            r'пиши\s+по-русски',
+            r'пишіть\s+по-русски',
         ],
     }
     
@@ -3222,10 +3260,11 @@ def process_manager_hitl_response(conversation_id: int, manager_response: str, m
         customer_language = (
             getattr(conversation, 'forced_language', '') or  # Явний запит юзера (найвищий пріоритет)
             getattr(conversation, 'last_user_language', '') or  # Мова останнього повідомлення юзера
+            getattr(conversation, 'escalation_language', '') or  # Мова на момент ескалації (snapshot)
             getattr(conversation, 'language', '') or  # Мова розмови (fallback)
             'en'  # Останній fallback
         )
-        logger.info(f"Processing manager response for conversation {conversation_id}, customer language: {customer_language} (from last_user_language)")
+        logger.info(f"Processing manager response for conversation {conversation_id}, customer language: {customer_language} (forced={getattr(conversation, 'forced_language', '')!r}, last_user={getattr(conversation, 'last_user_language', '')!r}, escalation={getattr(conversation, 'escalation_language', '')!r})")
         
         # 1. AI Rephrasing & Translation
         try:

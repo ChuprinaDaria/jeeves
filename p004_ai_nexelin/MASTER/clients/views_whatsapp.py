@@ -448,12 +448,12 @@ class TwilioWhatsAppWebhookView(View):
                 lang_fields = []
                 conversation.last_user_language = detected_language
                 lang_fields.append('last_user_language')
+                # forced_language зберігається до наступного явного запиту на зміну
+                # Якщо знайдено новий явний запит - оновлюємо, якщо ні - залишаємо як є
                 if explicit_lang:
                     conversation.forced_language = explicit_lang
                     lang_fields.append('forced_language')
-                elif explicit_lang is not None:
-                    conversation.forced_language = ''
-                    lang_fields.append('forced_language')
+                # Якщо explicit_lang is None - не чіпаємо forced_language (залишаємо попереднє значення)
                 conversation.save(update_fields=lang_fields)
             # Потік 3: Бот → юзер (без ескалації)
             # Те саме — відповідаємо мовою останнього повідомлення юзера.

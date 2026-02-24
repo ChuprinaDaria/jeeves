@@ -371,12 +371,12 @@ class PublicRAGChatView(APIView):
                             conv.last_user_language = detected_lang
                             update_fields.append('last_user_language')
                         
+                        # forced_language зберігається до наступного явного запиту на зміну
+                        # Якщо знайдено новий явний запит - оновлюємо, якщо ні - залишаємо як є
                         if explicit_lang:
                             conv.forced_language = explicit_lang
                             update_fields.append('forced_language')
-                        elif explicit_lang is not None:
-                            conv.forced_language = ''
-                            update_fields.append('forced_language')
+                        # Якщо explicit_lang is None - не чіпаємо forced_language (залишаємо попереднє значення)
                         
                         if update_fields:
                             conv.save(update_fields=update_fields)
@@ -547,7 +547,7 @@ class PublicRAGChatView(APIView):
                         if matrix_manager_user_ids:
                             try:
                                 escalation_summary = getattr(rag_response, 'escalation_summary', '') or message[:200]
-                                escalation_lang = getattr(hitl_conv, 'forced_language', '') or getattr(hitl_conv, 'last_user_language', '') or 'en'
+                                escalation_lang = getattr(hitl_conv, 'forced_language', '') or getattr(hitl_conv, 'last_user_language', '') or language or 'en'
                                 hitl_conv.escalation_language = escalation_lang
                                 hitl_conv.escalation_started_at = now()
                                 hitl_conv.save(update_fields=['escalation_language', 'escalation_started_at'])
@@ -569,14 +569,16 @@ class PublicRAGChatView(APIView):
                                     except Exception as _te:
                                         logger.warning(f"Manager translation failed: {_te}")
 
+                                customer_name_web = f"Web User {str(session_id)[:8]}"
                                 payload = {
-                                    "session_id": str(session_id),
+                                    "conversation_id": hitl_conv.id,
                                     "client_id": client.id,
                                     "client_name": str(client.company_name or ''),
-                                    "conversation_id": hitl_conv.id,
+                                    "customer_name": customer_name_web,
                                     "channel": "web_widget",
-                                    "message": summary_for_manager,
                                     "question": question_for_manager,
+                                    "context": summary_for_manager,
+                                    "language": escalation_lang,
                                     "manager_user_ids": matrix_manager_user_ids,
                                 }
                                 # Reuse existing room if available
