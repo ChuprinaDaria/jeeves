@@ -1520,7 +1520,23 @@ class ClientWhatsAppConversation(models.Model):
         verbose_name='Escalation Language',
         help_text='Language of the original query for localized responses'
     )
-    
+
+    last_user_language = models.CharField(
+        max_length=10,
+        blank=True,
+        default='',
+        verbose_name='Last User Language',
+        help_text='Language detected from the most recent user message'
+    )
+
+    forced_language = models.CharField(
+        max_length=10,
+        blank=True,
+        default='',
+        verbose_name='Forced Language',
+        help_text='Explicitly requested language (persists until user requests a change)'
+    )
+
     # Matrix.org HITL fields
     matrix_room_id = models.CharField(
         max_length=255,
