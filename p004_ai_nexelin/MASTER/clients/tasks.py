@@ -3153,22 +3153,20 @@ def send_matrix_escalation(conversation, client, channel, message_body, escalati
         escalation_lang = getattr(conversation, 'forced_language', '') or getattr(conversation, 'last_user_language', '') or language or 'en'
         manager_lang = getattr(client, 'notification_language', 'en') or 'en'
 
+        # question = raw original user message, always unchanged
+        # Translation/rephrasing goes ONLY into context, never overwrites question
         question_for_manager = message_body
         context_for_manager = escalation_summary or message_body[:200]
 
-        # Завжди перекладаємо на мову менеджера, якщо мови різні (без виключень, навіть якщо є forced_language)
-        if manager_lang != escalation_lang:
+        # Translate ONLY the context (AI summary) to manager's language, never the question
+        if manager_lang != escalation_lang and context_for_manager:
             try:
                 from MASTER.clients.news_utils import translate_text
-                translated_q = translate_text(message_body, manager_lang, max_tokens=500)
-                if translated_q and translated_q.strip():
-                    question_for_manager = f"{message_body}\n\n[{manager_lang.upper()}]: {translated_q}"
-                if escalation_summary:
-                    translated_ctx = translate_text(escalation_summary, manager_lang, max_tokens=500)
-                    if translated_ctx and translated_ctx.strip():
-                        context_for_manager = f"{escalation_summary}\n\n[{manager_lang.upper()}]: {translated_ctx}"
+                translated_ctx = translate_text(context_for_manager, manager_lang, max_tokens=500)
+                if translated_ctx and translated_ctx.strip():
+                    context_for_manager = f"{context_for_manager}\n\n[{manager_lang.upper()}]: {translated_ctx}"
             except Exception as te:
-                logger.warning(f"Manager translation failed: {te}")
+                logger.warning(f"Manager context translation failed: {te}")
 
         # Determine customer name based on channel
         customer_name = "Customer"

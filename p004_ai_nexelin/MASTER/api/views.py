@@ -553,21 +553,18 @@ class PublicRAGChatView(APIView):
                                 hitl_conv.save(update_fields=['escalation_language', 'escalation_started_at'])
 
                                 manager_lang = getattr(client, 'notification_language', 'en') or 'en'
+                                # question = raw original user message, never translated/rephrased
                                 question_for_manager = message
                                 summary_for_manager = escalation_summary
-                                if manager_lang != escalation_lang:
+                                # Translate ONLY context (AI summary) to manager's language
+                                if manager_lang != escalation_lang and escalation_summary:
                                     try:
-                                        from MASTER.clients.tasks import detect_language_from_messages
                                         from MASTER.clients.news_utils import translate_text
-                                        translated_q = translate_text(message, manager_lang, max_tokens=500)
-                                        if translated_q and translated_q.strip():
-                                            question_for_manager = f"{message}\n\n[{manager_lang.upper()}]: {translated_q}"
-                                        if escalation_summary:
-                                            translated_s = translate_text(escalation_summary, manager_lang, max_tokens=500)
-                                            if translated_s and translated_s.strip():
-                                                summary_for_manager = f"{escalation_summary}\n\n[{manager_lang.upper()}]: {translated_s}"
+                                        translated_s = translate_text(escalation_summary, manager_lang, max_tokens=500)
+                                        if translated_s and translated_s.strip():
+                                            summary_for_manager = f"{escalation_summary}\n\n[{manager_lang.upper()}]: {translated_s}"
                                     except Exception as _te:
-                                        logger.warning(f"Manager translation failed: {_te}")
+                                        logger.warning(f"Manager context translation failed: {_te}")
 
                                 customer_name_web = f"Web User {str(session_id)[:8]}"
                                 payload = {
