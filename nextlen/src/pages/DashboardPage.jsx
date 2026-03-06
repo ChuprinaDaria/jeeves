@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import StatsCard from '../components/dashboard/StatsCard';
 import { MessageSquare, Users, TrendingUp, Percent, Loader2 } from 'lucide-react';
 import { clientAPI } from '../api/client';
 
+const PixelDashboard = lazy(() => import('../modules/pixelDashboard/PixelDashboard'));
+
 const DashboardPage = () => {
   const { t } = useTranslation();
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, user } = useAuth();
   const [stats, setStats] = useState([
     { label: t('dashboard.totalChats'), value: '0', icon: MessageSquare, change: '+0%', color: 'primary' },
     { label: t('dashboard.activeUsers'), value: '0', icon: Users, change: '+0%', color: 'accent' },
@@ -109,6 +111,12 @@ const DashboardPage = () => {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('dashboard.title')}</h1>
         <p className="text-gray-600 dark:text-gray-400">{t('dashboard.subtitle')}</p>
       </div>
+
+      {user?.pixel_dashboard_enabled && (
+        <Suspense fallback={null}>
+          <PixelDashboard enabled={user.pixel_dashboard_enabled} />
+        </Suspense>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {loadingStats ? (

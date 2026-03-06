@@ -161,6 +161,22 @@
     "refresh": "Opdater",
     "empty": "Ingen udvidelsesdata endnu. Installer udvidelsen, indstil dit klienttoken og klik på \"Scrap tekst / Saml e-mails\" på dine websites.",
     "never": "Aldrig"
+  },
+  "pixelDashboard": {
+    "title": "System Monitor",
+    "zones": {
+      "archive": "Knowledge Base",
+      "desk": "Processing",
+      "delivery": "Responses",
+      "manager": "Escalations",
+      "factory": "System"
+    },
+    "status": {
+      "healthy": "Healthy",
+      "warning": "Warning",
+      "critical": "Critical",
+      "idle": "Idle"
+    }
   }
 }
 

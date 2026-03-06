@@ -99,6 +99,22 @@
     "refresh": "Vernieuwen",
     "empty": "Nog geen extensiegegevens. Installeer de extensie, stel uw clienttoken in en klik op \"Tekst scrapen / E-mails verzamelen\" op uw websites.",
     "never": "Nooit"
+  },
+  "pixelDashboard": {
+    "title": "System Monitor",
+    "zones": {
+      "archive": "Knowledge Base",
+      "desk": "Processing",
+      "delivery": "Responses",
+      "manager": "Escalations",
+      "factory": "System"
+    },
+    "status": {
+      "healthy": "Healthy",
+      "warning": "Warning",
+      "critical": "Critical",
+      "idle": "Idle"
+    }
   }
 }
 

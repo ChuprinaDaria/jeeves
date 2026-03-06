@@ -201,6 +201,12 @@ class Client(models.Model):
         help_text="Enable Google Chrome extension for web scraping & semantic analysis"
     )
 
+    # Pixel art dashboard visualization
+    pixel_dashboard_enabled = models.BooleanField(
+        default=False,
+        help_text="Enable pixel art dashboard visualization for this client"
+    )
+
     # Usage statistics sync configuration
     sync_usage_stats = models.BooleanField(
         default=True,

@@ -23,6 +23,7 @@ urlpatterns = [
     path('stats/', views.ClientStatsView.as_view(), name='client-stats'),
     path('embeddings-stats/', views.ClientEmbeddingsStatsView.as_view(), name='client-embeddings-stats'),
     path('model-status/', views.ClientModelStatusView.as_view(), name='client-model-status'),
+    path('pixel-status/', views.PixelDashboardStatusView.as_view(), name='client-pixel-status'),
     path('top-prompts/', views.TopPromptsView.as_view(), name='top-prompts'),
     path('whatsapp/meta/config/', views.ClientWhatsAppConfigView.as_view(), name='client-whatsapp-meta-config'),
     path('telegram/config/', views.ClientTelegramConfigView.as_view(), name='client-telegram-config'),

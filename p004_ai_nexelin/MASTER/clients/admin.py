@@ -40,6 +40,7 @@ class ClientAdmin(admin.ModelAdmin):
         'matrix_hitl_enabled',
         'matrix_managers_count',
         'extension_enabled',
+        'pixel_dashboard_enabled',
         'logo_preview',
         'api_keys_count',
         'chats_statistics',
@@ -49,7 +50,7 @@ class ClientAdmin(admin.ModelAdmin):
         'created_at',
     ]
     list_display_links = ['user', 'tag']  # Поля, які будуть посиланнями на детальну сторінку
-    list_filter = ['client_type', 'llm_provider', 'specialization__branch', 'specialization', 'is_active', 'created_by', 'created_at']
+    list_filter = ['client_type', 'llm_provider', 'specialization__branch', 'specialization', 'is_active', 'pixel_dashboard_enabled', 'created_by', 'created_at']
     search_fields = ['user', 'tag', 'company_name', 'description']
     ordering = ['-created_at']
     readonly_fields = ['created_by', 'created_at', 'updated_at', 'api_keys_count', 'chats_statistics', 'zero_status', 'api_docs_link', 'client_portal_link', 'logo_preview']
@@ -112,6 +113,14 @@ class ClientAdmin(admin.ModelAdmin):
                 'fields': ('extension_enabled',),
                 'classes': ('collapse',),
                 'description': 'Enable Google Chrome extension (web scraping & semantic data collection) for this client',
+            },
+        ),
+        (
+            'Pixel Dashboard',
+            {
+                'fields': ('pixel_dashboard_enabled',),
+                'classes': ('collapse',),
+                'description': 'Enable pixel art visualization on client dashboard showing real-time system processes',
             },
         ),
         ('AI Configuration', {

@@ -112,7 +112,10 @@ export const clientAPI = {
   
   // Model Status API
   getModelStatus: () => api.get('/clients/model-status/'),
-  
+
+  // Pixel Dashboard Status API
+  getPixelStatus: () => api.get('/clients/pixel-status/'),
+
   // Web Parsing Requests API
   getWebParsingRequests: () => api.get('/clients/web-parsing-requests/'),
   createWebParsingRequest: (data) => api.post('/clients/web-parsing-requests/', data),

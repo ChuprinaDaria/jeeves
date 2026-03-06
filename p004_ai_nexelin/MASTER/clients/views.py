@@ -3915,3 +3915,117 @@ class WebParsingRequestViewSet(viewsets.ModelViewSet):
         if not client:
             raise serializers.ValidationError("Client not found")
         serializer.save(client=client)
+
+
+class PixelDashboardStatusView(APIView):
+    """
+    GET /api/clients/pixel-status/
+    Returns real-time process counts for pixel dashboard visualization.
+    """
+    permission_classes = []
+
+    def get(self, request):
+        client = get_client_from_request(request)
+
+        if not client and 'HTTP_X_API_KEY' in request.META:
+            api_key = request.META['HTTP_X_API_KEY']
+            try:
+                key_obj = ClientAPIKey.objects.select_related('client').get(
+                    key=api_key,
+                    is_active=True
+                )
+                if key_obj.is_valid():
+                    client = key_obj.client
+            except ClientAPIKey.DoesNotExist:
+                pass
+
+        if not client:
+            return Response(
+                {'error': 'Client not found'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        if not client.pixel_dashboard_enabled:
+            return Response(
+                {'error': 'Pixel dashboard not enabled'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        from django.utils import timezone
+        from datetime import timedelta
+        import psutil
+
+        now = timezone.now()
+
+        # RAG: active conversations with recent activity
+        recent_queries = ClientWhatsAppConversation.objects.filter(
+            client=client,
+            is_active=True,
+            last_activity_at__gte=now - timedelta(seconds=30)
+        ).count()
+
+        recent_responses = ClientWhatsAppConversation.objects.filter(
+            client=client,
+            last_activity_at__gte=now - timedelta(seconds=60),
+            total_messages__gte=2
+        ).count()
+
+        # Documents being processed
+        docs_processing = ClientDocument.objects.filter(
+            client=client,
+            is_processed=False
+        ).count()
+
+        # Active escalations (HITL)
+        active_escalations = 0
+        if client.hitl_enabled or client.matrix_hitl_enabled:
+            active_escalations = ClientWhatsAppConversation.objects.filter(
+                client=client,
+                is_active=True,
+                context_metadata__contains={'escalated': True}
+            ).count()
+
+        # Celery tasks - wrapped in try/except, non-critical
+        celery_stats = {'pending': 0, 'running': 0, 'failed': 0}
+        try:
+            from celery import current_app
+            inspect = current_app.control.inspect(timeout=1.0)
+            active = inspect.active() or {}
+            reserved = inspect.reserved() or {}
+            for worker_tasks in active.values():
+                for task in worker_tasks:
+                    if str(client.id) in str(task.get('args', '')) or str(client.tag) in str(task.get('args', '')):
+                        celery_stats['running'] += 1
+            for worker_tasks in reserved.values():
+                for task in worker_tasks:
+                    if str(client.id) in str(task.get('args', '')) or str(client.tag) in str(task.get('args', '')):
+                        celery_stats['pending'] += 1
+        except Exception:
+            pass
+
+        # Server status
+        try:
+            cpu = psutil.cpu_percent(interval=0)
+            memory = psutil.virtual_memory().percent
+            server_status = 'healthy' if cpu < 80 and memory < 85 else ('warning' if cpu < 95 and memory < 95 else 'critical')
+        except Exception:
+            cpu, memory, server_status = 0, 0, 'unknown'
+
+        return Response({
+            'rag': {
+                'active_queries': recent_queries,
+                'recent_responses': recent_responses,
+            },
+            'documents': {
+                'processing': docs_processing,
+            },
+            'escalations': {
+                'active': active_escalations,
+            },
+            'celery': celery_stats,
+            'server': {
+                'cpu_percent': cpu,
+                'memory_percent': memory,
+                'status': server_status,
+            },
+        })

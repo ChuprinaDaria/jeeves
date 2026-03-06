@@ -707,5 +707,21 @@
     "refresh": "Refresh",
     "empty": "No extension data yet. Install the extension, set your client token and click \"Scrap text / Collect mails\" on your websites.",
     "never": "Never"
+  },
+  "pixelDashboard": {
+    "title": "System Monitor",
+    "zones": {
+      "archive": "Knowledge Base",
+      "desk": "Processing",
+      "delivery": "Responses",
+      "manager": "Escalations",
+      "factory": "System"
+    },
+    "status": {
+      "healthy": "Healthy",
+      "warning": "Warning",
+      "critical": "Critical",
+      "idle": "Idle"
+    }
   }
 }
