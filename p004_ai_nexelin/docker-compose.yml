@@ -47,6 +47,7 @@ services:
       sh -c "gunicorn MASTER.wsgi:application --bind 0.0.0.0:8000 --workers 3 --threads 2 --timeout 120"
     ports:
       - "8000:8000"
+    env_file: .env
     environment:
       DJANGO_SETTINGS_MODULE: MASTER.settings
       DEBUG: "0"
@@ -85,6 +86,7 @@ services:
     container_name: ai_nexelin_celery_worker
     restart: unless-stopped
     command: sh -c "celery -A MASTER worker -l info"
+    env_file: .env
     environment:
       DJANGO_SETTINGS_MODULE: MASTER.settings
       DEBUG: "0"
@@ -118,6 +120,7 @@ services:
     container_name: ai_nexelin_celery_beat
     restart: unless-stopped
     command: sh -c "celery -A MASTER beat -l info"
+    env_file: .env
     environment:
       DJANGO_SETTINGS_MODULE: MASTER.settings
       DEBUG: "0"

@@ -93,9 +93,11 @@ class LLMClient:
                 return KimiLLMProvider(api_key=api_key, model_name=model_name)
 
             if provider_type == "openai":
-                api_key = getattr(settings, "OPENAI_API_KEY", "").strip()
+                api_key = getattr(llm_provider_obj, "api_key", "").strip()
                 if not api_key:
-                    raise ValueError("OPENAI_API_KEY is not configured")
+                    api_key = getattr(settings, "OPENAI_API_KEY", "").strip()
+                if not api_key:
+                    raise ValueError("OPENAI_API_KEY is not configured (neither in LLMProvider nor in settings)")
                 return OpenAILLMProvider(model_name=model_name, api_key=api_key)
 
             if provider_type == "anthropic":
