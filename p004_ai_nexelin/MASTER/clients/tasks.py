@@ -1175,7 +1175,7 @@ def close_session_and_send_email(self, conversation_id: int, force_send: bool = 
 
         # Decide whether we should send an email for this conversation
         is_negative = (conversation.user_rating == 'negative') or (conversation.ai_rating == 'negative')
-        should_send = bool(force_send or is_negative)
+        should_send = bool(force_send or is_negative or conversation.client.email_report_enabled)
 
         # If we are not sending: just close + keep summary, no email
         if not should_send:
@@ -3106,7 +3106,8 @@ def notify_manager_of_escalation(self, conversation_id: int, question_summary: s
             'escalation_manager_id',
             'escalation_started_at',
             'escalation_original_query',
-            'escalation_language',
+            'escalation_language',.
+            
         ])
         
         successful = sum(1 for r in results if r.get('success'))

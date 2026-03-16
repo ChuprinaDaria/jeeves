@@ -1,7 +1,11 @@
 """
 Bootstrap API views for client provisioning.
+Protected by HMAC signature verification.
 """
-from django.shortcuts import get_object_or_404
+import hashlib
+import hmac
+import time
+
 from django.conf import settings
 from rest_framework import status
 from rest_framework.views import APIView
@@ -11,29 +15,60 @@ from MASTER.specializations.models import Specialization
 from MASTER.clients.models import Client, ClientAPIKey
 
 
+def _verify_bootstrap_signature(request):
+    """
+    Verify HMAC-SHA256 signature for bootstrap requests.
+    Header: X-Bootstrap-Signature: <timestamp>:<hex_signature>
+    Signed payload: <timestamp>:<method>:<path>
+    Secret: settings.BOOTSTRAP_SECRET
+    Signature valid for 5 minutes.
+    """
+    secret = getattr(settings, 'BOOTSTRAP_SECRET', '')
+    if not secret:
+        return False
+
+    sig_header = request.headers.get('X-Bootstrap-Signature', '')
+    if ':' not in sig_header:
+        return False
+
+    try:
+        timestamp_str, signature = sig_header.split(':', 1)
+        timestamp = int(timestamp_str)
+    except (ValueError, TypeError):
+        return False
+
+    # Reject if older than 5 minutes
+    if abs(time.time() - timestamp) > 300:
+        return False
+
+    payload = f"{timestamp}:{request.method}:{request.path}"
+    expected = hmac.new(
+        secret.encode(), payload.encode(), hashlib.sha256
+    ).hexdigest()
+
+    return hmac.compare_digest(expected, signature)
+
+
 class BootstrapProvisionView(APIView):
     """
     Create and provision a new client from branch, specialization, and client_token.
-    
-    This endpoint is responsible for:
-    1. Creating branch if not exists
-    2. Creating specialization if not exists
-    3. Creating client if not exists
-    4. Binding client_token to an API key for RAG
-    
+    Protected by HMAC signature (X-Bootstrap-Signature header).
+
     URL: /api/rag/bootstrap/<branch_slug>/<specialization_slug>/<client_token>/
     Method: POST (idempotent)
-    Response: {branch: {...}, specialization: {...}, client: {...}, api_key: {...}}
     """
-    
 
     def get(self, request, branch_slug, specialization_slug, client_token):
-        """
-        Allow GET requests - redirect to POST logic.
-        """
         return self.post(request, branch_slug, specialization_slug, client_token)
-    
+
     def post(self, request, branch_slug, specialization_slug, client_token):
+        # Verify HMAC signature
+        if not _verify_bootstrap_signature(request):
+            return Response(
+                {'error': 'Invalid or missing bootstrap signature'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         # Валідація параметрів
         if not branch_slug or not specialization_slug or not client_token:
             return Response({

@@ -14,11 +14,8 @@ class ClientAPIKeyMiddleware:
         # - якщо є api_key або client tag — ідентифікуємо клієнта
         # - інакше просто пропускаємо запит далі (AllowAny у DRF)
         try:
-            api_key = (
-                request.headers.get('X-API-Key')
-                or request.COOKIES.get('api_key')
-                or request.GET.get('api_key')
-            )
+            # API key: only from headers (never from URL params — they leak in logs)
+            api_key = request.headers.get('X-API-Key')
             if api_key:
                 try:
                     key_obj = ClientAPIKey.objects.select_related('client').get(
@@ -32,13 +29,11 @@ class ClientAPIKeyMiddleware:
                         request.client = key_obj.client
                         request.api_key = key_obj
                 except ClientAPIKey.DoesNotExist:
-                    # Не блокуємо — публічний доступ
                     pass
             if not getattr(request, 'client', None):
+                # Client tag: headers first, URL ?tag= allowed (public identifier, not a secret)
                 client_tag = (
                     request.headers.get('X-Client-Token')
-                    or request.COOKIES.get('client_tag')
-                    or request.GET.get('client_tag')
                     or request.GET.get('tag')
                 )
                 if client_tag:
@@ -49,7 +44,6 @@ class ClientAPIKeyMiddleware:
                     except Client.DoesNotExist:
                         pass
         except Exception:
-            # Будь-які збої в middleware не повинні ламати публічні ендпоїнти
             pass
         return self.get_response(request)
 

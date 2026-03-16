@@ -154,6 +154,40 @@ services:
       - web
     networks: [nexelin_network]
 
+  # ================== WHATSAPP BRIDGE ======================
+  postgres-mautrix:
+    image: postgres:15-alpine
+    container_name: ai_nexelin_postgres_mautrix
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mautrix
+      POSTGRES_PASSWORD: ft9Rulp1V6yOjmGGPyK4Ilw3P33mPkmq
+      POSTGRES_DB: mautrix_whatsapp
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - mautrix_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mautrix"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [nexelin_network]
+
+  mautrix-whatsapp:
+    image: dock.mau.dev/mautrix/whatsapp:v0.10.9
+    container_name: ai_nexelin_mautrix_whatsapp
+    restart: unless-stopped
+    depends_on:
+      postgres-mautrix:
+        condition: service_healthy
+    volumes:
+      - ./matrix-bridge/mautrix-whatsapp:/data
+    ports:
+      - "29318:29318"
+    extra_hosts:
+      - "matrix.nexelin.com:195.201.202.162"
+    networks: [nexelin_network]
+
   # =================== INTEGRATION SERVICE ==================
   integration-service:
     build:
@@ -188,3 +222,4 @@ volumes:
   postgres_data:
   static_volume:
   media_volume:
+  mautrix_postgres_data:

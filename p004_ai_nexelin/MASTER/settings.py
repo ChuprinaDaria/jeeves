@@ -125,6 +125,7 @@ MIDDLEWARE = [
     # "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "MASTER.iframe_middleware.AllowIframeMiddleware",
     "MASTER.clients.middleware.ClientAPIKeyMiddleware",
+    "MASTER.rate_limit_middleware.RateLimitMiddleware",
 ]
 
 AUTH_USER_MODEL = "accounts.User"
@@ -304,7 +305,15 @@ OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
 ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
 HUGGINGFACE_API_KEY = env("HUGGINGFACE_API_KEY", default="")
 COHERE_API_KEY = env("COHERE_API_KEY", default="")
+COHERE_RERANK_MODEL = env("COHERE_RERANK_MODEL", default="rerank-multilingual-v3.0")
+
+# Qdrant vector search
+USE_QDRANT = env.bool("USE_QDRANT", default=True)
+QDRANT_HOST = env("QDRANT_HOST", default="ai_nexelin_qdrant")
+QDRANT_PORT = env.int("QDRANT_PORT", default=6333)
+QDRANT_COLLECTION = env("QDRANT_COLLECTION", default="nexelin_embeddings")
 WHATSAPP_QR_SECRET = env("WHATSAPP_QR_SECRET", default="")
+BOOTSTRAP_SECRET = env("BOOTSTRAP_SECRET", default="")
 TWILIO_ACCOUNT_SID = env("TWILIO_ACCOUNT_SID", default="")
 TWILIO_AUTH_TOKEN = env("TWILIO_AUTH_TOKEN", default="")
 TWILIO_WHATSAPP_NUMBER = env("TWILIO_WHATSAPP_NUMBER", default="whatsapp:+14155238886")
