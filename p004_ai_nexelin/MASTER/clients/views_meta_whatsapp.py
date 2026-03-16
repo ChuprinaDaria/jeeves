@@ -594,6 +594,19 @@ class MetaWhatsAppWebhookView(View):
                         from MASTER.clients.tasks import send_matrix_escalation
                         escalation_lang = getattr(conversation, 'forced_language', '') or getattr(conversation, 'last_user_language', '') or language or 'en'
                         send_matrix_escalation(conversation, client, "whatsapp", message_body, rag_response.escalation_summary, escalation_lang)
+
+                    # Save lead data if present
+                    if hasattr(rag_response, 'lead_data') and rag_response.lead_data:
+                        try:
+                            from MASTER.clients.services.lead_extraction import save_lead_from_extraction
+                            save_lead_from_extraction(
+                                client=client,
+                                conversation=conversation,
+                                lead_data=rag_response.lead_data,
+                                source='whatsapp',
+                            )
+                        except Exception as e:
+                            logger.warning(f"Failed to save lead: {e}")
                 else:
                     response_text = "Sorry, an error occurred while generating the response."
                 

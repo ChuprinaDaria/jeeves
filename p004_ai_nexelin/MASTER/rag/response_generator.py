@@ -23,6 +23,13 @@ from MASTER.processing.embedding_service import EmbeddingService
 from MASTER.clients.models import Client
 from MASTER.EmbeddingModel.models import EmbeddingModel
 
+# Qdrant + Cohere rerank (with pgvector fallback)
+try:
+    from MASTER.rag.qdrant_search import QdrantSearchService
+    _qdrant_available = True
+except ImportError:
+    _qdrant_available = False
+
 if TYPE_CHECKING:
     from MASTER.branches.models import Branch
     from MASTER.specializations.models import Specialization
@@ -42,6 +49,7 @@ class RAGResponse:
     # HITL escalation fields
     requires_escalation: bool = False
     escalation_summary: str = ""
+    lead_data: dict | None = None
 
 
 class ResponseGenerator:
@@ -49,7 +57,17 @@ class ResponseGenerator:
     
     def __init__(self):
         self.config = settings.RAG_CONFIG
-        self.vector_search = VectorSearchService()
+        # Use Qdrant if available and enabled, fallback to pgvector
+        use_qdrant = getattr(settings, 'USE_QDRANT', True) and _qdrant_available
+        if use_qdrant:
+            try:
+                self.vector_search = QdrantSearchService()
+                logger.info("Using Qdrant vector search with Cohere rerank")
+            except Exception as e:
+                logger.warning(f"Qdrant init failed, falling back to pgvector: {e}")
+                self.vector_search = VectorSearchService()
+        else:
+            self.vector_search = VectorSearchService()
         self.context_builder = ContextBuilder()
         self.llm_client = LLMClient()
     
@@ -87,14 +105,18 @@ class ResponseGenerator:
         # Track embedding tokens for query (will be combined with LLM tokens in single UsageStats)
         query_tokens = query_embedding_result.get('token_count', 0)
 
-        # Step 2: Vector search (передаємо embedding_model для фільтрації)
-        search_results = self.vector_search.search(
+        # Step 2: Vector search (Qdrant + Cohere rerank, or pgvector fallback)
+        search_kwargs = dict(
             query_vector=query_vector,
             branch=branch,
             specialization=specialization,
             client=client,
             embedding_model=embedding_model,
         )
+        # Pass query_text for Cohere reranking (QdrantSearchService only)
+        if isinstance(self.vector_search, QdrantSearchService if _qdrant_available else type(None)):
+            search_kwargs['query_text'] = query
+        search_results = self.vector_search.search(**search_kwargs)
         
         if not search_results:
             logger.warning("No relevant context found for query - using LLM without context")
@@ -173,6 +195,20 @@ class ResponseGenerator:
             llm_model = ''
             llm_provider = ''
         
+        # Lead extraction: parse lead data from LLM response
+        lead_data_extracted = None
+        if client and getattr(client, 'leads_enabled', False):
+            try:
+                from MASTER.clients.services.lead_extraction import (
+                    extract_lead_data_from_response,
+                    clean_response,
+                )
+                lead_data_extracted = extract_lead_data_from_response(answer)
+                if lead_data_extracted:
+                    answer = clean_response(answer)
+            except Exception as e:
+                logger.warning(f"Lead extraction error: {e}")
+
         # HITL: Detect escalation token in response OR refusal phrases OR [escalate] tag in query
         requires_escalation = False
         escalation_summary = ""
@@ -401,6 +437,7 @@ class ResponseGenerator:
             total_tokens=self.context_builder._count_tokens(context + answer),
             requires_escalation=requires_escalation,
             escalation_summary=escalation_summary,
+            lead_data=lead_data_extracted,
         )
     
     def _generate_streaming(

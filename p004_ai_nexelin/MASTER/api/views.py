@@ -591,6 +591,19 @@ class PublicRAGChatView(APIView):
                             except Exception as e:
                                 logger.warning(f"Failed to trigger Matrix HITL escalation: {e}")
             
+            # Save lead data if present
+            if hasattr(rag_response, 'lead_data') and rag_response.lead_data and conv:
+                try:
+                    from MASTER.clients.services.lead_extraction import save_lead_from_extraction
+                    save_lead_from_extraction(
+                        client=client,
+                        conversation=conv,
+                        lead_data=rag_response.lead_data,
+                        source='web',
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to save lead: {e}")
+
             response_data = {
                 'response': getattr(rag_response, 'answer', ''),
                 'sources': getattr(rag_response, 'sources', []),
