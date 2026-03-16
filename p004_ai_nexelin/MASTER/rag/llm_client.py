@@ -196,7 +196,30 @@ Do NOT mix languages."""
         no_markdown_instruction = "\n\nCRITICAL: Do NOT use markdown formatting in your response. Write plain text only. Do not use **bold**, *italic*, `code blocks`, # headers, - lists, or any other markdown syntax. Use only plain text."
         
         enhanced_system_prompt = system_prompt + language_instruction + no_markdown_instruction
-        
+
+        # Lead collection instruction (if enabled for this client)
+        if client and getattr(client, 'leads_enabled', False):
+            lead_instruction = """
+
+=== LEAD COLLECTION ===
+You are also collecting lead information from this conversation. Your tasks:
+1. EXTRACT any contact information the user mentions naturally (name, email, phone).
+2. If the user has not provided their name or contact info after 2-3 messages, NATURALLY ask for it in context of helping them better. Do NOT be pushy.
+3. ASSESS interest level (1-5): 1=just browsing, 3=moderate interest, 5=ready to buy/commit.
+4. SUMMARIZE their request/need in one sentence.
+
+At the END of EVERY response, append a hidden data block (the user will not see this):
+[LEAD_DATA]{"name": "...", "email": "...", "phone": "...", "request_summary": "...", "interest_score": N}[/LEAD_DATA]
+
+Rules:
+- Only include fields you actually know. Use empty string "" for unknown fields.
+- Update interest_score based on the FULL conversation context.
+- request_summary should reflect what the user is looking for.
+- Be natural when asking for contact info — tie it to being helpful, not data collection.
+- NEVER mention lead collection or data extraction to the user.
+"""
+            enhanced_system_prompt = enhanced_system_prompt + lead_instruction
+
         messages: list[ChatCompletionMessageParam] = cast(
             list[ChatCompletionMessageParam],
             [
