@@ -1,14 +1,22 @@
 """
 Service layer for WhatsApp Bridge (mautrix-whatsapp) integration.
 Handles Matrix user creation, WhatsApp login via provisioning API, and status checks.
+Uses WebSocket for QR login (mautrix-whatsapp v0.10.x provisioning v1 API).
 """
 import hashlib
 import hmac
+import json
 import logging
+import threading
+import time
 
 import httpx
 
 from MASTER.clients.models import WhatsAppBridgeConfig
+
+# In-memory store for active login sessions
+# {client_id: {'qr': str, 'status': str, 'phone': str, 'error': str, 'ws_thread': Thread}}
+_login_sessions = {}
 
 logger = logging.getLogger(__name__)
 
@@ -107,88 +115,142 @@ def create_matrix_user(client) -> tuple[str, str]:
     return actual_user_id, access_token
 
 
+def _ws_login_worker(client_id: int, user_id: str, config):
+    """Background thread: connects to mautrix-whatsapp provisioning WebSocket for QR login."""
+    import websocket
+
+    session = _login_sessions.get(client_id, {})
+    ws_url = config.provisioning_url.replace('http://', 'ws://').replace('https://', 'wss://')
+    ws_url = f"{ws_url}/_matrix/provision/v1/login?user_id={user_id}"
+
+    try:
+        ws = websocket.create_connection(
+            ws_url,
+            header=[f"Authorization: Bearer {config.provisioning_secret}"],
+            timeout=120,
+        )
+        while session.get('status') == 'qr_pending':
+            try:
+                msg = ws.recv()
+                if not msg:
+                    break
+                data = json.loads(msg)
+                code = data.get('code', '')
+                if code == 'qr':
+                    session['qr'] = data.get('qr', '')
+                elif code == 'login_complete' or data.get('success'):
+                    phone = data.get('phone', '')
+                    session['status'] = 'connected'
+                    session['phone'] = phone
+                    # Update client in DB
+                    from django.utils import timezone
+                    from MASTER.clients.models import Client
+                    try:
+                        c = Client.objects.get(id=client_id)
+                        c.whatsapp_bridge_status = 'connected'
+                        c.whatsapp_bridge_phone = phone
+                        c.whatsapp_bridge_connected_at = timezone.now()
+                        c.whatsapp_bridge_error = ''
+                        c.save(update_fields=[
+                            'whatsapp_bridge_status', 'whatsapp_bridge_phone',
+                            'whatsapp_bridge_connected_at', 'whatsapp_bridge_error',
+                        ])
+                    except Exception:
+                        pass
+                    break
+                elif code in ('error', 'fail'):
+                    session['status'] = 'error'
+                    session['error'] = data.get('error', 'Login failed')
+                    break
+            except websocket.WebSocketTimeoutException:
+                continue
+            except Exception as e:
+                session['status'] = 'error'
+                session['error'] = str(e)
+                break
+        ws.close()
+    except Exception as e:
+        session['status'] = 'error'
+        session['error'] = f"WebSocket connection failed: {e}"
+        logger.error(f"WS login failed for client {client_id}: {e}")
+
+
 def start_whatsapp_login(client) -> dict:
     """
-    Start WhatsApp login via mautrix-whatsapp provisioning API.
-    Returns dict with login_id and qr code data.
+    Start WhatsApp login via mautrix-whatsapp provisioning WebSocket (v1 API).
+    Opens a background WebSocket that receives QR codes.
+    Returns initial status; frontend polls check_login_status for QR updates.
     """
     config = _get_config()
 
     # Ensure Matrix user exists
     user_id, _ = create_matrix_user(client)
 
-    # Call provisioning API to start login
-    headers = {
-        "Authorization": f"Bearer {config.provisioning_secret}",
-        "Content-Type": "application/json",
+    # Initialize session
+    session = {
+        'qr': '',
+        'status': 'qr_pending',
+        'phone': '',
+        'error': '',
     }
-    resp = httpx.post(
-        f"{config.provisioning_url}/_matrix/provision/v2/login",
-        json={"user_id": user_id},
-        headers=headers,
-        timeout=15.0,
-    )
-    if resp.status_code != 200:
-        raise WhatsAppBridgeError(f"Provisioning login failed: {resp.status_code} {resp.text}")
+    _login_sessions[client.id] = session
 
-    data = resp.json()
+    # Start WebSocket in background thread
+    t = threading.Thread(
+        target=_ws_login_worker,
+        args=(client.id, user_id, config),
+        daemon=True,
+    )
+    t.start()
+
+    # Wait briefly for first QR code
+    for _ in range(20):  # up to 2 seconds
+        time.sleep(0.1)
+        if session.get('qr') or session.get('status') != 'qr_pending':
+            break
 
     # Update client status
     client.whatsapp_bridge_status = 'qr_pending'
     client.whatsapp_bridge_error = ''
     client.save(update_fields=['whatsapp_bridge_status', 'whatsapp_bridge_error'])
 
+    if session.get('status') == 'error':
+        raise WhatsAppBridgeError(session.get('error', 'Login failed'))
+
     return {
-        'login_id': data.get('login_id', ''),
-        'qr': data.get('qr', ''),
+        'login_id': str(client.id),
+        'qr': session.get('qr', ''),
         'status': 'qr_pending',
     }
 
 
 def check_login_status(client, login_id: str) -> dict:
     """
-    Poll mautrix-whatsapp provisioning API for login status.
-    Returns current status with optional phone number on success.
+    Check login status from in-memory session (fed by WebSocket background thread).
     """
-    config = _get_config()
-    headers = {
-        "Authorization": f"Bearer {config.provisioning_secret}",
-    }
-    resp = httpx.get(
-        f"{config.provisioning_url}/_matrix/provision/v2/login/{login_id}",
-        headers=headers,
-        timeout=10.0,
-    )
-    if resp.status_code != 200:
-        raise WhatsAppBridgeError(f"Login status check failed: {resp.status_code}")
+    session = _login_sessions.get(client.id)
+    if not session:
+        return {'status': 'error', 'error': 'No active login session'}
 
-    data = resp.json()
-    status = data.get('status', 'unknown')
+    status = session.get('status', 'unknown')
 
-    if status == 'success':
-        from django.utils import timezone
-        phone = data.get('phone', '')
-        client.whatsapp_bridge_status = 'connected'
-        client.whatsapp_bridge_phone = phone
-        client.whatsapp_bridge_connected_at = timezone.now()
-        client.whatsapp_bridge_error = ''
-        client.save(update_fields=[
-            'whatsapp_bridge_status', 'whatsapp_bridge_phone',
-            'whatsapp_bridge_connected_at', 'whatsapp_bridge_error',
-        ])
-        return {'status': 'connected', 'phone': phone}
+    if status == 'connected':
+        # Clean up session
+        _login_sessions.pop(client.id, None)
+        return {'status': 'connected', 'phone': session.get('phone', '')}
 
-    elif status in ('cancelled', 'failed', 'error'):
-        error_msg = data.get('error', 'Login failed or was cancelled')
+    elif status == 'error':
+        error = session.get('error', 'Login failed')
+        _login_sessions.pop(client.id, None)
         client.whatsapp_bridge_status = 'error'
-        client.whatsapp_bridge_error = error_msg
+        client.whatsapp_bridge_error = error
         client.save(update_fields=['whatsapp_bridge_status', 'whatsapp_bridge_error'])
-        return {'status': 'error', 'error': error_msg}
+        return {'status': 'error', 'error': error}
 
-    # Still pending — may have new QR code
+    # Still pending — return latest QR
     return {
         'status': 'qr_pending',
-        'qr': data.get('qr', ''),
+        'qr': session.get('qr', ''),
     }
 
 
