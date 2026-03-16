@@ -30,7 +30,8 @@
     "setup": "Prompt Book",
     "promptBook": "Prompt Book",
     "settings": "Einstellungen",
-    "billing": "Abrechnung"
+    "billing": "Abrechnung",
+    "leads": "Leads"
   },
   "auth": {
     "welcomeBack": "Willkommen zurück",
@@ -227,7 +228,7 @@
     "whatsappDisconnected": "WhatsApp getrennt",
     "disconnectWhatsApp": "WhatsApp trennen",
     "connectWhatsApp": "WhatsApp verbinden",
-    "scanInstructions": "Öffnen Sie WhatsApp auf Ihrem Telefon \u2192 Einstellungen \u2192 Verknüpfte Geräte \u2192 Gerät hinzufügen \u2192 QR-Code scannen",
+    "scanInstructions": "Öffnen Sie WhatsApp auf Ihrem Telefon → Einstellungen → Verknüpfte Geräte → Gerät hinzufügen → QR-Code scannen",
     "whatsappDisabledByAdmin": "WhatsApp-Integration ist vom Administrator deaktiviert",
     "qrExpired": "QR-Code abgelaufen. Klicken zum Aktualisieren.",
     "connecting": "Verbindung wird hergestellt..."
@@ -559,5 +560,25 @@
       "critical": "Critical",
       "idle": "Idle"
     }
+  },
+  "leads": {
+    "title": "Leads",
+    "subtitle": "Leads verwalten und verfolgen",
+    "searchPlaceholder": "Nach Name, E-Mail oder Telefon suchen...",
+    "allStatuses": "Alle Status",
+    "allSources": "Alle Quellen",
+    "statusNew": "Neu",
+    "statusContacted": "Kontaktiert",
+    "statusConverted": "Konvertiert",
+    "statusLost": "Verloren",
+    "noLeads": "Keine Leads gefunden",
+    "name": "Name",
+    "email": "E-Mail",
+    "phone": "Telefon",
+    "source": "Quelle",
+    "interest": "Interesse",
+    "status": "Status",
+    "date": "Datum",
+    "viewConversation": "Gespräch ansehen"
   }
 }

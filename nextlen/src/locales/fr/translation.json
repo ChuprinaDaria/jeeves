@@ -29,7 +29,8 @@
     "history": "Activité",
     "setup": "Base de connaissances",
     "settings": "Paramètres",
-    "billing": "Facturation"
+    "billing": "Facturation",
+    "leads": "Leads"
   },
   "auth": {
     "welcomeBack": "Welcome Back",
@@ -220,15 +221,15 @@
     ],
     "learnMore": "Learn more about WhatsApp Business API",
     "whatsappBridge": "WhatsApp",
-    "whatsappBridgeDesc": "Connectez votre num\u00e9ro WhatsApp via un scan de QR code",
+    "whatsappBridgeDesc": "Connectez votre numéro WhatsApp via un scan de QR code",
     "scanQR": "Scanner le QR code",
-    "whatsappConnected": "WhatsApp connect\u00e9",
-    "whatsappDisconnected": "WhatsApp d\u00e9connect\u00e9",
-    "disconnectWhatsApp": "D\u00e9connecter WhatsApp",
+    "whatsappConnected": "WhatsApp connecté",
+    "whatsappDisconnected": "WhatsApp déconnecté",
+    "disconnectWhatsApp": "Déconnecter WhatsApp",
     "connectWhatsApp": "Connecter WhatsApp",
-    "scanInstructions": "Ouvrez WhatsApp sur votre t\u00e9l\u00e9phone \u2192 Param\u00e8tres \u2192 Appareils li\u00e9s \u2192 Lier un appareil \u2192 Scannez ce QR code",
-    "whatsappDisabledByAdmin": "L'int\u00e9gration WhatsApp est d\u00e9sactiv\u00e9e par l'administrateur",
-    "qrExpired": "QR code expir\u00e9. Cliquez pour actualiser.",
+    "scanInstructions": "Ouvrez WhatsApp sur votre téléphone → Paramètres → Appareils liés → Lier un appareil → Scannez ce QR code",
+    "whatsappDisabledByAdmin": "L'intégration WhatsApp est désactivée par l'administrateur",
+    "qrExpired": "QR code expiré. Cliquez pour actualiser.",
     "connecting": "Connexion en cours..."
   },
   "history": {
@@ -491,7 +492,25 @@
       "critical": "Critical",
       "idle": "Idle"
     }
+  },
+  "leads": {
+    "title": "Leads",
+    "subtitle": "Gérer et suivre vos leads",
+    "searchPlaceholder": "Rechercher par nom, e-mail ou téléphone...",
+    "allStatuses": "Tous les statuts",
+    "allSources": "Toutes les sources",
+    "statusNew": "Nouveau",
+    "statusContacted": "Contacté",
+    "statusConverted": "Converti",
+    "statusLost": "Perdu",
+    "noLeads": "Aucun lead trouvé",
+    "name": "Nom",
+    "email": "E-mail",
+    "phone": "Téléphone",
+    "source": "Source",
+    "interest": "Intérêt",
+    "status": "Statut",
+    "date": "Date",
+    "viewConversation": "Voir la conversation"
   }
 }
-
-

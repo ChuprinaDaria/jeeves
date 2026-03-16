@@ -12,6 +12,7 @@ import HistoryPage from './pages/HistoryPage';
 import IntegrationsPage from './pages/IntegrationsPage';
 import SetupInstructionsPage from './pages/SetupInstructionsPage';
 import SettingsPage from './pages/SettingsPage';
+import LeadsPage from './pages/LeadsPage';
 import ClientLoginPage from './pages/ClientLoginPage';
 import LoginPage from './pages/LoginPage';
 import WebChatPage from './pages/WebChatPage';
@@ -40,6 +41,7 @@ function App() {
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/setup" element={<SetupInstructionsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/leads" element={<LeadsPage />} />
             </Route>
 
           {/* Redirect */}

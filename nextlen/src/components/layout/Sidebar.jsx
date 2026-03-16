@@ -10,7 +10,8 @@ import {
   Settings,
   CreditCard,
   Menu,
-  X
+  X,
+  Users
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
@@ -75,6 +76,7 @@ const Sidebar = () => {
     { to: '/sandbox', icon: FlaskConical, label: t('nav.sandbox'), badge: t('nav.sandboxBadge') || 'Also in Train AI' },
     { to: '/integrations', icon: Plug2, label: t('nav.integrations') },
     { to: '/history', icon: MessageSquare, label: t('nav.history') },
+    ...(user?.leads_enabled ? [{ to: '/leads', icon: Users, label: t('nav.leads') || 'Leads' }] : []),
     { to: '/setup', icon: BookOpen, label: t('nav.promptBook') || 'Prompt Book' },
     { to: '/settings', icon: Settings, label: t('nav.settings') || 'Settings' },
   ];

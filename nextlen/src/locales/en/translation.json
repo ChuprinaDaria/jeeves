@@ -30,7 +30,8 @@
     "setup": "Prompt Book",
     "promptBook": "Prompt Book",
     "settings": "Settings",
-    "billing": "Billing"
+    "billing": "Billing",
+    "leads": "Leads"
   },
   "auth": {
     "welcomeBack": "Welcome Back",
@@ -284,7 +285,7 @@
     "whatsappDisconnected": "WhatsApp Disconnected",
     "disconnectWhatsApp": "Disconnect WhatsApp",
     "connectWhatsApp": "Connect WhatsApp",
-    "scanInstructions": "Open WhatsApp on your phone \u2192 Settings \u2192 Linked Devices \u2192 Link a Device \u2192 Scan this QR code",
+    "scanInstructions": "Open WhatsApp on your phone → Settings → Linked Devices → Link a Device → Scan this QR code",
     "whatsappDisabledByAdmin": "WhatsApp integration is disabled by administrator",
     "qrExpired": "QR code expired. Click to refresh.",
     "connecting": "Connecting...",
@@ -739,5 +740,25 @@
       "critical": "Critical",
       "idle": "Idle"
     }
+  },
+  "leads": {
+    "title": "Leads",
+    "subtitle": "Manage and track your leads",
+    "searchPlaceholder": "Search by name, email or phone...",
+    "allStatuses": "All Statuses",
+    "allSources": "All Sources",
+    "statusNew": "New",
+    "statusContacted": "Contacted",
+    "statusConverted": "Converted",
+    "statusLost": "Lost",
+    "noLeads": "No leads found",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "source": "Source",
+    "interest": "Interest",
+    "status": "Status",
+    "date": "Date",
+    "viewConversation": "View conversation"
   }
 }
