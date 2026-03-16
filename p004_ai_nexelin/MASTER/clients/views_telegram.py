@@ -1389,7 +1389,17 @@ class TelegramWebhookView(View):
         2. Fallback: базове привітання з назвою компанії
         """
         try:
-            # 1. Перевіряємо чи є кастомне привітання
+            # 1. Перевіряємо універсальне привітання
+            universal_greeting = getattr(client, 'greeting_message', '') or ''
+            if universal_greeting.strip():
+                greeting_text = universal_greeting.strip()
+                if '{name}' in greeting_text:
+                    greeting_text = greeting_text.replace('{name}', first_name or '')
+                greeting_text = ' '.join(greeting_text.split())
+                logger.info(f"Using universal greeting_message for client: {client.company_name}")
+                return greeting_text
+
+            # 2. Перевіряємо чи є Telegram-специфічне кастомне привітання
             custom_message = getattr(client, 'telegram_welcome_message', '') or ''
             if custom_message.strip():
                 # Підставляємо {name} якщо є
@@ -1400,8 +1410,8 @@ class TelegramWebhookView(View):
                 welcome_text = ' '.join(welcome_text.split())
                 logger.info(f"Using custom welcome message for client: {client.company_name}")
                 return welcome_text
-            
-            # 2. Fallback: базове привітання (якщо кастомне не налаштовано)
+
+            # 3. Fallback: базове привітання (якщо кастомне не налаштовано)
             lang = getattr(client, 'notification_language', 'en') or 'en'
             greeting_prefix = {
                 'en': "Hi",

@@ -328,7 +328,19 @@ class MetaWhatsAppWebhookView(View):
                     'timestamp': timezone.now().isoformat()
                 })
                 conversation.save()
-            
+
+            # Send universal greeting on first contact
+            greeting = getattr(client, 'greeting_message', '') or ''
+            if greeting.strip() and created:
+                send_whatsapp_text(from_number, greeting.strip(), client=client)
+                conversation.messages.append({
+                    'role': 'assistant',
+                    'content': greeting.strip(),
+                    'timestamp': timezone.now().isoformat()
+                })
+                conversation.total_messages = len(conversation.messages)
+                conversation.save(update_fields=['messages', 'total_messages'])
+
             # Створюємо відповідь
             if qr_code:
                 location_name = qr_code.name or qr_code.location or "цей QR код"
