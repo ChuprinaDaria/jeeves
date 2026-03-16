@@ -192,6 +192,12 @@ class Client(models.Model):
         help_text="Custom welcome message for Telegram bot. Shown when user sends /start. Use {name} for user's first name."
     )
 
+    greeting_message = models.TextField(
+        blank=True,
+        default='',
+        help_text="Universal greeting message shown to customers on first contact in all channels (web, Telegram, WhatsApp). Displayed exactly as written."
+    )
+
     # Web Widget configuration (only for white label clients)
     widget_enabled = models.BooleanField(default=False, help_text="Enable web widget for white label clients")
 
@@ -205,6 +211,12 @@ class Client(models.Model):
     pixel_dashboard_enabled = models.BooleanField(
         default=False,
         help_text="Enable pixel art dashboard visualization for this client"
+    )
+
+    # Telephony (voice AI)
+    telephony_enabled = models.BooleanField(
+        default=False,
+        help_text="Enable telephony/voice AI for this client"
     )
 
     # Usage statistics sync configuration
@@ -279,6 +291,47 @@ class Client(models.Model):
         default='https://matrix.org',
         blank=True,
         help_text="Matrix homeserver URL (default: https://matrix.org)"
+    )
+
+    # WhatsApp Bridge (mautrix-whatsapp) — per-client configuration
+    whatsapp_bridge_enabled = models.BooleanField(
+        default=False,
+        help_text="Enable WhatsApp via mautrix-whatsapp bridge for this client"
+    )
+    whatsapp_bridge_phone = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text="Connected WhatsApp phone number (filled after successful login)"
+    )
+    whatsapp_bridge_matrix_user_id = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Matrix user ID for this client's bridge bot (e.g., @nexelin_client_42:crm.local)"
+    )
+    whatsapp_bridge_matrix_access_token = models.TextField(
+        blank=True,
+        help_text="Matrix access token for the bridge bot user"
+    )
+    WHATSAPP_BRIDGE_STATUS_CHOICES = [
+        ('disconnected', 'Disconnected'),
+        ('qr_pending', 'QR Pending'),
+        ('connected', 'Connected'),
+        ('error', 'Error'),
+    ]
+    whatsapp_bridge_status = models.CharField(
+        max_length=20,
+        default='disconnected',
+        choices=WHATSAPP_BRIDGE_STATUS_CHOICES,
+        help_text="Current WhatsApp bridge connection status"
+    )
+    whatsapp_bridge_connected_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When WhatsApp was successfully connected"
+    )
+    whatsapp_bridge_error = models.TextField(
+        blank=True,
+        help_text="Last error message from bridge connection"
     )
 
     # Dashboard visibility settings
@@ -2029,3 +2082,118 @@ class ExtensionEntity(models.Model):
 
     def __str__(self) -> str:
         return f"{self.client.company_name} - {self.site_name} entities"
+
+class ClientTelephonyConfig(models.Model):
+    STATUS_ACTIVE = 'active'
+    STATUS_INACTIVE = 'inactive'
+    STATUS_CHOICES = [
+        (STATUS_ACTIVE, 'Active'),
+        (STATUS_INACTIVE, 'Inactive'),
+    ]
+
+    VOICE_MODEL_CHOICES = [
+        ('alloy', 'Alloy — Neutral, balanced'),
+        ('echo', 'Echo — Male, warm tone'),
+        ('fable', 'Fable — Male, expressive'),
+        ('onyx', 'Onyx — Male, deep and authoritative'),
+        ('nova', 'Nova — Female, friendly'),
+        ('shimmer', 'Shimmer — Female, calm and clear'),
+    ]
+
+    client = models.OneToOneField(
+        Client,
+        on_delete=models.CASCADE,
+        related_name='telephony_config'
+    )
+    phone_number = models.CharField(max_length=20, unique=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
+
+    voice_config = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='{"model": "alloy", "speed": 1.0, "language": "en-US"}'
+    )
+    response_config = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='{"mode": "prompt_only", "system_prompt": "...", "max_response_tokens": 150, "temperature": 0.3, "rag_enabled": false, "rag_max_chunks": 2}'
+    )
+
+    webhook_url = models.URLField(blank=True)
+    webhook_secret = models.CharField(max_length=255, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Client Telephony Config'
+        verbose_name_plural = 'Client Telephony Configs'
+
+    def __str__(self):
+        return f"{self.client.company_name} — {self.phone_number} ({self.status})"
+
+
+class WhatsAppBridgeConfig(models.Model):
+    """
+    Singleton model for global mautrix-whatsapp bridge configuration.
+    Managed only by superusers via Django admin.
+    """
+    is_enabled = models.BooleanField(
+        default=False,
+        help_text="Global toggle: allow WhatsApp Bridge integration for all clients"
+    )
+    homeserver_url = models.URLField(
+        help_text="Synapse homeserver URL (e.g., http://synapse:8008)"
+    )
+    homeserver_domain = models.CharField(
+        max_length=255,
+        help_text="Matrix server domain (e.g., crm.local or grot.de)"
+    )
+    provisioning_url = models.URLField(
+        help_text="mautrix-whatsapp provisioning API URL (e.g., http://mautrix-whatsapp:29318)"
+    )
+    provisioning_secret = models.CharField(
+        max_length=255,
+        help_text="Provisioning shared secret from mautrix-whatsapp config"
+    )
+    registration_shared_secret = models.CharField(
+        max_length=255,
+        help_text="Synapse registration_shared_secret for creating Matrix users"
+    )
+    mautrix_db_password = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Password for mautrix PostgreSQL database (also use in docker-compose .env as POSTGRES_MAUTRIX_PASSWORD)"
+    )
+    bot_username_template = models.CharField(
+        max_length=100,
+        default='nexelin_client_{client_id}',
+        help_text="Template for Matrix bot usernames per client"
+    )
+
+    class Meta:
+        verbose_name = 'WhatsApp Bridge Config'
+        verbose_name_plural = 'WhatsApp Bridge Config'
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        pass  # Prevent deletion of singleton
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(pk=1, defaults={
+            'homeserver_url': 'http://synapse:8008',
+            'homeserver_domain': 'crm.local',
+            'provisioning_url': 'http://mautrix-whatsapp:29318',
+            'provisioning_secret': '',
+            'registration_shared_secret': '',
+            'mautrix_db_password': '',
+        })
+        return obj
+
+    def __str__(self):
+        status = "Enabled" if self.is_enabled else "Disabled"
+        return f"WhatsApp Bridge ({self.homeserver_domain}) — {status}"

@@ -65,16 +65,16 @@ def get_client_from_request(request):
     """
     Helper function to get client from request without JWT.
     Priority:
-    - request.client (set by ClientAPIKeyMiddleware via X-API-Key)
-    - X-Client-Token header (client tag)
-    - ?tag= or ?client_token= query params
-    - tag/client_token in request body
+    - request.client (set by ClientAPIKeyMiddleware via X-API-Key header)
+    - X-Client-Token header
+    - ?tag= query param (public identifier, safe for URLs)
+    - tag in request body
     """
     # 0) Клієнт, встановлений middleware через X-API-Key
     client = getattr(request, 'client', None)
     if client:
         return client
-    
+
     # 1) Заголовок X-Client-Token
     try:
         token = request.headers.get('X-Client-Token') or request.META.get('HTTP_X_CLIENT_TOKEN')
@@ -83,25 +83,21 @@ def get_client_from_request(request):
                 client = Client.objects.get(tag=token, is_active=True)
                 return client
             except Client.DoesNotExist:
-                # Якщо це не tag клієнта, пробуємо інтерпретувати як API key
                 try:
                     key_obj = ClientAPIKey.objects.select_related('client').get(
-                        key=token,
-                        is_active=True
+                        key=token, is_active=True
                     )
                     if key_obj.is_valid():
                         return key_obj.client
                 except ClientAPIKey.DoesNotExist:
                     pass
-        # 2) Параметри запиту ?tag= або ?client_token=
+        # 2) URL param ?tag= (public identifier, not a secret)
         params = getattr(request, 'query_params', None) or getattr(request, 'GET', None)
-        tag = None
-        if params:
-            tag = params.get('tag') or params.get('client_token')
-        # 3) Тіло запиту (multipart/form / json)
+        tag = params.get('tag') if params else None
+        # 3) Request body tag
         if not tag and hasattr(request, 'data'):
             try:
-                tag = request.data.get('tag') or request.data.get('client_token')
+                tag = request.data.get('tag')
             except Exception:
                 tag = None
         if tag:
@@ -109,18 +105,15 @@ def get_client_from_request(request):
                 client = Client.objects.get(tag=tag, is_active=True)
                 return client
             except Client.DoesNotExist:
-                # Якщо це не tag клієнта, пробуємо інтерпретувати як API key
                 try:
                     key_obj = ClientAPIKey.objects.select_related('client').get(
-                        key=tag,
-                        is_active=True
+                        key=tag, is_active=True
                     )
                     if key_obj.is_valid():
                         return key_obj.client
                 except ClientAPIKey.DoesNotExist:
                     pass
     except Exception:
-        # Не ламаємо потік при будь-яких помилках
         pass
 
     return None
@@ -1315,6 +1308,7 @@ class ClientEmailSMTPConfigView(APIView):
             'email_report_enabled': getattr(client, 'email_report_enabled', False),
             'email_report_recipients': getattr(client, 'email_report_recipients', []),
             'notification_language': getattr(client, 'notification_language', 'en'),
+            'greeting_message': getattr(client, 'greeting_message', ''),
             'password_configured': bool(getattr(client, 'email_smtp_password', '')),  # Flag if password exists
         }
         return Response(data)
@@ -1347,6 +1341,7 @@ class ClientEmailSMTPConfigView(APIView):
             'email_report_enabled',
             'email_report_recipients',
             'notification_language',
+            'greeting_message',
         }
         
         changed = []

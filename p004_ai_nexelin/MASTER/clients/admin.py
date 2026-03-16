@@ -14,6 +14,7 @@ from .models import (
     News,
     ExtensionPage,
     ExtensionEntity,
+    WhatsAppBridgeConfig,
 )
 from django.shortcuts import render
 from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
@@ -37,10 +38,12 @@ class ClientAdmin(admin.ModelAdmin):
         'llm_model_name',
         'is_active',
         'telegram_enabled',
+        'whatsapp_bridge_enabled',
         'matrix_hitl_enabled',
         'matrix_managers_count',
         'extension_enabled',
         'pixel_dashboard_enabled',
+        'telephony_enabled',
         'logo_preview',
         'api_keys_count',
         'chats_statistics',
@@ -53,7 +56,7 @@ class ClientAdmin(admin.ModelAdmin):
     list_filter = ['client_type', 'llm_provider', 'specialization__branch', 'specialization', 'is_active', 'pixel_dashboard_enabled', 'created_by', 'created_at']
     search_fields = ['user', 'tag', 'company_name', 'description']
     ordering = ['-created_at']
-    readonly_fields = ['created_by', 'created_at', 'updated_at', 'api_keys_count', 'chats_statistics', 'zero_status', 'api_docs_link', 'client_portal_link', 'logo_preview']
+    readonly_fields = ['created_by', 'created_at', 'updated_at', 'api_keys_count', 'chats_statistics', 'zero_status', 'api_docs_link', 'client_portal_link', 'logo_preview', 'whatsapp_bridge_matrix_user_id', 'whatsapp_bridge_matrix_access_token']
     actions = ['test_rag', 'start_zero_service', 'stop_zero_service', 'restart_zero_service', 'check_zero_health']
     
     def get_queryset(self, request):
@@ -70,7 +73,7 @@ class ClientAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Basic Info', {
-            'fields': ('user', 'tag', 'webchat_domain', 'description', 'specialization', 'company_name', 'is_active', 'client_type')
+            'fields': ('user', 'tag', 'webchat_domain', 'description', 'specialization', 'company_name', 'is_active', 'client_type', 'greeting_message')
         }),
         ('Logo', {
             'fields': ('logo', 'logo_preview'),
@@ -99,6 +102,19 @@ class ClientAdmin(admin.ModelAdmin):
             'classes': ('collapse',),
             'description': 'Telegram Bot configuration for this client. Set bot token from @BotFather and enable integration.'
         }),
+        ('WhatsApp Bridge (mautrix-whatsapp)', {
+            'fields': (
+                'whatsapp_bridge_enabled',
+                'whatsapp_bridge_status',
+                'whatsapp_bridge_phone',
+                'whatsapp_bridge_matrix_user_id',
+                'whatsapp_bridge_matrix_access_token',
+                'whatsapp_bridge_connected_at',
+                'whatsapp_bridge_error',
+            ),
+            'classes': ('collapse',),
+            'description': 'WhatsApp connection via mautrix-whatsapp bridge. QR login happens in client frontend.'
+        }),
         (
             'Features Configuration',
             {
@@ -121,6 +137,14 @@ class ClientAdmin(admin.ModelAdmin):
                 'fields': ('pixel_dashboard_enabled',),
                 'classes': ('collapse',),
                 'description': 'Enable pixel art visualization on client dashboard showing real-time system processes',
+            },
+        ),
+        (
+            'Telephony (Voice AI)',
+            {
+                'fields': ('telephony_enabled',),
+                'classes': ('collapse',),
+                'description': 'Enable telephony/voice AI channel for this client. After enabling, client connects via POST /api/telephony/connect/ with their tag.',
             },
         ),
         ('AI Configuration', {
@@ -1017,5 +1041,38 @@ class NewsAdmin(admin.ModelAdmin):
                 import logging
                 logger = logging.getLogger(__name__)
                 logger.error(f"Failed to generate translations: {e}", exc_info=True)
-        
+
         super().save_model(request, obj, form, change)
+
+
+@admin.register(WhatsAppBridgeConfig)
+class WhatsAppBridgeConfigAdmin(admin.ModelAdmin):
+    list_display = ['__str__', 'is_enabled', 'homeserver_domain', 'provisioning_url']
+    list_display_links = ['__str__']
+    list_editable = ['is_enabled']
+
+    fieldsets = (
+        (None, {
+            'fields': ('is_enabled',),
+            'description': 'Global toggle to enable/disable WhatsApp Bridge for all clients.'
+        }),
+        ('Synapse Configuration', {
+            'fields': ('homeserver_url', 'homeserver_domain', 'registration_shared_secret'),
+        }),
+        ('mautrix-whatsapp Configuration', {
+            'fields': ('provisioning_url', 'provisioning_secret', 'mautrix_db_password'),
+        }),
+        ('Advanced', {
+            'fields': ('bot_username_template',),
+            'classes': ('collapse',),
+        }),
+    )
+
+    def has_add_permission(self, request):
+        return not WhatsAppBridgeConfig.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def has_module_permission(self, request):
+        return request.user.is_superuser

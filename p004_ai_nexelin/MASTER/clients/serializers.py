@@ -42,6 +42,7 @@ class ClientSerializer(serializers.ModelSerializer):
             'client_type',
             'features',
             'custom_system_prompt',
+            'greeting_message',
             'embedding_model',
             'embedding_model_name',
             # Browser extension
