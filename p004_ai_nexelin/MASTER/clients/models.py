@@ -219,6 +219,12 @@ class Client(models.Model):
         help_text="Enable telephony/voice AI for this client"
     )
 
+    # Leads collection
+    leads_enabled = models.BooleanField(
+        default=False,
+        help_text="Enable lead collection from messenger conversations. LLM will extract contact data and interest score."
+    )
+
     # Usage statistics sync configuration
     sync_usage_stats = models.BooleanField(
         default=True,
@@ -2197,3 +2203,69 @@ class WhatsAppBridgeConfig(models.Model):
     def __str__(self):
         status = "Enabled" if self.is_enabled else "Disabled"
         return f"WhatsApp Bridge ({self.homeserver_domain}) — {status}"
+
+
+class Lead(models.Model):
+    """Lead collected from messenger conversations via LLM extraction."""
+
+    STATUS_NEW = 'new'
+    STATUS_CONTACTED = 'contacted'
+    STATUS_CONVERTED = 'converted'
+    STATUS_LOST = 'lost'
+    STATUS_CHOICES = [
+        (STATUS_NEW, 'New'),
+        (STATUS_CONTACTED, 'Contacted'),
+        (STATUS_CONVERTED, 'Converted'),
+        (STATUS_LOST, 'Lost'),
+    ]
+
+    SOURCE_WEB = 'web'
+    SOURCE_TELEGRAM = 'telegram'
+    SOURCE_WHATSAPP = 'whatsapp'
+    SOURCE_CHOICES = [
+        (SOURCE_WEB, 'Web Chat'),
+        (SOURCE_TELEGRAM, 'Telegram'),
+        (SOURCE_WHATSAPP, 'WhatsApp'),
+    ]
+
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='leads')
+    conversation = models.ForeignKey(
+        'ClientWhatsAppConversation',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='leads'
+    )
+
+    name = models.CharField(max_length=255, blank=True, default='')
+    email = models.EmailField(blank=True, default='')
+    phone = models.CharField(max_length=50, blank=True, default='')
+    request_summary = models.TextField(blank=True, default='')
+
+    interest_score = models.IntegerField(
+        default=3,
+        help_text="Interest level 1-5, determined by LLM based on conversation context"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_NEW,
+    )
+    source = models.CharField(
+        max_length=20,
+        choices=SOURCE_CHOICES,
+        default=SOURCE_WEB,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['client', '-created_at']),
+            models.Index(fields=['client', 'status']),
+        ]
+
+    def __str__(self):
+        return f"Lead: {self.name or self.email or self.phone or 'Unknown'} ({self.get_status_display()})"

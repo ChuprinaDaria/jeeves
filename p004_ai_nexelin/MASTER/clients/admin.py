@@ -15,6 +15,7 @@ from .models import (
     ExtensionPage,
     ExtensionEntity,
     WhatsAppBridgeConfig,
+    Lead,
 )
 from django.shortcuts import render
 from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
@@ -44,6 +45,7 @@ class ClientAdmin(admin.ModelAdmin):
         'extension_enabled',
         'pixel_dashboard_enabled',
         'telephony_enabled',
+        'leads_enabled',
         'logo_preview',
         'api_keys_count',
         'chats_statistics',
@@ -53,7 +55,7 @@ class ClientAdmin(admin.ModelAdmin):
         'created_at',
     ]
     list_display_links = ['user', 'tag']  # Поля, які будуть посиланнями на детальну сторінку
-    list_filter = ['client_type', 'llm_provider', 'specialization__branch', 'specialization', 'is_active', 'pixel_dashboard_enabled', 'created_by', 'created_at']
+    list_filter = ['client_type', 'llm_provider', 'specialization__branch', 'specialization', 'is_active', 'pixel_dashboard_enabled', 'telephony_enabled', 'leads_enabled', 'created_by', 'created_at']
     search_fields = ['user', 'tag', 'company_name', 'description']
     ordering = ['-created_at']
     readonly_fields = ['created_by', 'created_at', 'updated_at', 'api_keys_count', 'chats_statistics', 'zero_status', 'api_docs_link', 'client_portal_link', 'logo_preview', 'whatsapp_bridge_matrix_user_id', 'whatsapp_bridge_matrix_access_token']
@@ -145,6 +147,14 @@ class ClientAdmin(admin.ModelAdmin):
                 'fields': ('telephony_enabled',),
                 'classes': ('collapse',),
                 'description': 'Enable telephony/voice AI channel for this client. After enabling, client connects via POST /api/telephony/connect/ with their tag.',
+            },
+        ),
+        (
+            'Leads Collection',
+            {
+                'fields': ('leads_enabled',),
+                'classes': ('collapse',),
+                'description': 'Enable AI-powered lead collection from all messenger channels. LLM will extract contact data and interest score from conversations.',
             },
         ),
         ('AI Configuration', {
@@ -1076,3 +1086,13 @@ class WhatsAppBridgeConfigAdmin(admin.ModelAdmin):
 
     def has_module_permission(self, request):
         return request.user.is_superuser
+
+
+@admin.register(Lead)
+class LeadAdmin(admin.ModelAdmin):
+    list_display = ['name', 'email', 'phone', 'source', 'interest_score', 'status', 'client', 'created_at']
+    list_filter = ['status', 'source', 'interest_score', 'client']
+    search_fields = ['name', 'email', 'phone', 'request_summary']
+    readonly_fields = ['created_at', 'updated_at']
+    ordering = ['-created_at']
+    raw_id_fields = ['client', 'conversation']
