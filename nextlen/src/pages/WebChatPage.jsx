@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Send, Loader2, Image, Moon, Sun, Download, Trash2, Mic, Menu, X, Sparkles } from 'lucide-react';
+import { Send, Loader2, Image, Moon, Sun, Download, Trash2, Mic, Menu, X, Sparkles, Volume2, VolumeX, Square } from 'lucide-react';
 import api from '../api/axios';
 import { ragAPI } from '../api/agent';
 import { clientAPI } from '../api/client';
@@ -31,11 +31,25 @@ const WebChatPage = () => {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [autoVoiceReply, setAutoVoiceReply] = useState(() => {
+    const saved = localStorage.getItem('web_chat_auto_voice');
+    return saved !== 'false'; // default ON
+  });
+  const [lastInputWasVoice, setLastInputWasVoice] = useState(false);
+  const [playingMessageId, setPlayingMessageId] = useState(null);
+  const [ttsLoading, setTtsLoading] = useState(null);
+  const [ttsVoice, setTtsVoice] = useState(() => {
+    return localStorage.getItem('web_chat_tts_voice') || 'alloy';
+  });
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const inputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
+  const audioRef = useRef(null);
+  const lastInputWasVoiceRef = useRef(false);
+  const autoVoiceReplyRef = useRef(localStorage.getItem('web_chat_auto_voice') !== 'false');
+  const ttsVoiceRef = useRef(localStorage.getItem('web_chat_tts_voice') || 'alloy');
   const lastCountRef = useRef(0);
 
   useEffect(() => {
@@ -66,6 +80,15 @@ const WebChatPage = () => {
         }
         if (data.company_name || data.user) {
           setClientName(data.company_name || data.user);
+        }
+        // Show greeting message as first assistant message
+        if (data.greeting_message) {
+          setMessages([{
+            id: 'greeting',
+            role: 'assistant',
+            content: data.greeting_message,
+            timestamp: new Date().toISOString(),
+          }]);
         }
       } catch (e) {
         document.title = 'AI Chat Assistant';
@@ -157,10 +180,13 @@ const WebChatPage = () => {
     const handleResize = () => {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
-        const vh = window.innerHeight * 0.01;
-        document.documentElement.style.setProperty('--vh', `${vh}px`);
+        if (window.visualViewport) {
+          document.documentElement.style.setProperty('--viewport-height', `${window.visualViewport.height}px`);
+        } else {
+          document.documentElement.style.setProperty('--viewport-height', `${window.innerHeight}px`);
+        }
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
+      }, 50);
     };
 
     handleResize();
@@ -277,8 +303,20 @@ const WebChatPage = () => {
     }
   };
 
+  const unlockAudio = () => {
+    // Створюємо і граємо тихий звук щоб розблокувати autoplay на iOS
+    if (!audioRef.current) {
+      const audio = new Audio();
+      audio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
+      audio.volume = 0.01;
+      audio.play().then(() => { audio.pause(); }).catch(() => {});
+      audioRef.current = null;
+    }
+  };
+
   const startRecording = async () => {
     try {
+      unlockAudio();
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
       let options = { mimeType: 'audio/webm;codecs=opus' };
@@ -328,7 +366,7 @@ const WebChatPage = () => {
   const handleSpeechToText = async (audioBlob, mimeType) => {
     try {
       setLoading(true);
-      
+
       let extension = 'webm';
       if (mimeType.includes('mp4')) {
         extension = 'mp4';
@@ -337,25 +375,101 @@ const WebChatPage = () => {
       } else if (mimeType.includes('opus')) {
         extension = 'opus';
       }
-      
+
       const audioFile = new File([audioBlob], `recording.${extension}`, { type: mimeType });
       const response = await ragAPI.speechToText(audioFile);
       const transcribedText = response.data?.text || '';
-      
+
       if (transcribedText) {
+        setLastInputWasVoice(true);
+        lastInputWasVoiceRef.current = true;
         setInputMessage(transcribedText);
+        setLoading(false);
+        // Автоматично відправляємо голосове повідомлення
+        setTimeout(() => {
+          sendMessageWithText(transcribedText);
+        }, 100);
+        return;
       }
       setLoading(false);
     } catch (error) {
       console.error('STT error:', error);
-      alert('Failed to transcribe audio. Please try again.');
       setLoading(false);
     }
   };
 
-  const sendMessage = async () => {
-    const messageText = inputMessage.trim();
-    if ((!messageText && !selectedImage) || loading || !conversationId) return;
+  const stopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
+    setPlayingMessageId(null);
+  };
+
+  const playTTS = async (text, messageId) => {
+    if (playingMessageId === messageId) {
+      stopAudio();
+      return;
+    }
+    stopAudio();
+
+    try {
+      setTtsLoading(messageId);
+      const response = await ragAPI.textToSpeech(text, ttsVoiceRef.current);
+      const audioUrl = URL.createObjectURL(response.data);
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+
+      audio.onplay = () => {
+        setPlayingMessageId(messageId);
+        setTtsLoading(null);
+      };
+      audio.onended = () => {
+        setPlayingMessageId(null);
+        audioRef.current = null;
+        URL.revokeObjectURL(audioUrl);
+      };
+      audio.onerror = (e) => {
+        console.error('Audio playback error:', e);
+        setPlayingMessageId(null);
+        setTtsLoading(null);
+        audioRef.current = null;
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      await audio.play();
+    } catch (error) {
+      console.error('TTS error:', error);
+      setTtsLoading(null);
+      setPlayingMessageId(null);
+    }
+  };
+
+  const toggleAutoVoice = () => {
+    const newVal = !autoVoiceReply;
+    setAutoVoiceReply(newVal);
+    autoVoiceReplyRef.current = newVal;
+    localStorage.setItem('web_chat_auto_voice', String(newVal));
+    if (!newVal) {
+      stopAudio();
+    }
+  };
+
+  const sendMessageWithText = (text) => {
+    setInputMessage(text);
+    sendMessageCore(text, true);
+  };
+
+  const sendMessage = () => {
+    // Текстовий ввід — скидаємо voice flag
+    lastInputWasVoiceRef.current = false;
+    setLastInputWasVoice(false);
+    sendMessageCore(inputMessage.trim());
+  };
+
+  const sendMessageCore = async (messageText, skipLoadingCheck = false) => {
+    if ((!messageText && !selectedImage) || (!skipLoadingCheck && loading) || !conversationId) return;
 
     const userMessage = {
       id: Date.now().toString(),
@@ -437,7 +551,14 @@ const WebChatPage = () => {
           localStorage.setItem(historyKey, JSON.stringify(messagesToSave));
           return updatedMessages;
         });
-        
+
+        // Auto-TTS якщо ввід був голосовим і auto-voice ввімкнено
+        if (lastInputWasVoiceRef.current && autoVoiceReplyRef.current && responseText) {
+          playTTS(responseText, assistantMessage.id);
+        }
+        lastInputWasVoiceRef.current = false;
+        setLastInputWasVoice(false);
+
         try {
           const isInIframe = window.self !== window.top;
           const isWidget = window.location.pathname.includes('/widget') || isInIframe;
@@ -545,13 +666,13 @@ const WebChatPage = () => {
   }
 
   return (
-    <div className={`min-h-[100dvh] max-h-[100dvh] flex flex-col transition-colors overflow-hidden ${
-      darkMode 
-        ? 'bg-gray-900 text-gray-100' 
+    <div className={`flex flex-col transition-colors overflow-hidden ${
+      darkMode
+        ? 'bg-gray-900 text-gray-100'
         : 'bg-gray-50 text-gray-900'
     }`} style={{
       paddingTop: 'env(safe-area-inset-top)',
-      height: '100dvh',
+      height: 'var(--viewport-height, 100dvh)',
       position: 'fixed',
       inset: 0,
     }}>
@@ -599,17 +720,34 @@ const WebChatPage = () => {
             {clientName || t('webChat.title') || 'Chat with Consultant'}
           </h1>
         </div>
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className={`relative z-10 inline-flex items-center justify-center w-10 h-10 rounded-lg transition-all ${
-            darkMode
-              ? 'bg-gray-700/80 hover:bg-gray-600 text-gray-200 backdrop-blur-sm'
-              : 'bg-white/80 hover:bg-gray-100 text-gray-700 backdrop-blur-sm shadow-sm'
-          }`}
-          title="Menu"
-        >
-          <Menu size={20} />
-        </button>
+        <div className="relative z-10 flex items-center gap-2">
+          <button
+            onClick={toggleAutoVoice}
+            className={`inline-flex items-center justify-center w-10 h-10 rounded-lg transition-all ${
+              autoVoiceReply
+                ? darkMode
+                  ? 'bg-purple-600/80 text-white backdrop-blur-sm'
+                  : 'bg-primary-500/90 text-white shadow-sm'
+                : darkMode
+                  ? 'bg-gray-700/80 hover:bg-gray-600 text-gray-400 backdrop-blur-sm'
+                  : 'bg-white/80 hover:bg-gray-100 text-gray-400 backdrop-blur-sm shadow-sm'
+            }`}
+            title={autoVoiceReply ? 'Auto voice reply ON' : 'Auto voice reply OFF'}
+          >
+            {autoVoiceReply ? <Volume2 size={20} /> : <VolumeX size={20} />}
+          </button>
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className={`inline-flex items-center justify-center w-10 h-10 rounded-lg transition-all ${
+              darkMode
+                ? 'bg-gray-700/80 hover:bg-gray-600 text-gray-200 backdrop-blur-sm'
+                : 'bg-white/80 hover:bg-gray-100 text-gray-700 backdrop-blur-sm shadow-sm'
+            }`}
+            title="Menu"
+          >
+            <Menu size={20} />
+          </button>
+        </div>
       </div>
 
       {/* Sidebar */}
@@ -726,6 +864,65 @@ const WebChatPage = () => {
               </div>
             </div>
             
+            {/* Voice Selection */}
+            <div className={`p-5 rounded-xl transition-all ${
+              darkMode ? 'bg-gray-700/50' : 'bg-gradient-to-br from-gray-50 to-gray-100'
+            }`}>
+              <div className="mb-4">
+                <span className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                  <Volume2 size={20} className="text-primary-500" />
+                  {t('webChat.voiceSelect') || 'AI Voice'}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: 'alloy', label: 'Alloy' },
+                  { id: 'echo', label: 'Echo' },
+                  { id: 'fable', label: 'Fable' },
+                  { id: 'onyx', label: 'Onyx' },
+                  { id: 'nova', label: 'Nova' },
+                  { id: 'shimmer', label: 'Shimmer' },
+                ].map((voice) => (
+                  <button
+                    key={voice.id}
+                    onClick={() => {
+                      setTtsVoice(voice.id);
+                      ttsVoiceRef.current = voice.id;
+                      localStorage.setItem('web_chat_tts_voice', voice.id);
+                    }}
+                    className={`py-2.5 px-3 rounded-xl text-sm font-medium transition-all ${
+                      ttsVoice === voice.id
+                        ? darkMode
+                          ? 'bg-purple-600 text-white shadow-lg ring-2 ring-purple-400'
+                          : 'bg-primary-600 text-white shadow-lg ring-2 ring-primary-300'
+                        : darkMode
+                          ? 'bg-gray-600/50 text-gray-300 hover:bg-gray-600'
+                          : 'bg-white text-gray-600 hover:bg-gray-50 shadow-sm'
+                    }`}
+                  >
+                    {voice.label}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 flex items-center justify-between">
+                <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  {t('webChat.autoVoiceReply') || 'Auto voice reply'}
+                </span>
+                <button
+                  onClick={toggleAutoVoice}
+                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-300 ${
+                    autoVoiceReply
+                      ? darkMode ? 'bg-purple-600' : 'bg-primary-600'
+                      : 'bg-gray-300 dark:bg-gray-600'
+                  }`}
+                >
+                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform duration-300 shadow ${
+                    autoVoiceReply ? 'translate-x-6' : 'translate-x-1'
+                  }`} />
+                </button>
+              </div>
+            </div>
+
             {/* Install PWA */}
             {showInstallPrompt && deferredPrompt && (
               <button
@@ -771,7 +968,7 @@ const WebChatPage = () => {
       )}
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 smooth-scroll pb-24" style={{
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 smooth-scroll pb-4" style={{
         paddingLeft: 'max(1rem, env(safe-area-inset-left))',
         paddingRight: 'max(1rem, env(safe-area-inset-right))',
         WebkitOverflowScrolling: 'touch'
@@ -814,6 +1011,28 @@ const WebChatPage = () => {
                   {message.content}
                 </p>
               )}
+              {message.role === 'assistant' && message.content && !message.isWelcome && (
+                <button
+                  onClick={() => playTTS(message.content, message.id)}
+                  disabled={ttsLoading === message.id}
+                  className={`mt-2 inline-flex items-center gap-1 text-xs transition-all ${
+                    playingMessageId === message.id
+                      ? 'text-green-500'
+                      : darkMode
+                        ? 'text-gray-400 hover:text-gray-200'
+                        : 'text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  {ttsLoading === message.id ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : playingMessageId === message.id ? (
+                    <Square size={14} />
+                  ) : (
+                    <Volume2 size={14} />
+                  )}
+                  {playingMessageId === message.id ? 'Stop' : 'Play'}
+                </button>
+              )}
             </div>
           </div>
         ))}
@@ -834,10 +1053,10 @@ const WebChatPage = () => {
       </div>
 
       {/* Input Area */}
-      <div className={`fixed bottom-0 left-0 right-0 border-t p-4 z-30 ${
+      <div className={`flex-shrink-0 border-t p-4 ${
         darkMode
-          ? 'bg-gray-800/98 border-gray-700 backdrop-blur-md'
-          : 'bg-white/98 border-gray-200 backdrop-blur-md'
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-white border-gray-200'
       }`} style={{
         paddingLeft: 'max(1rem, env(safe-area-inset-left))',
         paddingRight: 'max(1rem, env(safe-area-inset-right))',
