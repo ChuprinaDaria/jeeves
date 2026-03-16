@@ -1309,6 +1309,7 @@ class ClientEmailSMTPConfigView(APIView):
             'email_report_recipients': getattr(client, 'email_report_recipients', []),
             'notification_language': getattr(client, 'notification_language', 'en'),
             'greeting_message': getattr(client, 'greeting_message', ''),
+            'leads_enabled': getattr(client, 'leads_enabled', False),
             'password_configured': bool(getattr(client, 'email_smtp_password', '')),  # Flag if password exists
         }
         return Response(data)

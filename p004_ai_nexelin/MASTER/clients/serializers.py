@@ -49,6 +49,8 @@ class ClientSerializer(serializers.ModelSerializer):
             'extension_enabled',
             # Pixel Dashboard
             'pixel_dashboard_enabled',
+            # Leads
+            'leads_enabled',
             # Meta WhatsApp config (non-sensitive read)
             'whatsapp_meta_enabled',
             'meta_waba_id',
