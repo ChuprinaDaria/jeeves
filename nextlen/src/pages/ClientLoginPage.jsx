@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Loader2, LayoutDashboard, GraduationCap, FlaskConical, MessageSquare, Plug2, BookOpen, Settings, Menu, X } from 'lucide-react';
+import { Loader2, LayoutDashboard, GraduationCap, FlaskConical, MessageSquare, Plug2, BookOpen, Settings, Menu, X, Users } from 'lucide-react';
 import Header from '../components/layout/Header';
 import DashboardPage from './DashboardPage';
 import TrainingPage from './TrainingPage';
@@ -10,6 +10,7 @@ import HistoryPage from './HistoryPage';
 import IntegrationsPage from './IntegrationsPage';
 import SetupInstructionsPage from './SetupInstructionsPage';
 import SettingsPage from './SettingsPage';
+import LeadsPage from './LeadsPage';
 import { useTranslation } from 'react-i18next';
 import { clientAPI } from '../api/client';
 import { ensureSupportWidgetForClientType } from '../utils/supportWidget';
@@ -156,6 +157,7 @@ const ClientLoginPage = () => {
       { id: 'sandbox', icon: FlaskConical, label: t('nav.sandbox') },
       { id: 'integrations', icon: Plug2, label: t('nav.integrations') },
       { id: 'history', icon: MessageSquare, label: t('nav.history') },
+      ...(user?.leads_enabled ? [{ id: 'leads', icon: Users, label: t('nav.leads') || 'Leads' }] : []),
       { id: 'setup', icon: BookOpen, label: t('nav.setup') },
       { id: 'settings', icon: Settings, label: t('nav.settings') || 'Settings' },
     ];
@@ -174,6 +176,8 @@ const ClientLoginPage = () => {
           return <SetupInstructionsPage />;
         case 'settings':
           return <SettingsPage />;
+        case 'leads':
+          return <LeadsPage />;
         default:
           return <DashboardPage />;
       }
