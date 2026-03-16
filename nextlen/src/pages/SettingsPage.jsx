@@ -21,6 +21,7 @@ const SettingsPage = () => {
   const [reportSending, setReportSending] = useState(false);
   const [reportMessage, setReportMessage] = useState('');
   const [notificationLanguage, setNotificationLanguage] = useState('en');
+  const [greetingMessage, setGreetingMessage] = useState('');
 
   // Notification language options
   const notificationLanguageOptions = [
@@ -31,6 +32,7 @@ const SettingsPage = () => {
     { value: 'it', label: 'Italiano', flag: '🇮🇹' },
     { value: 'nl', label: 'Nederlands', flag: '🇳🇱' },
     { value: 'da', label: 'Dansk', flag: '🇩🇰' },
+    { value: 'uk', label: 'Українська', flag: '🇺🇦' },
   ];
 
   useEffect(() => {
@@ -77,6 +79,7 @@ const SettingsPage = () => {
       const recipients = res.data?.email_report_recipients;
       setReportRecipients(Array.isArray(recipients) ? recipients : []);
       setNotificationLanguage(res.data?.notification_language || 'en');
+      setGreetingMessage(res.data?.greeting_message || '');
     } catch (err) {
       // Silent: report settings are optional
       console.error('Failed to load report settings:', err);
@@ -217,6 +220,7 @@ const SettingsPage = () => {
         email_report_enabled: reportEnabled,
         email_report_recipients: reportRecipients,
         notification_language: notificationLanguage,
+        greeting_message: greetingMessage,
       });
 
       setReportMessage(t('settings.reportSaved') || t('common.success') || 'Saved');
@@ -354,6 +358,48 @@ const SettingsPage = () => {
             </div>
           )}
         </div>
+        </div>
+      </div>
+
+      {/* Greeting Message Section */}
+      <div className="max-w-2xl">
+        <div className="card">
+          <div className="mb-6">
+            <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">
+              {t('settings.greetingTitle') || 'Greeting Message'}
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+              {t('settings.greetingDescription') || 'This message is shown to customers when they first open the chat or contact you via Telegram/WhatsApp. It will be displayed exactly as written.'}
+            </p>
+          </div>
+          <div className="space-y-4">
+            <textarea
+              value={greetingMessage}
+              onChange={(e) => setGreetingMessage(e.target.value)}
+              placeholder={t('settings.greetingPlaceholder') || 'Hello! How can I help you today?'}
+              className="input w-full h-24 resize-y"
+              maxLength={500}
+            />
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {greetingMessage.length}/500
+              </span>
+              <button
+                onClick={saveReportSettings}
+                disabled={reportSaving}
+                className="btn-primary flex items-center justify-center gap-2"
+              >
+                {reportSaving ? (
+                  <>
+                    <Loader2 className="animate-spin" size={18} />
+                    {t('common.loading') || 'Saving...'}
+                  </>
+                ) : (
+                  t('common.save') || 'Save'
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

@@ -218,7 +218,18 @@
       "Booking confirmations",
       "Cancellations and rescheduling"
     ],
-    "learnMore": "Learn more about WhatsApp Business API"
+    "learnMore": "Learn more about WhatsApp Business API",
+    "whatsappBridge": "WhatsApp",
+    "whatsappBridgeDesc": "Connectez votre num\u00e9ro WhatsApp via un scan de QR code",
+    "scanQR": "Scanner le QR code",
+    "whatsappConnected": "WhatsApp connect\u00e9",
+    "whatsappDisconnected": "WhatsApp d\u00e9connect\u00e9",
+    "disconnectWhatsApp": "D\u00e9connecter WhatsApp",
+    "connectWhatsApp": "Connecter WhatsApp",
+    "scanInstructions": "Ouvrez WhatsApp sur votre t\u00e9l\u00e9phone \u2192 Param\u00e8tres \u2192 Appareils li\u00e9s \u2192 Lier un appareil \u2192 Scannez ce QR code",
+    "whatsappDisabledByAdmin": "L'int\u00e9gration WhatsApp est d\u00e9sactiv\u00e9e par l'administrateur",
+    "qrExpired": "QR code expir\u00e9. Cliquez pour actualiser.",
+    "connecting": "Connexion en cours..."
   },
   "history": {
     "title": "Activité",
@@ -389,7 +400,10 @@
     "reportInvalidEmail": "Adresse e-mail invalide",
     "reportMaxRecipients": "Vous pouvez ajouter jusqu'à 5 destinataires",
     "notificationLanguageLabel": "Langue des notifications",
-    "notificationLanguageDescription": "Langue pour les rapports quotidiens, les notifications par e-mail et les messages aux managers. Les réponses du chat client utilisent la langue du client."
+    "notificationLanguageDescription": "Langue pour les rapports quotidiens, les notifications par e-mail et les messages aux managers. Les réponses du chat client utilisent la langue du client.",
+    "greetingTitle": "Message d'accueil",
+    "greetingDescription": "Ce message est affiché aux clients lorsqu'ils ouvrent le chat pour la première fois ou vous contactent via Telegram/WhatsApp. Il sera affiché exactement comme écrit.",
+    "greetingPlaceholder": "Bonjour ! Comment puis-je vous aider aujourd'hui ?"
   },
   "infoCenter": {
     "title": "Centre d'Information",
@@ -445,6 +459,8 @@
     "welcomeMessage": "Bonjour ! Je suis votre assistant IA. Comment puis-je vous aider aujourd'hui ?",
     "settings": "Paramètres",
     "fontSize": "Taille de police",
+    "voiceSelect": "Voix IA",
+    "autoVoiceReply": "Réponse vocale automatique",
     "ratePositive": "👍 Positif",
     "rateNegative": "👎 Négatif",
     "ratingThankYouPositive": "Merci pour votre évaluation positive ! 👍",

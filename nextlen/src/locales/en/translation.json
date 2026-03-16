@@ -277,6 +277,17 @@
       "Cancellations and rescheduling"
     ],
     "learnMore": "Learn more about WhatsApp Business API",
+    "whatsappBridge": "WhatsApp",
+    "whatsappBridgeDesc": "Connect your WhatsApp number via QR code scan",
+    "scanQR": "Scan QR Code",
+    "whatsappConnected": "WhatsApp Connected",
+    "whatsappDisconnected": "WhatsApp Disconnected",
+    "disconnectWhatsApp": "Disconnect WhatsApp",
+    "connectWhatsApp": "Connect WhatsApp",
+    "scanInstructions": "Open WhatsApp on your phone \u2192 Settings \u2192 Linked Devices \u2192 Link a Device \u2192 Scan this QR code",
+    "whatsappDisabledByAdmin": "WhatsApp integration is disabled by administrator",
+    "qrExpired": "QR code expired. Click to refresh.",
+    "connecting": "Connecting...",
     "emailSetup": "Setup Email SMTP",
     "enableEmail": "Enable Email SMTP",
     "smtpHost": "SMTP Host",
@@ -486,7 +497,10 @@
     "reportInvalidEmail": "Invalid email address",
     "reportMaxRecipients": "You can add up to 5 recipients",
     "notificationLanguageLabel": "Notification Language",
-    "notificationLanguageDescription": "Language for daily reports, email notifications, and manager messages. Customer chat responses use the customer's language."
+    "notificationLanguageDescription": "Language for daily reports, email notifications, and manager messages. Customer chat responses use the customer's language.",
+    "greetingTitle": "Greeting Message",
+    "greetingDescription": "This message is shown to customers when they first open the chat or contact you via Telegram/WhatsApp. It will be displayed exactly as written.",
+    "greetingPlaceholder": "Hello! How can I help you today?"
   },
   "pricing": {
     "title": "Choose Your Plan",
@@ -696,7 +710,9 @@
     "missingTag": "Missing tag parameter in URL",
     "welcomeMessage": "Hello! I am your AI assistant. How can I help you today?",
     "settings": "Settings",
-    "fontSize": "Font Size"
+    "fontSize": "Font Size",
+    "voiceSelect": "AI Voice",
+    "autoVoiceReply": "Auto voice reply"
   },
   "extensionData": {
     "loading": "Loading extension data...",

@@ -219,7 +219,18 @@
       "Buchungsbestätigungen",
       "Stornierungen und Verschiebungen"
     ],
-    "learnMore": "Mehr über WhatsApp Business API erfahren"
+    "learnMore": "Mehr über WhatsApp Business API erfahren",
+    "whatsappBridge": "WhatsApp",
+    "whatsappBridgeDesc": "Verbinden Sie Ihre WhatsApp-Nummer per QR-Code-Scan",
+    "scanQR": "QR-Code scannen",
+    "whatsappConnected": "WhatsApp verbunden",
+    "whatsappDisconnected": "WhatsApp getrennt",
+    "disconnectWhatsApp": "WhatsApp trennen",
+    "connectWhatsApp": "WhatsApp verbinden",
+    "scanInstructions": "Öffnen Sie WhatsApp auf Ihrem Telefon \u2192 Einstellungen \u2192 Verknüpfte Geräte \u2192 Gerät hinzufügen \u2192 QR-Code scannen",
+    "whatsappDisabledByAdmin": "WhatsApp-Integration ist vom Administrator deaktiviert",
+    "qrExpired": "QR-Code abgelaufen. Klicken zum Aktualisieren.",
+    "connecting": "Verbindung wird hergestellt..."
   },
   "history": {
     "title": "Aktivität",
@@ -437,6 +448,9 @@
     "reportMaxRecipients": "Sie können bis zu 5 Empfänger hinzufügen",
     "notificationLanguageLabel": "Benachrichtigungssprache",
     "notificationLanguageDescription": "Sprache für Tagesberichte, E-Mail-Benachrichtigungen und Manager-Nachrichten. Kunden-Chat-Antworten verwenden die Sprache des Kunden.",
+    "greetingTitle": "Begrüßungsnachricht",
+    "greetingDescription": "Diese Nachricht wird Kunden beim ersten Öffnen des Chats oder bei der Kontaktaufnahme über Telegram/WhatsApp angezeigt. Sie wird genau so angezeigt, wie sie geschrieben wurde.",
+    "greetingPlaceholder": "Hallo! Wie kann ich Ihnen heute helfen?",
     "accountInfo": "Kontoinformationen",
     "salonName": "Firmenname",
     "email": "E-Mail",
@@ -513,6 +527,8 @@
     "welcomeMessage": "Hallo! Ich bin Ihr KI-Assistent. Wie kann ich Ihnen heute helfen?",
     "settings": "Einstellungen",
     "fontSize": "Schriftgröße",
+    "voiceSelect": "KI-Stimme",
+    "autoVoiceReply": "Automatische Sprachantwort",
     "ratePositive": "👍 Positiv",
     "rateNegative": "👎 Negativ",
     "ratingThankYouPositive": "Vielen Dank für Ihre positive Bewertung! 👍",
