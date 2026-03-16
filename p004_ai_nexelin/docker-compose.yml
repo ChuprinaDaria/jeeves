@@ -74,6 +74,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    extra_hosts:
+      - "ollama:host-gateway"
     networks: [nexelin_network]
 
   # ==================== CELERY WORKER ========================
@@ -105,6 +107,8 @@ services:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
       - .:/app
+    extra_hosts:
+      - "ollama:host-gateway"
     networks: [nexelin_network]
 
   # ==================== CELERY BEAT ==========================
@@ -136,6 +140,8 @@ services:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
       - .:/app
+    extra_hosts:
+      - "ollama:host-gateway"
     networks: [nexelin_network]
 
   # ========================= FRONTEND =========================

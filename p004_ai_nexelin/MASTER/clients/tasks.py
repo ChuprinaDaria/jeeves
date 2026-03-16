@@ -3106,7 +3106,7 @@ def notify_manager_of_escalation(self, conversation_id: int, question_summary: s
             'escalation_manager_id',
             'escalation_started_at',
             'escalation_original_query',
-            'escalation_language',.
+            'escalation_language',
             
         ])
         
