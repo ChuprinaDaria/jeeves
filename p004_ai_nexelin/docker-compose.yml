@@ -183,7 +183,7 @@ services:
     networks: [nexelin_network]
 
   mautrix-whatsapp:
-    image: dock.mau.dev/mautrix/whatsapp:v0.10.9
+    image: dock.mau.dev/mautrix/whatsapp:latest
     container_name: ai_nexelin_mautrix_whatsapp
     restart: unless-stopped
     depends_on:
