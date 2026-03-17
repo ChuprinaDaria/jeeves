@@ -175,14 +175,24 @@ def create_matrix_user(client) -> tuple[str, str]:
     return actual_user_id, access_token
 
 
-def _poll_login_worker(client_id: int, login_process_id: str, access_token: str, config):
-    """Background thread: polls mautrix-whatsapp v3 provisioning API for login status."""
+def _matrix_request(access_token: str, homeserver_url: str, method: str, path: str, **kwargs) -> httpx.Response:
+    """Make an authenticated Matrix client API request."""
+    headers = {"Authorization": f"Bearer {access_token}"}
+    url = f"{homeserver_url}/_matrix/client/v3{path}"
+    kwargs.setdefault('timeout', 10.0)
+    kwargs.setdefault('headers', {})
+    kwargs['headers'].update(headers)
+    return getattr(httpx, method.lower())(url, **kwargs)
+
+
+def _bot_login_worker(client_id: int, access_token: str, room_id: str, config):
+    """Background thread: monitors Matrix room for QR code from bridge bot after !wa login."""
     session = _login_sessions.get(client_id)
     if not session:
         return
 
-    headers = _provision_headers(access_token)
-    base_url = f"{config.provisioning_url}/_matrix/provision/v3"
+    hs = config.homeserver_url
+    since = None
 
     try:
         for _ in range(120):  # up to ~4 minutes
@@ -191,50 +201,69 @@ def _poll_login_worker(client_id: int, login_process_id: str, access_token: str,
             time.sleep(2)
 
             try:
-                resp = httpx.get(
-                    f"{base_url}/login/step/{login_process_id}",
-                    headers=headers,
-                    timeout=10.0,
-                )
+                # Sync to get new messages
+                params = {"filter": json.dumps({
+                    "room": {"rooms": [room_id], "timeline": {"limit": 5}},
+                    "presence": {"types": []},
+                }), "timeout": "3000"}
+                if since:
+                    params["since"] = since
+
+                resp = _matrix_request(access_token, hs, "GET", "/sync", params=params, timeout=10.0)
                 if resp.status_code != 200:
-                    # Try alternative: check logins list
-                    resp2 = httpx.get(f"{base_url}/logins", headers=headers, timeout=5.0)
-                    if resp2.status_code == 200:
-                        logins = resp2.json().get('login_ids', [])
-                        if logins:
-                            session['status'] = 'connected'
-                            session['phone'] = ''
-                            _update_client_connected(client_id, '')
-                            break
                     continue
 
                 data = resp.json()
-                step_type = data.get('step_type', data.get('type', ''))
+                since = data.get("next_batch", since)
 
-                if step_type == 'display_and_wait' and data.get('display_and_wait', {}).get('data'):
-                    # QR code data
-                    qr_data = data['display_and_wait']['data']
-                    session['qr'] = qr_data
-                elif step_type == 'complete' or data.get('complete'):
-                    session['status'] = 'connected'
-                    phone = data.get('complete', {}).get('phone', '')
-                    session['phone'] = phone
-                    _update_client_connected(client_id, phone)
-                    break
+                # Check room events
+                room_data = data.get("rooms", {}).get("join", {}).get(room_id, {})
+                events = room_data.get("timeline", {}).get("events", [])
+
+                for event in events:
+                    if event.get("type") != "m.room.message":
+                        continue
+                    content = event.get("content", {})
+                    body = content.get("body", "")
+
+                    # Bridge sends QR as text content
+                    if "Successfully logged in" in body or "logged in as" in body.lower():
+                        session['status'] = 'connected'
+                        # Try to extract phone from message
+                        import re
+                        phone_match = re.search(r'\+?\d{10,15}', body)
+                        session['phone'] = phone_match.group(0) if phone_match else ''
+                        _update_client_connected(client_id, session['phone'])
+                        return
+
+                    # Check for QR code (sent as image or as text)
+                    if content.get("msgtype") == "m.image" and "qr" in body.lower():
+                        # QR as image — get mxc URL
+                        mxc = content.get("url", "")
+                        session['qr_mxc'] = mxc
+                    elif "qr" in body.lower() and len(body) > 50:
+                        # QR data as text
+                        session['qr'] = body.strip()
+
+                    # Check for errors
+                    if "error" in body.lower() or "failed" in body.lower():
+                        if "login" in body.lower():
+                            session['status'] = 'error'
+                            session['error'] = body[:200]
+                            return
 
             except Exception as e:
-                logger.debug(f"Login poll error for client {client_id}: {e}")
+                logger.debug(f"Bot login poll error for client {client_id}: {e}")
                 continue
 
-        # If still pending after timeout
         if session.get('status') == 'qr_pending':
             session['status'] = 'error'
             session['error'] = 'Login timed out'
 
     except Exception as e:
         session['status'] = 'error'
-        session['error'] = f"Login polling failed: {e}"
-        logger.error(f"Login poll failed for client {client_id}: {e}")
+        session['error'] = f"Bot login failed: {e}"
+        logger.error(f"Bot login failed for client {client_id}: {e}")
 
 
 def _update_client_connected(client_id: int, phone: str):
@@ -255,70 +284,79 @@ def _update_client_connected(client_id: int, phone: str):
         logger.error(f"Failed to update client {client_id} status: {e}")
 
 
+def _get_or_create_bot_dm(access_token: str, homeserver_url: str, bot_user_id: str) -> str:
+    """Find or create a DM room with the bridge bot."""
+    # Check existing DMs
+    resp = _matrix_request(access_token, homeserver_url, "GET", "/joined_rooms")
+    if resp.status_code == 200:
+        for room_id in resp.json().get("joined_rooms", []):
+            # Check room members
+            members_resp = _matrix_request(access_token, homeserver_url, "GET", f"/rooms/{room_id}/members")
+            if members_resp.status_code == 200:
+                member_ids = [e["state_key"] for e in members_resp.json().get("chunk", [])
+                              if e.get("content", {}).get("membership") == "join"]
+                if bot_user_id in member_ids and len(member_ids) <= 2:
+                    return room_id
+
+    # Create new DM room
+    resp = _matrix_request(access_token, homeserver_url, "POST", "/createRoom", json={
+        "invite": [bot_user_id],
+        "is_direct": True,
+        "preset": "trusted_private_chat",
+    })
+    if resp.status_code != 200:
+        raise WhatsAppBridgeError(f"Failed to create DM room with bridge bot: {resp.text}")
+
+    return resp.json()["room_id"]
+
+
 def start_whatsapp_login(client) -> dict:
     """
-    Start WhatsApp login via mautrix-whatsapp v3 provisioning API.
-    Uses HTTP POST to start login, then polls for QR code and status.
-    Returns initial status; frontend polls check_login_status for updates.
+    Start WhatsApp login via bridge bot DM (megabridge approach).
+    Creates a DM room with the bridge bot, sends !wa login command,
+    then monitors for QR code response.
     """
     config = _get_config()
 
     # Ensure Matrix user exists
     user_id, access_token = create_matrix_user(client)
 
-    headers = _provision_headers(access_token)
-    base_url = f"{config.provisioning_url}/_matrix/provision/v3"
+    bot_user_id = f"@whatsappbot:{config.homeserver_domain}"
+    hs = config.homeserver_url
 
-    # Start login via v3 API
-    resp = httpx.post(
-        f"{base_url}/login/start",
-        headers=headers,
-        json={"flow_id": "qr"},
-        timeout=15.0,
+    # Get or create DM room with bridge bot
+    room_id = _get_or_create_bot_dm(access_token, hs, bot_user_id)
+    logger.info(f"Using bot DM room {room_id} for client {client.id}")
+
+    # Send !wa login command
+    import uuid
+    txn_id = str(uuid.uuid4())
+    resp = _matrix_request(access_token, hs, "PUT",
+        f"/rooms/{room_id}/send/m.room.message/{txn_id}",
+        json={"msgtype": "m.text", "body": "login"},
     )
+    if resp.status_code not in (200, 201):
+        raise WhatsAppBridgeError(f"Failed to send login command: {resp.status_code} {resp.text}")
 
-    if resp.status_code != 200:
-        raise WhatsAppBridgeError(f"Failed to start login: {resp.status_code} {resp.text}")
-
-    data = resp.json()
-    login_process_id = data.get('login_process_id', data.get('id', ''))
-    logger.info(f"Started WhatsApp login for client {client.id}, process_id={login_process_id}")
-
-    # Check if we already have a QR step
-    qr_data = ''
-    step_type = data.get('step_type', data.get('type', ''))
-    if step_type == 'display_and_wait':
-        qr_data = data.get('display_and_wait', {}).get('data', '')
-
-    # If we need to submit a step first (some flows require it)
-    next_step = data.get('next_step', '')
-    if next_step and not qr_data:
-        step_resp = httpx.post(
-            f"{base_url}/login/step/{login_process_id}",
-            headers=headers,
-            json={"step_type": next_step},
-            timeout=15.0,
-        )
-        if step_resp.status_code == 200:
-            step_data = step_resp.json()
-            step_type = step_data.get('step_type', '')
-            if step_type == 'display_and_wait':
-                qr_data = step_data.get('display_and_wait', {}).get('data', '')
+    logger.info(f"Sent login command in room {room_id} for client {client.id}")
 
     # Initialize session
     session = {
-        'qr': qr_data,
+        'qr': '',
         'status': 'qr_pending',
         'phone': '',
         'error': '',
-        'login_process_id': login_process_id,
+        'room_id': room_id,
     }
     _login_sessions[client.id] = session
 
-    # Start polling in background thread
+    # Wait briefly for initial response
+    time.sleep(3)
+
+    # Start background polling for bot response
     t = threading.Thread(
-        target=_poll_login_worker,
-        args=(client.id, login_process_id, access_token, config),
+        target=_bot_login_worker,
+        args=(client.id, access_token, room_id, config),
         daemon=True,
     )
     t.start()
@@ -330,7 +368,7 @@ def start_whatsapp_login(client) -> dict:
 
     return {
         'login_id': str(client.id),
-        'qr': qr_data,
+        'qr': session.get('qr', ''),
         'status': 'qr_pending',
     }
 
