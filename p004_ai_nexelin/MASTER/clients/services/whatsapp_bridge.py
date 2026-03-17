@@ -50,7 +50,8 @@ def _provision_headers_secret(config) -> dict:
 def create_matrix_user(client) -> tuple[str, str]:
     """
     Register a dedicated Matrix user on Synapse for this client.
-    Uses Synapse's shared-secret registration admin API.
+    Uses appservice registration (users in bridge namespace) with fallback
+    to shared-secret registration for users outside namespace.
     Returns (user_id, access_token).
     """
     config = _get_config()
@@ -71,56 +72,101 @@ def create_matrix_user(client) -> tuple[str, str]:
         except Exception as e:
             logger.warning(f"Failed to verify existing Matrix token: {e}")
 
-    # Synapse shared-secret registration
-    nonce_url = f"{config.homeserver_url}/_synapse/admin/v1/register"
-    nonce_resp = httpx.get(nonce_url, timeout=10.0)
-    if nonce_resp.status_code != 200:
-        raise WhatsAppBridgeError(f"Failed to get registration nonce: {nonce_resp.status_code}")
+    # Try appservice registration first (for users in bridge namespace like whatsapp_*)
+    # as_token from bridge registration — used to register/login users in the whatsapp_ namespace
+    as_token = getattr(config, 'provisioning_secret', '')  # reuse provisioning field or read from env
+    # The bridge's actual appservice as_token (from registration.yaml)
+    import os
+    as_token = os.environ.get('MAUTRIX_AS_TOKEN', 'vMXiRA8ZJcmQ0ykpFC1RW1gr9stY6Eot8Amuxw2Me6kIoxUgp9wAMtUTPfu6e9C7')
 
-    nonce = nonce_resp.json()["nonce"]
-    password = f"bridge_bot_{client.id}_{config.homeserver_domain}"
-    mac_msg = f"{nonce}\0{username}\0{password}\0notadmin"
-    mac = hmac.new(
-        config.registration_shared_secret.encode(),
-        mac_msg.encode(),
-        hashlib.sha1,
-    ).hexdigest()
+    access_token = None
+    actual_user_id = user_id
 
-    reg_resp = httpx.post(
-        nonce_url,
-        json={
-            "nonce": nonce,
-            "username": username,
-            "password": password,
-            "admin": False,
-            "mac": mac,
-        },
-        timeout=10.0,
-    )
-
-    if reg_resp.status_code == 200:
-        data = reg_resp.json()
-        access_token = data["access_token"]
-        actual_user_id = data.get("user_id", user_id)
-        logger.info(f"Created Matrix user {actual_user_id} for client {client.id}")
-    elif reg_resp.status_code == 400 and "User ID already taken" in reg_resp.text:
-        login_resp = httpx.post(
-            f"{config.homeserver_url}/_matrix/client/v3/login",
+    if as_token:
+        # Register via appservice API
+        reg_resp = httpx.post(
+            f"{config.homeserver_url}/_matrix/client/v3/register",
             json={
-                "type": "m.login.password",
-                "identifier": {"type": "m.id.user", "user": username},
-                "password": password,
+                "type": "m.login.application_service",
+                "username": username,
             },
+            headers={"Authorization": f"Bearer {as_token}"},
             timeout=10.0,
         )
-        if login_resp.status_code != 200:
-            raise WhatsAppBridgeError(f"Matrix user exists but login failed: {login_resp.text}")
-        data = login_resp.json()
-        access_token = data["access_token"]
-        actual_user_id = data.get("user_id", user_id)
-        logger.info(f"Logged into existing Matrix user {actual_user_id} for client {client.id}")
-    else:
-        raise WhatsAppBridgeError(f"Matrix user registration failed: {reg_resp.status_code} {reg_resp.text}")
+        if reg_resp.status_code == 200:
+            data = reg_resp.json()
+            access_token = data.get("access_token", "")
+            actual_user_id = data.get("user_id", user_id)
+            logger.info(f"Created Matrix user {actual_user_id} via appservice for client {client.id}")
+        elif reg_resp.status_code == 400 and "already taken" in reg_resp.text.lower():
+            # User exists — login via appservice
+            login_resp = httpx.post(
+                f"{config.homeserver_url}/_matrix/client/v3/login",
+                json={
+                    "type": "m.login.application_service",
+                    "identifier": {"type": "m.id.user", "user": username},
+                },
+                headers={"Authorization": f"Bearer {as_token}"},
+                timeout=10.0,
+            )
+            if login_resp.status_code == 200:
+                data = login_resp.json()
+                access_token = data.get("access_token", "")
+                actual_user_id = data.get("user_id", user_id)
+                logger.info(f"Logged into existing Matrix user {actual_user_id} via appservice for client {client.id}")
+            else:
+                logger.warning(f"Appservice login failed: {login_resp.status_code} {login_resp.text}")
+        else:
+            logger.warning(f"Appservice registration failed: {reg_resp.status_code} {reg_resp.text}")
+
+    # Fallback: shared-secret registration (for users outside bridge namespace)
+    if not access_token:
+        nonce_url = f"{config.homeserver_url}/_synapse/admin/v1/register"
+        nonce_resp = httpx.get(nonce_url, timeout=10.0)
+        if nonce_resp.status_code != 200:
+            raise WhatsAppBridgeError(f"Failed to get registration nonce: {nonce_resp.status_code}")
+
+        nonce = nonce_resp.json()["nonce"]
+        password = f"bridge_bot_{client.id}_{config.homeserver_domain}"
+        mac_msg = f"{nonce}\0{username}\0{password}\0notadmin"
+        mac = hmac.new(
+            config.registration_shared_secret.encode(),
+            mac_msg.encode(),
+            hashlib.sha1,
+        ).hexdigest()
+
+        reg_resp = httpx.post(
+            nonce_url,
+            json={"nonce": nonce, "username": username, "password": password, "admin": False, "mac": mac},
+            timeout=10.0,
+        )
+
+        if reg_resp.status_code == 200:
+            data = reg_resp.json()
+            access_token = data["access_token"]
+            actual_user_id = data.get("user_id", user_id)
+            logger.info(f"Created Matrix user {actual_user_id} via shared-secret for client {client.id}")
+        elif reg_resp.status_code == 400 and "User ID already taken" in reg_resp.text:
+            login_resp = httpx.post(
+                f"{config.homeserver_url}/_matrix/client/v3/login",
+                json={
+                    "type": "m.login.password",
+                    "identifier": {"type": "m.id.user", "user": username},
+                    "password": password,
+                },
+                timeout=10.0,
+            )
+            if login_resp.status_code != 200:
+                raise WhatsAppBridgeError(f"Matrix user exists but login failed: {login_resp.text}")
+            data = login_resp.json()
+            access_token = data["access_token"]
+            actual_user_id = data.get("user_id", user_id)
+            logger.info(f"Logged into existing Matrix user {actual_user_id} for client {client.id}")
+        else:
+            raise WhatsAppBridgeError(f"Matrix user registration failed: {reg_resp.status_code} {reg_resp.text}")
+
+    if not access_token:
+        raise WhatsAppBridgeError("Failed to obtain Matrix access token")
 
     client.whatsapp_bridge_matrix_user_id = actual_user_id
     client.whatsapp_bridge_matrix_access_token = access_token
