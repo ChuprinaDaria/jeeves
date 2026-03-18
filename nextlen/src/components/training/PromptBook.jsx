@@ -169,16 +169,18 @@ const PromptBook = ({ onSelectPrompt, embedded = false, showHeader = true }) => 
     setTimeout(() => {
       setAppliedPrompt(null);
       
-      // Перевіряємо чи ми в режимі /l?tag=... (ClientLoginPage)
-      // Якщо так - відправляємо подію для зміни view
-      // Якщо ні - використовуємо React Router navigate
-      const isClientMode = window.location.pathname === '/l' && window.location.search.includes('tag=');
-      
-      if (isClientMode) {
-        // Відправляємо подію для ClientLoginPage щоб змінити view на training
-        window.dispatchEvent(new CustomEvent('nexelin:navigate', { detail: { view: 'training' } }));
+      // Визначаємо навігацію залежно від формату URL
+      const pathMatch = window.location.pathname.match(/^\/l\/([^/]+)/);
+      if (pathMatch) {
+        // Новий формат: /l/:tag/setup → /l/:tag/training
+        navigate(`/l/${pathMatch[1]}/training`);
       } else {
-        navigate('/training');
+        const isOldClientMode = window.location.pathname === '/l' && window.location.search.includes('tag=');
+        if (isOldClientMode) {
+          window.dispatchEvent(new CustomEvent('nexelin:navigate', { detail: { view: 'training' } }));
+        } else {
+          navigate('/training');
+        }
       }
     }, 800);
   };

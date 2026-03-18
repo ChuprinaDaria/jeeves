@@ -6,15 +6,19 @@ import PhotoUploadTest from '../components/sandbox/PhotoUploadTest';
 const SandboxPage = () => {
   const { t } = useTranslation();
 
-  // Функція для навігації, яка працює і в /l?tag= режимі і в звичайному
+  // Функція для навігації, яка працює і в /l/:tag/ режимі і в звичайному
   const handleGoToTraining = () => {
-    const isClientMode = window.location.pathname === '/l' && window.location.search.includes('tag=');
-    
-    if (isClientMode) {
-      // Відправляємо подію для ClientLoginPage
+    // Новий формат: /l/:tag/sandbox → /l/:tag/training
+    const pathMatch = window.location.pathname.match(/^\/l\/([^/]+)/);
+    if (pathMatch) {
+      window.location.href = `/l/${pathMatch[1]}/training`;
+      return;
+    }
+    // Старий формат: /l?tag=xxx
+    const isOldClientMode = window.location.pathname === '/l' && window.location.search.includes('tag=');
+    if (isOldClientMode) {
       window.dispatchEvent(new CustomEvent('nexelin:navigate', { detail: { view: 'training' } }));
     } else {
-      // Звичайна навігація через window.location
       window.location.href = '/training';
     }
   };

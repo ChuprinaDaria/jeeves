@@ -31,12 +31,16 @@ export const AuthProvider = ({ children }) => {
   const checkAuth = async () => {
     // Пріоритет: робота без JWT — якщо є tag у URL або в localStorage, авторизуємо клієнта по ньому
     try {
+      // Підтримуємо обидва формати URL:
+      // Новий: /l/:tag/dashboard (pathname)
+      // Старий: /l?tag=xxx (query param)
+      const pathMatch = window.location.pathname.match(/^\/l\/([^/]+)/);
+      const tagFromPath = pathMatch ? pathMatch[1] : null;
       const urlParams = new URLSearchParams(window.location.search);
-      const tagFromUrl = urlParams.get('tag');
+      const tagFromQuery = urlParams.get('tag');
+      const tagFromUrl = tagFromPath || tagFromQuery;
       const storedClientTag = localStorage.getItem('client_tag');
-      
-      // Використовуємо tag з URL або збережений (для ClientLoginPage після логіну)
-      // НЕ перезаписуємо client_tag для WebChat - він працює через URL
+
       const effectiveTag = tagFromUrl || storedClientTag;
       
       if (effectiveTag) {

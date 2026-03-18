@@ -25,39 +25,35 @@ const api = axios.create({
   },
 });
 
+// Витягуємо tag клієнта з URL — підтримує обидва формати:
+// Новий: /l/:tag/dashboard (pathname)
+// Старий: /l?tag=xxx (query param)
+const getTagFromUrl = () => {
+  const pathMatch = window.location.pathname.match(/^\/l\/([^/]+)/);
+  if (pathMatch) return pathMatch[1];
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get('tag');
+};
+
 // Interceptor для додавання токена та API ключа
 api.interceptors.request.use((config) => {
-  // Зчитуємо tag з URL і встановлюємо X-Client-Token для цього конкретного запиту
-  // НЕ зберігаємо глобально в localStorage, щоб уникнути конфліктів між різними тегами
-  let currentTag = null;
-  try {
-    const urlParams = new URLSearchParams(window.location.search);
-    currentTag = urlParams.get('tag');
-  } catch (_) {}
-  
-  // Пріоритет авторизації:
-  // 1. X-API-Key (якщо є)
-  // 2. X-Client-Token з URL (для client-only потоку БЕЗ JWT) - пріоритет над localStorage
-  // 3. X-Client-Token з localStorage (fallback для збереженої сесії)
-  // 4. JWT Bearer token (тільки якщо немає client_tag - для admin/user потоку)
-  
+  const currentTag = getTagFromUrl();
+
   const apiKey = localStorage.getItem('api_key');
   const storedClientTag = localStorage.getItem('client_tag');
   const accessToken = localStorage.getItem('access_token');
-  
-  // Визначаємо який tag використовувати: URL має пріоритет над localStorage
+
+  // Визначаємо tag: URL (pathname або query) має пріоритет над localStorage
   const effectiveTag = currentTag || storedClientTag;
-  
+
   if (apiKey) {
     config.headers['X-API-Key'] = apiKey;
   } else if (effectiveTag) {
-    // Client-only потік: використовуємо тільки X-Client-Token, НЕ додаємо JWT
     config.headers['X-Client-Token'] = effectiveTag;
-  } else if (accessToken && !effectiveTag) {
-    // Admin/User потік: використовуємо JWT, тільки якщо немає client_tag
+  } else if (accessToken) {
     config.headers['Authorization'] = `Bearer ${accessToken}`;
   }
-  
+
   return config;
 });
 
@@ -83,12 +79,9 @@ api.interceptors.response.use(
         return api(originalRequest);
       }
 
-      // Перевіряємо чи є tag параметр в URL (bootstrap авторизація)
-      const urlParams = new URLSearchParams(window.location.search);
-      const hasTag = urlParams.has('tag');
-
-      // Якщо є tag в URL — повторюємо запит (tag буде підставлений interceptor'ом)
-      if (hasTag) {
+      // Перевіряємо чи є tag в URL (новий /l/:tag/... або старий ?tag=...)
+      const tagFromUrl = getTagFromUrl();
+      if (tagFromUrl) {
         return api(originalRequest);
       }
 
@@ -101,17 +94,11 @@ api.interceptors.response.use(
       // Перевіряємо чи це iframe (для mg.nexelin.com)
       const isInIframe = window.self !== window.top;
 
-      // Перенаправляємо на login ТІЛЬКИ якщо:
-      // 1. Це не запит на auth endpoints
-      // 2. Немає tag параметра (не bootstrap процес)
-      // 3. Не в iframe (щоб не ламати вбудовування в mg.nexelin.com)
-      // 4. Немає API ключа (якщо є API ключ, не редиректимо)
       const isAuthRequest = originalRequest.url?.includes('/auth/') ||
                            originalRequest.url?.includes('/rag/auth/');
       const hasApiKey = localStorage.getItem('api_key');
 
-      if (!isAuthRequest && !hasTag && !isInIframe && !hasApiKey && !clientTagRetry) {
-        // Затримка перед редиректом, щоб дати час на обробку
+      if (!isAuthRequest && !tagFromUrl && !isInIframe && !hasApiKey && !clientTagRetry) {
         setTimeout(() => {
           window.location.href = '/login';
         }, 100);
