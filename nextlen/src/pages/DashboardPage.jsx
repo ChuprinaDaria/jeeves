@@ -2,6 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import StatsCard from '../components/dashboard/StatsCard';
+import ActivityFeed from '../components/dashboard/ActivityFeed';
 import { MessageSquare, Users, TrendingUp, Percent, Loader2 } from 'lucide-react';
 import { clientAPI } from '../api/client';
 
@@ -128,6 +129,14 @@ const DashboardPage = () => {
           <StatsCard key={index} {...stat} />
           ))
         )}
+      </div>
+
+      {/* Recent Activity */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          {t('dashboard.recentActivity') || 'Recent Activity'}
+        </h2>
+        <ActivityFeed />
       </div>
     </div>
   );

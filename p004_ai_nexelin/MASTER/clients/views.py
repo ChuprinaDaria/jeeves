@@ -2363,15 +2363,30 @@ class ClientConversationsView(APIView):
                     # Спрощуємо номер для відображення
                     customer_name = f"+{customer_name[-9:]}" if customer_name.startswith('+') else customer_name[-9:]
             
+            # Використовуємо last_activity_at для сортування (найновіші зверху)
+            last_activity = conv.last_activity_at or conv.updated_at or conv.started_at
+
+            # Форматуємо timestamp по останній активності, а не по started_at
+            time_diff_activity = now - last_activity
+            if time_diff_activity < timedelta(hours=1):
+                timestamp_display = f"{int(time_diff_activity.seconds / 60)} minutes ago"
+            elif time_diff_activity < timedelta(hours=24):
+                timestamp_display = f"{int(time_diff_activity.seconds / 3600)} hours ago"
+            elif time_diff_activity < timedelta(days=7):
+                timestamp_display = f"{time_diff_activity.days} days ago"
+            else:
+                timestamp_display = last_activity.strftime('%Y-%m-%d')
+
             conversations_list.append({
                 'id': conv.id,
                 'conversation_id': conv.id,
                 'customerName': customer_name,
                 'customer_phone': conv.customer_phone,
                 'lastMessage': last_message_text,
-                'timestamp': timestamp,
+                'timestamp': timestamp_display,
                 'started_at': conv.started_at.isoformat(),
-                'unread': 0,  # Можна додати логіку підрахунку непрочитаних
+                'last_activity_at': last_activity.isoformat(),
+                'unread': 0,
                 'is_active': conv.is_active,
                 'total_messages': conv.total_messages,
                 'qr_code_name': conv.qr_code.name if conv.qr_code else None,
@@ -2385,7 +2400,8 @@ class ClientConversationsView(APIView):
                 last_message = conv.messages[-1] if conv.messages else None
                 last_message_text = last_message.get('content', '') if last_message else ''
                 
-                time_diff = now - conv.started_at
+                rest_activity = getattr(conv, 'last_activity_at', None) or conv.started_at
+                time_diff = now - rest_activity
                 if time_diff < timedelta(hours=1):
                     timestamp = f"{int(time_diff.seconds / 60)} minutes ago"
                 elif time_diff < timedelta(hours=24):
@@ -2393,12 +2409,12 @@ class ClientConversationsView(APIView):
                 elif time_diff < timedelta(days=7):
                     timestamp = f"{time_diff.days} days ago"
                 else:
-                    timestamp = conv.started_at.strftime('%Y-%m-%d')
-                
+                    timestamp = rest_activity.strftime('%Y-%m-%d')
+
                 customer_name = conv.customer_phone
                 if len(customer_name) > 10:
                     customer_name = f"+{customer_name[-9:]}" if customer_name.startswith('+') else customer_name[-9:]
-                
+
                 conversations_list.append({
                     'id': f"rest_{conv.id}",
                     'conversation_id': conv.id,
@@ -2407,6 +2423,7 @@ class ClientConversationsView(APIView):
                     'lastMessage': last_message_text,
                     'timestamp': timestamp,
                     'started_at': conv.started_at.isoformat(),
+                    'last_activity_at': rest_activity.isoformat(),
                     'unread': 0,
                     'is_active': conv.is_active,
                     'total_messages': conv.total_messages,
@@ -2414,8 +2431,8 @@ class ClientConversationsView(APIView):
                     'source': 'restaurant'
                 })
         
-        # Сортуємо за датою створення (найновіші перші)
-        conversations_list.sort(key=lambda x: x['started_at'], reverse=True)
+        # Сортуємо за останньою активністю (найновіші перші)
+        conversations_list.sort(key=lambda x: x.get('last_activity_at', x['started_at']), reverse=True)
         
         return Response({
             'conversations': conversations_list,
@@ -3236,26 +3253,28 @@ class ClientRecentActivityView(APIView):
         
         activities = []
         
-        # Отримуємо останні розмови (ClientWhatsAppConversation)
+        from django.utils import timezone
+        from datetime import timedelta
+        now = timezone.now()
+
+        # Отримуємо останні розмови, сортовані по останній активності
         conversations = ClientWhatsAppConversation.objects.filter(
             client=client
-        ).order_by('-started_at', '-updated_at')[:20]
-        
+        ).order_by('-last_activity_at', '-updated_at', '-started_at')[:20]
+
         # Також отримуємо RestaurantConversation для backward compatibility
         from MASTER.restaurant.models import RestaurantConversation
         restaurant_conversations = RestaurantConversation.objects.filter(
             client=client
         ).order_by('-started_at', '-updated_at')[:20]
-        
+
         # Формуємо список активностей
         for conv in conversations:
-            # Активність: нова розмова
             if conv.started_at:
-                from django.utils import timezone
-                from datetime import timedelta
-                now = timezone.now()
-                time_diff = now - conv.started_at
-                
+                # Використовуємо last_activity_at для відображення часу
+                last_activity = conv.last_activity_at or conv.updated_at or conv.started_at
+                time_diff = now - last_activity
+
                 if time_diff < timedelta(minutes=1):
                     time_ago = "just now"
                 elif time_diff < timedelta(hours=1):
@@ -3268,35 +3287,78 @@ class ClientRecentActivityView(APIView):
                     days = time_diff.days
                     time_ago = f"{days} day{'s' if days > 1 else ''} ago"
                 else:
-                    time_ago = conv.started_at.strftime('%Y-%m-%d')
-                
-                # Форматуємо номер телефону
-                customer_name = conv.customer_phone
-                if len(customer_name) > 10:
-                    customer_name = f"+{customer_name[-9:]}" if customer_name.startswith('+') else customer_name[-9:]
-                    # Додаємо ініціал з номера
-                    customer_display = f"{customer_name.split('+')[-1][0].upper()}. {customer_name[-8:]}"
+                    time_ago = last_activity.strftime('%Y-%m-%d')
+
+                # Визначаємо джерело та форматуємо ім'я
+                customer_phone = conv.customer_phone or ''
+                session_id = conv.session_id or ''
+                telegram_chat_id = getattr(conv, 'telegram_chat_id', '') or ''
+
+                if telegram_chat_id:
+                    source = 'telegram'
+                    customer_display = f"Telegram #{telegram_chat_id[-6:]}"
+                elif customer_phone.startswith('web_') or session_id.startswith('web_'):
+                    source = 'web'
+                    customer_display = f"Web visitor"
+                elif customer_phone.startswith('+'):
+                    source = 'phone'
+                    customer_display = f"{customer_phone[:4]}...{customer_phone[-4:]}"
                 else:
-                    customer_display = customer_name
-                
+                    source = 'web'
+                    customer_display = customer_phone or 'Visitor'
+
+                # Кількість повідомлень для контексту
+                msg_count = conv.total_messages or 0
+
                 activities.append({
                     'type': 'new_chat',
-                    'text': f"New chat from {customer_display}",
+                    'text': f"Chat with {customer_display}" + (f" ({msg_count} msgs)" if msg_count > 0 else ""),
                     'time': time_ago,
-                    'timestamp': conv.started_at.isoformat(),
+                    'timestamp': last_activity.isoformat(),
                     'conversation_id': conv.id,
+                    'session_id': session_id,
+                    'source': source,
+                    'total_messages': msg_count,
+                    'language': conv.language or '',
                 })
-        
+
+        # Додаємо ліди як активності
+        from MASTER.clients.models import Lead
+        leads = Lead.objects.filter(client=client).select_related('conversation').order_by('-created_at')[:20]
+        for lead in leads:
+            time_diff = now - lead.created_at
+            if time_diff < timedelta(minutes=1):
+                time_ago = "just now"
+            elif time_diff < timedelta(hours=1):
+                minutes = int(time_diff.seconds / 60)
+                time_ago = f"{minutes} min ago"
+            elif time_diff < timedelta(days=1):
+                hours = int(time_diff.seconds / 3600)
+                time_ago = f"{hours} hour{'s' if hours > 1 else ''} ago"
+            elif time_diff < timedelta(days=7):
+                days = time_diff.days
+                time_ago = f"{days} day{'s' if days > 1 else ''} ago"
+            else:
+                time_ago = lead.created_at.strftime('%Y-%m-%d')
+
+            lead_name = lead.name or lead.email or lead.phone or 'Unknown'
+            activities.append({
+                'type': 'new_lead',
+                'text': f"New lead: {lead_name}",
+                'time': time_ago,
+                'timestamp': lead.created_at.isoformat(),
+                'conversation_id': lead.conversation_id,
+                'session_id': lead.conversation.session_id if lead.conversation else '',
+                'lead_id': lead.id,
+            })
+
         # Backward compatibility: RestaurantConversation
         for conv in restaurant_conversations:
-            # Перевіряємо чи не дублікат (за номером телефону)
             if not any(a.get('type') == 'new_chat' and conv.customer_phone in a.get('text', '') for a in activities):
                 if conv.started_at:
-                    from django.utils import timezone
-                    from datetime import timedelta
-                    now = timezone.now()
-                    time_diff = now - conv.started_at
-                    
+                    last_activity = getattr(conv, 'last_activity_at', None) or conv.started_at
+                    time_diff = now - last_activity
+
                     if time_diff < timedelta(minutes=1):
                         time_ago = "just now"
                     elif time_diff < timedelta(hours=1):
@@ -3309,28 +3371,30 @@ class ClientRecentActivityView(APIView):
                         days = time_diff.days
                         time_ago = f"{days} day{'s' if days > 1 else ''} ago"
                     else:
-                        time_ago = conv.started_at.strftime('%Y-%m-%d')
-                    
-                    customer_name = conv.customer_phone
-                    if len(customer_name) > 10:
-                        customer_name = f"+{customer_name[-9:]}" if customer_name.startswith('+') else customer_name[-9:]
-                        customer_display = f"{customer_name.split('+')[-1][0].upper()}. {customer_name[-8:]}"
+                        time_ago = last_activity.strftime('%Y-%m-%d')
+
+                    customer_phone = conv.customer_phone or ''
+                    if customer_phone.startswith('web_'):
+                        customer_display = 'Web visitor'
+                    elif customer_phone.startswith('+'):
+                        customer_display = f"{customer_phone[:4]}...{customer_phone[-4:]}"
                     else:
-                        customer_display = customer_name
-                    
+                        customer_display = customer_phone or 'Visitor'
+
                     activities.append({
                         'type': 'new_chat',
-                        'text': f"New chat from {customer_display}",
+                        'text': f"Chat with {customer_display}",
                         'time': time_ago,
-                        'timestamp': conv.started_at.isoformat(),
+                        'timestamp': last_activity.isoformat(),
                         'conversation_id': conv.id,
+                        'session_id': getattr(conv, 'session_id', '') or '',
                     })
-        
+
         # Сортуємо за timestamp (найновіші перші)
         activities.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
-        
-        # Беремо тільки останні 10 активностей
-        activities = activities[:10]
+
+        # Беремо тільки останні 15 активностей
+        activities = activities[:15]
         
         return Response({
             'activities': activities,
