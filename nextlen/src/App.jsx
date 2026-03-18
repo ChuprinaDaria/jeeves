@@ -59,7 +59,7 @@ function App() {
             </Route>
 
           {/* Redirect */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<Navigate to="/l" replace />} />
         </Routes>
       </BrowserRouter>
       </ThemeProvider>

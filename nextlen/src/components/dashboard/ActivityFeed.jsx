@@ -47,7 +47,7 @@ const ActivityFeed = () => {
         };
       });
 
-      setActivities(formattedActivities);
+      setActivities(formattedActivities.slice(0, 3));
     } catch (err) {
       console.error('Failed to load activities:', err);
       setActivities([]);
@@ -80,7 +80,7 @@ const ActivityFeed = () => {
   if (activities.length === 0) {
     return (
       <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-        <p>{t('dashboard.noActivity') || 'No recent activity'}</p>
+        <p>No recent activity</p>
       </div>
     );
   }
@@ -106,7 +106,7 @@ const ActivityFeed = () => {
                     className="inline-flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
                   >
                     <ExternalLink size={12} />
-                    {t('dashboard.viewChat') || 'View chat'}
+                    View chat
                   </a>
                 )}
               </div>
