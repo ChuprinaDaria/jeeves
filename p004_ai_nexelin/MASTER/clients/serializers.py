@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from MASTER.nexelin_platform.models import FeatureFlag
 from MASTER.clients.models import (
     Client,
     ClientDocument,
@@ -21,6 +22,7 @@ class ClientSerializer(serializers.ModelSerializer):
     # Sensitive Meta fields as write-only
     meta_app_secret = serializers.CharField(write_only=True, required=False, allow_blank=True)
     meta_access_token = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    feature_flags = serializers.SerializerMethodField()
 
     class Meta:
         model = Client
@@ -69,6 +71,7 @@ class ClientSerializer(serializers.ModelSerializer):
             'created_by',
             'created_at',
             'updated_at',
+            'feature_flags',
         ]
         read_only_fields = ['api_key', 'created_by', 'created_at', 'updated_at']
 
@@ -91,7 +94,12 @@ class ClientSerializer(serializers.ModelSerializer):
     def get_embedding_model_name(self, obj):
         """Get embedding model name"""
         return obj.embedding_model.name if obj.embedding_model else None
-    
+
+    def get_feature_flags(self, obj):
+        return {
+            'mcp_tools_dashboard': FeatureFlag.is_enabled('mcp_tools_dashboard', obj),
+            'mcp_sse_streaming': FeatureFlag.is_enabled('mcp_sse_streaming', obj),
+        }
 
 
 class ClientDocumentSerializer(serializers.ModelSerializer):
