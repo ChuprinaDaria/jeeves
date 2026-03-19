@@ -1,77 +1,81 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Loader2 } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { toolsAPI } from '../api/tools';
-import ToolCard from '../components/tools/ToolCard';
-import CategoryFilter from '../components/tools/CategoryFilter';
-import ConnectModal from '../components/tools/ConnectModal';
+import ToolCatalogStrip from '../components/tools/ToolCatalogStrip';
+import FlowCanvas from '../components/tools/FlowCanvas';
+import ToolPopover from '../components/tools/ToolPopover';
+import FlowToast, { useFlowToast } from '../components/tools/FlowToast';
+import { getToolTargets } from '../components/tools/toolTargets';
 
 const ToolsPage = () => {
   const { t } = useTranslation();
   const [tools, setTools] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [category, setCategory] = useState('all');
-  const [search, setSearch] = useState('');
-  const [connectTool, setConnectTool] = useState(null);
-  const [configureTool, setConfigureTool] = useState(null);
+  const [highlightedTool, setHighlightedTool] = useState(null);
+  const [popover, setPopover] = useState(null); // { tool, rect }
+  const { toast, showToast, hideToast } = useFlowToast();
 
   const loadTools = async () => {
     try {
       const res = await toolsAPI.getCatalog();
       setTools(res.data);
       setError('');
-    } catch (err) {
-      setError(t('tools.error'));
-      console.error('Tools catalog error:', err);
+    } catch {
+      setError(t('tools.flow.loadError'));
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
+  useEffect(() => { loadTools(); }, []);
+
+  const handleConnected = useCallback((slug) => {
+    const tool = tools.find(t => t.slug === slug);
+    const targets = getToolTargets(slug);
+    const targetName = targets.includes('assistant')
+      ? t('tools.flow.connectedToAssistant')
+      : t('tools.flow.connectedToManager');
+    showToast('🔗', `${tool?.name || slug} ${targetName}`);
     loadTools();
-  }, []);
+  }, [tools, showToast, t]);
 
-  const handleConnect = (tool) => {
-    setConnectTool(tool);
-  };
-
-  const handleConfigure = (tool) => {
-    setConfigureTool(tool);
-  };
-
-  const handleConnected = () => {
-    loadTools(); // Refresh catalog
-  };
-
-  const handleDisconnect = async (slug) => {
-    if (!window.confirm(t('tools.confirmDisconnect'))) return;
+  const handleDisconnect = useCallback(async (slug) => {
     try {
       await toolsAPI.disconnect(slug);
-      setConfigureTool(null);
+      const tool = tools.find(t => t.slug === slug);
+      showToast('🔌', `${tool?.name || slug} ${t('tools.flow.disconnected')}`);
       loadTools();
     } catch (err) {
       console.error('Disconnect error:', err);
     }
-  };
+  }, [tools, showToast, t]);
 
-  const filtered = tools.filter((tool) => {
-    if (category !== 'all' && tool.category !== category) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      return (
-        tool.name.toLowerCase().includes(q) ||
-        tool.tagline.toLowerCase().includes(q)
-      );
+  const handleCanvasToolClick = useCallback((tool, e) => {
+    const el = e?.currentTarget || document.getElementById(`canvas-tool-${tool.slug}`);
+    if (el) {
+      setPopover({ tool, rect: el.getBoundingClientRect() });
     }
-    return true;
-  });
+  }, []);
+
+  const connectedCount = tools.filter(t => t.connection?.status === 'connected' && t.connection?.enabled).length;
+  const availableCount = tools.length - connectedCount;
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
+      <div className="space-y-6">
+        {/* Skeleton strip */}
+        <div className="flex gap-3 overflow-hidden">
+          {[1,2,3,4,5].map(i => (
+            <div key={i} className="w-[160px] h-[100px] rounded-xl bg-gray-200 dark:bg-gray-700 animate-pulse shrink-0" />
+          ))}
+        </div>
+        {/* Skeleton canvas with blurred core node placeholders */}
+        <div className="relative w-full rounded-xl bg-gray-100 dark:bg-gray-800 overflow-hidden" style={{ minHeight: 'max(60vh, 400px)' }}>
+          <div className="absolute top-1/2 left-[35%] -translate-x-1/2 -translate-y-1/2 w-[200px] h-[140px] rounded-2xl bg-gray-200 dark:bg-gray-700 animate-pulse blur-[2px]" />
+          <div className="absolute top-1/2 left-[65%] -translate-x-1/2 -translate-y-1/2 w-[200px] h-[140px] rounded-2xl bg-gray-200 dark:bg-gray-700 animate-pulse blur-[2px]" />
+        </div>
       </div>
     );
   }
@@ -79,93 +83,66 @@ const ToolsPage = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {t('tools.title')}
+            {t('tools.flow.title')} <span className="text-primary-500">{t('tools.flow.titleAccent')}</span>
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            {t('tools.subtitle')}
-          </p>
         </div>
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-          <input
-            type="text"
-            placeholder={t('tools.search')}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="input w-full pl-9"
-          />
+        <div className="flex gap-4 text-xs text-gray-500 dark:text-gray-400">
+          <span className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.6)]" />
+            {connectedCount} {t('tools.flow.statsConnected')}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+            {availableCount} {t('tools.flow.statsAvailable')}
+          </span>
         </div>
       </div>
 
-      {/* Category Filter */}
-      <CategoryFilter active={category} onChange={setCategory} />
-
-      {/* Error */}
-      {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400">
-          {error}
-        </div>
-      )}
-
-      {/* Grid */}
-      {filtered.length === 0 ? (
-        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-          {t('tools.noTools')}
+      {/* Tool Catalog Strip */}
+      {error ? (
+        <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+          <span className="text-sm text-red-700 dark:text-red-400">{error}</span>
+          <button onClick={() => { setLoading(true); loadTools(); }}
+            className="flex items-center gap-1 text-sm font-medium text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 min-h-0">
+            <RefreshCw className="w-3.5 h-3.5" /> {t('tools.retry')}
+          </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((tool) => (
-            <ToolCard
-              key={tool.slug}
-              tool={tool}
-              onConnect={handleConnect}
-              onConfigure={handleConfigure}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Connect Modal */}
-      {connectTool && (
-        <ConnectModal
-          tool={connectTool}
-          onClose={() => setConnectTool(null)}
+        <ToolCatalogStrip
+          tools={tools}
           onConnected={handleConnected}
+          onToolHover={setHighlightedTool}
+          onToolHoverEnd={() => setHighlightedTool(null)}
         />
       )}
 
-      {/* Configure Modal (simple disconnect for now) */}
-      {configureTool && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-              {configureTool.name}
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-              {t('tools.connected')} {configureTool.connection?.connected_at
-                ? new Date(configureTool.connection.connected_at).toLocaleDateString()
-                : ''}
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfigureTool(null)}
-                className="btn-secondary flex-1"
-              >
-                {t('common.close')}
-              </button>
-              <button
-                onClick={() => handleDisconnect(configureTool.slug)}
-                className="flex-1 py-2 px-4 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
-              >
-                {t('tools.disconnect')}
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Flow Canvas */}
+      <FlowCanvas
+        tools={tools}
+        onToolClick={handleCanvasToolClick}
+        highlightedTool={highlightedTool}
+      />
+
+      {/* Popover */}
+      {popover && (
+        <ToolPopover
+          tool={popover.tool}
+          anchorRect={popover.rect}
+          onDisconnect={handleDisconnect}
+          onClose={() => setPopover(null)}
+        />
       )}
+
+      {/* Toast */}
+      <FlowToast
+        message={toast.message}
+        icon={toast.icon}
+        visible={toast.visible}
+        onHide={hideToast}
+      />
     </div>
   );
 };

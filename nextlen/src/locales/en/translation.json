@@ -786,6 +786,27 @@
       "ai": "AI & Knowledge",
       "crm": "CRM & Sales",
       "custom": "Custom"
+    },
+    "flow": {
+      "title": "Nexelin",
+      "titleAccent": "Flow",
+      "aiAssistant": "AI Assistant",
+      "centralEngine": "Central AI engine",
+      "clientManager": "Client Manager",
+      "hitlEscalation": "HITL escalation",
+      "assistantTooltip": "Handles automated responses, RAG search, and customer conversations",
+      "managerTooltip": "Receives escalated conversations that need human attention",
+      "clickToConnect": "Click to connect",
+      "connectedTo": "Connected to",
+      "onboarding": "Click a tool to get started",
+      "qrExpired": "QR code expired. Try again.",
+      "startQr": "Start QR scan",
+      "connectedToAssistant": "connected to AI Assistant",
+      "connectedToManager": "connected to Client Manager",
+      "disconnected": "disconnected",
+      "loadError": "Failed to load tools.",
+      "statsConnected": "connected",
+      "statsAvailable": "available"
     }
   }
 }
