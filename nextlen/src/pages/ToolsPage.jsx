@@ -22,7 +22,7 @@ const ToolsPage = () => {
       setTools(res.data);
       setError('');
     } catch (err) {
-      setError('Failed to load tools');
+      setError(t('tools.error'));
       console.error('Tools catalog error:', err);
     } finally {
       setLoading(false);

@@ -82,7 +82,16 @@ const ConnectModal = ({ tool, onClose, onConnected }) => {
   };
 
   const startPolling = (id) => {
+    let retries = 0;
+    const maxRetries = 48; // 48 * 2.5s = 120s timeout
     pollRef.current = setInterval(async () => {
+      retries++;
+      if (retries > maxRetries) {
+        clearInterval(pollRef.current);
+        setQrData(null);
+        setError('QR code expired. Please try again.');
+        return;
+      }
       try {
         const res = await api.get(`/clients/whatsapp/bridge/login/status/?login_id=${id}`);
         const data = res.data;
@@ -136,7 +145,7 @@ const ConnectModal = ({ tool, onClose, onConnected }) => {
           </div>
           <div className="flex flex-col items-center gap-4">
             <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
-              Scan this QR code with your WhatsApp app
+              {t('tools.scanQr') || 'Scan this QR code with your app'}
             </p>
             <div className="bg-white p-4 rounded-lg">
               <img
@@ -147,7 +156,7 @@ const ConnectModal = ({ tool, onClose, onConnected }) => {
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <Loader2 className="w-4 h-4 animate-spin" />
-              Waiting for scan...
+              {t('tools.connecting')}
             </div>
           </div>
         </div>
