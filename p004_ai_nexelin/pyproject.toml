@@ -53,4 +53,5 @@ python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 DJANGO_SETTINGS_MODULE = "MASTER.settings"
+django_find_project = false
 

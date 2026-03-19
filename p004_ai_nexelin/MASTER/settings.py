@@ -15,6 +15,7 @@ WSGI_APPLICATION = "MASTER.wsgi.application"
 
 # === SECURITY ===
 SECRET_KEY = env("SECRET_KEY", default="dev-secret")
+FIELD_ENCRYPTION_KEY = env('FIELD_ENCRYPTION_KEY', default='ZF864sWF1B0QvMRbkRgDD_NzEP4GUqPogPbdqzuwjhU=')
 DEBUG = env.bool("DEBUG", default=False)
 
 ALLOWED_HOSTS = [
@@ -109,6 +110,7 @@ INSTALLED_APPS = [
     "MASTER.processing",
     "MASTER.rag",
     "MASTER.restaurant",
+    "MASTER.nexelin_platform",
 ]
 
 MIDDLEWARE = [
