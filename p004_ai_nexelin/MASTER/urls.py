@@ -55,6 +55,7 @@ urlpatterns = [
     # SP1: MCP Core Engine
     path('api/tools/', include('MASTER.tools.urls')),
     path('api/agents/', include('MASTER.agents.urls')),
+    path('api/mcp/', include('MASTER.mcp_hub.urls')),
 ]
 
 # Serve media & static files

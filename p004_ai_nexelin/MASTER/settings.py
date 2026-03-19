@@ -113,6 +113,7 @@ INSTALLED_APPS = [
     "MASTER.nexelin_platform",
     "MASTER.tools",
     "MASTER.agents",
+    "MASTER.mcp_hub",
 ]
 
 MIDDLEWARE = [
