@@ -89,3 +89,10 @@ wcwidth==0.2.14
 websocket-client==1.8.0
 whitenoise==6.8.2
 zstandard==0.25.0
+lingua-language-detector>=2.0.1
+mcp>=1.0.0
+cryptography>=42.0.0
+uvicorn>=0.30.0
+pytest-django>=4.8.0
+pytest-asyncio>=0.23.0
+factory-boy>=3.3.0
