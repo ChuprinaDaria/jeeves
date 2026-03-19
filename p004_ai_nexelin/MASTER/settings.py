@@ -111,6 +111,7 @@ INSTALLED_APPS = [
     "MASTER.rag",
     "MASTER.restaurant",
     "MASTER.nexelin_platform",
+    "MASTER.tools",
 ]
 
 MIDDLEWARE = [

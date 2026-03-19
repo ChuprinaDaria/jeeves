@@ -1,0 +1,70 @@
+from django.contrib import admin
+from .models import ToolCard, ToolConnection
+
+
+@admin.register(ToolCard)
+class ToolCardAdmin(admin.ModelAdmin):
+    list_display = ['name', 'category', 'transport_type', 'auth_type',
+                    'is_builtin', 'is_active', 'connections_count']
+    list_filter = ['category', 'transport_type', 'is_builtin', 'is_active']
+    list_editable = ['is_active']
+    search_fields = ['name', 'slug', 'description']
+    prepopulated_fields = {'slug': ('name',)}
+
+    fieldsets = (
+        ('Identity', {
+            'fields': ('name', 'slug', 'tagline', 'description', 'icon',
+                       'color', 'category', 'is_featured', 'sort_order'),
+        }),
+        ('MCP Connection', {
+            'fields': ('transport_type', 'mcp_server_url', 'is_builtin',
+                       'builtin_handler', 'tools_schema'),
+            'classes': ('collapse',),
+        }),
+        ('Auth', {
+            'fields': ('auth_type', 'auth_config'),
+            'classes': ('collapse',),
+        }),
+        ('Status', {'fields': ('is_active',)}),
+    )
+
+    def connections_count(self, obj):
+        connected = obj.connections.filter(status='connected').count()
+        total = obj.connections.count()
+        return f'{connected}/{total}'
+    connections_count.short_description = 'Connected/Total'
+
+
+@admin.register(ToolConnection)
+class ToolConnectionAdmin(admin.ModelAdmin):
+    list_display = ['client_name', 'tool_name', 'status', 'enabled',
+                    'connected_at', 'last_used_at', 'error_count']
+    list_filter = ['status', 'enabled', 'tool_card', 'tool_card__category']
+    list_editable = ['enabled', 'status']
+    search_fields = ['client__company_name', 'client__tag', 'tool_card__name']
+    raw_id_fields = ['client']
+    actions = ['enable_selected', 'disable_selected', 'disconnect_selected', 'reset_errors']
+
+    def client_name(self, obj):
+        return obj.client.company_name or obj.client.tag
+    client_name.short_description = 'Client'
+
+    def tool_name(self, obj):
+        return obj.tool_card.name
+    tool_name.short_description = 'Tool'
+
+    @admin.action(description='Enable selected')
+    def enable_selected(self, request, queryset):
+        queryset.update(enabled=True)
+
+    @admin.action(description='Disable selected')
+    def disable_selected(self, request, queryset):
+        queryset.update(enabled=False)
+
+    @admin.action(description='Disconnect selected')
+    def disconnect_selected(self, request, queryset):
+        queryset.update(status='disconnected', enabled=False)
+
+    @admin.action(description='Reset errors')
+    def reset_errors(self, request, queryset):
+        queryset.update(error_count=0, last_error='', status='connected')
