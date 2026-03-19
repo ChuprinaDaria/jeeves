@@ -22,6 +22,29 @@ Existing code continues to work unchanged. New code activates per-client via Fea
 
 ---
 
+## CRITICAL RULE: Zero Impact on Other Clients
+
+**Every new code path MUST be gated by `FeatureFlag.is_enabled(key, client)`.**
+
+On initial deploy, all flags are `rollout='selected'` with only `srtyh` (tag) in `enabled_clients`. For every other client in the system, behavior is **100% identical** to before SP1 — old code runs, old fields are read, nothing changes.
+
+**Implementation rule:** if you write a new view, task, or utility that touches agent/tool/language logic — it MUST check the feature flag first and fall back to old code if disabled. No exceptions. No "this is safe to run for everyone". Everything goes through flags.
+
+```python
+# CORRECT — every new path gated
+if FeatureFlag.is_enabled('mcp_agent_config', client):
+    # new code
+else:
+    # old code (exact same behavior as before)
+
+# WRONG — new code runs for everyone
+agent_config = AgentConfig.objects.get(client=client)  # breaks if no AgentConfig exists
+```
+
+Rollout to all clients happens **only** after manual testing on `srtyh` and explicit admin action (`rollout='all'`).
+
+---
+
 ## Project Decomposition
 
 This is SP1 of 4 sub-projects:
