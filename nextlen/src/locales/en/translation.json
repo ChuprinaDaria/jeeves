@@ -31,7 +31,8 @@
     "promptBook": "Prompt Book",
     "settings": "Settings",
     "billing": "Billing",
-    "leads": "Leads"
+    "leads": "Leads",
+    "tools": "Tools"
   },
   "auth": {
     "welcomeBack": "Welcome Back",
@@ -760,5 +761,31 @@
     "status": "Status",
     "date": "Date",
     "viewConversation": "View conversation"
+  },
+  "tools": {
+    "title": "Tools & Integrations",
+    "subtitle": "Connect tools to enhance your AI assistant",
+    "search": "Search tools...",
+    "allCategories": "All",
+    "connect": "Connect",
+    "configure": "Configure",
+    "disconnect": "Disconnect",
+    "connected": "Connected",
+    "notConnected": "Not connected",
+    "connecting": "Connecting...",
+    "error": "Connection error",
+    "retry": "Retry",
+    "connectedTools": "Connected Tools",
+    "addMore": "Add more",
+    "noTools": "No tools found",
+    "confirmDisconnect": "Are you sure you want to disconnect this tool?",
+    "categories": {
+      "communication": "Communication",
+      "productivity": "Productivity",
+      "analytics": "Analytics",
+      "ai": "AI & Knowledge",
+      "crm": "CRM & Sales",
+      "custom": "Custom"
+    }
   }
 }
