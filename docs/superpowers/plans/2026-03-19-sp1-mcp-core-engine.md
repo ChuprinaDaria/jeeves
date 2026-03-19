@@ -206,7 +206,7 @@ class TestEncryptedJSONField:
 
 Add after existing env vars in `MASTER/settings.py`:
 ```python
-FIELD_ENCRYPTION_KEY = env('FIELD_ENCRYPTION_KEY', default='ZmFrZS1rZXktZm9yLWRldmVsb3BtZW50LW9ubHk=')
+FIELD_ENCRYPTION_KEY = env('FIELD_ENCRYPTION_KEY', default='ZF864sWF1B0QvMRbkRgDD_NzEP4GUqPogPbdqzuwjhU=')
 ```
 
 Also add to INSTALLED_APPS:
@@ -221,11 +221,12 @@ Also add to INSTALLED_APPS:
 import pytest
 from django.conf import settings
 
-@pytest.fixture(autouse=True)
-def _use_test_encryption_key(settings):
-    """Use a stable test key for EncryptedJSONField."""
+@pytest.fixture(autouse=True, scope='session')
+def _use_test_encryption_key():
+    """Use a stable test key for EncryptedJSONField — same key for whole test session."""
     from cryptography.fernet import Fernet
-    settings.FIELD_ENCRYPTION_KEY = Fernet.generate_key().decode()
+    from django.conf import settings as django_settings
+    django_settings.FIELD_ENCRYPTION_KEY = Fernet.generate_key().decode()
 ```
 
 - [ ] **Step 6: Run test to verify it fails**
@@ -286,14 +287,19 @@ git commit -m "feat(platform): add EncryptedJSONField with Fernet encryption"
 
 ---
 
-## Task 2: Platform app — PlatformDefaults model
+## Task 2: Platform app — All models (PlatformDefaults, FeatureFlag, SystemMessage)
+
+> **NOTE:** All three platform models created in one task, single `makemigrations` to avoid migration numbering conflicts.
 
 **Files:**
 - Create: `MASTER/platform/models.py`
 - Create: `MASTER/platform/tests/test_models.py`
+- Create: `MASTER/platform/tests/test_feature_flags.py`
+- Create: `MASTER/platform/tests/test_system_messages.py`
 - Create: `MASTER/platform/admin.py`
+- Create: `MASTER/platform/signals.py`
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write all failing tests**
 
 ```python
 # MASTER/platform/tests/test_models.py
@@ -323,141 +329,6 @@ class TestPlatformDefaults:
         assert d2.pk == 1
         assert PlatformDefaults.objects.count() == 1
 ```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-```bash
-python -m pytest MASTER/platform/tests/test_models.py::TestPlatformDefaults -v
-```
-Expected: FAIL — `ImportError`
-
-- [ ] **Step 3: Implement PlatformDefaults model**
-
-```python
-# MASTER/platform/models.py
-from django.db import models
-
-
-class PlatformDefaults(models.Model):
-    """Singleton. All platform default values. Admin edits. Zero hardcode."""
-
-    class Meta:
-        verbose_name = 'Platform Defaults'
-        verbose_name_plural = 'Platform Defaults'
-
-    # LLM — null = not configured yet
-    default_llm_provider = models.ForeignKey(
-        'EmbeddingModel.LLMProvider', on_delete=models.SET_NULL, null=True, blank=True)
-    default_embedding_model = models.ForeignKey(
-        'EmbeddingModel.EmbeddingModel', on_delete=models.SET_NULL, null=True, blank=True)
-    default_temperature = models.FloatField(null=True, blank=True)
-    default_max_tokens = models.IntegerField(null=True, blank=True)
-
-    # RAG
-    default_similarity_threshold = models.FloatField(null=True, blank=True)
-    default_max_context_chunks = models.IntegerField(null=True, blank=True)
-    default_top_k = models.IntegerField(null=True, blank=True)
-
-    # Language
-    supported_languages = models.JSONField(default=list, blank=True)
-    default_language = models.CharField(max_length=5, blank=True)
-    language_detection_method = models.CharField(
-        max_length=20,
-        choices=[
-            ('llm', 'LLM-based'),
-            ('library', 'lingua-py'),
-            ('none', 'Disabled'),
-        ],
-        blank=True,
-    )
-
-    # Agent
-    default_greeting = models.TextField(blank=True)
-
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def save(self, *args, **kwargs):
-        self.pk = 1
-        super().save(*args, **kwargs)
-
-    @classmethod
-    def get(cls):
-        obj, _ = cls.objects.get_or_create(pk=1)
-        return obj
-
-    def __str__(self):
-        return 'Platform Defaults'
-```
-
-- [ ] **Step 4: Create and run migrations**
-
-```bash
-cd /home/dchuprina/nexelin_web/p004_ai_nexelin
-python MASTER/manage.py makemigrations platform
-python -m pytest MASTER/platform/tests/test_models.py::TestPlatformDefaults -v
-```
-Expected: 3 PASSED
-
-- [ ] **Step 5: Write admin**
-
-```python
-# MASTER/platform/admin.py
-from django.contrib import admin
-from .models import PlatformDefaults
-
-
-@admin.register(PlatformDefaults)
-class PlatformDefaultsAdmin(admin.ModelAdmin):
-    fieldsets = (
-        ('LLM', {
-            'fields': ('default_llm_provider', 'default_embedding_model',
-                       'default_temperature', 'default_max_tokens'),
-        }),
-        ('RAG', {
-            'fields': ('default_similarity_threshold', 'default_max_context_chunks',
-                       'default_top_k'),
-        }),
-        ('Language', {
-            'fields': ('supported_languages', 'default_language',
-                       'language_detection_method'),
-        }),
-        ('Agent', {
-            'fields': ('default_greeting',),
-        }),
-    )
-
-    def has_add_permission(self, request):
-        return not PlatformDefaults.objects.exists()
-
-    def has_delete_permission(self, request, obj=None):
-        return False
-```
-
-- [ ] **Step 6: Create empty signals.py (needed by apps.py ready())**
-
-```python
-# MASTER/platform/signals.py
-# Signals registered here. Populated in Task 3.
-```
-
-- [ ] **Step 7: Commit**
-
-```bash
-git add MASTER/platform/
-git commit -m "feat(platform): add PlatformDefaults singleton model + admin"
-```
-
----
-
-## Task 3: Platform app — FeatureFlag model
-
-**Files:**
-- Modify: `MASTER/platform/models.py`
-- Modify: `MASTER/platform/admin.py`
-- Modify: `MASTER/platform/signals.py`
-- Create: `MASTER/platform/tests/test_feature_flags.py`
-
-- [ ] **Step 1: Write the failing tests**
 
 ```python
 # MASTER/platform/tests/test_feature_flags.py
@@ -492,169 +363,28 @@ class TestFeatureFlag:
         assert FeatureFlag.is_enabled('test_flag', client_obj) is True
 
     def test_rollout_selected_not_in_list(self, client_obj):
-        flag = FeatureFlag.objects.create(key='test_flag', rollout='selected')
+        FeatureFlag.objects.create(key='test_flag', rollout='selected')
         assert FeatureFlag.is_enabled('test_flag', client_obj) is False
 
     def test_rollout_selected_in_list(self, client_obj):
         flag = FeatureFlag.objects.create(key='test_flag', rollout='selected')
         flag.enabled_clients.add(client_obj)
-        cache.clear()  # clear stale cache
+        cache.clear()
         assert FeatureFlag.is_enabled('test_flag', client_obj) is True
 
     def test_result_is_cached(self, client_obj):
         FeatureFlag.objects.create(key='test_flag', rollout='all')
-        # First call hits DB
         assert FeatureFlag.is_enabled('test_flag', client_obj) is True
-        # Delete from DB — cached result should still return True
         FeatureFlag.objects.all().delete()
         assert FeatureFlag.is_enabled('test_flag', client_obj) is True
 
     def test_cache_invalidated_on_save(self, client_obj):
         flag = FeatureFlag.objects.create(key='test_flag', rollout='all')
         assert FeatureFlag.is_enabled('test_flag', client_obj) is True
-        # Change rollout — signal should clear cache
         flag.rollout = 'off'
         flag.save()
         assert FeatureFlag.is_enabled('test_flag', client_obj) is False
 ```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-```bash
-python -m pytest MASTER/platform/tests/test_feature_flags.py -v
-```
-Expected: FAIL — `ImportError: cannot import name 'FeatureFlag'`
-
-- [ ] **Step 3: Add FeatureFlag model to models.py**
-
-Append to `MASTER/platform/models.py`:
-
-```python
-class FeatureFlag(models.Model):
-    """Per-client feature toggles. Test on srtyh, rollout to all."""
-
-    ROLLOUT_CHOICES = [
-        ('off', 'Off for everyone'),
-        ('selected', 'Only selected clients'),
-        ('all', 'On for everyone'),
-    ]
-
-    key = models.CharField(max_length=100, unique=True, db_index=True)
-    description = models.TextField(blank=True)
-    rollout = models.CharField(max_length=10, choices=ROLLOUT_CHOICES, default='off')
-    enabled_clients = models.ManyToManyField('clients.Client', blank=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['key']
-
-    def __str__(self):
-        return f'{self.key} ({self.rollout})'
-
-    @classmethod
-    def is_enabled(cls, key: str, client=None) -> bool:
-        from django.core.cache import cache
-        cache_key = f'ff:{key}:{client.pk if client else "global"}'
-        cached = cache.get(cache_key)
-        if cached is not None:
-            return cached
-        flag = cls.objects.filter(key=key).first()
-        if not flag:
-            result = False
-        elif flag.rollout == 'all':
-            result = True
-        elif flag.rollout == 'selected' and client:
-            result = flag.enabled_clients.filter(pk=client.pk).exists()
-        else:
-            result = False
-        cache.set(cache_key, result, 60)
-        return result
-```
-
-- [ ] **Step 4: Add cache invalidation signal**
-
-```python
-# MASTER/platform/signals.py
-from django.core.cache import cache
-from django.db.models.signals import post_save, m2m_changed
-
-
-def invalidate_feature_flag_cache(sender, instance, **kwargs):
-    """Clear all cache entries for this flag on any change."""
-    # Delete pattern not available in all cache backends — delete known keys
-    # For production, iterate enabled_clients + clear global
-    from MASTER.clients.models import Client
-    for client_pk in Client.objects.values_list('pk', flat=True):
-        cache.delete(f'ff:{instance.key}:{client_pk}')
-    cache.delete(f'ff:{instance.key}:global')
-
-
-def invalidate_feature_flag_m2m(sender, instance, **kwargs):
-    invalidate_feature_flag_cache(sender, instance, **kwargs)
-
-
-def connect_signals():
-    from MASTER.platform.models import FeatureFlag
-    post_save.connect(invalidate_feature_flag_cache, sender=FeatureFlag)
-    m2m_changed.connect(invalidate_feature_flag_m2m,
-                        sender=FeatureFlag.enabled_clients.through)
-
-
-connect_signals()
-```
-
-- [ ] **Step 5: Run migrations and tests**
-
-```bash
-python MASTER/manage.py makemigrations platform
-python -m pytest MASTER/platform/tests/test_feature_flags.py -v
-```
-Expected: 7 PASSED
-
-- [ ] **Step 6: Add FeatureFlag to admin**
-
-Append to `MASTER/platform/admin.py`:
-
-```python
-from .models import PlatformDefaults, FeatureFlag
-
-@admin.register(FeatureFlag)
-class FeatureFlagAdmin(admin.ModelAdmin):
-    list_display = ['key', 'rollout', 'client_list', 'updated_at']
-    list_filter = ['rollout']
-    list_editable = ['rollout']
-    search_fields = ['key', 'description']
-    filter_horizontal = ['enabled_clients']
-
-    def client_list(self, obj):
-        if obj.rollout == 'all':
-            return 'ALL'
-        if obj.rollout == 'off':
-            return '—'
-        clients = obj.enabled_clients.values_list('tag', flat=True)[:5]
-        return ', '.join(c or '?' for c in clients)
-    client_list.short_description = 'Clients'
-```
-
-- [ ] **Step 7: Commit**
-
-```bash
-git add MASTER/platform/
-git commit -m "feat(platform): add FeatureFlag model with cache + invalidation signal"
-```
-
----
-
-## Task 4: Platform app — SystemMessage model
-
-**Files:**
-- Modify: `MASTER/platform/models.py`
-- Modify: `MASTER/platform/admin.py`
-- Create: `MASTER/platform/tests/test_system_messages.py`
-
-- [ ] **Step 1: Write the failing tests**
 
 ```python
 # MASTER/platform/tests/test_system_messages.py
@@ -690,22 +420,105 @@ class TestSystemMessage:
         SystemMessage.objects.create(key='test', translations={'en': 'hello'})
         assert SystemMessage.get('test', 'en') == 'hello'
         SystemMessage.objects.all().delete()
-        # Still cached
         assert SystemMessage.get('test', 'en') == 'hello'
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 2: Run tests to verify they fail**
 
 ```bash
-python -m pytest MASTER/platform/tests/test_system_messages.py -v
+python -m pytest MASTER/platform/tests/ -v
 ```
-Expected: FAIL
+Expected: FAIL — `ImportError`
 
-- [ ] **Step 3: Add SystemMessage model**
+- [ ] **Step 3: Implement ALL platform models in one file**
 
-Append to `MASTER/platform/models.py`:
+Write `MASTER/platform/models.py` with ALL three models: PlatformDefaults, FeatureFlag, SystemMessage (full code from the three test files above).
 
 ```python
+# MASTER/platform/models.py
+from django.db import models
+
+
+class PlatformDefaults(models.Model):
+    """Singleton. All platform default values. Admin edits. Zero hardcode."""
+
+    class Meta:
+        verbose_name = 'Platform Defaults'
+        verbose_name_plural = 'Platform Defaults'
+
+    default_llm_provider = models.ForeignKey(
+        'EmbeddingModel.LLMProvider', on_delete=models.SET_NULL, null=True, blank=True)
+    default_embedding_model = models.ForeignKey(
+        'EmbeddingModel.EmbeddingModel', on_delete=models.SET_NULL, null=True, blank=True)
+    default_temperature = models.FloatField(null=True, blank=True)
+    default_max_tokens = models.IntegerField(null=True, blank=True)
+    default_similarity_threshold = models.FloatField(null=True, blank=True)
+    default_max_context_chunks = models.IntegerField(null=True, blank=True)
+    default_top_k = models.IntegerField(null=True, blank=True)
+    supported_languages = models.JSONField(default=list, blank=True)
+    default_language = models.CharField(max_length=5, blank=True)
+    language_detection_method = models.CharField(
+        max_length=20,
+        choices=[('llm', 'LLM-based'), ('library', 'lingua-py'), ('none', 'Disabled')],
+        blank=True)
+    default_greeting = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return 'Platform Defaults'
+
+
+class FeatureFlag(models.Model):
+    """Per-client feature toggles. Test on srtyh, rollout to all."""
+
+    ROLLOUT_CHOICES = [
+        ('off', 'Off for everyone'),
+        ('selected', 'Only selected clients'),
+        ('all', 'On for everyone'),
+    ]
+
+    key = models.CharField(max_length=100, unique=True, db_index=True)
+    description = models.TextField(blank=True)
+    rollout = models.CharField(max_length=10, choices=ROLLOUT_CHOICES, default='off')
+    enabled_clients = models.ManyToManyField('clients.Client', blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['key']
+
+    def __str__(self):
+        return f'{self.key} ({self.rollout})'
+
+    @classmethod
+    def is_enabled(cls, key: str, client=None) -> bool:
+        from django.core.cache import cache
+        cache_key = f'ff:{key}:{client.pk if client else "global"}'
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+        flag = cls.objects.filter(key=key).first()
+        if not flag:
+            result = False
+        elif flag.rollout == 'all':
+            result = True
+        elif flag.rollout == 'selected' and client:
+            result = flag.enabled_clients.filter(pk=client.pk).exists()
+        else:
+            result = False
+        cache.set(cache_key, result, 60)
+        return result
+
+
 class SystemMessage(models.Model):
     """All UI/system translated strings. Admin edits. Cached."""
 
@@ -735,20 +548,120 @@ class SystemMessage(models.Model):
         return text
 ```
 
-- [ ] **Step 4: Run migrations and tests**
-
-```bash
-python MASTER/manage.py makemigrations platform
-python -m pytest MASTER/platform/tests/test_system_messages.py -v
-```
-Expected: 4 PASSED
-
-- [ ] **Step 5: Add SystemMessage admin**
-
-Append to `MASTER/platform/admin.py`:
+- [ ] **Step 4: Write signals.py for FeatureFlag cache invalidation**
 
 ```python
+# MASTER/platform/signals.py
+from django.core.cache import cache
+from django.db.models.signals import post_save, m2m_changed
+from django.dispatch import receiver
+
+
+# NOTE: signals connected via apps.py ready() — no module-level connect_signals() call.
+# The receiver decorators are picked up when this module is imported in ready().
+
+def _clear_flag_cache(flag_key):
+    """Clear cache for a specific flag. Iterates known client PKs.
+    For large deployments, switch to django-redis with delete_pattern()."""
+    from MASTER.clients.models import Client
+    for client_pk in Client.objects.values_list('pk', flat=True).iterator():
+        cache.delete(f'ff:{flag_key}:{client_pk}')
+    cache.delete(f'ff:{flag_key}:global')
+
+
+def on_feature_flag_save(sender, instance, **kwargs):
+    _clear_flag_cache(instance.key)
+
+
+def on_feature_flag_m2m_change(sender, instance, **kwargs):
+    _clear_flag_cache(instance.key)
+```
+
+Update `apps.py` to connect signals in `ready()`:
+
+```python
+# MASTER/platform/apps.py
+from django.apps import AppConfig
+
+class PlatformConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'MASTER.platform'
+    verbose_name = 'Platform'
+
+    def ready(self):
+        from . import signals
+        from .models import FeatureFlag
+        from django.db.models.signals import post_save, m2m_changed
+        post_save.connect(signals.on_feature_flag_save, sender=FeatureFlag)
+        m2m_changed.connect(signals.on_feature_flag_m2m_change,
+                            sender=FeatureFlag.enabled_clients.through)
+```
+
+- [ ] **Step 5: Create single migration for all models**
+
+```bash
+cd /home/dchuprina/nexelin_web/p004_ai_nexelin
+python MASTER/manage.py makemigrations platform
+```
+Expected: Creates single `0001_initial.py` with PlatformDefaults, FeatureFlag, SystemMessage
+
+- [ ] **Step 6: Run all platform tests**
+
+```bash
+python -m pytest MASTER/platform/tests/ -v
+```
+Expected: 14 PASSED (3 + 7 + 4)
+
+- [ ] **Step 7: Write admin.py (all models in one file)**
+
+```python
+# MASTER/platform/admin.py
+from django.contrib import admin
 from .models import PlatformDefaults, FeatureFlag, SystemMessage
+
+
+@admin.register(PlatformDefaults)
+class PlatformDefaultsAdmin(admin.ModelAdmin):
+    fieldsets = (
+        ('LLM', {
+            'fields': ('default_llm_provider', 'default_embedding_model',
+                       'default_temperature', 'default_max_tokens'),
+        }),
+        ('RAG', {
+            'fields': ('default_similarity_threshold', 'default_max_context_chunks',
+                       'default_top_k'),
+        }),
+        ('Language', {
+            'fields': ('supported_languages', 'default_language',
+                       'language_detection_method'),
+        }),
+        ('Agent', {'fields': ('default_greeting',)}),
+    )
+
+    def has_add_permission(self, request):
+        return not PlatformDefaults.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(FeatureFlag)
+class FeatureFlagAdmin(admin.ModelAdmin):
+    list_display = ['key', 'rollout', 'client_list', 'updated_at']
+    list_filter = ['rollout']
+    list_editable = ['rollout']
+    search_fields = ['key', 'description']
+    filter_horizontal = ['enabled_clients']
+
+    def client_list(self, obj):
+        if obj.rollout == 'all':
+            return 'ALL'
+        if obj.rollout == 'off':
+            return '—'
+        clients = obj.enabled_clients.values_list('tag', flat=True)[:5]
+        return ', '.join(c or '?' for c in clients)
+    client_list.short_description = 'Clients'
+
 
 @admin.register(SystemMessage)
 class SystemMessageAdmin(admin.ModelAdmin):
@@ -763,16 +676,16 @@ class SystemMessageAdmin(admin.ModelAdmin):
         return len(obj.translations)
 ```
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add MASTER/platform/
-git commit -m "feat(platform): add SystemMessage model with translations + cache"
+git commit -m "feat(platform): add PlatformDefaults, FeatureFlag, SystemMessage + admin"
 ```
 
 ---
 
-## Task 5: Platform app — Language detection
+## Task 3: Platform app — Language detection
 
 **Files:**
 - Create: `MASTER/platform/language.py`
@@ -832,10 +745,25 @@ _CODE_TO_LINGUA = {
 # Reverse mapping
 _LINGUA_TO_CODE = {v: k for k, v in _CODE_TO_LINGUA.items()}
 
-# Build detector once with all supported languages
-_detector = LanguageDetectorBuilder.from_languages(
-    *_CODE_TO_LINGUA.values()
-).build()
+# Lazy singleton — built on first use from PlatformDefaults
+_detector = None
+
+
+def get_detector():
+    """Build detector lazily from PlatformDefaults.supported_languages."""
+    global _detector
+    if _detector is None:
+        from MASTER.platform.models import PlatformDefaults
+        defaults = PlatformDefaults.get()
+        languages = []
+        for code in (defaults.supported_languages or ['en', 'de', 'fr', 'es', 'it', 'nl', 'da']):
+            lang = _CODE_TO_LINGUA.get(code)
+            if lang:
+                languages.append(lang)
+        if not languages:
+            languages = list(_CODE_TO_LINGUA.values())
+        _detector = LanguageDetectorBuilder.from_languages(*languages).build()
+    return _detector
 
 
 def detect_language(text: str, fallback: str = 'en') -> str:
@@ -843,7 +771,8 @@ def detect_language(text: str, fallback: str = 'en') -> str:
     Short text (<4 chars) or undetectable → fallback."""
     if not text or len(text.strip()) < 4:
         return fallback
-    result = _detector.detect_language_of(text.strip())
+    detector = get_detector()
+    result = detector.detect_language_of(text.strip())
     if result is None:
         return fallback
     return _LINGUA_TO_CODE.get(result, fallback)
@@ -865,7 +794,7 @@ git commit -m "feat(platform): add lingua-based language detection"
 
 ---
 
-## Task 6: Platform app — Seed data migrations
+## Task 4: Platform app — Seed data migrations
 
 **Files:**
 - Create: `MASTER/platform/migrations/0002_seed_platform_defaults.py`
@@ -1026,7 +955,7 @@ git commit -m "feat(platform): add seed migrations — defaults, messages, featu
 
 ---
 
-## Task 7: Tools app — ToolCard and ToolConnection models
+## Task 5: Tools app — ToolCard and ToolConnection models
 
 **Files:**
 - Create: `MASTER/tools/__init__.py`, `apps.py`, `models.py`
@@ -1331,7 +1260,7 @@ git commit -m "feat(tools): add ToolCard + ToolConnection models with encrypted 
 
 ---
 
-## Task 8: Tools app — Seed ToolCards + migrate existing connections
+## Task 6: Tools app — Seed ToolCards + migrate existing connections
 
 **Files:**
 - Create: `MASTER/tools/migrations/0002_seed_tool_cards.py`
@@ -1360,7 +1289,7 @@ git commit -m "feat(tools): seed 7 builtin ToolCards + migrate existing connecti
 
 ---
 
-## Task 9: Tools app — Dual-read compat layer
+## Task 7: Tools app — Dual-read compat layer
 
 **Files:**
 - Create: `MASTER/tools/compat.py`
@@ -1519,7 +1448,7 @@ git commit -m "feat(tools): add dual-read compat layer with FeatureFlag gating"
 
 ---
 
-## Task 10: Tools app — API views (catalog, connect, disconnect)
+## Task 8: Tools app — API views (catalog, connect, disconnect)
 
 **Files:**
 - Create: `MASTER/tools/serializers.py`
@@ -1561,7 +1490,7 @@ git commit -m "feat(tools): add catalog/connect/disconnect API endpoints"
 
 ---
 
-## Task 11: Agents app — AgentConfig, AgentSession, AgentLog models
+## Task 9: Agents app — AgentConfig, AgentSession, AgentLog models
 
 **Files:**
 - Create: `MASTER/agents/__init__.py`, `apps.py`, `models.py`, `admin.py`
@@ -1591,7 +1520,7 @@ git commit -m "feat(agents): add AgentConfig/Session/Log models + data migration
 
 ---
 
-## Task 12: MCP Hub — Executor and SSE view
+## Task 10: MCP Hub — Executor and SSE view
 
 **Files:**
 - Create: `MASTER/mcp_hub/__init__.py`, `apps.py`, `executor.py`, `views.py`, `urls.py`
@@ -1626,7 +1555,7 @@ git commit -m "feat(mcp_hub): add MCPExecutor + ChatSSEView with SSE streaming"
 
 ---
 
-## Task 13: Full integration test + run all tests
+## Task 11: Full integration test + run all tests
 
 **Files:**
 - All test files
@@ -1663,15 +1592,13 @@ git commit -m "test: full SP1 integration test suite passing"
 |------|------|-------|
 | 0 | Branch + deps | requirements.txt |
 | 1 | EncryptedJSONField | platform/fields.py |
-| 2 | PlatformDefaults | platform/models.py |
-| 3 | FeatureFlag | platform/models.py, signals.py |
-| 4 | SystemMessage | platform/models.py |
-| 5 | Language detection | platform/language.py |
-| 6 | Platform seed data | platform/migrations/ |
-| 7 | ToolCard + ToolConnection | tools/models.py |
-| 8 | Seed tools + migrate | tools/migrations/ |
-| 9 | Dual-read compat | tools/compat.py |
-| 10 | Tools API views | tools/views.py, urls.py |
-| 11 | Agent models | agents/models.py |
-| 12 | MCP executor + SSE | mcp_hub/executor.py, views.py |
-| 13 | Integration tests | all tests |
+| 2 | All platform models + admin | platform/models.py, admin.py, signals.py |
+| 3 | Language detection | platform/language.py |
+| 4 | Platform seed data | platform/migrations/ |
+| 5 | ToolCard + ToolConnection | tools/models.py |
+| 6 | Seed tools + migrate | tools/migrations/ |
+| 7 | Dual-read compat | tools/compat.py |
+| 8 | Tools API views | tools/views.py, urls.py |
+| 9 | Agent models + views | agents/models.py, views.py, urls.py |
+| 10 | MCP executor + SSE | mcp_hub/executor.py, views.py |
+| 11 | Integration tests | all tests |
