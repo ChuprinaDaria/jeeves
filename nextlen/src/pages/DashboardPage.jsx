@@ -5,6 +5,7 @@ import StatsCard from '../components/dashboard/StatsCard';
 import ActivityFeed from '../components/dashboard/ActivityFeed';
 import { MessageSquare, Users, TrendingUp, Percent, Loader2 } from 'lucide-react';
 import { clientAPI } from '../api/client';
+import DashboardToolsStrip from '../components/tools/DashboardToolsStrip';
 
 const PixelDashboard = lazy(() => import('../modules/pixelDashboard/PixelDashboard'));
 
@@ -118,6 +119,8 @@ const DashboardPage = () => {
           <PixelDashboard enabled={user.pixel_dashboard_enabled} />
         </Suspense>
       )}
+
+      <DashboardToolsStrip />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {loadingStats ? (
