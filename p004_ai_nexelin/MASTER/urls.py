@@ -51,6 +51,10 @@ urlpatterns = [
     path('widget/chat', WebWidgetChatIframeView.as_view(), name='web_widget_iframe'),
 
     # Client portal тепер обробляється React додатком (nextlen), не Django
+
+    # SP1: MCP Core Engine
+    path('api/tools/', include('MASTER.tools.urls')),
+    path('api/agents/', include('MASTER.agents.urls')),
 ]
 
 # Serve media & static files
