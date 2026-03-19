@@ -35,7 +35,7 @@ Visual flow builder page where clients see their AI Assistant and Client Manager
 
 ### Center: Canvas Area
 
-- Full width, ~60vh height
+- Full width, min-height `max(60vh, 400px)`, grows to fit content: `max(60vh, connectedToolsCount * 80px + 200px)`
 - **Dark mode:** `bg-gray-900`, dot grid pattern (radial gradient dots)
 - **Light mode:** `bg-gray-50`, clean background without dots
 - Two immovable core nodes, auto-positioned center-left and center-right
@@ -77,12 +77,19 @@ Visual flow builder page where clients see their AI Assistant and Client Manager
 ### Back Face (auth form) — shown on click of disconnected card
 - 3D CSS `rotateY(180deg)` flip animation, `perspective: 1000px`
 - Content depends on `tool.auth_type`:
-  - `none` — auto-connect, flip back immediately with success state
-  - `qr_code` — QR image + "Waiting for scan..." spinner, polling
+  - `none` — card does NOT flip. Instead: brief loading spinner overlay on front face, auto-connect API call, on success card transitions to connected state with a pulse animation. No back face needed.
+  - `qr_code` — QR image + "Waiting for scan..." spinner, polling via `tool.auth_config.initiate_url` (falls back to `/clients/whatsapp/bridge/login/`). Status polling via `tool.auth_config.status_url` (falls back to `/clients/whatsapp/bridge/login/status/`). This keeps QR flow generic for future QR-based tools.
   - Text fields (API key, token, password) — compact form with submit
-  - OAuth — "Connect with..." button, redirects
+  - OAuth — "Connect with..." button, redirects to `auth_url` from connect response
 - "Cancel" button to flip back to front
 - On successful connect: flip back with bounce, card becomes active, bezier appears
+
+### Error Handling on Back Face
+- API errors show inline on the back face (red text below the form, same pattern as existing `ConnectModal`)
+- Card stays flipped until user either fixes the error and retries, or clicks "Cancel"
+- Network timeout (10s): show "Connection timed out. Please try again." on back face
+- QR polling timeout (120s): show "QR code expired" with "Try again" button that restarts the QR flow
+- After any error, card does NOT auto-flip — user stays in control
 
 ### Card Category Colors
 - `communication` — green (`#22c55e`)
@@ -94,15 +101,40 @@ Visual flow builder page where clients see their AI Assistant and Client Manager
 
 ## Tool-to-Node Assignment
 
-Each tool has a `targets` property: `['assistant']`, `['manager']`, or `['assistant', 'manager']`.
+### Strategy: Frontend Hardcoded Mapping
 
+The backend API (`/tools/catalog/`) does **not** return `targets` or `connected_to` fields. These are **not** added to the backend — the frontend owns the mapping via a constant:
+
+```js
+// src/components/tools/toolTargets.js
+export const TOOL_TARGETS = {
+  'whatsapp-meta':   ['assistant'],
+  'whatsapp-bridge': ['assistant'],
+  'telegram':        ['assistant'],
+  'instagram':       ['assistant'],
+  'email-smtp':      ['assistant'],
+  'web-widget':      ['assistant'],
+  'rag-search':      ['assistant'],
+  'translation':     ['assistant'],
+  'hitl-matrix':     ['manager'],
+  'calendar':        ['manager'],
+  'crm':             ['assistant', 'manager'],
+  'analytics':       ['assistant', 'manager'],
+};
+
+// Fallback for unknown tools: default to ['assistant']
+export const getToolTargets = (slug) => TOOL_TARGETS[slug] || ['assistant'];
+```
+
+This avoids a backend migration and keeps the visual layout as a pure frontend concern. If the backend later adds a `targets` field, the frontend can switch to reading it from the API response.
+
+### Layout Rules
 - Tools targeting only assistant — positioned left of Assistant node
 - Tools targeting only manager — positioned right of Manager node
 - Tools targeting both — positioned above center, two bezier lines
-- Assignment comes from API response (`tool.connection.connected_to`)
-- Connection lines only attach to valid targets
+- Connection lines only attach to valid targets (dragging to an invalid node does nothing)
 
-### Default Target Mapping (from ToolCard seed data)
+### Default Target Mapping
 | Tool | Targets |
 |------|---------|
 | WhatsApp (Meta) | assistant |
@@ -141,7 +173,8 @@ Each tool has a `targets` property: `['assistant']`, `['manager']`, or `['assist
 
 ### Particles
 - 3 small circles per connection that travel along the path
-- CSS `offset-path` with `offset-distance` animation
+- Primary: CSS `offset-path` with `offset-distance` animation
+- Fallback (Safari < 16): SVG `<animateMotion>` along the same path — detected via `CSS.supports('offset-path', 'path("")')` at runtime
 - Duration: 2-3s, staggered delays (0, 0.8s, 1.6s)
 - Color matches gradient (indigo dot for assistant, green for manager)
 
@@ -172,6 +205,17 @@ Each tool has a `targets` property: `['assistant']`, `['manager']`, or `['assist
 
 ### SVG Path Hover
 - Path brightens, tooltip with tool name + status
+
+## Loading & Error States
+
+### Loading
+- Full canvas area shows skeleton: two blurred core node placeholders + 3 shimmer card placeholders in the strip
+- Same pattern as current ToolsPage spinner but integrated into layout
+
+### API Error
+- Canvas still renders core nodes (they are static, no API needed)
+- Tool strip shows inline error banner: "Failed to load tools. [Retry]" with retry button
+- No crash, graceful degradation
 
 ## Onboarding (Zero-State)
 
@@ -249,11 +293,14 @@ await toolsAPI.disconnect(slug);
 
 Connected tools are positioned automatically around their core node:
 
-1. Collect tools by target (assistant-left, manager-right, both-top)
-2. Distribute vertically with equal spacing
-3. Canvas tool nodes are ~150px wide, positioned 200px from core node
-4. Recalculate on window resize (debounced)
-5. No manual drag — positions are computed
+1. Collect tools by target into 3 groups: assistant-only (left), manager-only (right), both (top-center)
+2. Each group distributes vertically with equal spacing. Available vertical space = canvas height minus padding (40px top/bottom)
+3. If a group has 0 tools, its side is simply empty — core nodes stay in their fixed positions
+4. If a group has many tools (8+), vertical spacing compresses but never below 60px per tool. If it would go below, canvas height grows (see min-height formula above)
+5. "Both" tools are placed in a horizontal row above the two core nodes, centered. Max 4 in a row, then wraps to second row
+6. Canvas tool nodes are ~150px wide, positioned 200px from core node horizontally
+7. Recalculate on window resize (debounced 150ms)
+8. No manual drag — positions are computed
 
 ```
   [Tool1]                              [Tool4]
@@ -286,6 +333,13 @@ Connected tools are positioned automatically around their core node:
 | `src/components/tools/FlowToast.jsx` | **New** — toast notifications |
 | `src/components/tools/ToolCard.jsx` | **Keep** — used by DashboardToolsStrip |
 | `src/components/tools/ConnectModal.jsx` | **Keep** — logic extracted, component stays for other uses |
-| `src/components/tools/CategoryFilter.jsx` | **Remove** — no longer needed |
+| `src/components/tools/CategoryFilter.jsx` | **Remove** — only imported by ToolsPage, safe to delete |
+| `src/components/tools/toolTargets.js` | **New** — hardcoded tool→target mapping constant |
 | `src/locales/en/translation.json` | **Extend** — new tooltip/hint keys |
 | `src/index.css` | **Extend** — flip animation, particle keyframes |
+
+## Notes
+
+- **No global toast system exists** — `FlowToast` is self-contained. If a global toast is added later, migrate.
+- **Popover positioning** — `ToolPopover` uses a portal (`createPortal`) and auto-flips to stay within viewport bounds (check available space above/below/left/right).
+- **Accessibility** — tracked as follow-up: keyboard triggers for flip cards, `aria-hidden` on SVG decorative elements, focus trapping in popovers. Not blocking for MVP.
