@@ -44,7 +44,8 @@ MASTER/
 ├── specializations/   # Existing — not modified
 ├── EmbeddingModel/    # Existing — not modified
 ├── clients/           # Existing — kept as-is, fields not removed in SP1
-├── core/              # NEW — PlatformDefaults, FeatureFlag, SystemMessage, language
+├── core/              # Existing — Django project config (settings, urls, wsgi, asgi)
+├── platform/          # NEW — PlatformDefaults, FeatureFlag, SystemMessage, language
 ├── tools/             # NEW — ToolCard, ToolConnection, catalog API
 ├── agents/            # NEW — AgentConfig, AgentSession, AgentLog
 └── mcp_hub/           # NEW — MCPExecutor, SSE endpoint, builtin handlers
@@ -54,7 +55,7 @@ MASTER/
 
 ## Models
 
-### core/models.py
+### platform/models.py
 
 #### PlatformDefaults
 
@@ -71,23 +72,23 @@ class PlatformDefaults(models.Model):
         on_delete=models.SET_NULL, null=True, blank=True)
     default_embedding_model = models.ForeignKey('EmbeddingModel.EmbeddingModel',
         on_delete=models.SET_NULL, null=True, blank=True)
-    default_temperature = models.FloatField()
-    default_max_tokens = models.IntegerField()
+    default_temperature = models.FloatField(null=True, blank=True)
+    default_max_tokens = models.IntegerField(null=True, blank=True)
 
     # RAG
-    default_similarity_threshold = models.FloatField()
-    default_max_context_chunks = models.IntegerField()
-    default_top_k = models.IntegerField()
+    default_similarity_threshold = models.FloatField(null=True, blank=True)
+    default_max_context_chunks = models.IntegerField(null=True, blank=True)
+    default_top_k = models.IntegerField(null=True, blank=True)
 
     # Language
     supported_languages = models.JSONField(default=list,
         help_text="e.g. ['en', 'de', 'fr', 'es', 'it', 'nl', 'da']")
-    default_language = models.CharField(max_length=5)
+    default_language = models.CharField(max_length=5, blank=True)
     language_detection_method = models.CharField(max_length=20, choices=[
         ('llm', 'LLM-based'),
         ('library', 'lingua-py'),
         ('none', 'Disabled'),
-    ])
+    ], blank=True)
 
     # Agent
     default_greeting = models.TextField(blank=True)
@@ -289,7 +290,8 @@ class ToolConnection(models.Model):
         related_name='connections')
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES)
-    credentials = models.JSONField(default=dict)
+    credentials = EncryptedJSONField(default=dict,
+        help_text="Encrypted at rest via cryptography.fernet")
     config = models.JSONField(default=dict)
     enabled = models.BooleanField(default=True)
 
@@ -358,8 +360,8 @@ class AgentConfig(models.Model):
     supported_languages = models.JSONField(default=list, blank=True)
     language_detection = models.BooleanField(null=True, blank=True)
 
-    # Tools
-    enabled_tools = models.ManyToManyField('tools.ToolConnection', blank=True)
+    # Tools — no M2M. Available tools derived from:
+    # ToolConnection.objects.filter(client=self.client, enabled=True, status='connected')
 
     # Behaviour
     escalation_enabled = models.BooleanField(default=False)
@@ -382,7 +384,15 @@ class AgentSession(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     agent_config = models.ForeignKey(AgentConfig, on_delete=models.CASCADE,
         related_name='sessions')
-    channel = models.CharField(max_length=20)
+    CHANNEL_CHOICES = [
+        ('web', 'Web Chat'),
+        ('telegram', 'Telegram'),
+        ('whatsapp_meta', 'WhatsApp Meta'),
+        ('whatsapp_bridge', 'WhatsApp Bridge'),
+        ('email', 'Email'),
+        ('api', 'API'),
+    ]
+    channel = models.CharField(max_length=20, choices=CHANNEL_CHOICES)
     external_user_id = models.CharField(max_length=255, blank=True)
     language = models.CharField(max_length=5, blank=True)
     metadata = models.JSONField(default=dict)
@@ -402,6 +412,7 @@ class AgentLog(models.Model):
     ]
 
     STATUS_CHOICES = [
+        ('pending', 'Pending'),
         ('ok', 'Success'),
         ('error', 'Error'),
         ('timeout', 'Timeout'),
@@ -447,7 +458,7 @@ class MCPExecutor:
         log = await AgentLog.objects.acreate(
             session=session, tool_connection=tool_connection,
             call_type='tool', tool_name=tool_name,
-            input_data=arguments, status='ok')
+            input_data=arguments, status='pending')
 
         start = time.monotonic()
         try:
@@ -455,6 +466,7 @@ class MCPExecutor:
                 result = await self._call_builtin(tool_card, tool_connection, tool_name, arguments)
             else:
                 result = await self._call_mcp(tool_card, tool_connection, tool_name, arguments)
+            log.status = 'ok'
             log.output_data = result
             log.latency_ms = int((time.monotonic() - start) * 1000)
             await log.asave()
@@ -530,7 +542,7 @@ class ChatSSEView(View):
 Single module. No hardcoded word lists. `lingua-py` for detection.
 
 ```python
-# core/language.py
+# platform/language.py
 
 from lingua import LanguageDetectorBuilder
 
@@ -644,18 +656,102 @@ Full control over everything:
 
 ---
 
+## EncryptedJSONField
+
+GDPR requirement — credentials encrypted at rest from day one.
+
+```python
+# platform/fields.py
+
+from cryptography.fernet import Fernet
+from django.conf import settings
+from django.db import models
+import json
+
+class EncryptedJSONField(models.TextField):
+    """Stores JSON encrypted with Fernet. Transparent encrypt/decrypt."""
+
+    def get_prep_value(self, value):
+        if value is None:
+            return None
+        f = Fernet(settings.FIELD_ENCRYPTION_KEY)
+        return f.encrypt(json.dumps(value).encode()).decode()
+
+    def from_db_value(self, value, expression, connection):
+        if value is None:
+            return {}
+        f = Fernet(settings.FIELD_ENCRYPTION_KEY)
+        return json.loads(f.decrypt(value.encode()).decode())
+```
+
+`FIELD_ENCRYPTION_KEY` in `.env`, generated once via `Fernet.generate_key()`.
+
+---
+
+## FeatureFlag Cache Invalidation
+
+Instant cache clear on admin save — no waiting 60 seconds during testing.
+
+```python
+# platform/signals.py
+
+from django.db.models.signals import post_save, m2m_changed
+from django.core.cache import cache
+
+def invalidate_feature_flag_cache(sender, instance, **kwargs):
+    cache.delete_pattern(f'ff:{instance.key}:*')
+
+post_save.connect(invalidate_feature_flag_cache, sender='platform.FeatureFlag')
+m2m_changed.connect(
+    lambda sender, instance, **kw: invalidate_feature_flag_cache(sender, instance, **kw),
+    sender=FeatureFlag.enabled_clients.through)
+```
+
+---
+
+## Infrastructure Requirements
+
+SSE streaming (`ChatSSEView`) requires async support:
+
+- **ASGI server**: Uvicorn alongside Gunicorn
+- **Deployment**: Gunicorn handles sync Django (existing code), Uvicorn handles `/api/mcp/chat/` (SSE)
+- **Nginx config**: `proxy_buffering off;` and `proxy_read_timeout 300s;` for SSE endpoint
+- Docker compose: add `uvicorn` service for async endpoints
+
+```yaml
+# docker-compose.yml addition
+  uvicorn:
+    build: .
+    command: uvicorn MASTER.core.asgi:application --host 0.0.0.0 --port 8001
+    env_file: .env
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+```
+
+Nginx routes `/api/mcp/` to Uvicorn (port 8001), everything else to Gunicorn (port 8000).
+
+---
+
 ## Migrations
 
+Per-app migration numbering:
+
 ```
-0001_create_core_models.py        — PlatformDefaults, FeatureFlag, SystemMessage
-0002_create_tools_models.py       — ToolCard, ToolConnection
-0003_create_agents_models.py      — AgentConfig, AgentSession, AgentLog
-0004_seed_platform_defaults.py    — from current settings.py values
-0005_seed_tool_cards.py           — 7 builtin tools
-0006_seed_system_messages.py      — timeout, waiting, escalation, greeting, no_answer
-0007_seed_feature_flags.py        — 5 flags, all rollout='off'
-0008_migrate_connections.py       — Client fields → ToolConnection (reversible)
-0009_create_agent_configs.py      — Client fields → AgentConfig (reversible)
+platform/migrations/
+  0001_initial.py                  — PlatformDefaults, FeatureFlag, SystemMessage
+  0002_seed_platform_defaults.py   — from current settings.py values
+  0003_seed_system_messages.py     — timeout, waiting, escalation, greeting, no_answer
+  0004_seed_feature_flags.py       — 5 flags, all rollout='off'
+
+tools/migrations/
+  0001_initial.py                  — ToolCard, ToolConnection
+  0002_seed_tool_cards.py          — 7 builtin tools
+  0003_migrate_connections.py      — Client fields → ToolConnection (reversible)
+
+agents/migrations/
+  0001_initial.py                  — AgentConfig, AgentSession, AgentLog
+  0002_create_agent_configs.py     — Client fields → AgentConfig (reversible)
 ```
 
 All data migrations: `RunPython(forward, reverse)` — reversible.
@@ -663,12 +759,36 @@ Client model fields NOT removed in SP1.
 
 ---
 
+## Client Fields NOT Migrated in SP1
+
+These stay in Client model. Migrated in later sub-projects:
+
+| Field(s) | Migrates in |
+|----------|-------------|
+| `extension_enabled` | SP2 (Chrome extension tool card) |
+| `telephony_enabled`, `ClientTelephonyConfig` | SP2 (telephony tool card) |
+| `leads_enabled`, `Lead` model | SP3 (leads agent) |
+| `pixel_dashboard_enabled` | SP2 (dashboard) |
+| `email_report_enabled`, `email_report_recipients` | SP2 (email tool config) |
+| `notification_language` | SP1 covers via AgentConfig.language |
+| `dashboard_layout`, `dashboard_custom_widgets`, `dashboard_custom_style` | SP2 |
+| `custom_system_prompt`, `active_custom_prompt` | SP1 covers via AgentConfig.system_prompt |
+| `llm_provider` (legacy CharField), `llm_model_name` | SP1 covers via AgentConfig.llm_provider FK |
+| `greeting_message` | SP1 covers via AgentConfig.greeting_message |
+| `ClientWhatsAppConversation` | Not migrated — stays as-is |
+| `ClientDocument`, `ClientEmbedding` | SP4 (RAG migration) |
+| `KnowledgeBlock` | SP4 |
+| `hitl_enabled`, `manager_telegram_ids` (Telegram HITL) | SP2 (hitl-telegram tool card) |
+
+---
+
 ## Dependencies
 
 ```
-lingua-language-detector    — language detection
-mcp                         — official MCP Python SDK (Anthropic)
-cryptography                — credentials encryption
+lingua-language-detector>=2.0    — language detection
+mcp>=1.0                         — official MCP Python SDK (Anthropic)
+cryptography>=42.0               — EncryptedJSONField
+uvicorn>=0.30                    — ASGI server for SSE endpoints
 ```
 
 ---
@@ -678,7 +798,8 @@ cryptography                — credentials encryption
 ```
 tests/
 ├── test_models.py              — ToolCard, ToolConnection, AgentConfig CRUD
-├── test_feature_flags.py       — is_enabled(), cache, per-client
+├── test_encrypted_field.py     — EncryptedJSONField encrypt/decrypt round-trip
+├── test_feature_flags.py       — is_enabled(), cache, per-client, invalidation
 ├── test_system_messages.py     — get(), fallback, cache
 ├── test_platform_defaults.py   — singleton, get()
 ├── test_language.py            — detect_language() with lingua
@@ -708,6 +829,5 @@ tests/
 - React dashboard UI (SP2)
 - Personal Assistant chat mode (SP3)
 - RAG pipeline rewrite to agents (SP4)
-- Removal of old Client fields
-- OAuth2 provider implementation (just the framework)
-- Credentials encryption implementation (stored as JSON, encryption added in hardening phase)
+- Removal of old Client fields (see table above)
+- OAuth2 provider implementation (framework only, actual OAuth flows in SP2)
