@@ -13,7 +13,7 @@ const ConnectModal = ({ tool, onClose, onConnected }) => {
 
   // QR code state
   const [qrData, setQrData] = useState(null);
-  const [loginId, setLoginId] = useState(null);
+  const [, setLoginId] = useState(null);
   const pollRef = useRef(null);
 
   useEffect(() => {
@@ -76,7 +76,7 @@ const ConnectModal = ({ tool, onClose, onConnected }) => {
         setLoginId(res.data.login_id);
         startPolling(res.data.login_id);
       }
-    } catch (err) {
+    } catch {
       setError('Failed to start QR login');
     }
   };
