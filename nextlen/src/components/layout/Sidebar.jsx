@@ -5,6 +5,7 @@ import {
   GraduationCap,
   FlaskConical,
   Plug2,
+  Puzzle,
   MessageSquare,
   BookOpen,
   Settings,
@@ -74,7 +75,9 @@ const Sidebar = () => {
     { to: '/dashboard', icon: LayoutDashboard, label: t('nav.dashboard') },
     { to: '/training', icon: GraduationCap, label: t('nav.training') },
     { to: '/sandbox', icon: FlaskConical, label: t('nav.sandbox'), badge: t('nav.sandboxBadge') || 'Also in Train AI' },
-    { to: '/integrations', icon: Plug2, label: t('nav.integrations') },
+    ...(user?.feature_flags?.mcp_tools_dashboard
+      ? [{ to: '/tools', icon: Puzzle, label: t('nav.tools') || 'Tools' }]
+      : [{ to: '/integrations', icon: Plug2, label: t('nav.integrations') }]),
     { to: '/history', icon: MessageSquare, label: t('nav.history') },
     ...(user?.leads_enabled ? [{ to: '/leads', icon: Users, label: t('nav.leads') || 'Leads' }] : []),
     { to: '/setup', icon: BookOpen, label: t('nav.promptBook') || 'Prompt Book' },
