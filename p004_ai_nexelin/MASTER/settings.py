@@ -441,5 +441,10 @@ MCP_SERVERS = {
         'args': ['-m', 'mcp_servers.escalation.server'],
         'enabled': True,
     },
+    'xlsx': {
+        'command': 'python',
+        'args': ['-m', 'mcp_servers.xlsx.server'],
+        'enabled': True,
+    },
 }
 
