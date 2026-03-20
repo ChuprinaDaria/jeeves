@@ -243,7 +243,38 @@ payload = {
 }
 ```
 
-## 9. Що НЕ змінюється
+## 9. Feature Flag Gating
+
+**КРИТИЧНО:** Все загейтовано через `FeatureFlag('mcp_knowledge_split')` в `selected` mode — тільки для клієнта `srtyh`.
+
+### Backend gating
+
+- `KnowledgeBlockViewSet.get_queryset()` — scope фільтрація тільки якщо flag enabled для клієнта. Інакше — повертає все як раніше.
+- `KnowledgeBlockSerializer` — поле `target_scope` завжди є (non-breaking, default='all'), але фронт показує scope UI тільки якщо flag on.
+- RAG search — scope фільтрація тільки якщо flag enabled. Інакше — шукає по всіх документах як зараз.
+- Qdrant payload `target_scope` — додається завжди при індексації (non-breaking metadata), але фільтр по ньому тільки якщо flag on.
+
+### Frontend gating
+
+- `feature_flags.mcp_knowledge_split` з `/api/clients/me/` response
+- Sidebar: якщо flag on → "Assistant" замість "Sandbox". Якщо off → "Sandbox" як раніше.
+- Train AI: якщо flag on → scope badges, scope filter, scope selector. Якщо off → все як раніше.
+- SandboxPage: якщо flag on → новий layout (full-height chat, без grid). Якщо off → старий layout.
+- "Save to KB": якщо flag on → scope='assistant'. Якщо off → scope='all' (дефолт).
+
+### Backend: додати flag до ClientSerializer
+
+```python
+# clients/serializers.py — get_feature_flags()
+def get_feature_flags(self, obj):
+    return {
+        'mcp_tools_dashboard': FeatureFlag.is_enabled('mcp_tools_dashboard', obj),
+        'mcp_sse_streaming': FeatureFlag.is_enabled('mcp_sse_streaming', obj),
+        'mcp_knowledge_split': FeatureFlag.is_enabled('mcp_knowledge_split', obj),  # ADD
+    }
+```
+
+## 10. Що НЕ змінюється
 
 - Train AI page layout — залишається як є, тільки додаються scope badges/фільтр
 - Dashboard chat — без змін
