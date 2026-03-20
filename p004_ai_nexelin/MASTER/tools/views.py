@@ -241,15 +241,23 @@ class FlowConnectionsView(APIView):
         except ToolCard.DoesNotExist:
             return Response({'error': 'Tool not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Only allow auto-connect for no-auth tools via this endpoint
-        if tool_card.auth_type != 'none':
+        # For multi-connection: if tool already has an active connection,
+        # reuse its credentials for the new target
+        existing_conn = ToolConnection.objects.filter(
+            client=client, tool_card=tool_card, status='connected', enabled=True
+        ).first()
+
+        if tool_card.auth_type != 'none' and not existing_conn:
             return Response(
                 {'error': 'This tool requires authentication. Use /api/tools/{slug}/connect/'},
                 status=status.HTTP_400_BAD_REQUEST)
 
+        credentials = existing_conn.credentials if existing_conn else {}
+
         conn, created = ToolConnection.objects.update_or_create(
             client=client, tool_card=tool_card, target=target,
             defaults={
+                'credentials': credentials,
                 'status': 'connected',
                 'enabled': True,
                 'connected_at': timezone.now(),
