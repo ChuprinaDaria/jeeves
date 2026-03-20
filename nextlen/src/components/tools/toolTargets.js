@@ -7,6 +7,7 @@ export const TOOL_TARGETS = {
   'web-widget':      ['assistant', 'manager', 'leads'],
   'rag-search':      ['assistant'],
   'translation':     ['assistant'],
+  'xlsx-processor':  ['assistant', 'manager'],
   'hitl-matrix':     ['manager'],
   'calendar':        ['manager'],
   'crm':             ['assistant', 'manager'],

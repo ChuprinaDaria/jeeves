@@ -168,4 +168,21 @@ INITIAL_TOOLS = [
         'auth_type': 'none',
         'skill_scopes': {'scopes': ['assistant', 'manager', 'escalation'], 'bidirectional': True},
     },
+    {
+        'slug': 'xlsx-processor',
+        'name': 'XLSX Processor',
+        'tagline': 'Створення, редагування та аналіз Excel-файлів',
+        'tagline_i18n': {
+            'en': 'Create, edit, and analyze Excel spreadsheets',
+            'de': 'Excel-Tabellen erstellen, bearbeiten und analysieren',
+        },
+        'icon': 'file-spreadsheet',
+        'category': 'ai',
+        'color': '#217346',
+        'transport_type': 'builtin',
+        'is_builtin': True,
+        'builtin_handler': 'mcp_hub.builtin.xlsx_processor',
+        'auth_type': 'none',
+        'skill_scopes': {'scopes': ['assistant', 'manager'], 'bidirectional': True},
+    },
 ]

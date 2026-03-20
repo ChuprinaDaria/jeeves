@@ -13,12 +13,12 @@ class ToolCardAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ('Identity', {
-            'fields': ('name', 'slug', 'tagline', 'description', 'icon',
+            'fields': ('name', 'slug', 'tagline', 'tagline_i18n', 'description', 'icon',
                        'color', 'category', 'is_featured', 'sort_order'),
         }),
         ('MCP Connection', {
             'fields': ('transport_type', 'mcp_server_url', 'is_builtin',
-                       'builtin_handler', 'tools_schema'),
+                       'builtin_handler', 'tools_schema', 'skill_scopes'),
             'classes': ('collapse',),
         }),
         ('Auth', {

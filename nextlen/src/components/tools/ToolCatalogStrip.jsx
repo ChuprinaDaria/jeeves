@@ -6,6 +6,7 @@ import FlipToolCard from './FlipToolCard';
 const SLUG_TO_GROUP = {
   'rag-search':      'servers',
   'translation':     'skills',
+  'xlsx-processor':  'skills',
   'email-smtp':      'servers',
   'telegram':        'servers',
   'web-widget':      'servers',
