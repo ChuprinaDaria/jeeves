@@ -149,5 +149,23 @@ INITIAL_TOOLS = [
         'is_builtin': True,
         'builtin_handler': 'mcp_hub.builtin.rag_search',
         'auth_type': 'none',
+        'skill_scopes': {'scopes': ['assistant'], 'bidirectional': False},
+    },
+    {
+        'slug': 'translation',
+        'name': 'Auto Translation',
+        'tagline': 'Автоматичний переклад повідомлень у обох напрямках',
+        'tagline_i18n': {
+            'en': 'Automatic message translation in both directions',
+            'de': 'Automatische Nachrichtenübersetzung in beide Richtungen',
+        },
+        'icon': 'languages',
+        'category': 'ai',
+        'color': '#8b5cf6',
+        'transport_type': 'builtin',
+        'is_builtin': True,
+        'builtin_handler': 'mcp_hub.builtin.translation',
+        'auth_type': 'none',
+        'skill_scopes': {'scopes': ['assistant', 'manager', 'escalation'], 'bidirectional': True},
     },
 ]
