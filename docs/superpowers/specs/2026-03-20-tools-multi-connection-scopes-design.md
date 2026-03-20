@@ -427,10 +427,10 @@ const handleMiddlewareAttach = useCallback(async (conn, skillSlug) => {
 
 ---
 
-## Open questions (still TODO)
+## Scope UI & Credentials (confirmed 2026-03-20)
 
-1. **Scope UI**: should scopes be configurable from the canvas (popup on edge click) or from a separate settings page?
-2. **Credentials sharing**: when email is connected to both Oleg and Vasya, do they share the same SMTP credentials? Does Vasya have his own "from_name" or "from_address"?
+1. **Scope UI**: popup при кліку на edge на canvas — конфігурація скоупів прямо з flow builder
+2. **Email credentials**: Вася має свій `from_name` / `from_address` (той що зараз підключено до клієнта). Олег і Вася шарять SMTP credentials, але from-поля per-connection.
 
 ---
 
