@@ -99,6 +99,7 @@ class ClientSerializer(serializers.ModelSerializer):
         return {
             'mcp_tools_dashboard': FeatureFlag.is_enabled('mcp_tools_dashboard', obj),
             'mcp_sse_streaming': FeatureFlag.is_enabled('mcp_sse_streaming', obj),
+            'mcp_knowledge_split': FeatureFlag.is_enabled('mcp_knowledge_split', obj),
         }
 
 
@@ -186,6 +187,7 @@ class KnowledgeBlockSerializer(serializers.ModelSerializer):
             'description',
             'is_active',
             'is_permanent',
+            'target_scope',
             'entries_count',
             'created_at',
             'updated_at',
