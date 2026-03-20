@@ -52,6 +52,23 @@ const ToolsPage = () => {
     }
   }, [tools, showToast, t]);
 
+  const handleToolDrop = useCallback(async (slug) => {
+    const tool = tools.find(t => t.slug === slug);
+    if (!tool) return;
+    const isConnected = tool.connection?.status === 'connected' && tool.connection?.enabled;
+    if (isConnected) return;
+    if (tool.auth_type === 'none') {
+      try {
+        await toolsAPI.connect(slug, {});
+        handleConnected(slug);
+      } catch (err) {
+        console.error('Drop-connect error:', err);
+      }
+    } else {
+      showToast('💡', t('tools.flow.clickToConnect'));
+    }
+  }, [tools, handleConnected, showToast, t]);
+
   const handleCanvasToolClick = useCallback((tool, e) => {
     const el = e?.currentTarget || document.getElementById(`canvas-tool-${tool.slug}`);
     if (el) {
@@ -81,7 +98,7 @@ const ToolsPage = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-full overflow-x-hidden">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -124,6 +141,7 @@ const ToolsPage = () => {
         tools={tools}
         onToolClick={handleCanvasToolClick}
         highlightedTool={highlightedTool}
+        onToolDrop={handleToolDrop}
       />
 
       {/* Popover */}

@@ -2,16 +2,16 @@ import { useMemo } from 'react';
 
 const supportsOffsetPath = typeof CSS !== 'undefined' && CSS.supports?.('offset-path', 'path("")');
 
-const ConnectionsLayer = ({ connections, highlightedTool }) => {
+const ConnectionsLayer = ({ connections, highlightedTool, canvasW = 1200, canvasH = 600 }) => {
   const gradients = useMemo(() => (
     <>
       <linearGradient id="grad-assistant" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="#6366f1" stopOpacity="0.6" />
-        <stop offset="100%" stopColor="#818cf8" stopOpacity="0.3" />
+        <stop offset="0%" stopColor="#6c5ce7" stopOpacity="0.6" />
+        <stop offset="100%" stopColor="#a29bfe" stopOpacity="0.3" />
       </linearGradient>
       <linearGradient id="grad-manager" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="#22c55e" stopOpacity="0.6" />
-        <stop offset="100%" stopColor="#4ade80" stopOpacity="0.3" />
+        <stop offset="0%" stopColor="#00a67e" stopOpacity="0.6" />
+        <stop offset="100%" stopColor="#00d9a3" stopOpacity="0.3" />
       </linearGradient>
       <linearGradient id="grad-escalation" x1="0%" y1="0%" x2="100%" y2="0%">
         <stop offset="0%" stopColor="#6b7280" stopOpacity="0.3" />
@@ -22,8 +22,9 @@ const ConnectionsLayer = ({ connections, highlightedTool }) => {
 
   return (
     <svg
-      className="absolute inset-0 w-full h-full pointer-events-none"
-      style={{ zIndex: 1 }}
+      className="absolute inset-0 pointer-events-none"
+      style={{ zIndex: 1, width: canvasW, height: canvasH, overflow: 'visible' }}
+      viewBox={`0 0 ${canvasW} ${canvasH}`}
     >
       <defs>{gradients}</defs>
 
@@ -31,7 +32,7 @@ const ConnectionsLayer = ({ connections, highlightedTool }) => {
         const gradId = conn.target === 'escalation'
           ? 'grad-escalation'
           : conn.target === 'assistant' ? 'grad-assistant' : 'grad-manager';
-        const dotColor = conn.target === 'assistant' ? '#818cf8' : '#4ade80';
+        const dotColor = conn.target === 'assistant' ? '#a29bfe' : '#00d9a3';
 
         const isHighlighted = highlightedTool === null
           ? true
@@ -44,6 +45,7 @@ const ConnectionsLayer = ({ connections, highlightedTool }) => {
             className="transition-opacity duration-300"
             style={{ opacity, animationDelay: `${i * 200}ms` }}
           >
+            {/* Glow / shadow */}
             <path
               d={conn.pathD}
               fill="none"
@@ -52,6 +54,7 @@ const ConnectionsLayer = ({ connections, highlightedTool }) => {
               opacity="0.08"
             />
 
+            {/* Main line */}
             <path
               d={conn.pathD}
               fill="none"
@@ -60,6 +63,7 @@ const ConnectionsLayer = ({ connections, highlightedTool }) => {
               className="flow-line-animated"
             />
 
+            {/* Animated particles */}
             {conn.target !== 'escalation' && [0, 1, 2].map(p => (
               supportsOffsetPath ? (
                 <circle

@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { X, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 import { toolsAPI } from '../../api/tools';
 import api from '../../api/axios';
 import ToolStatusBadge from './ToolStatusBadge';
+import ToolIcon from './ToolIcon';
 
 const CAT_COLORS = {
   communication: { stripe: 'border-l-green-500',   iconBg: 'bg-green-500/10',   iconText: 'text-green-500' },
@@ -152,6 +153,12 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
               : 'border-dashed border-gray-300 dark:border-gray-600 opacity-60 hover:opacity-80'
             }
             bg-white dark:bg-gray-800`}
+          draggable={!isConnected}
+          onDragStart={(e) => {
+            if (isConnected) { e.preventDefault(); return; }
+            e.dataTransfer.setData('tool-slug', tool.slug);
+            e.dataTransfer.effectAllowed = 'copy';
+          }}
           onClick={handleClick}
           onMouseEnter={() => isConnected && onMouseEnter?.(tool.slug)}
           onMouseLeave={() => isConnected && onMouseLeave?.()}
@@ -163,10 +170,10 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
             </div>
           )}
           <div className="flex items-center gap-2 mb-1.5">
-            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm shrink-0 ${cat.iconBg} ${cat.iconText}`}>
-              {tool.icon || '🔧'}
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${cat.iconBg} ${cat.iconText}`}>
+              <ToolIcon name={tool.icon} className="w-4 h-4" />
             </div>
-            <div className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate leading-tight">
+            <div className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate leading-tight" title={tool.name}>
               {tool.name}
             </div>
           </div>
@@ -183,13 +190,16 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
         >
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate">{tool.name}</span>
-            <button onClick={handleCancel} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 min-h-0 min-w-0 p-0.5">
+            <button onClick={handleCancel} aria-label={t('common.close')} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1.5 -m-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
               <X size={14} />
             </button>
           </div>
 
           {error && (
-            <div className="text-[10px] text-red-600 dark:text-red-400 mb-2 leading-snug">{error}</div>
+            <div className="flex items-start gap-1 text-[11px] text-red-600 dark:text-red-400 mb-2 leading-snug bg-red-50 dark:bg-red-900/20 rounded p-1.5" role="alert">
+              <AlertCircle className="w-3 h-3 shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
           )}
 
           {qrData ? (
@@ -214,11 +224,13 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
                         onChange={(e) => handleChange(field.name, e.target.value)}
                         required={field.required}
                         placeholder={field.label || field.name}
-                        className="w-full px-2 py-1 text-[11px] border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-1 focus:ring-primary-500 min-h-0"
+                        aria-label={field.label || field.name}
+                        className="w-full px-2 py-1.5 pr-7 text-[11px] border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-1 focus:ring-primary-500"
                       />
                       <button type="button"
                         onClick={() => setShowPasswords(p => ({ ...p, [field.name]: !p[field.name] }))}
-                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 min-h-0 min-w-0 p-0"
+                        aria-label={showPasswords[field.name] ? t('tools.flow.hidePassword') || 'Hide password' : t('tools.flow.showPassword') || 'Show password'}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
                       >
                         {showPasswords[field.name] ? <EyeOff size={12} /> : <Eye size={12} />}
                       </button>
@@ -227,7 +239,7 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
                     <label className="flex items-center gap-1.5 text-[11px] text-gray-600 dark:text-gray-400 cursor-pointer">
                       <input type="checkbox" checked={credentials[field.name] || false}
                         onChange={(e) => handleChange(field.name, e.target.checked)}
-                        className="w-3 h-3 rounded border-gray-300 text-primary-600 min-h-0 min-w-0"
+                        className="w-3.5 h-3.5 rounded border-gray-300 text-primary-600"
                       />
                       {field.label || field.name}
                     </label>
@@ -238,13 +250,14 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
                       onChange={(e) => handleChange(field.name, e.target.value)}
                       required={field.required}
                       placeholder={field.label || field.name}
-                      className="w-full px-2 py-1 text-[11px] border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-1 focus:ring-primary-500 min-h-0"
+                      aria-label={field.label || field.name}
+                      className="w-full px-2 py-1.5 text-[11px] border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-1 focus:ring-primary-500"
                     />
                   )}
                 </div>
               ))}
               <button type="submit" disabled={loading}
-                className="w-full py-1 text-[11px] font-medium rounded bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 flex items-center justify-center gap-1 min-h-0"
+                className="w-full py-1.5 text-[11px] font-medium rounded bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 flex items-center justify-center gap-1"
               >
                 {loading && <Loader2 className="w-3 h-3 animate-spin" />}
                 {tool.auth_type === 'qr_code' ? t('tools.flow.startQr') : t('tools.connect')}

@@ -1,6 +1,7 @@
-import { forwardRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import ToolStatusBadge from './ToolStatusBadge';
+import ToolIcon from './ToolIcon';
+import { getToolTargets } from './toolTargets';
 
 const CAT_COLORS = {
   communication: { bg: 'bg-green-500/10 dark:bg-green-500/15', text: 'text-green-500', border: 'border-green-500/30' },
@@ -11,23 +12,32 @@ const CAT_COLORS = {
   custom:        { bg: 'bg-gray-500/10 dark:bg-gray-500/15', text: 'text-gray-500', border: 'border-gray-500/30' },
 };
 
-const CanvasToolNode = forwardRef(({ tool, onClick, isHighlighted, style }, ref) => {
+const SCOPE_LABELS = {
+  assistant: { label: 'AI', color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300' },
+  manager:   { label: 'HITL', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' },
+};
+
+const CanvasToolNode = ({ tool, onClick, isHighlighted }) => {
   const { t } = useTranslation();
   const cat = CAT_COLORS[tool.category] || CAT_COLORS.custom;
   const isConnected = tool.connection?.status === 'connected' && tool.connection?.enabled;
+  const targets = getToolTargets(tool.slug);
 
   return (
     <div
-      ref={ref}
       id={`canvas-tool-${tool.slug}`}
-      className={`flow-node-enter absolute w-[160px] bg-white dark:bg-gray-800 border rounded-[14px] p-3.5 cursor-pointer
-        transition-all duration-300
+      role="button"
+      tabIndex={0}
+      aria-label={`${tool.name} — ${isConnected ? t('tools.connected') : t('tools.notConnected')}`}
+      className={`flow-node-enter w-[160px] bg-white dark:bg-gray-800 border rounded-[14px] p-3.5 select-none relative
+        transition-all duration-200 cursor-pointer
         ${isConnected ? `${cat.border} border-opacity-100` : 'border-gray-200 dark:border-gray-700'}
         ${isHighlighted === false ? 'opacity-30' : 'opacity-100'}
-        hover:shadow-md dark:hover:shadow-lg`}
-      style={style}
+        hover:shadow-md dark:hover:shadow-lg hover:border-opacity-100`}
       onClick={(e) => onClick?.(tool, e)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.(tool, e); } }}
     >
+      {/* Right port */}
       <div
         className={`absolute right-0 top-1/2 -translate-y-1/2 translate-x-[6px] w-3 h-3 rounded-full border-2 transition-all
           ${isConnected
@@ -37,18 +47,35 @@ const CanvasToolNode = forwardRef(({ tool, onClick, isHighlighted, style }, ref)
       />
 
       <div className="flex items-center gap-2 mb-1.5">
-        <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm shrink-0 ${cat.bg} ${cat.text}`}>
-          {tool.icon || '🔧'}
+        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${cat.bg} ${cat.text}`}>
+          <ToolIcon name={tool.icon} className="w-4 h-4" />
         </div>
-        <div className="text-[13px] font-medium text-gray-900 dark:text-gray-100 truncate">
+        <div className="text-[13px] font-medium text-gray-900 dark:text-gray-100 truncate" title={tool.name}>
           {tool.name}
         </div>
       </div>
 
+      {/* Scope chips */}
+      {isConnected && targets.length > 0 && (
+        <div className="flex gap-1 mb-1.5 flex-wrap">
+          {targets.map(target => {
+            const scope = SCOPE_LABELS[target];
+            if (!scope) return null;
+            return (
+              <span
+                key={target}
+                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold tracking-wide uppercase ${scope.color}`}
+              >
+                {scope.label}
+              </span>
+            );
+          })}
+        </div>
+      )}
+
       <ToolStatusBadge status={tool.connection?.status || 'disconnected'} />
     </div>
   );
-});
+};
 
-CanvasToolNode.displayName = 'CanvasToolNode';
 export default CanvasToolNode;

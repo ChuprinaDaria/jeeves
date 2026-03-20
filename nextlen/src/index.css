@@ -139,10 +139,13 @@
     transform: rotateY(180deg);
   }
 
-  /* Flow Builder — dot grid (dark mode only) */
+  /* Flow Builder — dot grid (both modes) */
   .dot-grid {
-    background-image: radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-image: radial-gradient(circle, rgba(0,0,0,0.06) 1px, transparent 1px);
     background-size: 30px 30px;
+  }
+  .dark .dot-grid {
+    background-image: radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px);
   }
 
   /* Flow Builder — connection line dash animation */
@@ -204,5 +207,48 @@
   @keyframes flow-pulse-arrow {
     0%, 100% { opacity: 0.4; transform: translateY(0); }
     50%      { opacity: 1;   transform: translateY(8px); }
+  }
+
+  /* Flow Builder — interactive canvas */
+  .flow-canvas {
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .flow-canvas.panning {
+    cursor: grabbing;
+  }
+
+  .flow-draggable {
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: box-shadow 0.2s, transform 0.15s;
+  }
+  .flow-draggable:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  }
+  .flow-draggable.dragging {
+    cursor: grabbing;
+    z-index: 50 !important;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.18);
+    transition: box-shadow 0.15s;
+  }
+
+  /* Flow Builder — connector ports */
+  .flow-port {
+    cursor: crosshair;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .flow-port:hover {
+    transform: translate(-50%, -50%) scale(1.5);
+    box-shadow: 0 0 8px rgba(34,197,94,0.5);
+  }
+
+  /* Flow Builder — zoom controls */
+  .flow-zoom-controls {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
 }

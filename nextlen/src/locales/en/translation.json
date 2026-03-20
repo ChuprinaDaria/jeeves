@@ -806,7 +806,10 @@
       "disconnected": "disconnected",
       "loadError": "Failed to load tools.",
       "statsConnected": "connected",
-      "statsAvailable": "available"
+      "statsAvailable": "available",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
+      "dragToConnect": "Drag a tool onto the canvas to connect it"
     }
   }
 }
