@@ -1,14 +1,42 @@
+from collections import defaultdict
+
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from MASTER.nexelin_platform.models import FeatureFlag
 from .models import ToolCard, ToolConnection, EdgeMiddleware
 from .serializers import (
     ToolCatalogItemSerializer, ToolConnectionSerializer,
     FlowConnectionSerializer, FlowConnectionUpdateSerializer,
     EdgeMiddlewareSerializer, EdgeMiddlewareCreateSerializer,
 )
+
+
+def _serialize_conn(conn):
+    """Serialize a single ToolConnection for catalog response."""
+    return {
+        'id': conn.pk,
+        'status': conn.status,
+        'enabled': conn.enabled,
+        'target': conn.target,
+        'scope': conn.scope,
+        'connected_at': conn.connected_at.isoformat() if conn.connected_at else None,
+        'last_used_at': conn.last_used_at.isoformat() if conn.last_used_at else None,
+        'middlewares': [
+            {
+                'id': mw.pk,
+                'skill_slug': mw.skill_card.slug,
+                'skill_name': mw.skill_card.name,
+                'skill_icon': mw.skill_card.icon,
+                'skill_color': mw.skill_card.color,
+                'order': mw.order,
+                'enabled': mw.enabled,
+            }
+            for mw in conn.middlewares.all()
+        ],
+    }
 
 
 class ToolCatalogView(APIView):
@@ -20,16 +48,20 @@ class ToolCatalogView(APIView):
             'Accept-Language', '')[:2] or 'en'
         tools = ToolCard.objects.filter(is_active=True).order_by('sort_order', 'name')
 
-        connections = {}
+        connections = defaultdict(list)
         if client:
             conns_qs = ToolConnection.objects.filter(
                 client=client
             ).prefetch_related('middlewares__skill_card')
-            connections = {tc.tool_card_id: tc for tc in conns_qs}
+            for tc in conns_qs:
+                connections[tc.tool_card_id].append(tc)
+
+        multi_conn = client and FeatureFlag.is_enabled(
+            'mcp_tools_multi_connection', client)
 
         result = []
         for tool in tools:
-            conn = connections.get(tool.pk)
+            tool_conns = connections.get(tool.pk, [])
             # Resolve tagline: prefer i18n version for requested lang
             tagline = tool.tagline
             if tool.tagline_i18n and lang in tool.tagline_i18n:
@@ -46,29 +78,23 @@ class ToolCatalogView(APIView):
                 'category': tool.category,
                 'is_featured': tool.is_featured,
                 'auth_type': tool.auth_type,
-                'auth_config': tool.auth_config if not conn else None,
+                'auth_config': tool.auth_config if not tool_conns else None,
                 'skill_scopes': tool.skill_scopes,
-                'connection': {
-                    'id': conn.pk,
-                    'status': conn.status,
-                    'enabled': conn.enabled,
-                    'target': conn.target,
-                    'connected_at': conn.connected_at.isoformat() if conn.connected_at else None,
-                    'last_used_at': conn.last_used_at.isoformat() if conn.last_used_at else None,
-                    'middlewares': [
-                        {
-                            'id': mw.pk,
-                            'skill_slug': mw.skill_card.slug,
-                            'skill_name': mw.skill_card.name,
-                            'skill_icon': mw.skill_card.icon,
-                            'skill_color': mw.skill_card.color,
-                            'order': mw.order,
-                            'enabled': mw.enabled,
-                        }
-                        for mw in conn.middlewares.all()
-                    ],
-                } if conn else None,
+                'scope_schema': tool.scope_schema,
             }
+
+            if multi_conn:
+                item['connections'] = [_serialize_conn(c) for c in tool_conns]
+                first_conn = next(
+                    (c for c in tool_conns
+                     if c.status == 'connected' and c.enabled), None)
+                item['connection'] = (
+                    _serialize_conn(first_conn) if first_conn else None)
+            else:
+                conn = next(iter(tool_conns), None)
+                item['connection'] = (
+                    _serialize_conn(conn) if conn else None)
+
             result.append(item)
 
         return Response(result)
@@ -109,18 +135,17 @@ class ToolConnectView(APIView):
 
         if tool_card.auth_type == 'qr_code':
             conn, _ = ToolConnection.objects.update_or_create(
-                client=client, tool_card=tool_card,
-                defaults={'status': 'pending', 'target': target})
+                client=client, tool_card=tool_card, target=target,
+                defaults={'status': 'pending'})
             initiate_url = tool_card.auth_config.get('initiate_url', '')
             return Response({'status': 'pending', 'initiate_url': initiate_url})
 
         # api_key, credentials, none
         conn, _ = ToolConnection.objects.update_or_create(
-            client=client, tool_card=tool_card,
+            client=client, tool_card=tool_card, target=target,
             defaults={
                 'credentials': credentials,
                 'status': 'connected',
-                'target': target,
                 'enabled': True,
                 'connected_at': timezone.now(),
                 'last_error': '',
@@ -137,9 +162,11 @@ class ToolDisconnectView(APIView):
         if not client:
             return Response({'error': 'Client not found'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        updated = ToolConnection.objects.filter(
-            client=client, tool_card__slug=slug
-        ).update(status='disconnected', enabled=False)
+        target = request.data.get('target')
+        qs = ToolConnection.objects.filter(client=client, tool_card__slug=slug)
+        if target:
+            qs = qs.filter(target=target)
+        updated = qs.update(status='disconnected', enabled=False)
 
         if not updated:
             return Response({'error': 'Connection not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -221,10 +248,9 @@ class FlowConnectionsView(APIView):
                 status=status.HTTP_400_BAD_REQUEST)
 
         conn, created = ToolConnection.objects.update_or_create(
-            client=client, tool_card=tool_card,
+            client=client, tool_card=tool_card, target=target,
             defaults={
                 'status': 'connected',
-                'target': target,
                 'enabled': True,
                 'connected_at': timezone.now(),
                 'last_error': '',
