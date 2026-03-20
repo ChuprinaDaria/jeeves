@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Send, Mic, Volume2, Trash2, Image, X, BookmarkPlus } from 'lucide-react';
 import { ragAPI } from '../../api/agent';
 
-const ChatWindow = () => {
+const ChatWindow = ({ fullHeight = false }) => {
   const { t, i18n } = useTranslation();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -363,7 +363,7 @@ const ChatWindow = () => {
   };
 
   return (
-    <div className="card h-[600px] flex flex-col">
+    <div className={`card flex flex-col ${fullHeight ? 'h-full' : 'h-[600px]'}`}>
       {/* Header with Clear History Button */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('sandbox.chatTest')}</h3>
@@ -384,10 +384,10 @@ const ChatWindow = () => {
             className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[70%] p-3 rounded-lg ${
+              className={`max-w-[80%] p-3 rounded-lg ${
                 msg.sender === 'user'
                   ? 'bg-primary-500 dark:bg-primary-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
+                  : 'bg-gray-100 dark:bg-gray-700/50 text-gray-800 dark:text-gray-200'
               }`}
             >
               {msg.image && (
@@ -487,20 +487,31 @@ const ChatWindow = () => {
         >
           <Image size={18} />
         </label>
-        <input
+        <textarea
           ref={inputRef}
-          type="text"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-          placeholder={t('sandbox.typeMessage')}
-          className="flex-1 input"
+          onChange={(e) => {
+            setInput(e.target.value);
+            e.target.style.height = '44px';
+            e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleSend();
+            }
+          }}
+          placeholder={t('sandbox.inputPlaceholder') || 'Type your message...'}
+          rows={1}
+          className="flex-1 resize-none overflow-hidden bg-gray-100 dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 dark:text-gray-100"
+          style={{ minHeight: '44px', maxHeight: '120px' }}
           disabled={isRecording}
         />
-        <button 
-          onClick={handleSend} 
-          disabled={loading || isRecording || (!input.trim() && !selectedImage)} 
-          className="flex items-center justify-center w-10 h-10 btn-primary rounded-lg"
+        <button
+          onClick={handleSend}
+          disabled={loading || isRecording || (!input.trim() && !selectedImage)}
+          title={t('sandbox.sendMessage') || 'Send message'}
+          className={`flex items-center justify-center w-10 h-10 btn-primary rounded-lg ${(!input.trim() && !selectedImage) ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <Send size={18} />
         </button>
