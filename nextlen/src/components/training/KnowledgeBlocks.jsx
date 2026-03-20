@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Edit3, Loader2, Trash2, Power, Search, ArrowUpDown, X, ChevronRight, Filter, Database, Boxes } from "lucide-react";
 import { clientAPI } from "../../api/client";
+import { useAuth } from '../../context/AuthContext';
 import KnowledgeBlockEditModal from "./KnowledgeBlockEditModal";
 import KnowledgeBlockAddModal from "./KnowledgeBlockAddModal";
 
@@ -12,6 +13,8 @@ const KnowledgeBlocks = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAllModal, setShowAllModal] = useState(false);
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const knowledgeSplitEnabled = user?.feature_flags?.mcp_knowledge_split;
 
   // Стан для модалки
   const [searchQuery, setSearchQuery] = useState('');
@@ -21,6 +24,7 @@ const KnowledgeBlocks = () => {
     return saved || 'entries_desc';
   });
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterScope, setFilterScope] = useState('all_scopes');
 
   // Дебаунс для пошуку (400ms)
   useEffect(() => {
@@ -161,6 +165,11 @@ const KnowledgeBlocks = () => {
       result = result.filter(block => block.permanent);
     }
 
+    // Фільтрація по scope
+    if (knowledgeSplitEnabled && filterScope !== 'all_scopes') {
+      result = result.filter(b => b.target_scope === filterScope);
+    }
+
     // Фільтрація по пошуку
     if (debouncedSearch.trim()) {
       const query = debouncedSearch.toLowerCase().trim();
@@ -187,7 +196,7 @@ const KnowledgeBlocks = () => {
     });
 
     return result;
-  }, [blocks, debouncedSearch, sortBy, filterStatus]);
+  }, [blocks, debouncedSearch, sortBy, filterStatus, filterScope, knowledgeSplitEnabled]);
 
   const sortOptions = [
     { value: 'entries_desc', label: t('knowledgeBlocks.sort.entriesDesc') || 'Most entries' },
@@ -279,6 +288,17 @@ const KnowledgeBlocks = () => {
             <div className="flex items-center justify-between gap-2 mb-2">
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <p className="font-semibold text-accent-900 dark:text-accent-100 truncate" title={block.name}>{block.name}</p>
+                {knowledgeSplitEnabled && block.target_scope && block.target_scope !== 'all' && (
+                  <span className={`ml-2 px-2 py-0.5 text-xs rounded-full font-medium ${
+                    block.target_scope === 'assistant'
+                      ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
+                      : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                  }`}>
+                    {block.target_scope === 'assistant'
+                      ? (t('training.scopeBadgeAssistant') || 'Oleg')
+                      : (t('training.scopeBadgeManager') || 'Vasya')}
+                  </span>
+                )}
                 {block.permanent && (
                   <span className="text-xs bg-accent-200 dark:bg-accent-800 text-accent-700 dark:text-accent-300 px-2 py-0.5 rounded flex-shrink-0">
                     {t("knowledgeBlocks.permanent") || "Permanent"}
@@ -476,6 +496,20 @@ const KnowledgeBlocks = () => {
                     {t('knowledgeBlocks.filter.inactive') || 'Inactive'} ({stats.inactive})
                   </button>
                 </div>
+
+                {/* Фільтр по scope */}
+                {knowledgeSplitEnabled && (
+                  <select
+                    value={filterScope}
+                    onChange={(e) => setFilterScope(e.target.value)}
+                    className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  >
+                    <option value="all_scopes">{t('training.scopeFilter') || 'All scopes'}</option>
+                    <option value="all">{t('training.scopeAll') || 'Shared'}</option>
+                    <option value="assistant">{t('training.scopeAssistant') || 'Oleg only'}</option>
+                    <option value="manager">{t('training.scopeManager') || 'Vasya only'}</option>
+                  </select>
+                )}
 
                 {/* Сортування */}
                 <div className="flex items-center gap-2">
