@@ -158,9 +158,8 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
               : 'border-dashed border-gray-300 dark:border-gray-600 opacity-60 hover:opacity-80'
             }
             bg-white dark:bg-gray-800`}
-          draggable={!isConnected}
+          draggable={true}
           onDragStart={(e) => {
-            if (isConnected) { e.preventDefault(); return; }
             e.dataTransfer.setData('tool-slug', tool.slug);
             e.dataTransfer.effectAllowed = 'copy';
           }}

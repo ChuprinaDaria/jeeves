@@ -7,8 +7,9 @@ import OnboardingHint from './OnboardingHint';
 import { getToolTargets } from './toolTargets';
 
 /* ── Constants ─────────────────────────────────────── */
-const CORE_W = 200, CORE_H = 140;
-const TOOL_W = 160, TOOL_H = 80;
+const CORE_W = 200, CORE_H = 145;
+const TOOL_W = 160, TOOL_H = 104;
+const PORT_RADIUS = 6; // half of w-3 h-3 (12px)
 const ZOOM_MIN = 0.3, ZOOM_MAX = 2, ZOOM_STEP = 0.1;
 const CANVAS_PADDING = 60;
 const PORT_GAP = 20;
@@ -126,7 +127,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop }) => {
   const getPortY = (nodePos, portIndex, portCount) => {
     const totalH = (portCount - 1) * PORT_GAP;
     const startY = nodePos.y + CORE_H / 2 - totalH / 2;
-    return startY + portIndex * PORT_GAP;
+    return startY + portIndex * PORT_GAP + PORT_RADIUS;
   };
 
   /* ── Compute connections from positions ── */
@@ -207,7 +208,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop }) => {
     // Only primary button
     if (e.button !== 0) return;
     e.stopPropagation();
-    e.preventDefault();
+    // NOT calling preventDefault() — click events must still fire for popover
 
     const canvas = screenToCanvas(e.clientX, e.clientY);
     const pos = positions[nodeId];
