@@ -50,17 +50,16 @@ class FlowConnectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = ToolConnection
         fields = ['id', 'slug', 'name', 'icon', 'color', 'category',
-                  'status', 'target', 'enabled',
+                  'status', 'target', 'scope', 'enabled',
                   'position_x', 'position_y', 'connected_at', 'middlewares']
 
 
 class FlowConnectionUpdateSerializer(serializers.Serializer):
-    """For PATCH — update target, position, or enabled."""
-    target = serializers.ChoiceField(
-        choices=ToolConnection.TARGET_CHOICES, required=False)
+    """For PATCH — update scope, position, or enabled. NOT target (delete+create instead)."""
     position_x = serializers.FloatField(required=False, allow_null=True)
     position_y = serializers.FloatField(required=False, allow_null=True)
     enabled = serializers.BooleanField(required=False)
+    scope = serializers.JSONField(required=False)
 
 
 class ToolCatalogItemSerializer(serializers.Serializer):
@@ -77,6 +76,7 @@ class ToolCatalogItemSerializer(serializers.Serializer):
     auth_type = serializers.CharField()
     auth_config = serializers.JSONField()
     connection = serializers.DictField(allow_null=True)
+    connections = serializers.ListField(child=serializers.DictField(), default=list, required=False)
 
 
 class ConnectCredentialsSerializer(serializers.Serializer):
