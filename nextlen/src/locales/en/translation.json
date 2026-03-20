@@ -32,7 +32,8 @@
     "settings": "Settings",
     "billing": "Billing",
     "leads": "Leads",
-    "tools": "Tools"
+    "tools": "Tools",
+    "assistant": "Assistant"
   },
   "auth": {
     "welcomeBack": "Welcome Back",
@@ -174,7 +175,13 @@
       "all": "All"
     },
     "sandboxDescription": "Test your AI assistant before going live",
-    "sandboxBadge": "Test Mode"
+    "sandboxBadge": "Test Mode",
+    "scopeAll": "Shared",
+    "scopeAssistant": "Oleg only",
+    "scopeManager": "Vasya only",
+    "scopeFilter": "Scope",
+    "scopeBadgeAssistant": "Oleg",
+    "scopeBadgeManager": "Vasya"
   },
   "sandbox": {
     "title": "Sandbox",
@@ -224,7 +231,9 @@
     "uploadNew": "New Image",
     "newLocationTitle": "Sandbox is now also available in Train AI!",
     "newLocationDescription": "For your convenience, you can now test your AI assistant directly on the Train AI page, right after configuring the AI behavior prompt.",
-    "goToTraining": "Go to Train AI"
+    "goToTraining": "Go to Train AI",
+    "assistantTitle": "AI Assistant",
+    "assistantSubtitle": "Chat with Oleg — your AI assistant"
   },
   "integrations": {
     "title": "Integrations",
