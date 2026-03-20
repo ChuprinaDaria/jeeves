@@ -27,6 +27,7 @@ INITIAL_TOOLS = [
                 {'name': 'verify_token', 'label': 'Webhook Verify Token', 'required': True},
             ]
         },
+        'is_active': False,
     },
     {
         'slug': 'telegram',
