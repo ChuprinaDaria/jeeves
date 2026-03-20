@@ -4,7 +4,7 @@ import FlipToolCard from './FlipToolCard';
 
 /* ── Category mapping: slug → tab group ── */
 const SLUG_TO_GROUP = {
-  'rag-search':      'skills',
+  'rag-search':      'servers',
   'translation':     'skills',
   'email-smtp':      'servers',
   'telegram':        'servers',
