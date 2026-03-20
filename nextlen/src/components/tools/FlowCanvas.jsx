@@ -64,17 +64,24 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     [tools]
   );
 
+  /* ── Effective targets: use connection.target from API, fallback to static map ── */
+  const getEffectiveTargets = useCallback((tool) => {
+    const connTarget = tool.connection?.target;
+    if (connTarget) return [connTarget];
+    return getToolTargets(tool.slug);
+  }, []);
+
   const groups = useMemo(() => {
     const left = [], right = [], both = [], leadsTools = [];
     connectedTools.forEach(tool => {
-      const targets = getToolTargets(tool.slug);
+      const targets = getEffectiveTargets(tool);
       if (targets.includes('leads')) leadsTools.push(tool);
       if (targets.includes('assistant') && targets.includes('manager')) both.push(tool);
       else if (targets.includes('manager')) right.push(tool);
       else left.push(tool);
     });
     return { left, right, both, leads: leadsTools };
-  }, [connectedTools]);
+  }, [connectedTools, getEffectiveTargets]);
 
   /* ── Canvas dimensions ─────────────────── */
   const maxGroupSize = Math.max(groups.left.length, groups.right.length, 1);
@@ -140,11 +147,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     if (nodeId.startsWith('__')) {
       // Core node — left side ports
       const variant = nodeId.slice(2);
-      const toolsForNode = variant === 'assistant'
-        ? connectedTools.filter(t => getToolTargets(t.slug).includes('assistant'))
-        : variant === 'manager'
-        ? connectedTools.filter(t => getToolTargets(t.slug).includes('manager'))
-        : connectedTools.filter(t => getToolTargets(t.slug).includes('leads'));
+      const toolsForNode = connectedTools.filter(t => getEffectiveTargets(t).includes(variant));
       const portCount = Math.max(toolsForNode.length, 1);
       return {
         x: pos.x,
@@ -180,9 +183,9 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
       targetNode: '__manager',
     });
 
-    const assistantTools = connectedTools.filter(t => getToolTargets(t.slug).includes('assistant'));
-    const managerTools = connectedTools.filter(t => getToolTargets(t.slug).includes('manager'));
-    const leadsTools = connectedTools.filter(t => getToolTargets(t.slug).includes('leads'));
+    const assistantTools = connectedTools.filter(t => getEffectiveTargets(t).includes('assistant'));
+    const managerTools = connectedTools.filter(t => getEffectiveTargets(t).includes('manager'));
+    const leadsTools = connectedTools.filter(t => getEffectiveTargets(t).includes('leads'));
 
     assistantTools.forEach((tool, portIdx) => {
       const tPos = positions[tool.slug];
@@ -249,7 +252,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     connectedTools.forEach(tool => {
       const mws = tool.connection?.middlewares;
       if (!mws?.length) return;
-      const targets = getToolTargets(tool.slug);
+      const targets = getEffectiveTargets(tool);
       targets.forEach(target => {
         const edgeId = `${tool.slug}-${target}`;
         map[edgeId] = mws;
@@ -273,7 +276,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
       // Dragging from tool → valid targets are core ports
       ['__assistant', '__manager', '__leads'].forEach(coreId => {
         const variant = coreId.slice(2);
-        const toolsForNode = connectedTools.filter(t => getToolTargets(t.slug).includes(variant));
+        const toolsForNode = connectedTools.filter(t => getEffectiveTargets(t).includes(variant));
         const portCount = Math.max(toolsForNode.length, 1);
         for (let i = 0; i < portCount; i++) {
           ports.push(`${coreId}:${i}`);

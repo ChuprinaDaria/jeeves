@@ -22,7 +22,7 @@ const CanvasToolNode = ({ tool, onClick, isHighlighted, onPortPointerDown, onPor
   const { t } = useTranslation();
   const cat = CAT_COLORS[tool.category] || CAT_COLORS.custom;
   const isConnected = tool.connection?.status === 'connected' && tool.connection?.enabled;
-  const targets = getToolTargets(tool.slug);
+  const targets = tool.connection?.target ? [tool.connection.target] : getToolTargets(tool.slug);
   const portId = `${tool.slug}:0`;
   const isValidDrop = validDropPorts?.includes(portId);
 
