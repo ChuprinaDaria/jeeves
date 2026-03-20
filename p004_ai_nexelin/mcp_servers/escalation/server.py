@@ -39,78 +39,72 @@ def _escalate_sync(client_id, conversation_id, reason, customer_name, channel, s
     except Client.DoesNotExist:
         return {"error": f"Client {client_id} not found"}
 
-    # Find and update conversation
+    # Find conversation
     conv = None
     try:
         conv = ClientWhatsAppConversation.objects.get(
             client=client,
             customer_phone=conversation_id,
         )
-        conv.is_escalated_to_manager = True
-        conv.manager_escalation_context = f"Reason: {reason}\nSummary: {summary}"
-        conv.escalation_started_at = timezone.now()
-        conv.escalation_original_query = summary or reason
-        conv.save(update_fields=[
-            "is_escalated_to_manager",
-            "manager_escalation_context",
-            "escalation_started_at",
-            "escalation_original_query",
-        ])
     except ClientWhatsAppConversation.DoesNotExist:
-        pass  # Conversation may not exist for all channels
+        # Try by telegram_chat_id
+        try:
+            conv = ClientWhatsAppConversation.objects.get(
+                client=client,
+                telegram_chat_id=conversation_id,
+            )
+        except ClientWhatsAppConversation.DoesNotExist:
+            pass
 
-    # Notify manager
-    manager_notified = _notify_manager(client, reason, customer_name, channel, summary)
+    if not conv:
+        return {
+            "error": f"Conversation {conversation_id} not found",
+            "escalation_id": None,
+            "manager_notified": False,
+        }
+
+    question_summary = summary or reason
+
+    # 1. Telegram notification — via existing Celery task (full HTML, translation, last 3 messages)
+    telegram_dispatched = False
+    if client.hitl_enabled:
+        try:
+            from MASTER.clients.tasks import notify_manager_of_escalation
+            notify_manager_of_escalation.delay(conv.id, question_summary)
+            telegram_dispatched = True
+            logger.info(f"Dispatched Telegram escalation for conversation {conv.id}")
+        except Exception as e:
+            logger.error(f"Failed to dispatch Telegram escalation: {e}")
+
+    # 2. Matrix notification — via existing function (Integration Service HTTP)
+    matrix_dispatched = False
+    if getattr(client, "matrix_hitl_enabled", False):
+        try:
+            from MASTER.clients.tasks import send_matrix_escalation
+            send_matrix_escalation(
+                conversation=conv,
+                client=client,
+                channel=channel,
+                message_body=question_summary,
+                escalation_summary=reason,
+                language=getattr(conv, "escalation_language", "en"),
+            )
+            matrix_dispatched = True
+            logger.info(f"Dispatched Matrix escalation for conversation {conv.id}")
+        except Exception as e:
+            logger.error(f"Failed to dispatch Matrix escalation: {e}")
+
+    manager_notified = telegram_dispatched or matrix_dispatched
 
     return {
-        "escalation_id": f"esc-{client_id}-{int(timezone.now().timestamp())}",
+        "escalation_id": f"esc-{conv.id}-{int(timezone.now().timestamp())}",
         "conversation_id": conversation_id,
         "manager_notified": manager_notified,
-        "estimated_wait": "2-5 minutes" if manager_notified else "Manager offline",
+        "telegram": telegram_dispatched,
+        "matrix": matrix_dispatched,
+        "estimated_wait": "2-5 minutes" if manager_notified else "No manager channel configured",
         "reason": reason,
     }
-
-
-def _notify_manager(client, reason, customer_name, channel, summary):
-    """Send notification to manager via Telegram or Matrix."""
-    notification_text = (
-        f"🔔 Escalation from {channel}\n"
-        f"Customer: {customer_name or 'Unknown'}\n"
-        f"Reason: {reason}\n"
-    )
-    if summary:
-        notification_text += f"Summary: {summary}\n"
-
-    # Try Telegram notification
-    manager_ids = client.get_manager_telegram_ids() if hasattr(client, "get_manager_telegram_ids") else []
-    bot_token = getattr(client, "telegram_bot_token", "")
-
-    if bot_token and manager_ids:
-        try:
-            import requests
-
-            for manager_id in manager_ids:
-                requests.post(
-                    f"https://api.telegram.org/bot{bot_token}/sendMessage",
-                    json={"chat_id": manager_id, "text": notification_text, "parse_mode": "HTML"},
-                    timeout=10,
-                )
-            return True
-        except Exception as e:
-            logger.error(f"Telegram escalation notification failed: {e}")
-
-    # Try Matrix notification
-    if getattr(client, "matrix_homeserver_url", None):
-        try:
-            from MASTER.clients.services.whatsapp_bridge import notify_matrix_managers
-
-            notify_matrix_managers(client, notification_text)
-            return True
-        except Exception as e:
-            logger.error(f"Matrix escalation notification failed: {e}")
-
-    logger.warning(f"No manager notification channel configured for client {client.pk}")
-    return False
 
 
 def _check_availability_sync(client_id):
