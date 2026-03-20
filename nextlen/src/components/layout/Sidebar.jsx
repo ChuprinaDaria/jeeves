@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   GraduationCap,
   FlaskConical,
+  Bot,
   Plug2,
   Puzzle,
   MessageSquare,
@@ -74,7 +75,9 @@ const Sidebar = () => {
   const navItems = [
     { to: '/dashboard', icon: LayoutDashboard, label: t('nav.dashboard') },
     { to: '/training', icon: GraduationCap, label: t('nav.training') },
-    { to: '/sandbox', icon: FlaskConical, label: t('nav.sandbox'), badge: t('nav.sandboxBadge') || 'Also in Train AI' },
+    user?.feature_flags?.mcp_knowledge_split
+      ? { to: '/sandbox', icon: Bot, label: t('nav.assistant') || 'Assistant' }
+      : { to: '/sandbox', icon: FlaskConical, label: t('nav.sandbox'), badge: t('nav.sandboxBadge') || 'Also in Train AI' },
     ...(user?.feature_flags?.mcp_tools_dashboard
       ? [{ to: '/tools', icon: Puzzle, label: t('nav.tools') || 'Tools' }]
       : [{ to: '/integrations', icon: Plug2, label: t('nav.integrations') }]),

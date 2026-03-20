@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   GraduationCap,
   FlaskConical,
+  Bot,
   MessageSquare,
   Plug2,
   Puzzle,
@@ -130,7 +131,9 @@ const ClientLayout = () => {
   const navItems = [
     { to: `${basePath}/dashboard`, icon: LayoutDashboard, label: t('nav.dashboard') },
     { to: `${basePath}/training`, icon: GraduationCap, label: t('nav.training') },
-    { to: `${basePath}/sandbox`, icon: FlaskConical, label: t('nav.sandbox'), badge: t('nav.sandboxBadge') || 'Also in Train AI' },
+    user?.feature_flags?.mcp_knowledge_split
+      ? { to: `${basePath}/sandbox`, icon: Bot, label: t('nav.assistant') || 'Assistant' }
+      : { to: `${basePath}/sandbox`, icon: FlaskConical, label: t('nav.sandbox'), badge: t('nav.sandboxBadge') || 'Also in Train AI' },
     ...(user?.feature_flags?.mcp_tools_dashboard
       ? [{ to: `${basePath}/tools`, icon: Puzzle, label: t('nav.tools') || 'Tools' }]
       : [{ to: `${basePath}/integrations`, icon: Plug2, label: t('nav.integrations') }]),
