@@ -60,12 +60,23 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
 
   /* ── Connected tools & groups ──────────── */
   const connectedTools = useMemo(
-    () => tools.filter(t => t.connection?.status === 'connected' && t.connection?.enabled),
+    () => tools.filter(t => {
+      if (t.connections) {
+        return t.connections.some(c => c.status === 'connected' && c.enabled);
+      }
+      return t.connection?.status === 'connected' && t.connection?.enabled;
+    }),
     [tools]
   );
 
   /* ── Effective targets: use connection.target from API, fallback to static map ── */
   const getEffectiveTargets = useCallback((tool) => {
+    if (tool.connections?.length) {
+      const targets = tool.connections
+        .filter(c => c.status === 'connected' && c.enabled)
+        .map(c => c.target);
+      return targets.length ? targets : getToolTargets(tool.slug);
+    }
     const connTarget = tool.connection?.target;
     if (connTarget) return [connTarget];
     return getToolTargets(tool.slug);
