@@ -283,12 +283,27 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
 
   const handlePortPointerUp = useCallback((nodeId, portIndex) => {
     if (!edgeDrag) return;
-    // Edge created: from edgeDrag.sourceNode → nodeId
-    // For now, just log — backend integration can come later
-    console.log('Edge created:', edgeDrag.sourceNode, '→', nodeId, `port ${portIndex}`);
+
+    const { sourceNode } = edgeDrag;
     setEdgeDrag(null);
     setGhostEdge(null);
-  }, [edgeDrag]);
+
+    // Determine tool slug and target core node
+    const sourceIsCore = sourceNode.startsWith('__');
+    const targetIsCore = nodeId.startsWith('__');
+
+    // Only allow tool-to-core or core-to-tool connections
+    if (sourceIsCore === targetIsCore) return;
+
+    const toolSlug = sourceIsCore ? nodeId : sourceNode;
+    const coreNodeId = sourceIsCore ? sourceNode : nodeId;
+
+    // Don't create edges for core-only nodes
+    if (toolSlug.startsWith('__')) return;
+
+    const target = coreNodeId.slice(2); // '__assistant' -> 'assistant'
+    onConnect?.(toolSlug, target);
+  }, [edgeDrag, onConnect]);
 
   /* ── Ghost edge during port drag ──────── */
   useEffect(() => {

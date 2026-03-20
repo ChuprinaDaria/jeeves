@@ -52,6 +52,28 @@ const ToolsPage = () => {
     }
   }, [tools, showToast, t]);
 
+  const handleConnect = useCallback(async (slug, target) => {
+    const tool = tools.find(t => t.slug === slug);
+    if (!tool) return;
+
+    const isConnected = tool.connection?.status === 'connected' && tool.connection?.enabled;
+
+    try {
+      if (isConnected && tool.connection?.id) {
+        await toolsAPI.updateFlowConnection(tool.connection.id, { target });
+      } else if (tool.auth_type === 'none') {
+        await toolsAPI.createFlowConnection(slug, target);
+      } else {
+        showToast('💡', t('tools.flow.clickToConnect'));
+        return;
+      }
+      showToast('🔗', `${tool?.name || slug} → ${target}`);
+      loadTools();
+    } catch (err) {
+      console.error('Connect error:', err);
+    }
+  }, [tools, showToast, t]);
+
   const handleToolDrop = useCallback(async (slug) => {
     const tool = tools.find(t => t.slug === slug);
     if (!tool) return;
@@ -143,6 +165,7 @@ const ToolsPage = () => {
         highlightedTool={highlightedTool}
         onToolDrop={handleToolDrop}
         onDisconnect={handleDisconnect}
+        onConnect={handleConnect}
       />
 
       {/* Popover */}
