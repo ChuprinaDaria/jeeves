@@ -47,6 +47,9 @@ class ToolCard(models.Model):
 
     auth_type = models.CharField(max_length=20, choices=AUTH_TYPE_CHOICES)
     auth_config = models.JSONField(default=dict, blank=True)
+    skill_scopes = models.JSONField(
+        default=dict, blank=True,
+        help_text='{"scopes": ["assistant","manager","escalation"], "bidirectional": true}')
 
     is_active = models.BooleanField(default=True)
     is_featured = models.BooleanField(default=False)
@@ -111,3 +114,36 @@ class ToolConnection(models.Model):
 
     def __str__(self):
         return f'{self.client} — {self.tool_card.name} ({self.status})'
+
+
+class EdgeMiddleware(models.Model):
+    """Skill attached to a connection edge as middleware/filter."""
+
+    connection = models.ForeignKey(
+        ToolConnection, on_delete=models.CASCADE,
+        related_name='middlewares',
+        help_text='The edge this skill is attached to')
+    skill_card = models.ForeignKey(
+        ToolCard, on_delete=models.CASCADE,
+        related_name='middleware_usages',
+        help_text='The skill acting as middleware')
+    client = models.ForeignKey(
+        'clients.Client', on_delete=models.CASCADE,
+        related_name='edge_middlewares')
+    order = models.IntegerField(default=0, help_text='Execution order on this edge')
+    enabled = models.BooleanField(default=True)
+    config = models.JSONField(default=dict, blank=True,
+        help_text='Per-edge config overrides for this skill')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order']
+        unique_together = ['connection', 'skill_card']
+        indexes = [
+            models.Index(fields=['client', 'connection']),
+        ]
+
+    def __str__(self):
+        return f'{self.skill_card.name} on {self.connection}'
