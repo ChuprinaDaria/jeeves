@@ -5,8 +5,9 @@ from .models import ToolCard, ToolConnection
 class ToolCardSerializer(serializers.ModelSerializer):
     class Meta:
         model = ToolCard
-        fields = ['slug', 'name', 'tagline', 'description', 'icon', 'color',
-                  'category', 'is_featured', 'auth_type', 'auth_config']
+        fields = ['slug', 'name', 'tagline', 'tagline_i18n', 'description',
+                  'icon', 'color', 'category', 'is_featured', 'auth_type',
+                  'auth_config']
 
 
 class ToolConnectionSerializer(serializers.ModelSerializer):
@@ -14,8 +15,33 @@ class ToolConnectionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ToolConnection
-        fields = ['tool', 'status', 'enabled', 'connected_at', 'last_used_at',
-                  'last_error', 'error_count']
+        fields = ['id', 'tool', 'status', 'target', 'enabled',
+                  'position_x', 'position_y',
+                  'connected_at', 'last_used_at', 'last_error', 'error_count']
+
+
+class FlowConnectionSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for flow canvas connections."""
+    slug = serializers.CharField(source='tool_card.slug', read_only=True)
+    name = serializers.CharField(source='tool_card.name', read_only=True)
+    icon = serializers.CharField(source='tool_card.icon', read_only=True)
+    color = serializers.CharField(source='tool_card.color', read_only=True)
+    category = serializers.CharField(source='tool_card.category', read_only=True)
+
+    class Meta:
+        model = ToolConnection
+        fields = ['id', 'slug', 'name', 'icon', 'color', 'category',
+                  'status', 'target', 'enabled',
+                  'position_x', 'position_y', 'connected_at']
+
+
+class FlowConnectionUpdateSerializer(serializers.Serializer):
+    """For PATCH — update target, position, or enabled."""
+    target = serializers.ChoiceField(
+        choices=ToolConnection.TARGET_CHOICES, required=False)
+    position_x = serializers.FloatField(required=False, allow_null=True)
+    position_y = serializers.FloatField(required=False, allow_null=True)
+    enabled = serializers.BooleanField(required=False)
 
 
 class ToolCatalogItemSerializer(serializers.Serializer):
@@ -23,6 +49,7 @@ class ToolCatalogItemSerializer(serializers.Serializer):
     slug = serializers.CharField()
     name = serializers.CharField()
     tagline = serializers.CharField()
+    tagline_i18n = serializers.JSONField()
     description = serializers.CharField()
     icon = serializers.CharField()
     color = serializers.CharField()

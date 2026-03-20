@@ -1,5 +1,5 @@
 import { forwardRef } from 'react';
-import { Bot, UserCircle } from 'lucide-react';
+import { Bot, UserCircle, Target } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const VARIANTS = {
@@ -22,6 +22,16 @@ const VARIANTS = {
     glowClass: 'shadow-[0_0_40px_rgba(0,166,126,0.08)] dark:shadow-[0_0_40px_rgba(0,166,126,0.15)]',
     iconBg: 'bg-[#00a67e]/10 dark:bg-[#00a67e]/20 border border-[#00a67e]/20 dark:border-[#00a67e]/30',
     iconColor: 'text-[#00a67e]',
+  },
+  leads: {
+    Icon: Target,
+    label: 'tools.flow.leads',
+    subtitle: 'tools.flow.leadsCapture',
+    tooltip: 'tools.flow.leadsTooltip',
+    borderClass: 'border-[#f59e0b]/40',
+    glowClass: 'shadow-[0_0_40px_rgba(245,158,11,0.08)] dark:shadow-[0_0_40px_rgba(245,158,11,0.15)]',
+    iconBg: 'bg-[#f59e0b]/10 dark:bg-[#f59e0b]/20 border border-[#f59e0b]/20 dark:border-[#f59e0b]/30',
+    iconColor: 'text-[#f59e0b]',
   },
 };
 

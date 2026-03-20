@@ -7,4 +7,8 @@ urlpatterns = [
     path('<slug:slug>/disconnect/', views.ToolDisconnectView.as_view(), name='tool-disconnect'),
     path('<slug:slug>/status/', views.ToolStatusView.as_view(), name='tool-status'),
     path('my/', views.MyToolsView.as_view(), name='my-tools'),
+
+    # Flow canvas API
+    path('flow/connections/', views.FlowConnectionsView.as_view(), name='flow-connections'),
+    path('flow/connections/<int:pk>/', views.FlowConnectionDetailView.as_view(), name='flow-connection-detail'),
 ]

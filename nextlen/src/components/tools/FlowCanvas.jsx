@@ -28,9 +28,10 @@ const buildInitialPositions = (canvasW, canvasH, groups) => {
   const cx = canvasW / 2;
   const cy = canvasH / 2;
 
-  // Core nodes — centered at 35% and 65%
-  pos['__assistant'] = { x: canvasW * 0.35 - CORE_W / 2, y: cy - CORE_H / 2 };
-  pos['__manager']   = { x: canvasW * 0.65 - CORE_W / 2, y: cy - CORE_H / 2 };
+  // Core nodes — three-column layout
+  pos['__assistant'] = { x: canvasW * 0.30 - CORE_W / 2, y: cy - CORE_H / 2 };
+  pos['__manager']   = { x: canvasW * 0.55 - CORE_W / 2, y: cy - CORE_H / 2 };
+  pos['__leads']     = { x: canvasW * 0.80 - CORE_W / 2, y: cy - CORE_H / 2 };
 
   // Tool nodes — left column
   const layoutColumn = (list, baseX) => {
@@ -67,14 +68,15 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop }) => {
   );
 
   const groups = useMemo(() => {
-    const left = [], right = [], both = [];
+    const left = [], right = [], both = [], leadsTools = [];
     connectedTools.forEach(tool => {
       const targets = getToolTargets(tool.slug);
+      if (targets.includes('leads')) leadsTools.push(tool);
       if (targets.includes('assistant') && targets.includes('manager')) both.push(tool);
       else if (targets.includes('manager')) right.push(tool);
       else left.push(tool);
     });
-    return { left, right, both };
+    return { left, right, both, leads: leadsTools };
   }, [connectedTools]);
 
   /* ── Canvas dimensions ─────────────────── */
@@ -131,11 +133,12 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop }) => {
   const connections = useMemo(() => {
     const aPos = positions['__assistant'];
     const mPos = positions['__manager'];
+    const lPos = positions['__leads'];
     if (!aPos || !mPos) return [];
 
     const conns = [];
 
-    // Escalation link
+    // Escalation link: Assistant → Manager
     const aRightX = aPos.x + CORE_W, aRightY = aPos.y + CORE_H / 2;
     const mLeftX  = mPos.x,          mLeftY  = mPos.y + CORE_H / 2;
     conns.push({
@@ -148,6 +151,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop }) => {
     // Collect tools targeting each core node to assign port indices
     const assistantTools = connectedTools.filter(t => getToolTargets(t.slug).includes('assistant'));
     const managerTools = connectedTools.filter(t => getToolTargets(t.slug).includes('manager'));
+    const leadsTools = connectedTools.filter(t => getToolTargets(t.slug).includes('leads'));
 
     // Tool connections — edges go to specific ports
     assistantTools.forEach((tool, portIdx) => {
@@ -177,6 +181,23 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop }) => {
         toolSlug: tool.slug,
       });
     });
+
+    // Leads connections
+    if (lPos) {
+      leadsTools.forEach((tool, portIdx) => {
+        const tPos = positions[tool.slug];
+        if (!tPos) return;
+        const srcX = tPos.x + TOOL_W, srcY = tPos.y + TOOL_H / 2;
+        const tgtX = lPos.x;
+        const tgtY = getPortY(lPos, portIdx, leadsTools.length);
+        conns.push({
+          id: `${tool.slug}-leads`,
+          pathD: calcPath(srcX, srcY, tgtX, tgtY),
+          target: 'leads',
+          toolSlug: tool.slug,
+        });
+      });
+    }
 
     return conns;
   }, [positions, connectedTools]);
@@ -453,6 +474,20 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop }) => {
             <CoreNode
               variant="manager"
               connectedCount={groups.right.length + groups.both.length}
+            />
+          </div>
+        )}
+        {positions['__leads'] && (
+          <div
+            className={`flow-draggable absolute ${isDragging && dragRef.current?.nodeId === '__leads' ? 'dragging' : ''}`}
+            style={{ left: positions['__leads'].x, top: positions['__leads'].y }}
+            onPointerDown={(e) => handleNodePointerDown('__leads', e)}
+            onPointerMove={handleNodePointerMove}
+            onPointerUp={handleNodePointerUp}
+          >
+            <CoreNode
+              variant="leads"
+              connectedCount={groups.leads.length}
             />
           </div>
         )}

@@ -4,7 +4,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import ToolCard, ToolConnection
-from .serializers import ToolCatalogItemSerializer, ToolConnectionSerializer
+from .serializers import (
+    ToolCatalogItemSerializer, ToolConnectionSerializer,
+    FlowConnectionSerializer, FlowConnectionUpdateSerializer,
+)
 
 
 class ToolCatalogView(APIView):
@@ -12,6 +15,8 @@ class ToolCatalogView(APIView):
 
     def get(self, request):
         client = getattr(request, 'client', None)
+        lang = request.query_params.get('lang') or request.headers.get(
+            'Accept-Language', '')[:2] or 'en'
         tools = ToolCard.objects.filter(is_active=True).order_by('sort_order', 'name')
 
         connections = {}
@@ -24,10 +29,16 @@ class ToolCatalogView(APIView):
         result = []
         for tool in tools:
             conn = connections.get(tool.pk)
+            # Resolve tagline: prefer i18n version for requested lang
+            tagline = tool.tagline
+            if tool.tagline_i18n and lang in tool.tagline_i18n:
+                tagline = tool.tagline_i18n[lang]
+
             item = {
                 'slug': tool.slug,
                 'name': tool.name,
-                'tagline': tool.tagline,
+                'tagline': tagline,
+                'tagline_i18n': tool.tagline_i18n,
                 'description': tool.description,
                 'icon': tool.icon,
                 'color': tool.color,
@@ -36,8 +47,10 @@ class ToolCatalogView(APIView):
                 'auth_type': tool.auth_type,
                 'auth_config': tool.auth_config if not conn else None,
                 'connection': {
+                    'id': conn.pk,
                     'status': conn.status,
                     'enabled': conn.enabled,
+                    'target': conn.target,
                     'connected_at': conn.connected_at.isoformat() if conn.connected_at else None,
                     'last_used_at': conn.last_used_at.isoformat() if conn.last_used_at else None,
                 } if conn else None,
@@ -61,6 +74,7 @@ class ToolConnectView(APIView):
             return Response({'error': 'Tool not found'}, status=status.HTTP_404_NOT_FOUND)
 
         credentials = request.data.get('credentials', {})
+        target = request.data.get('target', 'assistant')
 
         # Validate required fields from auth_config
         if tool_card.auth_type in ('api_key', 'credentials'):
@@ -82,7 +96,7 @@ class ToolConnectView(APIView):
         if tool_card.auth_type == 'qr_code':
             conn, _ = ToolConnection.objects.update_or_create(
                 client=client, tool_card=tool_card,
-                defaults={'status': 'pending'})
+                defaults={'status': 'pending', 'target': target})
             initiate_url = tool_card.auth_config.get('initiate_url', '')
             return Response({'status': 'pending', 'initiate_url': initiate_url})
 
@@ -92,6 +106,7 @@ class ToolConnectView(APIView):
             defaults={
                 'credentials': credentials,
                 'status': 'connected',
+                'target': target,
                 'enabled': True,
                 'connected_at': timezone.now(),
                 'last_error': '',
@@ -147,3 +162,105 @@ class MyToolsView(APIView):
         ).select_related('tool_card').order_by('tool_card__sort_order')
 
         return Response(ToolConnectionSerializer(connections, many=True).data)
+
+
+# ── Flow Canvas API ────────────────────────────────
+
+
+class FlowConnectionsView(APIView):
+    """
+    GET  /api/flow/connections/ — all connections for this tenant (with tool info)
+    POST /api/flow/connections/ — create a new connection (for drag-to-connect)
+    """
+
+    def get(self, request):
+        client = getattr(request, 'client', None)
+        if not client:
+            return Response({'error': 'Client not found'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        conns = ToolConnection.objects.filter(
+            client=client
+        ).select_related('tool_card').order_by('tool_card__sort_order')
+
+        return Response(FlowConnectionSerializer(conns, many=True).data)
+
+    def post(self, request):
+        client = getattr(request, 'client', None)
+        if not client:
+            return Response({'error': 'Client not found'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        slug = request.data.get('slug')
+        target = request.data.get('target', 'assistant')
+
+        if not slug:
+            return Response({'error': 'slug is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            tool_card = ToolCard.objects.get(slug=slug, is_active=True)
+        except ToolCard.DoesNotExist:
+            return Response({'error': 'Tool not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Only allow auto-connect for no-auth tools via this endpoint
+        if tool_card.auth_type != 'none':
+            return Response(
+                {'error': 'This tool requires authentication. Use /api/tools/{slug}/connect/'},
+                status=status.HTTP_400_BAD_REQUEST)
+
+        conn, created = ToolConnection.objects.update_or_create(
+            client=client, tool_card=tool_card,
+            defaults={
+                'status': 'connected',
+                'target': target,
+                'enabled': True,
+                'connected_at': timezone.now(),
+                'last_error': '',
+                'error_count': 0,
+            })
+
+        return Response(
+            FlowConnectionSerializer(conn).data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+
+class FlowConnectionDetailView(APIView):
+    """
+    PATCH  /api/flow/connections/<id>/ — update target, position, enabled
+    DELETE /api/flow/connections/<id>/ — remove connection
+    """
+
+    def _get_connection(self, request, pk):
+        client = getattr(request, 'client', None)
+        if not client:
+            return None, Response(
+                {'error': 'Client not found'}, status=status.HTTP_401_UNAUTHORIZED)
+        try:
+            conn = ToolConnection.objects.select_related('tool_card').get(
+                pk=pk, client=client)
+            return conn, None
+        except ToolConnection.DoesNotExist:
+            return None, Response(
+                {'error': 'Connection not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    def patch(self, request, pk):
+        conn, err = self._get_connection(request, pk)
+        if err:
+            return err
+
+        serializer = FlowConnectionUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        for field, value in serializer.validated_data.items():
+            setattr(conn, field, value)
+        conn.save(update_fields=list(serializer.validated_data.keys()) + ['updated_at'])
+
+        return Response(FlowConnectionSerializer(conn).data)
+
+    def delete(self, request, pk):
+        conn, err = self._get_connection(request, pk)
+        if err:
+            return err
+
+        conn.status = 'disconnected'
+        conn.enabled = False
+        conn.save(update_fields=['status', 'enabled', 'updated_at'])
+        return Response(status=status.HTTP_204_NO_CONTENT)

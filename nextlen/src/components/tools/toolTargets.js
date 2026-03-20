@@ -4,7 +4,7 @@ export const TOOL_TARGETS = {
   'telegram':        ['assistant'],
   'instagram':       ['assistant'],
   'email-smtp':      ['assistant'],
-  'web-widget':      ['assistant'],
+  'web-widget':      ['assistant', 'leads'],
   'rag-search':      ['assistant'],
   'translation':     ['assistant'],
   'hitl-matrix':     ['manager'],

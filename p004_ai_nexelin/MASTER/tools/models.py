@@ -31,6 +31,9 @@ class ToolCard(models.Model):
     name = models.CharField(max_length=100)
     slug = models.SlugField(unique=True)
     tagline = models.CharField(max_length=200)
+    tagline_i18n = models.JSONField(
+        default=dict, blank=True,
+        help_text='{"en": "...", "uk": "...", "de": "..."} — overrides tagline per locale')
     description = models.TextField()
     icon = models.CharField(max_length=50)
     color = models.CharField(max_length=7)
@@ -70,15 +73,26 @@ class ToolConnection(models.Model):
         ('expired', 'Token expired'),
     ]
 
+    TARGET_CHOICES = [
+        ('assistant', 'AI Assistant'),
+        ('manager', 'Client Manager'),
+        ('leads', 'Leads'),
+    ]
+
     client = models.ForeignKey('clients.Client', on_delete=models.CASCADE,
         related_name='tool_connections')
     tool_card = models.ForeignKey(ToolCard, on_delete=models.CASCADE,
         related_name='connections')
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    target = models.CharField(max_length=20, choices=TARGET_CHOICES, default='assistant')
     credentials = EncryptedJSONField(default=dict, blank=True)
     config = models.JSONField(default=dict, blank=True)
     enabled = models.BooleanField(default=True)
+
+    # Canvas position (optional — frontend can compute defaults)
+    position_x = models.FloatField(null=True, blank=True)
+    position_y = models.FloatField(null=True, blank=True)
 
     connected_at = models.DateTimeField(null=True, blank=True)
     last_used_at = models.DateTimeField(null=True, blank=True)

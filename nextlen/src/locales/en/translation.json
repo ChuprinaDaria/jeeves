@@ -809,7 +809,10 @@
       "statsAvailable": "available",
       "showPassword": "Show password",
       "hidePassword": "Hide password",
-      "dragToConnect": "Drag a tool onto the canvas to connect it"
+      "dragToConnect": "Drag a tool onto the canvas to connect it",
+      "leads": "Leads",
+      "leadsCapture": "Lead capture",
+      "leadsTooltip": "Captures incoming leads from connected communication channels"
     }
   }
 }

@@ -13,6 +13,10 @@ const ConnectionsLayer = ({ connections, highlightedTool, canvasW = 1200, canvas
         <stop offset="0%" stopColor="#00a67e" stopOpacity="0.6" />
         <stop offset="100%" stopColor="#00d9a3" stopOpacity="0.3" />
       </linearGradient>
+      <linearGradient id="grad-leads" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.6" />
+        <stop offset="100%" stopColor="#fbbf24" stopOpacity="0.3" />
+      </linearGradient>
       <linearGradient id="grad-escalation" x1="0%" y1="0%" x2="100%" y2="0%">
         <stop offset="0%" stopColor="#6b7280" stopOpacity="0.3" />
         <stop offset="100%" stopColor="#6b7280" stopOpacity="0.1" />
@@ -29,10 +33,11 @@ const ConnectionsLayer = ({ connections, highlightedTool, canvasW = 1200, canvas
       <defs>{gradients}</defs>
 
       {connections.map((conn, i) => {
-        const gradId = conn.target === 'escalation'
-          ? 'grad-escalation'
+        const gradId = conn.target === 'escalation' ? 'grad-escalation'
+          : conn.target === 'leads' ? 'grad-leads'
           : conn.target === 'assistant' ? 'grad-assistant' : 'grad-manager';
-        const dotColor = conn.target === 'assistant' ? '#a29bfe' : '#00d9a3';
+        const dotColor = conn.target === 'assistant' ? '#a29bfe'
+          : conn.target === 'leads' ? '#fbbf24' : '#00d9a3';
 
         const isHighlighted = highlightedTool === null
           ? true

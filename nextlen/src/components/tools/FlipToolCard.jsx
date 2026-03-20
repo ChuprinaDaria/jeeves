@@ -15,8 +15,13 @@ const CAT_COLORS = {
   custom:        { stripe: 'border-l-gray-500',     iconBg: 'bg-gray-500/10',     iconText: 'text-gray-500' },
 };
 
+const resolveTagline = (tool, lang) => {
+  if (tool.tagline_i18n && tool.tagline_i18n[lang]) return tool.tagline_i18n[lang];
+  return tool.tagline;
+};
+
 const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [flipped, setFlipped] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -162,7 +167,7 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
           onClick={handleClick}
           onMouseEnter={() => isConnected && onMouseEnter?.(tool.slug)}
           onMouseLeave={() => isConnected && onMouseLeave?.()}
-          title={isConnected ? t('tools.connected') : tool.tagline + ' — ' + t('tools.flow.clickToConnect')}
+          title={isConnected ? t('tools.connected') : resolveTagline(tool, i18n.language) + ' — ' + t('tools.flow.clickToConnect')}
         >
           {loading && tool.auth_type === 'none' && (
             <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 rounded-xl flex items-center justify-center z-10">
@@ -178,7 +183,7 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
             </div>
           </div>
           <div className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-2 leading-snug mb-1">
-            {tool.tagline}
+            {resolveTagline(tool, i18n.language)}
           </div>
           <ToolStatusBadge status={tool.connection?.status || 'disconnected'} />
         </div>
