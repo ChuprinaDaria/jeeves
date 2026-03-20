@@ -22,10 +22,10 @@ class ToolCatalogView(APIView):
 
         connections = {}
         if client:
-            connections = {
-                tc.tool_card_id: tc
-                for tc in ToolConnection.objects.filter(client=client)
-            }
+            conns_qs = ToolConnection.objects.filter(
+                client=client
+            ).prefetch_related('middlewares__skill_card')
+            connections = {tc.tool_card_id: tc for tc in conns_qs}
 
         result = []
         for tool in tools:
@@ -47,6 +47,7 @@ class ToolCatalogView(APIView):
                 'is_featured': tool.is_featured,
                 'auth_type': tool.auth_type,
                 'auth_config': tool.auth_config if not conn else None,
+                'skill_scopes': tool.skill_scopes,
                 'connection': {
                     'id': conn.pk,
                     'status': conn.status,
@@ -54,6 +55,18 @@ class ToolCatalogView(APIView):
                     'target': conn.target,
                     'connected_at': conn.connected_at.isoformat() if conn.connected_at else None,
                     'last_used_at': conn.last_used_at.isoformat() if conn.last_used_at else None,
+                    'middlewares': [
+                        {
+                            'id': mw.pk,
+                            'skill_slug': mw.skill_card.slug,
+                            'skill_name': mw.skill_card.name,
+                            'skill_icon': mw.skill_card.icon,
+                            'skill_color': mw.skill_card.color,
+                            'order': mw.order,
+                            'enabled': mw.enabled,
+                        }
+                        for mw in conn.middlewares.all()
+                    ],
                 } if conn else None,
             }
             result.append(item)
