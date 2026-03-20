@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 import { toolsAPI } from '../../api/tools';
@@ -29,6 +29,23 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
   const [showPasswords, setShowPasswords] = useState({});
   const [qrData, setQrData] = useState(null);
   const pollRef = useRef(null);
+  const backRef = useRef(null);
+  const [backHeight, setBackHeight] = useState(0);
+
+  // Measure back side height when flipped
+  const measureBack = useCallback(() => {
+    if (backRef.current) {
+      setBackHeight(backRef.current.scrollHeight);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (flipped) {
+      // Small delay to allow DOM to render
+      const raf = requestAnimationFrame(measureBack);
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [flipped, qrData, error, measureBack]);
 
   const isConnected = tool.connection?.status === 'connected' && tool.connection?.enabled;
   const cat = CAT_COLORS[tool.category] || CAT_COLORS.custom;
@@ -145,14 +162,19 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
   };
 
   return (
-    <div className="perspective-1000 w-[160px] shrink-0" style={{ minHeight: '100px' }}>
+    <div className="perspective-1000 w-[160px] shrink-0">
       <div
-        className={`relative w-full transition-transform duration-500 ${flipped ? 'rotate-y-180' : ''}`}
-        style={{ transformStyle: 'preserve-3d', minHeight: flipped ? '180px' : '100px' }}
+        className={`relative w-full ${flipped ? 'rotate-y-180' : ''}`}
+        style={{
+          transformStyle: 'preserve-3d',
+          transition: 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), min-height 0.3s ease',
+          minHeight: flipped && backHeight > 0 ? `${backHeight}px` : undefined,
+          transformOrigin: 'center center',
+        }}
       >
-        {/* FRONT */}
+        {/* FRONT — relative to give parent natural height */}
         <div
-          className={`backface-hidden absolute inset-0 rounded-xl border p-3 cursor-pointer transition-all
+          className={`backface-hidden relative rounded-xl border p-3 cursor-pointer transition-all
             ${isConnected
               ? `border-l-4 ${cat.stripe} border-gray-200 dark:border-gray-700 opacity-100`
               : 'border-dashed border-gray-300 dark:border-gray-600 opacity-60 hover:opacity-80'
@@ -187,8 +209,9 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
           <ToolStatusBadge status={tool.connection?.status || 'disconnected'} />
         </div>
 
-        {/* BACK */}
+        {/* BACK — absolute overlay */}
         <div
+          ref={backRef}
           className="backface-hidden rotate-y-180 absolute inset-0 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 overflow-y-auto"
           style={{ transformStyle: 'preserve-3d' }}
         >

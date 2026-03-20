@@ -18,11 +18,13 @@ const SCOPE_LABELS = {
   leads:     { label: 'LEADS', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
 };
 
-const CanvasToolNode = ({ tool, onClick, isHighlighted }) => {
+const CanvasToolNode = ({ tool, onClick, isHighlighted, onPortPointerDown, onPortPointerUp, edgeDragging, validDropPorts }) => {
   const { t } = useTranslation();
   const cat = CAT_COLORS[tool.category] || CAT_COLORS.custom;
   const isConnected = tool.connection?.status === 'connected' && tool.connection?.enabled;
   const targets = getToolTargets(tool.slug);
+  const portId = `${tool.slug}:0`;
+  const isValidDrop = validDropPorts?.includes(portId);
 
   return (
     <div
@@ -40,11 +42,23 @@ const CanvasToolNode = ({ tool, onClick, isHighlighted }) => {
     >
       {/* Right port */}
       <div
-        className={`absolute right-0 top-1/2 -translate-y-1/2 translate-x-[6px] w-3 h-3 rounded-full border-2 transition-all
+        data-node-id={tool.slug}
+        data-port-index={0}
+        className={`flow-port absolute right-0 top-1/2 -translate-y-1/2 translate-x-[6px] w-3 h-3 rounded-full border-2 transition-all cursor-crosshair
           ${isConnected
             ? 'border-green-500 bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.6)]'
             : 'border-gray-400 dark:border-gray-600 bg-white dark:bg-gray-800'
-          }`}
+          }
+          ${edgeDragging && isValidDrop ? 'scale-150 ring-2 ring-primary-400 ring-offset-1' : ''}
+          ${edgeDragging && !isValidDrop ? 'opacity-40' : ''}`}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          onPortPointerDown?.(tool.slug, 0, e);
+        }}
+        onPointerUp={(e) => {
+          e.stopPropagation();
+          onPortPointerUp?.(tool.slug, 0, e);
+        }}
       />
 
       <div className="flex items-center gap-2 mb-1.5">

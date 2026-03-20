@@ -37,12 +37,13 @@ const VARIANTS = {
 
 const PORT_GAP = 20;
 
-const CoreNode = forwardRef(({ variant, connectedCount = 0 }, ref) => {
+const CoreNode = forwardRef(({ variant, connectedCount = 0, onPortPointerDown, onPortPointerUp, validDropPorts, edgeDragging }, ref) => {
   const { t } = useTranslation();
   const v = VARIANTS[variant];
   const { Icon } = v;
   const portCount = Math.max(connectedCount, 1);
   const totalPortsH = (portCount - 1) * PORT_GAP;
+  const nodeId = `__${variant}`;
 
   return (
     <div
@@ -57,17 +58,32 @@ const CoreNode = forwardRef(({ variant, connectedCount = 0 }, ref) => {
         className="absolute left-0 top-1/2 flex flex-col items-center -translate-x-[6px]"
         style={{ marginTop: -totalPortsH / 2, gap: `${PORT_GAP - 12}px` }}
       >
-        {Array.from({ length: portCount }).map((_, i) => (
-          <div
-            key={i}
-            data-port-index={i}
-            className={`flow-port w-3 h-3 rounded-full border-2 shrink-0
-              ${i < connectedCount
-                ? 'border-green-500 bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.6)]'
-                : 'border-gray-400 dark:border-gray-600 bg-white dark:bg-gray-800'
-              }`}
-          />
-        ))}
+        {Array.from({ length: portCount }).map((_, i) => {
+          const isValid = validDropPorts?.includes(`${nodeId}:${i}`);
+          const isActive = i < connectedCount;
+          return (
+            <div
+              key={i}
+              data-port-index={i}
+              data-node-id={nodeId}
+              className={`flow-port w-3 h-3 rounded-full border-2 shrink-0 transition-all cursor-crosshair
+                ${isActive
+                  ? 'border-green-500 bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.6)]'
+                  : 'border-gray-400 dark:border-gray-600 bg-white dark:bg-gray-800'
+                }
+                ${edgeDragging && isValid ? 'scale-150 ring-2 ring-primary-400 ring-offset-1' : ''}
+                ${edgeDragging && !isValid ? 'opacity-40' : ''}`}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                onPortPointerDown?.(nodeId, i, e);
+              }}
+              onPointerUp={(e) => {
+                e.stopPropagation();
+                onPortPointerUp?.(nodeId, i, e);
+              }}
+            />
+          );
+        })}
       </div>
 
       <div className={`w-12 h-12 rounded-[14px] mx-auto mb-3 flex items-center justify-center ${v.iconBg}`}>
