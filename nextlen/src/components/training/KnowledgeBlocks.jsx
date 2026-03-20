@@ -101,12 +101,13 @@ const KnowledgeBlocks = () => {
     }
   };
 
-  const handleCreateBlock = async (name, description) => {
+  const handleCreateBlock = async (name, description, targetScope = 'all') => {
     try {
       await clientAPI.createKnowledgeBlock({
         name,
         description,
         is_active: true,
+        target_scope: targetScope,
       });
       await loadBlocks();
       setShowAddModal(false);

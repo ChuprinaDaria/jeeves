@@ -1,20 +1,25 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
+import { useAuth } from '../../context/AuthContext';
 
 const KnowledgeBlockAddModal = ({ isOpen, onClose, onSave }) => {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const knowledgeSplitEnabled = user?.feature_flags?.mcp_knowledge_split;
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [targetScope, setTargetScope] = useState('all');
 
   const handleSave = () => {
     if (!name.trim()) {
       alert(t("knowledgeBlocks.nameRequired") || "Block name is required");
       return;
     }
-    onSave(name, description);
+    onSave(name, description, knowledgeSplitEnabled ? targetScope : 'all');
     setName("");
     setDescription("");
+    setTargetScope('all');
   };
 
   if (!isOpen) return null;
@@ -59,6 +64,23 @@ const KnowledgeBlockAddModal = ({ isOpen, onClose, onSave }) => {
               placeholder={t("knowledgeBlocks.descriptionPlaceholder")}
             />
           </div>
+
+          {knowledgeSplitEnabled && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {t('training.scopeFilter') || 'Scope'}
+              </label>
+              <select
+                value={targetScope}
+                onChange={(e) => setTargetScope(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              >
+                <option value="all">{t('training.scopeAll') || 'Shared (Oleg + Vasya)'}</option>
+                <option value="assistant">{t('training.scopeAssistant') || 'Oleg only'}</option>
+                <option value="manager">{t('training.scopeManager') || 'Vasya only'}</option>
+              </select>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-3 mt-6">
