@@ -115,6 +115,13 @@ log_config: "/data/grot.de.log.config"
 report_stats: false
 enable_metrics: false
 
+# ============================================
+# APPSERVICE - WhatsApp Bridge
+# ============================================
+
+app_service_config_files:
+  - /data/whatsapp-registration.yaml
+
 caches:
   global_factor: 1.0
 

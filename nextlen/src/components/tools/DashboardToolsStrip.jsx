@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Plus, CheckCircle } from 'lucide-react';
 import { toolsAPI } from '../../api/tools';
+import ToolIcon from './ToolIcon';
 
 const DashboardToolsStrip = () => {
   const { t } = useTranslation();
@@ -37,7 +38,7 @@ const DashboardToolsStrip = () => {
             onClick={() => navigate(toolsPath)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm"
           >
-            <span>{conn.tool.icon || '🔧'}</span>
+            <ToolIcon name={conn.tool.icon} className="w-4 h-4" />
             <span className="text-gray-700 dark:text-gray-300">{conn.tool.name}</span>
             <CheckCircle className="w-3.5 h-3.5 text-green-500" />
           </button>

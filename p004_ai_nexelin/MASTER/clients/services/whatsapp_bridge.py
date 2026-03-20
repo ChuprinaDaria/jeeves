@@ -1,7 +1,7 @@
 """
-Service layer for WhatsApp Bridge (mautrix-whatsapp v26+ megabridge) integration.
-Handles Matrix user creation, WhatsApp login via provisioning v3 API, and status checks.
-Uses HTTP polling for QR login (v3 provisioning API with Matrix access token auth).
+Service layer for WhatsApp Bridge (mautrix-whatsapp v0.10.x) integration.
+Handles Matrix user creation, WhatsApp login via bot DM, and status checks.
+Uses provisioning v1 API with shared secret auth.
 """
 import hashlib
 import hmac
@@ -37,14 +37,20 @@ def _get_config() -> WhatsAppBridgeConfig:
     return config
 
 
-def _provision_headers(access_token: str) -> dict:
+def _provision_headers(access_token: str, config=None) -> dict:
     """Auth headers for provisioning API using Matrix access token."""
-    return {"Authorization": f"Bearer {access_token}"}
+    headers = {"Authorization": f"Bearer {access_token}"}
+    if config:
+        headers["Host"] = f"matrix.{config.homeserver_domain}"
+    return headers
 
 
 def _provision_headers_secret(config) -> dict:
-    """Auth headers for provisioning API using shared secret (fallback)."""
-    return {"Authorization": f"Bearer {config.provisioning_secret}"}
+    """Auth headers for provisioning API using shared secret."""
+    return {
+        "Authorization": f"Bearer {config.provisioning_secret}",
+        "Host": f"matrix.{config.homeserver_domain}",
+    }
 
 
 def create_matrix_user(client) -> tuple[str, str]:
@@ -73,11 +79,9 @@ def create_matrix_user(client) -> tuple[str, str]:
             logger.warning(f"Failed to verify existing Matrix token: {e}")
 
     # Try appservice registration first (for users in bridge namespace like whatsapp_*)
-    # as_token from bridge registration — used to register/login users in the whatsapp_ namespace
-    as_token = getattr(config, 'provisioning_secret', '')  # reuse provisioning field or read from env
-    # The bridge's actual appservice as_token (from registration.yaml)
+    # as_token from bridge registration.yaml — set via env var MAUTRIX_AS_TOKEN
     import os
-    as_token = os.environ.get('MAUTRIX_AS_TOKEN', 'vMXiRA8ZJcmQ0ykpFC1RW1gr9stY6Eot8Amuxw2Me6kIoxUgp9wAMtUTPfu6e9C7')
+    as_token = os.environ.get('MAUTRIX_AS_TOKEN', '')
 
     access_token = None
     actual_user_id = user_id
@@ -404,35 +408,47 @@ def check_login_status(client, login_id: str) -> dict:
 
 def logout_whatsapp(client) -> bool:
     """
-    Disconnect WhatsApp via provisioning v3 API.
+    Disconnect WhatsApp via provisioning v1 API (v0.10.x).
+    Also sends 'logout' command via bot DM as fallback.
     """
     config = _get_config()
 
     if not client.whatsapp_bridge_matrix_user_id:
         return False
 
-    # Try with Matrix access token first, fallback to shared secret
-    access_token = client.whatsapp_bridge_matrix_access_token
-    if access_token:
-        headers = _provision_headers(access_token)
-    else:
-        headers = _provision_headers_secret(config)
-
-    base_url = f"{config.provisioning_url}/_matrix/provision/v3"
+    headers = _provision_headers_secret(config)
+    user_id = client.whatsapp_bridge_matrix_user_id
+    base_url = f"{config.provisioning_url}/_matrix/provision/v1"
 
     try:
-        # Get active logins
-        resp = httpx.get(f"{base_url}/logins", headers=headers, timeout=10.0)
+        # v0.10.x: POST /v1/logout with user_id query param
+        resp = httpx.post(
+            f"{base_url}/logout",
+            params={"user_id": user_id},
+            headers=headers,
+            timeout=10.0,
+        )
         if resp.status_code == 200:
-            logins = resp.json().get('login_ids', [])
-            for login_id in logins:
-                httpx.post(
-                    f"{base_url}/logins/{login_id}/logout",
-                    headers=headers,
-                    timeout=10.0,
-                )
+            logger.info(f"WhatsApp logout via provisioning API for {user_id}")
+        else:
+            logger.warning(f"Provisioning logout returned {resp.status_code}: {resp.text}")
     except Exception as e:
         logger.error(f"Provisioning logout failed: {e}")
+
+    # Fallback: send 'logout' via bot DM
+    access_token = client.whatsapp_bridge_matrix_access_token
+    if access_token:
+        try:
+            bot_user_id = f"@whatsappbot:{config.homeserver_domain}"
+            room_id = _get_or_create_bot_dm(access_token, config.homeserver_url, bot_user_id)
+            import uuid
+            txn_id = str(uuid.uuid4())
+            _matrix_request(access_token, config.homeserver_url, "PUT",
+                f"/rooms/{room_id}/send/m.room.message/{txn_id}",
+                json={"msgtype": "m.text", "body": "logout"},
+            )
+        except Exception as e:
+            logger.debug(f"Bot DM logout fallback failed: {e}")
 
     # Reset client fields regardless
     client.whatsapp_bridge_status = 'disconnected'
@@ -448,25 +464,29 @@ def logout_whatsapp(client) -> bool:
 
 def get_connection_status(client) -> dict:
     """
-    Check actual WhatsApp connection status via provisioning v3 API.
+    Check actual WhatsApp connection status via provisioning v1 API (v0.10.x).
+    Uses /v1/ping with user_id query param and shared secret auth.
     """
     config = _get_config()
 
     if not client.whatsapp_bridge_matrix_user_id:
         return {'status': 'disconnected'}
 
-    access_token = client.whatsapp_bridge_matrix_access_token
-    if not access_token:
-        return {'status': 'unknown', 'error': 'No Matrix access token'}
-
-    headers = _provision_headers(access_token)
-    base_url = f"{config.provisioning_url}/_matrix/provision/v3"
+    headers = _provision_headers_secret(config)
+    user_id = client.whatsapp_bridge_matrix_user_id
+    base_url = f"{config.provisioning_url}/_matrix/provision/v1"
 
     try:
-        resp = httpx.get(f"{base_url}/logins", headers=headers, timeout=10.0)
+        resp = httpx.get(
+            f"{base_url}/ping",
+            params={"user_id": user_id},
+            headers=headers,
+            timeout=10.0,
+        )
         if resp.status_code == 200:
-            logins = resp.json().get('login_ids', [])
-            if logins:
+            data = resp.json()
+            wa = data.get("whatsapp", {})
+            if wa.get("conn") and wa.get("has_session"):
                 return {
                     'status': 'connected',
                     'phone': client.whatsapp_bridge_phone,

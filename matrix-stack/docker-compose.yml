@@ -58,6 +58,27 @@ services:
       timeout: 5s
       retries: 5
 
+  postgres-mautrix:
+    image: postgres:15-alpine
+    container_name: grot-postgres-mautrix
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mautrix
+      POSTGRES_PASSWORD: ${POSTGRES_MAUTRIX_PASSWORD}
+      POSTGRES_DB: mautrix_whatsapp
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - ./data/postgres-mautrix:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - grot-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mautrix"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # ============================================
   # SYNAPSE - Matrix Homeserver
   # ============================================
@@ -76,6 +97,24 @@ services:
       - ./synapse:/data
 
 
+
+  # ============================================
+  # MAUTRIX-WHATSAPP - WhatsApp Bridge
+  # ============================================
+
+  mautrix-whatsapp:
+    image: dock.mau.dev/mautrix/whatsapp:latest
+    container_name: grot-mautrix-whatsapp
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      postgres-mautrix:
+        condition: service_healthy
+    environment:
+      POSTGRES_MAUTRIX_PASSWORD: ${POSTGRES_MAUTRIX_PASSWORD}
+      WHATSAPP_PROVISIONING_SECRET: ${WHATSAPP_PROVISIONING_SECRET}
+    volumes:
+      - ./mautrix-whatsapp:/data
 
   # ============================================
   # MAS - Matrix Authentication Service

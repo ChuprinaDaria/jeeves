@@ -50,9 +50,9 @@ const Header = () => {
     <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">
+          <div className="text-xl font-semibold text-gray-800 dark:text-gray-100">
             {clientName || t('dashboard.welcomeBack')}
-          </h2>
+          </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {clientDescription || t('dashboard.manageAssistant')}
           </p>
@@ -63,6 +63,7 @@ const Header = () => {
             onClick={toggleDarkMode}
             className="flex items-center gap-2 px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
             title={darkMode ? 'Light Mode' : 'Dark Mode'}
+            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {darkMode ? <Sun size={18} /> : <Moon size={18} />}
           </button>

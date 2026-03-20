@@ -205,9 +205,9 @@ const Sidebar = () => {
                 }}
               />
             )}
-            <h1 className="text-xl font-bold text-primary-600 dark:text-primary-400">
+            <div className="text-xl font-bold text-primary-600 dark:text-primary-400" role="banner">
               {clientName}
-            </h1>
+            </div>
           </div>
         </div>
 

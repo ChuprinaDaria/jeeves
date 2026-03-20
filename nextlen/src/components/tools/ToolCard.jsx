@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import ToolStatusBadge from './ToolStatusBadge';
+import ToolIcon from './ToolIcon';
 
 const ToolCard = ({ tool, onConnect, onConfigure }) => {
   const { t } = useTranslation();
@@ -27,7 +28,7 @@ const ToolCard = ({ tool, onConnect, onConfigure }) => {
           className="w-10 h-10 rounded-lg flex items-center justify-center text-lg shrink-0"
           style={{ backgroundColor: `${tool.color || '#6366f1'}20` }}
         >
-          {tool.icon || '🔧'}
+          <ToolIcon name={tool.icon} className="w-5 h-5" />
         </div>
         <div className="min-w-0">
           <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate">

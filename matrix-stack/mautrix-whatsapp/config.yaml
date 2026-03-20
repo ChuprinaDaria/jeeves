@@ -1,0 +1,40 @@
+homeserver:
+  address: http://localhost:8008
+  domain: grot.de
+
+appservice:
+  address: http://localhost:29318
+  hostname: 0.0.0.0
+  port: 29318
+  id: whatsapp
+  bot:
+    username: whatsappbot
+    displayname: WhatsApp Bridge Bot
+  database:
+    type: postgres
+    uri: postgres://mautrix:${POSTGRES_MAUTRIX_PASSWORD}@localhost:5433/mautrix_whatsapp?sslmode=disable
+
+bridge:
+  username_template: "whatsapp_{{.}}"
+  displayname_template: "{{.Name}} (WA)"
+  personal_filtering_spaces: true
+  delivery_receipts: true
+  message_status_events: true
+  history_sync:
+    create_portals: true
+    max_initial_conversations: 50
+  provisioning:
+    prefix: /_matrix/provision
+    shared_secret: ${WHATSAPP_PROVISIONING_SECRET}
+  permissions:
+    "*": relay
+    "@admin:grot.de": admin
+    "nexelin_client_*@grot.de": user
+  relay:
+    enabled: true
+
+logging:
+  min_level: info
+  writers:
+    - type: stdout
+      format: pretty-colored

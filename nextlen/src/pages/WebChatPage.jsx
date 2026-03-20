@@ -11,6 +11,7 @@ const WebChatPage = () => {
   const { t, i18n } = useTranslation();
   const [searchParams] = useSearchParams();
   const tag = searchParams.get('tag');
+  const sessionParam = searchParams.get('session');
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -211,14 +212,59 @@ const WebChatPage = () => {
 
   const initializeConversation = async () => {
     try {
+      // Якщо є session в URL — відкриваємо конкретну розмову з сервера
+      if (sessionParam) {
+        const sessionId = sessionParam;
+        localStorage.setItem(`web_chat_session_${tag}`, sessionId);
+        localStorage.setItem('web_chat_session_id', sessionId);
+        setConversationId(sessionId);
+
+        try {
+          const response = await api.get('/clients/web-conversations/', {
+            params: { session_id: sessionId, last_count: 0 },
+          });
+          if (response.data?.messages?.length > 0) {
+            const serverMessages = response.data.messages.map((msg, idx) => ({
+              id: `server_${idx}`,
+              role: msg.role,
+              content: msg.content,
+              timestamp: msg.timestamp,
+            }));
+            setMessages(serverMessages);
+            lastCountRef.current = response.data.total || serverMessages.length;
+          } else {
+            setMessages([{
+              id: 'welcome',
+              role: 'assistant',
+              content: (t('webChat.welcomeMessage') || 'Hello! How can I help you today?'),
+              timestamp: new Date().toISOString(),
+              isWelcome: true,
+            }]);
+          }
+          if (response.data?.conversation_id) {
+            setConversationDbId(response.data.conversation_id);
+          }
+        } catch (e) {
+          console.error('Failed to load session from server:', e);
+          setMessages([{
+            id: 'welcome',
+            role: 'assistant',
+            content: (t('webChat.welcomeMessage') || 'Hello! How can I help you today?'),
+            timestamp: new Date().toISOString(),
+            isWelcome: true,
+          }]);
+        }
+        return;
+      }
+
       const storageKey = `web_chat_session_${tag}`;
       let sessionId = localStorage.getItem(storageKey);
-      
+
       if (!sessionId) {
         sessionId = `web_${tag}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         localStorage.setItem(storageKey, sessionId);
         localStorage.setItem('web_chat_session_id', sessionId);
-        
+
         setMessages([{
           id: 'welcome',
           role: 'assistant',
@@ -228,10 +274,10 @@ const WebChatPage = () => {
         }]);
       } else {
         localStorage.setItem('web_chat_session_id', sessionId);
-        
+
         const historyKey = `web_chat_history_${sessionId}`;
         const savedHistory = localStorage.getItem(historyKey);
-        
+
         if (savedHistory) {
           try {
             const parsedHistory = JSON.parse(savedHistory);
@@ -256,9 +302,9 @@ const WebChatPage = () => {
           }]);
         }
       }
-      
+
       setConversationId(sessionId);
-      
+
       const savedDbId = localStorage.getItem(`web_chat_conversation_db_id_${sessionId}`);
       if (savedDbId) {
         setConversationDbId(parseInt(savedDbId));

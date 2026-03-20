@@ -11,6 +11,7 @@ import {
   FlaskConical,
   MessageSquare,
   Plug2,
+  Puzzle,
   BookOpen,
   Settings,
   Menu,
@@ -130,7 +131,9 @@ const ClientLayout = () => {
     { to: `${basePath}/dashboard`, icon: LayoutDashboard, label: t('nav.dashboard') },
     { to: `${basePath}/training`, icon: GraduationCap, label: t('nav.training') },
     { to: `${basePath}/sandbox`, icon: FlaskConical, label: t('nav.sandbox'), badge: t('nav.sandboxBadge') || 'Also in Train AI' },
-    { to: `${basePath}/integrations`, icon: Plug2, label: t('nav.integrations') },
+    ...(user?.feature_flags?.mcp_tools_dashboard
+      ? [{ to: `${basePath}/tools`, icon: Puzzle, label: t('nav.tools') || 'Tools' }]
+      : [{ to: `${basePath}/integrations`, icon: Plug2, label: t('nav.integrations') }]),
     { to: `${basePath}/history`, icon: MessageSquare, label: t('nav.history') },
     ...(user?.leads_enabled ? [{ to: `${basePath}/leads`, icon: Users, label: t('nav.leads') || 'Leads' }] : []),
     { to: `${basePath}/setup`, icon: BookOpen, label: t('nav.promptBook') || 'Prompt Book' },
@@ -141,6 +144,10 @@ const ClientLayout = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Skip navigation */}
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:bg-primary-600 focus:text-white focus:rounded-lg focus:text-sm focus:font-medium">
+        Skip to content
+      </a>
       {/* Mobile menu button */}
       <button
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -176,7 +183,7 @@ const ClientLayout = () => {
                 onError={(e) => { e.target.style.display = 'none'; }}
               />
             )}
-            <h1 className="text-xl font-bold text-primary-600 dark:text-primary-400">{clientName}</h1>
+            <div className="text-xl font-bold text-primary-600 dark:text-primary-400" role="banner">{clientName}</div>
           </div>
         </div>
 
@@ -216,7 +223,7 @@ const ClientLayout = () => {
           </div>
         )}
         <Header />
-        <main className="flex-1 p-3 md:p-6 pt-16 md:pt-6 overflow-x-hidden">
+        <main id="main-content" className="flex-1 p-3 md:p-6 pt-16 md:pt-6 overflow-x-hidden">
           <Outlet />
         </main>
       </div>

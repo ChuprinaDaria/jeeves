@@ -8,26 +8,20 @@ import EmailSetup from '../components/integrations/EmailSetup';
 import TelegramSetup from '../components/integrations/TelegramSetup';
 import ChromeExtensionSetup from '../components/integrations/ChromeExtensionSetup';
 import HITLSetup from '../components/integrations/HITLSetup';
+import WhatsAppSetup from '../components/integrations/WhatsAppSetup';
 
 const IntegrationsPage = () => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
-  const [form, setForm] = useState({
-    whatsapp_meta_enabled: false,
-    meta_waba_id: '',
-    meta_app_id: '',
-    meta_app_secret: '',
-    meta_phone_number: '',
-    meta_phone_number_id: '',
-    meta_verify_token: '',
-    meta_access_token: '',
+  const [whatsappBridgeConfig, setWhatsappBridgeConfig] = useState({
+    whatsapp_bridge_enabled: false,
+    whatsapp_bridge_status: 'disconnected',
+    whatsapp_bridge_phone: '',
+    globally_enabled: true,
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [whatsappQRCode, setWhatsappQRCode] = useState(null);
-  const [loadingQR, setLoadingQR] = useState(false);
   const [webQRCode, setWebQRCode] = useState(null);
   const [loadingWebQR, setLoadingWebQR] = useState(false);
   const [showWebModal, setShowWebModal] = useState(false);
@@ -46,7 +40,7 @@ const IntegrationsPage = () => {
     let mounted = true;
     setLoading(true);
     Promise.all([
-      api.get('/clients/whatsapp/meta/config/'),
+      api.get('/clients/whatsapp/bridge/config/').catch(() => ({ data: { whatsapp_bridge_enabled: false, whatsapp_bridge_status: 'disconnected', whatsapp_bridge_phone: '', globally_enabled: true } })),
       api.get('/clients/me/'),
       api.get('/clients/email-smtp/config/').catch(() => ({ data: { email_smtp_enabled: false } })),
       api.get('/clients/telegram/config/').catch(() => ({ data: { telegram_enabled: false } })),
@@ -54,7 +48,7 @@ const IntegrationsPage = () => {
     ])
       .then(([whatsappRes, clientRes, emailRes, telegramRes, hitlRes]) => {
         if (!mounted) return;
-        setForm(prev => ({ ...prev, ...whatsappRes.data }));
+        setWhatsappBridgeConfig(prev => ({ ...prev, ...whatsappRes.data }));
         setClientType(clientRes.data?.client_type || null);
         setClientInfo(clientRes.data);
         setEmailEnabled(emailRes.data?.email_smtp_enabled || false);
@@ -65,112 +59,6 @@ const IntegrationsPage = () => {
       .finally(() => mounted && setLoading(false));
     return () => { mounted = false; };
   }, []);
-
-  const loadOrCreateWhatsAppQR = useCallback(async (regenerate = false) => {
-    setLoadingQR(true);
-    try {
-      // Перевіряємо чи є вже QR коди
-      const existingQRCodes = await clientAPI.getQRCodes();
-      const qrCodes = existingQRCodes.data || [];
-      
-      // Шукаємо QR код для WhatsApp Integration
-      let whatsappQR = qrCodes.find(qr => qr.name === 'WhatsApp Integration');
-      
-      if (!whatsappQR) {
-        // Перевіряємо ліміт QR кодів
-        if (qrCodes.length >= 10) {
-          console.warn('Maximum 10 QR codes allowed per client');
-          setLoadingQR(false);
-          return;
-        }
-        
-        // Створюємо новий QR код для WhatsApp Integration
-        const qrData = {
-          name: 'WhatsApp Integration',
-          description: 'QR code for WhatsApp Business API integration',
-          location: 'Integration',
-          integration_type: 'whatsapp',
-          is_active: true,
-        };
-        
-        const response = await clientAPI.createQRCode(qrData);
-        whatsappQR = response.data;
-        
-        // Якщо QR код ще не згенерований, чекаємо трохи і перезавантажуємо
-        if (!whatsappQR.qr_code_url_display && !whatsappQR.qr_code) {
-          // Чекаємо 1 секунду і перезавантажуємо список QR кодів
-          setTimeout(async () => {
-            try {
-              const updatedQRCodes = await clientAPI.getQRCodes();
-              const updatedQR = updatedQRCodes.data?.find(qr => qr.id === whatsappQR.id);
-              if (updatedQR?.qr_code_url_display) {
-                setWhatsappQRCode(updatedQR.qr_code_url_display);
-              }
-            } catch (err) {
-              console.error('Failed to reload QR code:', err);
-            }
-          }, 1000);
-        }
-      } else if (regenerate && whatsappQR.id) {
-        // Якщо потрібно регенерувати QR код, оновлюємо його
-        // Оновлюємо location, щоб гарантувати регенерацію QR коду
-        // (perform_update регенерує QR код при зміні name або location)
-        // Використовуємо timestamp для гарантії зміни location
-        try {
-          const baseLocation = 'Integration';
-          const currentLocation = whatsappQR.location || baseLocation;
-          // Додаємо timestamp тільки якщо location вже містить timestamp
-          // або якщо воно відрізняється від базового
-          const newLocation = currentLocation.startsWith(baseLocation) 
-            ? `${baseLocation} (updated ${Date.now()})`
-            : baseLocation;
-          
-          await clientAPI.updateQRCode(whatsappQR.id, {
-            name: whatsappQR.name,
-            description: whatsappQR.description,
-            location: newLocation,
-            is_active: whatsappQR.is_active,
-          });
-          
-          // Чекаємо трохи і перезавантажуємо оновлений QR код
-          setTimeout(async () => {
-            try {
-              const updatedQRCodes = await clientAPI.getQRCodes();
-              const updatedQR = updatedQRCodes.data?.find(qr => qr.id === whatsappQR.id);
-              if (updatedQR?.qr_code_url_display) {
-                setWhatsappQRCode(updatedQR.qr_code_url_display);
-              } else if (updatedQR?.qr_code) {
-                setWhatsappQRCode(updatedQR.qr_code);
-              }
-            } catch (err) {
-              console.error('Failed to reload regenerated QR code:', err);
-            }
-          }, 1000);
-        } catch (err) {
-          console.error('Failed to regenerate QR code:', err);
-        }
-      }
-      
-      // Отримуємо URL зображення QR коду
-      if (whatsappQR.qr_code_url_display) {
-        setWhatsappQRCode(whatsappQR.qr_code_url_display);
-      } else if (whatsappQR.qr_code) {
-        // Якщо є qr_code поле, отримуємо URL
-        setWhatsappQRCode(whatsappQR.qr_code);
-      }
-    } catch (error) {
-      console.error('Failed to load/create WhatsApp QR code:', error);
-    } finally {
-      setLoadingQR(false);
-    }
-  }, []);
-
-  // Завантажити або створити QR код для WhatsApp при відкритті модалки
-  useEffect(() => {
-    if (showWhatsAppModal && form.whatsapp_meta_enabled) {
-      loadOrCreateWhatsAppQR();
-    }
-  }, [showWhatsAppModal, form.whatsapp_meta_enabled, loadOrCreateWhatsAppQR]);
 
   // Завантажити або створити QR код для Web чату
   const loadOrCreateWebQR = useCallback(async (regenerate = false) => {
@@ -331,35 +219,10 @@ const IntegrationsPage = () => {
     }
   }, [showWebModal, clientInfo, loadOrCreateWebQR]);
 
-  const onChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setForm(s => ({ ...s, [name]: type === 'checkbox' ? checked : value }));
-  };
-
-  const onSave = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    setError('');
-    setSuccess('');
-    try {
-      await api.patch('/clients/whatsapp/meta/config/', form);
-      setSuccess(t('common.success'));
-      
-      // Якщо інтеграція увімкнена, завантажуємо/створюємо QR код
-      // Якщо QR код вже існує, регенеруємо його (щоб оновити посилання з новим номером телефону)
-      if (form.whatsapp_meta_enabled) {
-        await loadOrCreateWhatsAppQR(true); // true = регенерувати QR код
-      }
-      
-      setTimeout(() => {
-        // Не закриваємо модалку автоматично, щоб користувач міг побачити QR код
-        setSuccess('');
-      }, 1500);
-    } catch (err) {
-      setError(err?.response?.data?.error || 'Error');
-    } finally {
-      setSaving(false);
-    }
+  const reloadWhatsAppBridgeConfig = () => {
+    api.get('/clients/whatsapp/bridge/config/')
+      .then(res => setWhatsappBridgeConfig(prev => ({ ...prev, ...res.data })))
+      .catch(() => {});
   };
 
   const extensionEnabled = clientInfo?.extension_enabled || false;
@@ -415,16 +278,19 @@ const IntegrationsPage = () => {
                 </svg>
               </div>
               <div>
-                <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">{t('integrations.whatsapp')}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{t('integrations.whatsappDesc')}</p>
+                <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">{t('integrations.whatsappBridge') || t('integrations.whatsapp')}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{t('integrations.whatsappBridgeDesc') || t('integrations.whatsappDesc')}</p>
               </div>
             </div>
           </div>
-          
+
           <div className="flex items-center justify-between mb-4">
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${form.whatsapp_meta_enabled ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}>
-              {form.whatsapp_meta_enabled ? t('integrations.connected') : t('integrations.notConnected')}
+            <span className={`px-3 py-1 rounded-full text-sm font-medium ${whatsappBridgeConfig.whatsapp_bridge_status === 'connected' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'}`}>
+              {whatsappBridgeConfig.whatsapp_bridge_status === 'connected' ? t('integrations.connected') : t('integrations.notConnected')}
             </span>
+            {whatsappBridgeConfig.whatsapp_bridge_status === 'connected' && whatsappBridgeConfig.whatsapp_bridge_phone && (
+              <span className="text-xs text-gray-500 dark:text-gray-400">{whatsappBridgeConfig.whatsapp_bridge_phone}</span>
+            )}
           </div>
           
           <button
@@ -872,189 +738,15 @@ const IntegrationsPage = () => {
 
       </div>
 
-      {/* WhatsApp Configuration Modal */}
+      {/* WhatsApp Bridge Setup Modal */}
       {showWhatsAppModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{t('integrations.whatsapp')} Configuration</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{t('integrations.whatsappNotice')}</p>
-              </div>
-              <button
-                onClick={() => setShowWhatsAppModal(false)}
-                className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <form onSubmit={onSave} className="p-6">
-              <div className="grid grid-cols-1 gap-4">
-                
-                {/* Info Notice */}
-                <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
-                  <p className="text-sm text-blue-800 dark:text-blue-300">
-                    WhatsApp Business API integration requires approval from Meta.
-                  </p>
-                </div>
-
-                {/* QR Code Display - показуємо якщо інтеграція підключена */}
-                {form.whatsapp_meta_enabled && (
-                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-700/50">
-                    <h3 className="text-sm font-semibold mb-3 text-gray-900 dark:text-gray-100">QR Code для підключення:</h3>
-                    {loadingQR ? (
-                      <div className="flex items-center justify-center py-8">
-                        <Loader2 size={24} className="animate-spin text-primary-600 dark:text-primary-400" />
-                        <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Генерується QR код...</span>
-                      </div>
-                    ) : whatsappQRCode ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-center">
-                          <img 
-                            src={whatsappQRCode} 
-                            alt="WhatsApp QR Code" 
-                            className="max-w-full h-auto rounded border-2 border-gray-200 dark:border-gray-700"
-                          />
-                        </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-                          Відскануйте цей QR код для підключення до WhatsApp Business API
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
-                        QR код буде згенеровано після збереження налаштувань
-                      </p>
-                    )}
-                  </div>
-                )}
-                
-                {/* Enable/Disable Toggle */}
-                <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                  <input
-                    type="checkbox"
-                    name="whatsapp_meta_enabled"
-                    checked={form.whatsapp_meta_enabled}
-                    onChange={onChange}
-                    className="h-5 w-5 text-primary-600 dark:text-primary-400"
-                  />
-                  <div>
-                    <label className="font-medium cursor-pointer text-gray-900 dark:text-gray-100">Enable WhatsApp Integration</label>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Activate WhatsApp Business API for this client</p>
-                  </div>
-                </div>
-                
-                <div>
-            <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">{t('integrations.phoneNumber')}</label>
-            <input
-              name="meta_phone_number"
-              value={form.meta_phone_number}
-              onChange={onChange}
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              placeholder="+380671234567"
-              type="tel"
-            />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('integrations.phoneNumberHint')}</p>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Meta WABA ID</label>
-            <input
-              name="meta_waba_id"
-              value={form.meta_waba_id}
-              onChange={onChange}
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              placeholder="e.g. 1606460197401137"
-            />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Meta WhatsApp Business Account ID</p>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Meta App ID</label>
-            <input
-              name="meta_app_id"
-              value={form.meta_app_id}
-              onChange={onChange}
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              placeholder="e.g. 1896910764591075"
-            />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Meta App ID from your Meta Business App</p>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Meta App Secret</label>
-            <input
-              name="meta_app_secret"
-              value={form.meta_app_secret || ''}
-              onChange={onChange}
-              type="password"
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              placeholder="••••••••••••••••"
-            />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Keep this secret! It's used to verify webhook requests</p>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">{t('integrations.phoneNumberId')}</label>
-            <input
-              name="meta_phone_number_id"
-              value={form.meta_phone_number_id}
-              onChange={onChange}
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              placeholder="e.g. 880980521764760"
-            />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Meta Business Phone Number ID</p>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Verify Token</label>
-            <input
-              name="meta_verify_token"
-              value={form.meta_verify_token}
-              onChange={onChange}
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              placeholder="nexelin_wh_7f3a2c9b1e84d24f2a6c4d1e9a0b12d3"
-            />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Random string for webhook verification</p>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">{t('integrations.accessToken')}</label>
-            <textarea
-              name="meta_access_token"
-              value={form.meta_access_token}
-              onChange={onChange}
-              rows="3"
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 font-mono text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              placeholder="EAAa9OvRLRZBMBPZB41vIJ6yjX2WKjITZBRWFKYAiRv732pPw..."
-            />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Meta Graph API Access Token (long-lived)</p>
-          </div>
-                {error && <div className="text-red-600 dark:text-red-400 text-sm p-3 bg-red-50 dark:bg-red-900/30 rounded-lg">{error}</div>}
-                {success && <div className="text-green-600 dark:text-green-400 text-sm p-3 bg-green-50 dark:bg-green-900/30 rounded-lg">{success}</div>}
-                
-                <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <button
-                    type="button"
-                    onClick={() => setShowWhatsAppModal(false)}
-                    className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                  >
-                    {t('common.cancel')}
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="flex-1 px-4 py-2 rounded-lg bg-primary-600 dark:bg-primary-500 text-white hover:bg-primary-700 dark:hover:bg-primary-600 disabled:opacity-50"
-                  >
-                    {saving ? t('common.loading') : t('common.save')}
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
+        <WhatsAppSetup
+          onClose={() => {
+            setShowWhatsAppModal(false);
+            reloadWhatsAppBridgeConfig();
+          }}
+          bridgeConfig={whatsappBridgeConfig}
+        />
       )}
 
       {/* Web Chat Configuration Modal */}
