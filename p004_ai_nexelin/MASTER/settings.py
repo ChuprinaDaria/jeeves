@@ -429,3 +429,17 @@ CORS_ALLOW_METHODS = [
 # White-label domain support
 ALLOWED_HOSTS.append('*')  # Accept all domains for white-label clients
 
+# ── MCP Server Configuration (STDIO subprocess) ─────────────
+MCP_SERVERS = {
+    'rag': {
+        'command': 'python',
+        'args': ['-m', 'mcp_servers.rag.server'],
+        'enabled': True,
+    },
+    'escalation': {
+        'command': 'python',
+        'args': ['-m', 'mcp_servers.escalation.server'],
+        'enabled': True,
+    },
+}
+
