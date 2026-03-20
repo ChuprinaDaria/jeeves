@@ -3,10 +3,11 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import ToolCard, ToolConnection
+from .models import ToolCard, ToolConnection, EdgeMiddleware
 from .serializers import (
     ToolCatalogItemSerializer, ToolConnectionSerializer,
     FlowConnectionSerializer, FlowConnectionUpdateSerializer,
+    EdgeMiddlewareSerializer, EdgeMiddlewareCreateSerializer,
 )
 
 
@@ -263,4 +264,82 @@ class FlowConnectionDetailView(APIView):
         conn.status = 'disconnected'
         conn.enabled = False
         conn.save(update_fields=['status', 'enabled', 'updated_at'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class EdgeMiddlewareView(APIView):
+    """
+    GET  /api/tools/flow/edges/<connection_id>/middleware/
+    POST /api/tools/flow/edges/<connection_id>/middleware/
+    """
+
+    def _get_connection(self, request, connection_id):
+        client = getattr(request, 'client', None)
+        if not client:
+            return None, Response(
+                {'error': 'Client not found'}, status=status.HTTP_401_UNAUTHORIZED)
+        try:
+            conn = ToolConnection.objects.get(pk=connection_id, client=client)
+            return conn, None
+        except ToolConnection.DoesNotExist:
+            return None, Response(
+                {'error': 'Connection not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    def get(self, request, connection_id):
+        conn, err = self._get_connection(request, connection_id)
+        if err:
+            return err
+        middlewares = conn.middlewares.select_related('skill_card').all()
+        return Response(EdgeMiddlewareSerializer(middlewares, many=True).data)
+
+    def post(self, request, connection_id):
+        conn, err = self._get_connection(request, connection_id)
+        if err:
+            return err
+
+        ser = EdgeMiddlewareCreateSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+
+        skill_slug = ser.validated_data['skill_slug']
+        try:
+            skill_card = ToolCard.objects.get(slug=skill_slug, is_active=True)
+        except ToolCard.DoesNotExist:
+            return Response(
+                {'error': 'Skill not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check if skill supports this edge's target
+        scopes = skill_card.skill_scopes.get('scopes', [])
+        if scopes and conn.target not in scopes:
+            return Response(
+                {'error': f'Skill does not support target "{conn.target}"'},
+                status=status.HTTP_400_BAD_REQUEST)
+
+        middleware, created = EdgeMiddleware.objects.get_or_create(
+            connection=conn,
+            skill_card=skill_card,
+            client=conn.client,
+            defaults={
+                'order': ser.validated_data.get('order', 0),
+                'config': ser.validated_data.get('config', {}),
+            })
+
+        return Response(
+            EdgeMiddlewareSerializer(middleware).data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+
+class EdgeMiddlewareDetailView(APIView):
+    """DELETE /api/tools/flow/edges/<connection_id>/middleware/<pk>/"""
+
+    def delete(self, request, connection_id, pk):
+        client = getattr(request, 'client', None)
+        if not client:
+            return Response(
+                {'error': 'Client not found'}, status=status.HTTP_401_UNAUTHORIZED)
+        deleted, _ = EdgeMiddleware.objects.filter(
+            pk=pk, connection_id=connection_id, client=client
+        ).delete()
+        if not deleted:
+            return Response(
+                {'error': 'Middleware not found'}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)

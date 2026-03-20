@@ -11,4 +11,10 @@ urlpatterns = [
     # Flow canvas API
     path('flow/connections/', views.FlowConnectionsView.as_view(), name='flow-connections'),
     path('flow/connections/<int:pk>/', views.FlowConnectionDetailView.as_view(), name='flow-connection-detail'),
+
+    # Edge middleware
+    path('flow/edges/<int:connection_id>/middleware/',
+         views.EdgeMiddlewareView.as_view(), name='edge-middleware'),
+    path('flow/edges/<int:connection_id>/middleware/<int:pk>/',
+         views.EdgeMiddlewareDetailView.as_view(), name='edge-middleware-detail'),
 ]

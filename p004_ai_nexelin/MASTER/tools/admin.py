@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ToolCard, ToolConnection
+from .models import ToolCard, ToolConnection, EdgeMiddleware
 
 
 @admin.register(ToolCard)
@@ -68,3 +68,10 @@ class ToolConnectionAdmin(admin.ModelAdmin):
     @admin.action(description='Reset errors')
     def reset_errors(self, request, queryset):
         queryset.update(error_count=0, last_error='', status='connected')
+
+
+@admin.register(EdgeMiddleware)
+class EdgeMiddlewareAdmin(admin.ModelAdmin):
+    list_display = ['skill_card', 'connection', 'client', 'order', 'enabled', 'created_at']
+    list_filter = ['enabled', 'skill_card']
+    raw_id_fields = ['connection', 'skill_card', 'client']

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import ToolCard, ToolConnection
+from .models import ToolCard, ToolConnection, EdgeMiddleware
 
 
 class ToolCardSerializer(serializers.ModelSerializer):
@@ -20,6 +20,24 @@ class ToolConnectionSerializer(serializers.ModelSerializer):
                   'connected_at', 'last_used_at', 'last_error', 'error_count']
 
 
+class EdgeMiddlewareSerializer(serializers.ModelSerializer):
+    skill_slug = serializers.CharField(source='skill_card.slug', read_only=True)
+    skill_name = serializers.CharField(source='skill_card.name', read_only=True)
+    skill_icon = serializers.CharField(source='skill_card.icon', read_only=True)
+    skill_color = serializers.CharField(source='skill_card.color', read_only=True)
+
+    class Meta:
+        model = EdgeMiddleware
+        fields = ['id', 'skill_slug', 'skill_name', 'skill_icon', 'skill_color',
+                  'order', 'enabled', 'config', 'created_at']
+
+
+class EdgeMiddlewareCreateSerializer(serializers.Serializer):
+    skill_slug = serializers.SlugField()
+    order = serializers.IntegerField(required=False, default=0)
+    config = serializers.JSONField(required=False, default=dict)
+
+
 class FlowConnectionSerializer(serializers.ModelSerializer):
     """Lightweight serializer for flow canvas connections."""
     slug = serializers.CharField(source='tool_card.slug', read_only=True)
@@ -27,12 +45,13 @@ class FlowConnectionSerializer(serializers.ModelSerializer):
     icon = serializers.CharField(source='tool_card.icon', read_only=True)
     color = serializers.CharField(source='tool_card.color', read_only=True)
     category = serializers.CharField(source='tool_card.category', read_only=True)
+    middlewares = EdgeMiddlewareSerializer(many=True, read_only=True)
 
     class Meta:
         model = ToolConnection
         fields = ['id', 'slug', 'name', 'icon', 'color', 'category',
                   'status', 'target', 'enabled',
-                  'position_x', 'position_y', 'connected_at']
+                  'position_x', 'position_y', 'connected_at', 'middlewares']
 
 
 class FlowConnectionUpdateSerializer(serializers.Serializer):
