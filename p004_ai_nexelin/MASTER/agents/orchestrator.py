@@ -294,18 +294,18 @@ class AgentOrchestrator:
     @staticmethod
     def _build_messages(
         system_prompt: str,
-        conversation: list[dict[str, str]],
+        conversation: list[dict[str, str]] | None,
         current_message: str,
     ) -> list[dict[str, Any]]:
         """Assemble the messages list for the LLM."""
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": system_prompt},
         ]
-        for msg in conversation:
-            messages.append({
-                "role": msg["role"],
-                "content": msg["content"],
-            })
+        for msg in (conversation or []):
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role in ("user", "assistant") and content:
+                messages.append({"role": role, "content": content})
         messages.append({"role": "user", "content": current_message})
         return messages
 
