@@ -721,17 +721,17 @@ class ExtensionPageInline(admin.TabularInline):
 
 @admin.register(KnowledgeBlock)
 class KnowledgeBlockAdmin(admin.ModelAdmin):
-    list_display = ['name', 'client', 'description', 'entries_count', 'is_active', 'is_permanent', 'created_at']
-    list_filter = ['is_active', 'is_permanent', 'created_at']
+    list_display = ['name', 'client', 'description', 'target_scope', 'entries_count', 'is_active', 'is_permanent', 'created_at']
+    list_filter = ['is_active', 'is_permanent', 'target_scope', 'created_at']
     search_fields = ['name', 'description', 'client__user', 'client__company_name']
     ordering = ['client', 'is_permanent', 'name']
-    list_editable = ['is_active']
+    list_editable = ['is_active', 'target_scope']
     readonly_fields = ['entries_count', 'created_at', 'updated_at']
     inlines = [ExtensionPageInline]
-    
+
     fieldsets = (
         ('Basic Info', {
-            'fields': ('client', 'name', 'description')
+            'fields': ('client', 'name', 'description', 'target_scope')
         }),
         ('Status', {
             'fields': ('is_active', 'is_permanent')

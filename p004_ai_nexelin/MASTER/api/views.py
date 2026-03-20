@@ -2497,6 +2497,10 @@ class SaveSandboxQAView(APIView):
             return Response({'error': 'question and answer are required'}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
+            # Determine scope based on feature flag
+            from MASTER.nexelin_platform.models import FeatureFlag
+            scope = 'assistant' if FeatureFlag.is_enabled('mcp_knowledge_split', client) else 'all'
+
             # Знайти або створити knowledge block "Sandbox"
             knowledge_block, created = KnowledgeBlock.objects.get_or_create(
                 client=client,
@@ -2505,8 +2509,14 @@ class SaveSandboxQAView(APIView):
                     'description': 'Q&A pairs saved from sandbox chat',
                     'is_active': True,
                     'is_permanent': False,
+                    'target_scope': scope,
                 }
             )
+            # Update scope if block already existed and flag is on
+            if not created and FeatureFlag.is_enabled('mcp_knowledge_split', client):
+                if knowledge_block.target_scope != scope:
+                    knowledge_block.target_scope = scope
+                    knowledge_block.save(update_fields=['target_scope'])
             
             # Створити текстовий вміст Q&A
             qa_content = f"Question: {question}\n\nAnswer: {answer}\n"
