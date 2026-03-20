@@ -915,19 +915,29 @@ def auto_generate_client_embedding_vector(sender, instance, **kwargs):
 
 class KnowledgeBlock(models.Model):
     """Knowledge block for organizing client documents and knowledge."""
+
+    TARGET_SCOPE_CHOICES = [
+        ('all', 'All (available to everyone)'),
+        ('assistant', 'Assistant only (Oleg)'),
+        ('manager', 'Manager only (Vasya)'),
+    ]
+
     id = models.AutoField(primary_key=True)
-    
+
     client = models.ForeignKey(
         Client,
         on_delete=models.CASCADE,
         related_name='knowledge_blocks'
     )
-    
+
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, help_text="Short description of the knowledge block")
     is_active = models.BooleanField(default=True)
     is_permanent = models.BooleanField(default=False, help_text="Permanent blocks cannot be edited or deleted")
-    
+    target_scope = models.CharField(
+        max_length=20, choices=TARGET_SCOPE_CHOICES, default='all',
+        help_text='Who can access this knowledge block')
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
