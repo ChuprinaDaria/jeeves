@@ -142,6 +142,7 @@ const ToolsPage = () => {
         onToolClick={handleCanvasToolClick}
         highlightedTool={highlightedTool}
         onToolDrop={handleToolDrop}
+        onDisconnect={handleDisconnect}
       />
 
       {/* Popover */}

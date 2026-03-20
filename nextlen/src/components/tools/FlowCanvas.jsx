@@ -53,7 +53,7 @@ const buildInitialPositions = (canvasW, canvasH, groups) => {
 };
 
 /* ── Component ─────────────────────────────────────── */
-const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop }) => {
+const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconnect, onConnect }) => {
   const containerRef = useRef(null);
   const innerRef = useRef(null);
 
@@ -349,12 +349,14 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop }) => {
 
   const handleDeleteEdge = useCallback((edgeId) => {
     const conn = connections.find(c => c.id === edgeId);
-    if (!conn || conn.target === 'escalation') return;
-    // TODO: Call backend to disconnect
-    console.log('Delete edge:', edgeId, conn.toolSlug);
+    if (!conn || conn.target === 'escalation' || !conn.toolSlug) return;
+
+    if (window.confirm('Disconnect this tool?')) {
+      onDisconnect?.(conn.toolSlug);
+    }
     setSelectedEdge(null);
     setContextMenu(null);
-  }, [connections]);
+  }, [connections, onDisconnect]);
 
   /* ── Node drag handlers ────────────────── */
   const handleNodePointerDown = useCallback((nodeId, e) => {
