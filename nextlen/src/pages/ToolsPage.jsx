@@ -7,9 +7,12 @@ import FlowCanvas from '../components/tools/FlowCanvas';
 import ToolPopover from '../components/tools/ToolPopover';
 import FlowToast, { useFlowToast } from '../components/tools/FlowToast';
 import { getToolTargets } from '../components/tools/toolTargets';
+import { useAuth } from '../context/AuthContext';
 
 const ToolsPage = () => {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const multiConn = user?.feature_flags?.mcp_tools_multi_connection;
   const [tools, setTools] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -41,9 +44,9 @@ const ToolsPage = () => {
     loadTools();
   }, [tools, showToast, t]);
 
-  const handleDisconnect = useCallback(async (slug) => {
+  const handleDisconnect = useCallback(async (slug, target) => {
     try {
-      await toolsAPI.disconnect(slug);
+      await toolsAPI.disconnect(slug, target);
       const tool = tools.find(t => t.slug === slug);
       showToast('🔌', `${tool?.name || slug} ${t('tools.flow.disconnected')}`);
       loadTools();
@@ -55,20 +58,34 @@ const ToolsPage = () => {
   const handleMiddlewareRemove = useCallback(async (conn, middlewareId) => {
     try {
       const tool = tools.find(t => t.slug === conn.toolSlug);
-      if (!tool?.connection?.id) return;
-      await toolsAPI.detachMiddleware(tool.connection.id, middlewareId);
-      showToast('🔧', `Middleware removed`);
+      let connId;
+      if (multiConn && tool?.connections) {
+        const toolConn = tool.connections.find(c => c.target === conn.target && c.status === 'connected');
+        connId = toolConn?.id;
+      } else {
+        connId = tool?.connection?.id;
+      }
+      if (!connId) return;
+      await toolsAPI.detachMiddleware(connId, middlewareId);
+      showToast('🔧', 'Middleware removed');
       loadTools();
     } catch (err) {
       console.error('Remove middleware error:', err);
     }
-  }, [tools, showToast]);
+  }, [tools, showToast, multiConn]);
 
   const handleMiddlewareAttach = useCallback(async (conn, skillSlug) => {
     try {
       const tool = tools.find(t => t.slug === conn.toolSlug);
-      if (!tool?.connection?.id) return;
-      await toolsAPI.attachMiddleware(tool.connection.id, skillSlug);
+      let connId;
+      if (multiConn && tool?.connections) {
+        const toolConn = tool.connections.find(c => c.target === conn.target && c.status === 'connected');
+        connId = toolConn?.id;
+      } else {
+        connId = tool?.connection?.id;
+      }
+      if (!connId) return;
+      await toolsAPI.attachMiddleware(connId, skillSlug);
       const skill = tools.find(t => t.slug === skillSlug);
       showToast('🧩', `${skill?.name || skillSlug} attached`);
       loadTools();
@@ -76,34 +93,49 @@ const ToolsPage = () => {
       console.error('Attach middleware error:', err);
       showToast('⚠️', err.response?.data?.error || 'Failed to attach skill');
     }
-  }, [tools, showToast]);
+  }, [tools, showToast, multiConn]);
 
   const handleConnect = useCallback(async (slug, target) => {
     const tool = tools.find(t => t.slug === slug);
     if (!tool) return;
 
-    const isConnected = tool.connection?.status === 'connected' && tool.connection?.enabled;
-
     try {
-      if (isConnected && tool.connection?.id) {
-        await toolsAPI.updateFlowConnection(tool.connection.id, { target });
-      } else if (tool.auth_type === 'none') {
-        await toolsAPI.createFlowConnection(slug, target);
+      if (multiConn && tool.connections) {
+        const existing = tool.connections.find(
+          c => c.target === target && c.status === 'connected' && c.enabled
+        );
+        if (existing) return;
+        const anyConn = tool.connections.find(c => c.status === 'connected');
+        if (tool.auth_type === 'none' || anyConn) {
+          await toolsAPI.createFlowConnection(slug, target);
+        } else {
+          showToast('💡', t('tools.flow.clickToConnect'));
+          return;
+        }
       } else {
-        showToast('💡', t('tools.flow.clickToConnect'));
-        return;
+        const isConnected = tool.connection?.status === 'connected' && tool.connection?.enabled;
+        if (isConnected && tool.connection?.id) {
+          await toolsAPI.updateFlowConnection(tool.connection.id, { target });
+        } else if (tool.auth_type === 'none') {
+          await toolsAPI.createFlowConnection(slug, target);
+        } else {
+          showToast('💡', t('tools.flow.clickToConnect'));
+          return;
+        }
       }
       showToast('🔗', `${tool?.name || slug} → ${target}`);
       loadTools();
     } catch (err) {
       console.error('Connect error:', err);
     }
-  }, [tools, showToast, t]);
+  }, [tools, showToast, t, multiConn]);
 
   const handleToolDrop = useCallback(async (slug) => {
     const tool = tools.find(t => t.slug === slug);
     if (!tool) return;
-    const isConnected = tool.connection?.status === 'connected' && tool.connection?.enabled;
+    const isConnected = multiConn && tool.connections
+      ? tool.connections.some(c => c.status === 'connected' && c.enabled)
+      : tool.connection?.status === 'connected' && tool.connection?.enabled;
     if (isConnected) return;
     if (tool.auth_type === 'none') {
       try {
@@ -115,7 +147,7 @@ const ToolsPage = () => {
     } else {
       showToast('💡', t('tools.flow.clickToConnect'));
     }
-  }, [tools, handleConnected, showToast, t]);
+  }, [tools, handleConnected, showToast, t, multiConn]);
 
   const handleCanvasToolClick = useCallback((tool, e) => {
     const el = e?.currentTarget || document.getElementById(`canvas-tool-${tool.slug}`);
@@ -124,7 +156,12 @@ const ToolsPage = () => {
     }
   }, []);
 
-  const connectedCount = tools.filter(t => t.connection?.status === 'connected' && t.connection?.enabled).length;
+  const connectedCount = tools.filter(t => {
+    if (multiConn && t.connections) {
+      return t.connections.some(c => c.status === 'connected' && c.enabled);
+    }
+    return t.connection?.status === 'connected' && t.connection?.enabled;
+  }).length;
   const availableCount = tools.length - connectedCount;
 
   if (loading) {
