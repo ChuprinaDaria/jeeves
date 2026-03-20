@@ -397,7 +397,19 @@ class MetaWhatsAppWebhookView(View):
                         }
                     )
             
-            if not conversation:
+            # MCP dual-mode: route to orchestrator for flagged clients
+            from MASTER.nexelin_platform.models import FeatureFlag
+            _conv_client = conversation.client if conversation else client
+            if _conv_client and FeatureFlag.is_enabled('mcp_real_agent', _conv_client):
+                from MASTER.agents.dispatch import generate_response_dual
+                response_text = generate_response_dual(
+                    message=message_body,
+                    client=_conv_client,
+                    conversation=conversation.messages if conversation else None,
+                    channel='whatsapp_meta',
+                    external_user_id=from_number,
+                )
+            elif not conversation:
                 response_text = self.generate_rag_response_without_conversation(message_body)
             else:
                 response_text = self.generate_rag_response(message_body, conversation)

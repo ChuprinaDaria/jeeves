@@ -693,8 +693,20 @@ class TelegramWebhookView(View):
                 if updated_fields:
                     conversation.save(update_fields=updated_fields)
             
-            # Використовуємо RAG для генерації відповіді
-            response_text = self.generate_rag_response(message_text, conversation, chat_id)
+            # MCP dual-mode: route to orchestrator for flagged clients
+            from MASTER.nexelin_platform.models import FeatureFlag
+            if FeatureFlag.is_enabled('mcp_real_agent', conversation.client):
+                from MASTER.agents.dispatch import generate_response_dual
+                response_text = generate_response_dual(
+                    message=message_text,
+                    client=conversation.client,
+                    conversation=conversation.messages,
+                    channel='telegram',
+                    external_user_id=str(chat_id),
+                )
+            else:
+                # Використовуємо RAG для генерації відповіді
+                response_text = self.generate_rag_response(message_text, conversation, chat_id)
             
             logger.info(f"Regular message processed: chat_id={chat_id}, message={message_text[:100]}")
             

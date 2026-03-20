@@ -50,6 +50,12 @@ class ChatSSEView(View):
     async def _stream(self, request, client, message):
         """Generator — sends SSE events as data arrives."""
 
+        # MCP dual-mode: route to orchestrator for flagged clients
+        if FeatureFlag.is_enabled('mcp_real_agent', client):
+            async for event in self._stream_mcp(request, client, message):
+                yield event
+            return
+
         # Get or create agent config
         try:
             agent_config = await AgentConfig.objects.select_related(
@@ -89,6 +95,45 @@ class ChatSSEView(View):
         except Exception as e:
             logger.error(f'LLM generation failed: {e}')
             yield self._sse('error', {'step': 'generate', 'message': str(e)})
+
+        yield self._sse('done', {'session_id': str(session.id)})
+
+    async def _stream_mcp(self, request, client, message):
+        """MCP orchestrator path — returns full response as SSE events."""
+        from MASTER.agents.orchestrator import AgentOrchestrator
+
+        try:
+            agent_config = await AgentConfig.objects.select_related(
+                'llm_provider', 'embedding_model'
+            ).aget(client=client)
+        except AgentConfig.DoesNotExist:
+            agent_config = await AgentConfig.objects.acreate(client=client)
+
+        session = await AgentSession.objects.acreate(
+            agent_config=agent_config,
+            channel='api',
+            metadata={'user_agent': request.META.get('HTTP_USER_AGENT', '')},
+        )
+
+        yield self._sse('status', {'step': 'thinking', 'session_id': str(session.id)})
+
+        orchestrator = AgentOrchestrator(client, agent_config)
+        await orchestrator.connect()
+        try:
+            yield self._sse('status', {'step': 'generating'})
+            result = await orchestrator.process(
+                message=message,
+                session=session,
+                conversation=None,
+                channel='api',
+                external_user_id='',
+            )
+            yield self._sse('token', {'text': result})
+        except Exception as e:
+            logger.error(f'MCP orchestrator failed in SSE: {e}', exc_info=True)
+            yield self._sse('error', {'step': 'generate', 'message': str(e)})
+        finally:
+            await orchestrator.disconnect()
 
         yield self._sse('done', {'session_id': str(session.id)})
 
