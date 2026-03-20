@@ -367,23 +367,70 @@ const handleMiddlewareAttach = useCallback(async (conn, skillSlug) => {
 
 ---
 
-## TODO for next session: Scope configuration per tool
+## Scope Definitions Per Tool (confirmed by Dasha 2026-03-20)
 
-In the next session, Opus should ask Dasha:
+### RAG Search (Knowledge Base)
+| Target | Scopes |
+|--------|--------|
+| **Oleg (Assistant)** | Повний доступ: всі знання (all + assistant + manager) |
+| **Vasya (Manager)** | Обмежений: тільки all + manager знання |
+| **Leads** | ❌ Немає доступу |
 
-1. **For each tool** (email, telegram, whatsapp, web-widget, rag-search, hitl-matrix, translation):
-   - What scopes are available for Assistant (Oleg)?
-   - What scopes are available for Manager (Vasya)?
-   - What scopes are available for Leads?
+### Email (email-smtp)
+| Target | Scopes |
+|--------|--------|
+| **Oleg (Assistant)** | `can_read: true, can_send: true, can_analyze: true` — повний доступ |
+| **Vasya (Manager)** | `can_read: false, can_send: true, send_scope: "b2c", requires_oleg_instruction: true` — тільки B2C відправка за вказівкою Олега |
+| **Leads** | `can_send: true, send_scope: "owner_only", send_type: "leads_excel"` — відправка Excel таблиць з лідами тільки на мейл юзера (власника), не стороннім |
 
-2. **For each skill** (translation, rag-search as middleware):
-   - What scopes when attached to assistant edges?
-   - What scopes when attached to manager edges?
-   - What scopes when attached to escalation edge?
+### Telegram Bot
+| Target | Scopes |
+|--------|--------|
+| **Oleg (Assistant)** | `can_receive: true, can_read: true, can_send: true, can_analyze: true` — повний доступ |
+| **Vasya (Manager)** | `can_receive: true, can_send: true, role: "sales", uses_rag: true, can_escalate: true` — продажник з RAG або ескалація (два різних боти) |
+| **Leads** | `can_detect_leads: true, sources: ["bot", "personal"]` — детекція лідів з ботів і персональних Telegram |
 
-3. **Scope UI**: should scopes be configurable from the canvas (popup on edge click) or from a separate settings page?
+### WhatsApp Business (Meta API)
+| Target | Scopes |
+|--------|--------|
+| **Oleg (Assistant)** | `can_receive: true, can_read: true, can_send: true, can_analyze: true` — повний доступ |
+| **Vasya (Manager)** | `can_receive: true, can_send: true, role: "sales", uses_rag: true, can_escalate: true` — продажник/RAG/ескалація |
+| **Leads** | `can_detect_leads: true` — детекція лідів |
 
-4. **Credentials sharing**: when email is connected to both Oleg and Vasya, do they share the same SMTP credentials (yes, obviously) — but does Vasya have his own "from_name" or "from_address"?
+### WhatsApp Personal (Bridge)
+| Target | Scopes |
+|--------|--------|
+| **Oleg (Assistant)** | Повний доступ (як WhatsApp Business) |
+| **Vasya (Manager)** | Продажник/RAG/ескалація (як WhatsApp Business) |
+| **Leads** | Детекція лідів (як WhatsApp Business) |
+
+### Web Chat (Widget)
+| Target | Scopes |
+|--------|--------|
+| **Oleg (Assistant)** | `can_receive: true, can_send: true, can_analyze: true` — повний доступ |
+| **Vasya (Manager)** | `can_receive: true, can_send: true, role: "sales", uses_rag: true, can_escalate: true` — продажник/RAG/ескалація |
+| **Leads** | `can_detect_leads: true` — детекція лідів з веб-чату |
+
+### Live Manager (HITL Matrix)
+| Target | Scopes |
+|--------|--------|
+| **Oleg (Assistant)** | ❌ Не стосується |
+| **Vasya (Manager)** | `can_escalate: true` — шле ескалацію в Matrix, живий менеджер відповідає через Matrix, Вася передає відповідь клієнту |
+| **Leads** | ❌ Не стосується |
+
+### Translation (Auto Translation)
+| Target | Scopes |
+|--------|--------|
+| **Oleg (Assistant)** | `bidirectional: true` — переклад в обидва боки (клієнт ↔ AI) |
+| **Vasya (Manager)** | `bidirectional: true` — переклад в обидва боки |
+| **Leads** | ❌ Не стосується |
+
+---
+
+## Open questions (still TODO)
+
+1. **Scope UI**: should scopes be configurable from the canvas (popup on edge click) or from a separate settings page?
+2. **Credentials sharing**: when email is connected to both Oleg and Vasya, do they share the same SMTP credentials? Does Vasya have his own "from_name" or "from_address"?
 
 ---
 
