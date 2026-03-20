@@ -4,6 +4,7 @@ import CoreNode from './CoreNode';
 import CanvasToolNode from './CanvasToolNode';
 import ConnectionsLayer from './ConnectionsLayer';
 import OnboardingHint from './OnboardingHint';
+import EdgeSkillBadge from './EdgeSkillBadge';
 import { getToolTargets } from './toolTargets';
 
 /* ── Constants ─────────────────────────────────────── */
@@ -53,7 +54,7 @@ const buildInitialPositions = (canvasW, canvasH, groups) => {
 };
 
 /* ── Component ─────────────────────────────────────── */
-const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconnect, onConnect }) => {
+const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconnect, onConnect, onMiddlewareRemove, onMiddlewareAttach }) => {
   const containerRef = useRef(null);
   const innerRef = useRef(null);
 
@@ -241,6 +242,21 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
 
     return conns;
   }, [positions, connectedTools]);
+
+  /* -- Middleware on edges -- */
+  const middlewareByEdge = useMemo(() => {
+    const map = {};
+    connectedTools.forEach(tool => {
+      const mws = tool.connection?.middlewares;
+      if (!mws?.length) return;
+      const targets = getToolTargets(tool.slug);
+      targets.forEach(target => {
+        const edgeId = `${tool.slug}-${target}`;
+        map[edgeId] = mws;
+      });
+    });
+    return map;
+  }, [connectedTools]);
 
   /* ── Valid drop ports for edge dragging ── */
   const validDropPorts = useMemo(() => {
@@ -598,10 +614,10 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     if (!slug) return;
 
     if (dragOverEdgeId) {
-      // Drop on edge — attach tool/skill
       const conn = connections.find(c => c.id === dragOverEdgeId);
-      console.log('Attach to edge:', slug, '→', conn?.id);
-      // TODO: Implement edge attachment state + backend
+      if (conn && conn.toolSlug) {
+        onMiddlewareAttach?.(conn, slug);
+      }
       setDragOverEdgeId(null);
       return;
     }
@@ -761,6 +777,25 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
               />
             </div>
           );
+        })}
+
+        {/* Middleware badges on edges */}
+        {connections.map(conn => {
+          const mws = middlewareByEdge[conn.id];
+          if (!mws?.length || conn.target === 'escalation') return null;
+          return mws.map((mw, i) => {
+            const count = mws.length;
+            const position = count === 1 ? 0.5 : (i + 1) / (count + 1);
+            return (
+              <EdgeSkillBadge
+                key={`${conn.id}-${mw.id}`}
+                middleware={mw}
+                pathD={conn.pathD}
+                position={position}
+                onRemove={(mwId) => onMiddlewareRemove?.(conn, mwId)}
+              />
+            );
+          });
         })}
       </div>
 

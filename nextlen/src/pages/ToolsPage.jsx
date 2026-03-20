@@ -52,6 +52,32 @@ const ToolsPage = () => {
     }
   }, [tools, showToast, t]);
 
+  const handleMiddlewareRemove = useCallback(async (conn, middlewareId) => {
+    try {
+      const tool = tools.find(t => t.slug === conn.toolSlug);
+      if (!tool?.connection?.id) return;
+      await toolsAPI.detachMiddleware(tool.connection.id, middlewareId);
+      showToast('🔧', `Middleware removed`);
+      loadTools();
+    } catch (err) {
+      console.error('Remove middleware error:', err);
+    }
+  }, [tools, showToast]);
+
+  const handleMiddlewareAttach = useCallback(async (conn, skillSlug) => {
+    try {
+      const tool = tools.find(t => t.slug === conn.toolSlug);
+      if (!tool?.connection?.id) return;
+      await toolsAPI.attachMiddleware(tool.connection.id, skillSlug);
+      const skill = tools.find(t => t.slug === skillSlug);
+      showToast('🧩', `${skill?.name || skillSlug} attached`);
+      loadTools();
+    } catch (err) {
+      console.error('Attach middleware error:', err);
+      showToast('⚠️', err.response?.data?.error || 'Failed to attach skill');
+    }
+  }, [tools, showToast]);
+
   const handleConnect = useCallback(async (slug, target) => {
     const tool = tools.find(t => t.slug === slug);
     if (!tool) return;
@@ -166,6 +192,8 @@ const ToolsPage = () => {
         onToolDrop={handleToolDrop}
         onDisconnect={handleDisconnect}
         onConnect={handleConnect}
+        onMiddlewareRemove={handleMiddlewareRemove}
+        onMiddlewareAttach={handleMiddlewareAttach}
       />
 
       {/* Popover */}
