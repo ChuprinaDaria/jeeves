@@ -437,6 +437,15 @@ class PublicRAGChatView(APIView):
             if history_text:
                 rag_query = f"{history_text}\n\nLast user message:\n{message}"
 
+            # MCP Agent path: route through AgentOrchestrator for flagged clients
+            from MASTER.nexelin_platform.models import FeatureFlag
+            if FeatureFlag.is_enabled('mcp_real_agent', client):
+                try:
+                    return self._handle_mcp_agent(client, message, raw_context, language)
+                except Exception as e:
+                    logger.error(f"MCP agent failed, falling back to RAG: {e}", exc_info=True)
+                    # Fall through to regular RAG if MCP fails
+
             # Використовуємо клієнта для пошуку в його даних + даних бранча та спеціалізації
             generator = ResponseGenerator()
 
@@ -630,6 +639,74 @@ class PublicRAGChatView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
+    def _handle_mcp_agent(self, client, message, raw_context, language):
+        """Route through AgentOrchestrator with MCP tool calling (for flagged clients)."""
+        import asyncio
+        import json
+        import logging
+        from MASTER.agents.models import AgentConfig, AgentSession
+        from MASTER.agents.orchestrator import AgentOrchestrator
+
+        logger = logging.getLogger(__name__)
+
+        # Parse conversation context
+        conversation = []
+        if raw_context:
+            try:
+                ctx = json.loads(raw_context) if isinstance(raw_context, str) else raw_context
+                if isinstance(ctx, list):
+                    conversation = [
+                        {'role': m.get('role', 'user'), 'content': m.get('content', '')}
+                        for m in ctx[-30:] if m.get('content')
+                    ]
+            except Exception:
+                pass
+
+        async def _run():
+            try:
+                agent_config = await AgentConfig.objects.select_related(
+                    'llm_provider', 'embedding_model'
+                ).aget(client=client)
+            except AgentConfig.DoesNotExist:
+                agent_config = await AgentConfig.objects.acreate(client=client)
+
+            session = await AgentSession.objects.acreate(
+                agent_config=agent_config,
+                channel='sandbox',
+                metadata={'source': 'PublicRAGChatView_mcp'},
+            )
+
+            orchestrator = AgentOrchestrator(client, agent_config)
+            await orchestrator.connect()
+            try:
+                result = await orchestrator.process(
+                    message=message,
+                    session=session,
+                    conversation=conversation,
+                    channel='sandbox',
+                )
+                return result
+            finally:
+                await orchestrator.disconnect()
+
+        # Run async orchestrator from sync view
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    result = pool.submit(lambda: asyncio.run(_run())).result(timeout=120)
+            else:
+                result = asyncio.run(_run())
+        except RuntimeError:
+            result = asyncio.run(_run())
+
+        return Response({
+            'response': result or '',
+            'language': language,
+            'mcp_agent': True,
+        })
+
     def _classify_email_intent(self, message: str, language: str = 'en', client=None) -> dict:
         """
         Використовує LLM (з урахуванням вибраного клієнтом провайдера) для класифікації email-інтенту.
