@@ -50,6 +50,9 @@ class ToolCard(models.Model):
     skill_scopes = models.JSONField(
         default=dict, blank=True,
         help_text='{"scopes": ["assistant","manager","escalation"], "bidirectional": true}')
+    scope_schema = models.JSONField(
+        default=dict, blank=True,
+        help_text='Available scope options for UI rendering')
 
     is_active = models.BooleanField(default=True)
     is_featured = models.BooleanField(default=False)
@@ -91,6 +94,9 @@ class ToolConnection(models.Model):
     target = models.CharField(max_length=20, choices=TARGET_CHOICES, default='assistant')
     credentials = EncryptedJSONField(default=dict, blank=True)
     config = models.JSONField(default=dict, blank=True)
+    scope = models.JSONField(
+        default=dict, blank=True,
+        help_text='Per-target permissions/scope for this connection')
     enabled = models.BooleanField(default=True)
 
     # Canvas position (optional — frontend can compute defaults)
@@ -106,7 +112,7 @@ class ToolConnection(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ['client', 'tool_card']
+        unique_together = ['client', 'tool_card', 'target']
         indexes = [
             models.Index(fields=['client', 'status']),
             models.Index(fields=['tool_card', 'status']),
