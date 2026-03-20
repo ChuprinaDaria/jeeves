@@ -2,9 +2,12 @@ import { useTranslation } from 'react-i18next';
 import { FlaskConical, ArrowRight, GraduationCap } from 'lucide-react';
 import ChatWindow from '../components/sandbox/ChatWindow';
 import PhotoUploadTest from '../components/sandbox/PhotoUploadTest';
+import { useAuth } from '../context/AuthContext';
 
 const SandboxPage = () => {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const knowledgeSplitEnabled = user?.feature_flags?.mcp_knowledge_split;
 
   // Функція для навігації, яка працює і в /l/:tag/ режимі і в звичайному
   const handleGoToTraining = () => {
@@ -23,6 +26,24 @@ const SandboxPage = () => {
     }
   };
   
+  if (knowledgeSplitEnabled) {
+    return (
+      <div className="flex flex-col h-[calc(100vh-140px)] min-h-[500px]">
+        <div className="mb-4">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            {t('sandbox.assistantTitle') || 'AI Assistant'}
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            {t('sandbox.assistantSubtitle') || 'Chat with Oleg — your AI assistant'}
+          </p>
+        </div>
+        <div className="flex-1 min-h-0">
+          <ChatWindow fullHeight />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
