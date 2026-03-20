@@ -358,10 +358,21 @@ class AgentOrchestrator:
         Uses OpenAI-compatible chat completion with function calling.
         Falls back to plain generation if the provider doesn't support tools.
         """
-        from MASTER.rag.llm_client import LLMClient
+        import asyncio
+        from asgiref.sync import sync_to_async
 
-        llm = LLMClient()
-        provider = llm._get_provider(self.client)
+        def _resolve_provider():
+            """Sync helper — resolves LLM provider (triggers ORM lookups)."""
+            from MASTER.rag.llm_client import LLMClient
+            from MASTER.clients.models import Client
+            # Re-fetch client with related fields to avoid lazy-load in async
+            client = Client.objects.select_related(
+                'llm_provider_model', 'branch', 'specialization',
+            ).get(pk=self.client.pk)
+            llm = LLMClient()
+            return llm._get_provider(client)
+
+        provider = await sync_to_async(_resolve_provider)()
 
         # Only OpenAI-compatible providers support tool calling natively
         from MASTER.rag.providers.llm import OpenAILLMProvider
@@ -370,7 +381,8 @@ class AgentOrchestrator:
             return await self._call_openai_with_tools(provider, messages, tools)
 
         # Fallback: plain text generation (no tool calling)
-        result = provider.generate(
+        result = await asyncio.to_thread(
+            provider.generate,
             messages=messages,
             temperature=self.agent_config.get_temperature(),
             max_tokens=self.agent_config.get_max_tokens(),
