@@ -402,28 +402,28 @@ class AgentOrchestrator:
         """OpenAI chat completion with tool definitions."""
         import asyncio
 
-        model = provider.model_name
-        temperature = self.agent_config.get_temperature()
-        max_tokens = self.agent_config.get_max_tokens()
+        def _sync_openai_call():
+            """All ORM + OpenAI calls must run in sync thread."""
+            model = provider.model_name
+            temperature = self.agent_config.get_temperature()
+            max_tokens = self.agent_config.get_max_tokens()
 
-        # Reasoning models don't support temperature
-        model_lower = (model or "").lower()
-        no_temp = model_lower.startswith(("o1", "o3", "gpt-5.1"))
+            model_lower = (model or "").lower()
+            no_temp = model_lower.startswith(("o1", "o3", "gpt-5.1"))
 
-        params: dict[str, Any] = {
-            "model": model,
-            "messages": messages,
-            "tools": tools,
-            "max_completion_tokens": max_tokens,
-            "stream": False,
-        }
-        if not no_temp:
-            params["temperature"] = temperature
+            params = {
+                "model": model,
+                "messages": messages,
+                "tools": tools,
+                "max_completion_tokens": max_tokens,
+                "stream": False,
+            }
+            if not no_temp:
+                params["temperature"] = temperature
 
-        # Run sync OpenAI client in a thread
-        response = await asyncio.to_thread(
-            provider.client.chat.completions.create, **params
-        )
+            return provider.client.chat.completions.create(**params)
+
+        response = await asyncio.to_thread(_sync_openai_call)
 
         choice = response.choices[0]
         msg = choice.message
