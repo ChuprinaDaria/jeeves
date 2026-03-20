@@ -328,7 +328,18 @@ class KnowledgeBlockViewSet(viewsets.ModelViewSet):
         client = self.get_client_from_request_or_api_key()
         if not client:
             return KnowledgeBlock.objects.none()
-        return KnowledgeBlock.objects.filter(client=client, is_active=True)
+
+        qs = KnowledgeBlock.objects.filter(client=client, is_active=True)
+
+        # Scope filtering — only when feature flag is enabled
+        from MASTER.nexelin_platform.models import FeatureFlag
+        if FeatureFlag.is_enabled('mcp_knowledge_split', client):
+            scope = self.request.query_params.get('scope')
+            if scope == 'manager':
+                qs = qs.filter(target_scope__in=['all', 'manager'])
+            # 'assistant' or no scope param → return all (Oleg sees everything)
+
+        return qs
     
     def create(self, request, *args, **kwargs):
         """Override create to ensure it's available"""
