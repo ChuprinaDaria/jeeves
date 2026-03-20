@@ -92,6 +92,7 @@ zstandard==0.25.0
 lingua-language-detector>=2.0.1
 mcp>=1.9.0
 fastmcp>=2.0.0
+qdrant-client>=1.9.0
 cryptography>=42.0.0
 uvicorn>=0.30.0
 pytest-django>=4.8.0
