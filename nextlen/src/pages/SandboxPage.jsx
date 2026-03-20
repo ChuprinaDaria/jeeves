@@ -43,7 +43,7 @@ const SandboxPage = () => {
             {t('sandbox.assistantTitle') || 'AI Assistant'}
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            {t('sandbox.assistantSubtitle') || 'Chat with Oleg — your AI assistant'}
+            {t('sandbox.assistantSubtitle') || 'Chat with your AI assistant'}
           </p>
         </div>
         <div className="flex-1 min-h-0">

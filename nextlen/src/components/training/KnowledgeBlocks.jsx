@@ -296,8 +296,8 @@ const KnowledgeBlocks = () => {
                       : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
                   }`}>
                     {block.target_scope === 'assistant'
-                      ? (t('training.scopeBadgeAssistant') || 'Oleg')
-                      : (t('training.scopeBadgeManager') || 'Vasya')}
+                      ? (t('training.scopeBadgeAssistant') || 'Assistant')
+                      : (t('training.scopeBadgeManager') || 'Manager')}
                   </span>
                 )}
                 {block.permanent && (
@@ -507,8 +507,8 @@ const KnowledgeBlocks = () => {
                   >
                     <option value="all_scopes">{t('training.scopeFilter') || 'All scopes'}</option>
                     <option value="all">{t('training.scopeAll') || 'Shared'}</option>
-                    <option value="assistant">{t('training.scopeAssistant') || 'Oleg only'}</option>
-                    <option value="manager">{t('training.scopeManager') || 'Vasya only'}</option>
+                    <option value="assistant">{t('training.scopeAssistant') || 'Assistant only'}</option>
+                    <option value="manager">{t('training.scopeManager') || 'Manager only'}</option>
                   </select>
                 )}
 

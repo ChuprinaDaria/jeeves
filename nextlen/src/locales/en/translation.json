@@ -177,11 +177,11 @@
     "sandboxDescription": "Test your AI assistant before going live",
     "sandboxBadge": "Test Mode",
     "scopeAll": "Shared",
-    "scopeAssistant": "Oleg only",
-    "scopeManager": "Vasya only",
+    "scopeAssistant": "Assistant only",
+    "scopeManager": "Manager only",
     "scopeFilter": "Scope",
-    "scopeBadgeAssistant": "Oleg",
-    "scopeBadgeManager": "Vasya"
+    "scopeBadgeAssistant": "Assistant",
+    "scopeBadgeManager": "Manager"
   },
   "sandbox": {
     "title": "Sandbox",
@@ -233,7 +233,7 @@
     "newLocationDescription": "For your convenience, you can now test your AI assistant directly on the Train AI page, right after configuring the AI behavior prompt.",
     "goToTraining": "Go to Train AI",
     "assistantTitle": "AI Assistant",
-    "assistantSubtitle": "Chat with Oleg — your AI assistant"
+    "assistantSubtitle": "Chat with your AI assistant"
   },
   "integrations": {
     "title": "Integrations",
