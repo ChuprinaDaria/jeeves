@@ -18,7 +18,7 @@ class ToolCardAdmin(admin.ModelAdmin):
         }),
         ('MCP Connection', {
             'fields': ('transport_type', 'mcp_server_url', 'is_builtin',
-                       'builtin_handler', 'tools_schema', 'skill_scopes'),
+                       'builtin_handler', 'tools_schema', 'scope_schema', 'skill_scopes'),
             'classes': ('collapse',),
         }),
         ('Auth', {
@@ -37,7 +37,7 @@ class ToolCardAdmin(admin.ModelAdmin):
 
 @admin.register(ToolConnection)
 class ToolConnectionAdmin(admin.ModelAdmin):
-    list_display = ['client_name', 'tool_name', 'status', 'enabled',
+    list_display = ['client_name', 'tool_name', 'target', 'scope', 'status', 'enabled',
                     'connected_at', 'last_used_at', 'error_count']
     list_filter = ['status', 'enabled', 'tool_card', 'tool_card__category']
     list_editable = ['enabled', 'status']
