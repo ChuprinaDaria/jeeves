@@ -42,18 +42,39 @@ const ToolPopover = ({ tool, anchorRect, onDisconnect, onClose }) => {
         <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
         {t('tools.connected')}
       </div>
-      <button
-        onClick={() => {
-          if (window.confirm(t('tools.confirmDisconnect'))) {
-            onDisconnect(tool.slug);
-            onClose();
-          }
-        }}
-        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-      >
-        <Unplug className="w-4 h-4" />
-        {t('tools.disconnect')}
-      </button>
+      {tool.connections?.filter(c => c.status === 'connected' && c.enabled).length > 0 ? (
+        <div className="space-y-1">
+          {tool.connections.filter(c => c.status === 'connected' && c.enabled).map(conn => (
+            <div key={conn.id} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-gray-50 dark:hover:bg-gray-700/50">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-gray-700 dark:text-gray-300 capitalize">{conn.target}</span>
+                {conn.scope?.description && (
+                  <span className="text-xs text-gray-400 dark:text-gray-500">{conn.scope.description}</span>
+                )}
+              </div>
+              <button
+                onClick={() => onDisconnect(tool.slug, conn.target)}
+                className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium"
+              >
+                {t('tools.flow.disconnect') || 'Disconnect'}
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <button
+          onClick={() => {
+            if (window.confirm(t('tools.confirmDisconnect'))) {
+              onDisconnect(tool.slug);
+              onClose();
+            }
+          }}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+        >
+          <Unplug className="w-4 h-4" />
+          {t('tools.disconnect')}
+        </button>
+      )}
     </div>,
     document.body
   );
