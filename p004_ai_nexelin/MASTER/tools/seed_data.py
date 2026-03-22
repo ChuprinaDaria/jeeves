@@ -94,8 +94,8 @@ INITIAL_TOOLS = [
         'builtin_handler': 'mcp_hub.builtin.whatsapp_bridge',
         'auth_type': 'qr_code',
         'auth_config': {
-            'initiate_url': '/api/clients/whatsapp/bridge/login/',
-            'status_url': '/api/clients/whatsapp/bridge/login/status/',
+            'initiate_url': '/clients/whatsapp/bridge/login/',
+            'status_url': '/clients/whatsapp/bridge/login/status/',
         },
     },
     {
