@@ -64,10 +64,6 @@ class Migration(migrations.Migration):
             new_name='clients_cli_telegra_e237b1_idx',
             old_name='clients_cli_telegram_chat_id_idx',
         ),
-        migrations.RemoveField(
-            model_name='client',
-            name='llm_provider_fk',
-        ),
         migrations.AddField(
             model_name='client',
             name='dashboard_custom_style',
