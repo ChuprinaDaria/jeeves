@@ -189,6 +189,32 @@ def _matrix_request(access_token: str, homeserver_url: str, method: str, path: s
     return getattr(httpx, method.lower())(url, **kwargs)
 
 
+def _download_mxc_as_base64(mxc_url: str, homeserver_url: str) -> str:
+    """Download media from Matrix mxc:// URL and return as base64 string."""
+    import base64
+    # mxc://server/media_id -> /_matrix/media/v3/download/server/media_id
+    parts = mxc_url.replace("mxc://", "").split("/", 1)
+    if len(parts) != 2:
+        return ""
+    server, media_id = parts
+    download_url = f"{homeserver_url}/_matrix/media/v3/download/{server}/{media_id}"
+    resp = httpx.get(download_url, timeout=10.0)
+    if resp.status_code == 200:
+        return base64.b64encode(resp.content).decode()
+    return ""
+
+
+def _generate_qr_base64(data: str) -> str:
+    """Generate a QR code PNG image from raw data and return as base64."""
+    import base64
+    import io
+    import qrcode
+    qr = qrcode.make(data)
+    buf = io.BytesIO()
+    qr.save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode()
+
+
 def _bot_login_worker(client_id: int, access_token: str, room_id: str, config):
     """Background thread: monitors Matrix room for QR code from bridge bot after !wa login."""
     session = _login_sessions.get(client_id)
@@ -241,13 +267,24 @@ def _bot_login_worker(client_id: int, access_token: str, room_id: str, config):
                         return
 
                     # Check for QR code (sent as image or as text)
-                    if content.get("msgtype") == "m.image" and "qr" in body.lower():
-                        # QR as image — get mxc URL
+                    if content.get("msgtype") == "m.image" and content.get("filename", "") == "qr.png":
+                        # QR as image — download from mxc and convert to base64
                         mxc = content.get("url", "")
-                        session['qr_mxc'] = mxc
-                    elif "qr" in body.lower() and len(body) > 50:
-                        # QR data as text
-                        session['qr'] = body.strip()
+                        if mxc:
+                            try:
+                                b64 = _download_mxc_as_base64(mxc, hs)
+                                if b64:
+                                    session['qr'] = b64
+                            except Exception as exc:
+                                logger.debug(f"Failed to download QR image: {exc}")
+                    elif content.get("msgtype") == "m.text" and body.startswith("2@") and len(body) > 50:
+                        # QR data as raw text — generate QR image
+                        try:
+                            b64 = _generate_qr_base64(body.strip())
+                            if b64:
+                                session['qr'] = b64
+                        except Exception as exc:
+                            logger.debug(f"Failed to generate QR from text: {exc}")
 
                     # Check for errors
                     if "error" in body.lower() or "failed" in body.lower():
