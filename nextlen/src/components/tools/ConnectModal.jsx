@@ -71,11 +71,19 @@ const ConnectModal = ({ tool, onClose, onConnected }) => {
   const startQrFlow = async (initiateUrl) => {
     try {
       const res = await api.post(initiateUrl || '/clients/whatsapp/bridge/login/');
+      const id = res.data.login_id;
+      if (!id) {
+        setError('Failed to start QR login');
+        return;
+      }
+      setLoginId(id);
       if (res.data.qr) {
         setQrData(res.data.qr);
-        setLoginId(res.data.login_id);
-        startPolling(res.data.login_id);
+      } else {
+        // Show loading state while waiting for QR from background thread
+        setQrData('loading');
       }
+      startPolling(id);
     } catch {
       setError('Failed to start QR login');
     }
@@ -144,16 +152,29 @@ const ConnectModal = ({ tool, onClose, onConnected }) => {
             </button>
           </div>
           <div className="flex flex-col items-center gap-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
-              {t('tools.scanQr') || 'Scan this QR code with your app'}
-            </p>
-            <div className="bg-white p-4 rounded-lg">
-              <img
-                src={`data:image/png;base64,${qrData}`}
-                alt="QR Code"
-                className="w-64 h-64"
-              />
-            </div>
+            {qrData === 'loading' ? (
+              <>
+                <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
+                  {t('tools.waitingQr') || 'Requesting QR code...'}
+                </p>
+                <div className="w-64 h-64 flex items-center justify-center">
+                  <Loader2 className="w-12 h-12 animate-spin text-gray-400" />
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
+                  {t('tools.scanQr') || 'Scan this QR code with your app'}
+                </p>
+                <div className="bg-white p-4 rounded-lg">
+                  <img
+                    src={`data:image/png;base64,${qrData}`}
+                    alt="QR Code"
+                    className="w-64 h-64"
+                  />
+                </div>
+              </>
+            )}
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <Loader2 className="w-4 h-4 animate-spin" />
               {t('tools.connecting')}
