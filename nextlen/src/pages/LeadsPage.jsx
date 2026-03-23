@@ -1,30 +1,108 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Search, ExternalLink, Star } from 'lucide-react';
+import { Loader2, Search, ExternalLink, ChevronDown, Globe, MessageCircle, Smartphone, Mail, Users } from 'lucide-react';
 import api from '../api/axios';
 
-const STATUS_COLORS = {
-  new: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-  contacted: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
-  converted: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-  lost: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+/* ── Heat Indicator (replaces InterestStars) ── */
+const HeatIndicator = ({ score }) => {
+  const levels = [
+    { label: 'Cold', color: 'bg-blue-400', textColor: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20' },
+    { label: 'Cool', color: 'bg-cyan-400', textColor: 'text-cyan-600 dark:text-cyan-400', bg: 'bg-cyan-50 dark:bg-cyan-900/20' },
+    { label: 'Warm', color: 'bg-amber-400', textColor: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/20' },
+    { label: 'Hot', color: 'bg-orange-500', textColor: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-900/20' },
+    { label: 'Fire', color: 'bg-red-500', textColor: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-900/20' },
+  ];
+  const level = levels[Math.max(0, Math.min(4, (score || 1) - 1))];
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${level.bg} ${level.textColor}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${level.color}`} />
+      {level.label}
+    </span>
+  );
 };
 
-const InterestStars = ({ score }) => {
+/* ── Status config & dropdown ── */
+const STATUS_CONFIG = {
+  new: { label: 'New', icon: '\u25CF', color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800' },
+  contacted: { label: 'Contacted', icon: '\u25D0', color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800' },
+  converted: { label: 'Converted', icon: '\u2713', color: 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800' },
+  lost: { label: 'Lost', icon: '\u2715', color: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800' },
+};
+
+const StatusDropdown = ({ status, onStatusChange, loading }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const config = STATUS_CONFIG[status] || STATUS_CONFIG.new;
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   return (
-    <div className="flex gap-0.5">
-      {[1, 2, 3, 4, 5].map((i) => (
-        <Star
-          key={i}
-          size={14}
-          className={i <= score ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300 dark:text-gray-600'}
-        />
-      ))}
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => !loading && setOpen(!open)}
+        disabled={loading}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border cursor-pointer transition-all hover:shadow-sm ${config.color}`}
+        aria-label={`Status: ${config.label}. Click to change.`}
+      >
+        {loading ? (
+          <Loader2 size={10} className="animate-spin" />
+        ) : (
+          <span className="text-[10px]">{config.icon}</span>
+        )}
+        {config.label}
+        <ChevronDown size={10} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 left-0 w-36 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 animate-in">
+          {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+            <button
+              key={key}
+              onClick={() => { onStatusChange(key); setOpen(false); }}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer ${key === status ? 'font-semibold' : ''}`}
+            >
+              <span className={`text-[10px] ${STATUS_CONFIG[key].color.split(' ').filter(c => c.startsWith('text-'))[0]}`}>{cfg.icon}</span>
+              <span className="text-gray-700 dark:text-gray-300">{cfg.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
 
+/* ── Source badge ── */
+const SOURCE_ICONS = {
+  web: Globe,
+  telegram: MessageCircle,
+  whatsapp: Smartphone,
+  email: Mail,
+};
+
+const SOURCE_COLORS = {
+  web: 'text-indigo-500',
+  telegram: 'text-sky-500',
+  whatsapp: 'text-green-500',
+  email: 'text-red-400',
+};
+
+const SourceBadge = ({ source }) => {
+  const Icon = SOURCE_ICONS[source] || Globe;
+  const color = SOURCE_COLORS[source] || 'text-gray-400';
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
+      <Icon size={13} className={color} />
+      <span className="capitalize">{source || '\u2014'}</span>
+    </span>
+  );
+};
+
+/* ── Main page ── */
 const LeadsPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -91,7 +169,7 @@ const LeadsPage = () => {
   };
 
   const formatDate = (dateStr) => {
-    if (!dateStr) return '—';
+    if (!dateStr) return '\u2014';
     return new Date(dateStr).toLocaleDateString(undefined, {
       day: '2-digit',
       month: '2-digit',
@@ -121,6 +199,7 @@ const LeadsPage = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('leads.searchPlaceholder')}
+            aria-label="Search leads"
             className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
@@ -129,6 +208,7 @@ const LeadsPage = () => {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
+          aria-label="Filter by status"
           className="px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
           <option value="">{t('leads.allStatuses')}</option>
@@ -142,6 +222,7 @@ const LeadsPage = () => {
         <select
           value={sourceFilter}
           onChange={(e) => setSourceFilter(e.target.value)}
+          aria-label="Filter by source"
           className="px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
           <option value="">{t('leads.allSources')}</option>
@@ -150,6 +231,23 @@ const LeadsPage = () => {
           <option value="whatsapp">WhatsApp</option>
         </select>
       </div>
+
+      {/* Stats bar */}
+      {!loading && leads.length > 0 && (
+        <div className="flex gap-4 mb-4">
+          {Object.entries(
+            leads.reduce((acc, l) => { acc[l.status || 'new'] = (acc[l.status || 'new'] || 0) + 1; return acc; }, {})
+          ).map(([status, count]) => {
+            const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.new;
+            return (
+              <div key={status} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${cfg.color.split(' ').slice(0, 2).join(' ')}`}>
+                <span className="text-xs font-semibold">{count}</span>
+                <span className="text-xs">{cfg.label}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Table */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -160,8 +258,28 @@ const LeadsPage = () => {
         ) : error ? (
           <div className="text-center py-16 text-red-500 dark:text-red-400 text-sm">{error}</div>
         ) : leads.length === 0 ? (
-          <div className="text-center py-16 text-gray-400 dark:text-gray-500 text-sm">
-            {t('leads.noLeads')}
+          <div className="flex flex-col items-center justify-center py-20 px-6">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center mb-4 shadow-lg shadow-emerald-500/20">
+              <Users size={28} className="text-white" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">No leads yet</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 text-center max-w-sm mb-4">
+              Leads are automatically collected from customer conversations across all connected channels.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => navigate('/tools')}
+                className="px-4 py-2 text-xs font-medium rounded-lg bg-primary-500 text-white hover:bg-primary-600 transition-colors cursor-pointer"
+              >
+                Connect channels
+              </button>
+              <button
+                onClick={() => navigate('/sandbox')}
+                className="px-4 py-2 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+              >
+                Test in Sandbox
+              </button>
+            </div>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -189,63 +307,47 @@ const LeadsPage = () => {
                   <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">
                     {t('leads.date')}
                   </th>
-                  <th className="px-4 py-3" />
+                  <th className="px-4 py-3" aria-label="Actions" />
                 </tr>
               </thead>
               <tbody>
                 {leads.map((lead) => (
                   <tr
                     key={lead.id}
-                    className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
+                    className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                   >
                     {/* Name */}
                     <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">
-                      {lead.name || '—'}
+                      {lead.name || <span className="text-gray-400 dark:text-gray-500 italic">Anonymous #{lead.id}</span>}
                     </td>
 
                     {/* Email */}
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                      {lead.email || '—'}
+                      {lead.email || <span className="text-gray-300 dark:text-gray-600">{'\u2014'}</span>}
                     </td>
 
                     {/* Phone */}
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                      {lead.phone || '—'}
+                      {lead.phone || <span className="text-gray-300 dark:text-gray-600">{'\u2014'}</span>}
                     </td>
 
                     {/* Source */}
                     <td className="px-4 py-3">
-                      <span className="capitalize text-gray-600 dark:text-gray-400">
-                        {lead.source || '—'}
-                      </span>
+                      <SourceBadge source={lead.source} />
                     </td>
 
                     {/* Interest */}
                     <td className="px-4 py-3">
-                      <InterestStars score={lead.interest_score || 0} />
+                      <HeatIndicator score={lead.interest_score || 0} />
                     </td>
 
-                    {/* Status inline dropdown */}
+                    {/* Status dropdown */}
                     <td className="px-4 py-3">
-                      <div className="relative">
-                        <select
-                          value={lead.status || 'new'}
-                          onChange={(e) => handleStatusChange(lead.id, e.target.value)}
-                          disabled={updatingId === lead.id}
-                          className={`text-xs font-medium px-2 py-1 rounded-full border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500 appearance-none pr-6 ${STATUS_COLORS[lead.status] || STATUS_COLORS.new}`}
-                        >
-                          <option value="new">{t('leads.statusNew')}</option>
-                          <option value="contacted">{t('leads.statusContacted')}</option>
-                          <option value="converted">{t('leads.statusConverted')}</option>
-                          <option value="lost">{t('leads.statusLost')}</option>
-                        </select>
-                        {updatingId === lead.id && (
-                          <Loader2
-                            size={12}
-                            className="animate-spin absolute right-1 top-1/2 -translate-y-1/2 text-gray-500"
-                          />
-                        )}
-                      </div>
+                      <StatusDropdown
+                        status={lead.status || 'new'}
+                        onStatusChange={(newStatus) => handleStatusChange(lead.id, newStatus)}
+                        loading={updatingId === lead.id}
+                      />
                     </td>
 
                     {/* Date */}
@@ -255,14 +357,19 @@ const LeadsPage = () => {
 
                     {/* Conversation link */}
                     <td className="px-4 py-3">
-                      {lead.conversation_id && (
+                      {lead.conversation_id ? (
                         <button
                           onClick={() => handleViewConversation(lead.conversation_id)}
                           title={t('leads.viewConversation')}
-                          className="text-primary-500 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+                          aria-label={t('leads.viewConversation')}
+                          className="text-primary-500 hover:text-primary-700 dark:hover:text-primary-300 transition-colors cursor-pointer"
                         >
                           <ExternalLink size={16} />
                         </button>
+                      ) : (
+                        <span className="text-gray-300 dark:text-gray-600" title="No conversation linked">
+                          <ExternalLink size={16} />
+                        </span>
                       )}
                     </td>
                   </tr>
@@ -279,6 +386,7 @@ const LeadsPage = () => {
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
+            aria-label="Previous page"
             className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             &larr;
@@ -289,6 +397,7 @@ const LeadsPage = () => {
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
+            aria-label="Next page"
             className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             &rarr;
