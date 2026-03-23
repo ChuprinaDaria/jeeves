@@ -221,7 +221,7 @@ class AgentOrchestrator:
                     raw_args = {}
 
                 t0 = time.monotonic()
-                tool_result, tool_status = await self._execute_tool(tool_name, raw_args)
+                tool_result, tool_status = await self._execute_tool_with_middleware(tool_name, raw_args)
                 tool_latency = int((time.monotonic() - t0) * 1000)
 
                 call_type = "rag" if tool_name == "search" else (
@@ -510,6 +510,85 @@ class AgentOrchestrator:
             "tokens_used": tokens_used,
             "model": response.model,
         }
+
+    async def _execute_tool_with_middleware(
+        self,
+        tool_name: str,
+        arguments: dict[str, Any],
+    ) -> tuple[str, str]:
+        """Execute tool with pre/post middleware pipeline."""
+        from asgiref.sync import sync_to_async
+        from MASTER.tools.models import EdgeMiddleware
+
+        server_name = self._tool_to_server.get(tool_name)
+        connection = self._tool_to_connection.get(server_name) if server_name else None
+
+        if not connection:
+            return await self._execute_tool(tool_name, arguments)
+
+        middlewares = await sync_to_async(
+            lambda: list(
+                EdgeMiddleware.objects.filter(
+                    connection=connection, enabled=True,
+                ).select_related('skill_card').order_by('order')
+            )
+        )()
+
+        if not middlewares:
+            return await self._execute_tool(tool_name, arguments)
+
+        pre = [m for m in middlewares if m.order < 0]
+        post = [m for m in middlewares if m.order >= 0]
+
+        # Pre-execution
+        processed_args = dict(arguments)
+        for mw in pre:
+            try:
+                result = await self._run_middleware(mw, json.dumps(processed_args), 'pre')
+                if result:
+                    processed_args = json.loads(result)
+            except Exception:
+                logger.warning("Pre-middleware '%s' failed, skipping", mw.skill_card.slug, exc_info=True)
+
+        # Execute tool
+        result_text, status = await self._execute_tool(tool_name, processed_args)
+
+        # Post-execution
+        for mw in post:
+            try:
+                transformed = await self._run_middleware(mw, result_text, 'post')
+                if transformed:
+                    result_text = transformed
+            except Exception:
+                logger.warning("Post-middleware '%s' failed, skipping", mw.skill_card.slug, exc_info=True)
+
+        return result_text, status
+
+    async def _run_middleware(
+        self,
+        middleware,
+        data: str,
+        stage: str,
+    ) -> str | None:
+        """Execute a single middleware skill via MCP tool call."""
+        skill_slug = middleware.skill_card.slug
+        for tool in self._tools:
+            server_name = self._tool_to_server.get(tool.name)
+            if server_name and (skill_slug == server_name or skill_slug.startswith(server_name + '-')):
+                session = self._sessions.get(server_name)
+                if session:
+                    config = middleware.config or {}
+                    mw_args = {
+                        "data": data,
+                        "stage": stage,
+                        "client_id": self.client.pk,
+                        **config,
+                    }
+                    result = await session.call_tool(tool.name, mw_args)
+                    texts = [item.text for item in result.content if hasattr(item, "text")]
+                    return "\n".join(texts) if texts else None
+        logger.warning("Middleware skill '%s' not found in MCP servers", skill_slug)
+        return None
 
     async def _execute_tool(
         self,
