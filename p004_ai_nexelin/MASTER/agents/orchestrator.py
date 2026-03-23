@@ -323,7 +323,14 @@ class AgentOrchestrator:
         lang_name = lang_names.get(language, "English")
         parts.append(f"\nYou MUST respond in {lang_name} (code: {language}). Do NOT mix languages.")
         parts.append(f"\nCurrent channel: {channel}.")
-        parts.append("\nDo NOT use markdown formatting. Respond in plain text only.")
+
+        if channel == 'sandbox':
+            parts.append(
+                "\nYou may use markdown formatting: headers, bold, lists, "
+                "code blocks, tables, links. The UI renders markdown."
+            )
+        else:
+            parts.append("\nDo NOT use markdown formatting. Respond in plain text only.")
 
         if channel != 'sandbox' and self._has_leads_tool():
             parts.append(
