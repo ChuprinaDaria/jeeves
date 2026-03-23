@@ -40,19 +40,20 @@ class ChatSSEView(View):
             return JsonResponse({'error': 'Message is required'}, status=400)
 
         response = StreamingHttpResponse(
-            self._stream(request, client, message),
+            self._stream(request, client, data),
             content_type='text/event-stream',
         )
         response['Cache-Control'] = 'no-cache'
         response['X-Accel-Buffering'] = 'no'
         return response
 
-    async def _stream(self, request, client, message):
+    async def _stream(self, request, client, data):
         """Generator — sends SSE events as data arrives."""
+        message = data.get('message', '').strip()
 
         # MCP dual-mode: route to orchestrator for flagged clients
         if FeatureFlag.is_enabled('mcp_real_agent', client):
-            async for event in self._stream_mcp(request, client, message):
+            async for event in self._stream_mcp(request, client, data):
                 yield event
             return
 
@@ -98,9 +99,12 @@ class ChatSSEView(View):
 
         yield self._sse('done', {'session_id': str(session.id)})
 
-    async def _stream_mcp(self, request, client, message):
+    async def _stream_mcp(self, request, client, data):
         """MCP orchestrator path — returns full response as SSE events."""
         from MASTER.agents.orchestrator import AgentOrchestrator
+
+        message = data.get('message', '').strip()
+        channel = data.get('channel', 'api')
 
         try:
             agent_config = await AgentConfig.objects.select_related(
@@ -111,7 +115,7 @@ class ChatSSEView(View):
 
         session = await AgentSession.objects.acreate(
             agent_config=agent_config,
-            channel='api',
+            channel=channel,
             metadata={'user_agent': request.META.get('HTTP_USER_AGENT', '')},
         )
 
@@ -125,7 +129,7 @@ class ChatSSEView(View):
                 message=message,
                 session=session,
                 conversation=None,
-                channel='api',
+                channel=channel,
                 external_user_id='',
             )
             yield self._sse('token', {'text': result})
