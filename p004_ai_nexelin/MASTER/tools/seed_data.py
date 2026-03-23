@@ -4,7 +4,7 @@ INITIAL_TOOLS = [
     {
         'slug': 'whatsapp-meta',
         'name': 'WhatsApp Business',
-        'tagline': 'Дозвольте асистенту відповідати вашим клієнтам у WhatsApp',
+        'tagline': 'Let the assistant reply to your customers on WhatsApp',
         'tagline_i18n': {
             'en': 'Let the assistant reply to your customers on WhatsApp',
             'de': 'Lassen Sie den Assistenten Ihren Kunden auf WhatsApp antworten',
@@ -32,7 +32,7 @@ INITIAL_TOOLS = [
     {
         'slug': 'telegram',
         'name': 'Telegram Bot',
-        'tagline': 'Підключіть Telegram бота для спілкування з клієнтами',
+        'tagline': 'Connect a Telegram bot to communicate with customers',
         'tagline_i18n': {
             'en': 'Connect a Telegram bot to communicate with customers',
             'de': 'Verbinden Sie einen Telegram-Bot zur Kundenkommunikation',
@@ -54,7 +54,7 @@ INITIAL_TOOLS = [
     {
         'slug': 'email-smtp',
         'name': 'Email',
-        'tagline': 'Асистент надсилатиме звіти та сповіщення на email',
+        'tagline': 'The assistant will send reports and notifications via email',
         'tagline_i18n': {
             'en': 'The assistant will send reports and notifications via email',
             'de': 'Der Assistent sendet Berichte und Benachrichtigungen per E-Mail',
@@ -81,7 +81,7 @@ INITIAL_TOOLS = [
     {
         'slug': 'whatsapp-bridge',
         'name': 'WhatsApp Personal',
-        'tagline': 'Підключіть особистий WhatsApp через QR-код',
+        'tagline': 'Connect your personal WhatsApp via QR code',
         'tagline_i18n': {
             'en': 'Connect your personal WhatsApp via QR code',
             'de': 'Verbinden Sie Ihr persönliches WhatsApp per QR-Code',
@@ -101,7 +101,7 @@ INITIAL_TOOLS = [
     {
         'slug': 'web-widget',
         'name': 'Web Chat',
-        'tagline': 'Вбудований чат-віджет для вашого сайту',
+        'tagline': 'Embedded chat widget for your website',
         'tagline_i18n': {
             'en': 'Embedded chat widget for your website',
             'de': 'Eingebettetes Chat-Widget für Ihre Website',
@@ -117,7 +117,7 @@ INITIAL_TOOLS = [
     {
         'slug': 'hitl-matrix',
         'name': 'Live Manager',
-        'tagline': 'Передавайте складні питання живому менеджеру',
+        'tagline': 'Escalate complex questions to a live manager',
         'tagline_i18n': {
             'en': 'Escalate complex questions to a live manager',
             'de': 'Leiten Sie komplexe Fragen an einen Live-Manager weiter',
@@ -141,7 +141,7 @@ INITIAL_TOOLS = [
     {
         'slug': 'rag-search',
         'name': 'Knowledge Base',
-        'tagline': 'База знань — асистент шукає відповіді у ваших документах',
+        'tagline': 'Knowledge base — the assistant searches your documents for answers',
         'tagline_i18n': {
             'en': 'Knowledge base — the assistant searches your documents for answers',
             'de': 'Wissensdatenbank — der Assistent sucht Antworten in Ihren Dokumenten',
@@ -158,7 +158,7 @@ INITIAL_TOOLS = [
     {
         'slug': 'translation',
         'name': 'Auto Translation',
-        'tagline': 'Автоматичний переклад повідомлень у обох напрямках',
+        'tagline': 'Automatic message translation in both directions',
         'tagline_i18n': {
             'en': 'Automatic message translation in both directions',
             'de': 'Automatische Nachrichtenübersetzung in beide Richtungen',
@@ -175,7 +175,7 @@ INITIAL_TOOLS = [
     {
         'slug': 'xlsx-processor',
         'name': 'XLSX Processor',
-        'tagline': 'Створення, редагування та аналіз Excel-файлів',
+        'tagline': 'Create, edit, and analyze Excel spreadsheets',
         'tagline_i18n': {
             'en': 'Create, edit, and analyze Excel spreadsheets',
             'de': 'Excel-Tabellen erstellen, bearbeiten und analysieren',
@@ -192,7 +192,7 @@ INITIAL_TOOLS = [
     {
         'slug': 'leads',
         'name': 'Lead Management',
-        'tagline': 'Збір та управління лідами з усіх каналів',
+        'tagline': 'Lead collection and management across all channels',
         'tagline_i18n': {
             'en': 'Lead collection and management across all channels',
             'de': 'Lead-Erfassung und -Verwaltung über alle Kanäle',
@@ -212,7 +212,7 @@ INITIAL_TOOLS = [
     {
         'slug': 'sales-intel',
         'name': 'Sales Intelligence',
-        'tagline': 'Дослідження компаній: techstack, сайт, дані',
+        'tagline': 'Company research: techstack, website data, company intel',
         'tagline_i18n': {
             'en': 'Company research: techstack, website data, company intel',
             'de': 'Unternehmensrecherche: Techstack, Website-Daten, Firmeninformationen',
