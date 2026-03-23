@@ -189,4 +189,24 @@ INITIAL_TOOLS = [
         'auth_type': 'none',
         'skill_scopes': {'scopes': ['assistant', 'manager'], 'bidirectional': True},
     },
+    {
+        'slug': 'leads',
+        'name': 'Lead Management',
+        'tagline': 'Збір та управління лідами з усіх каналів',
+        'tagline_i18n': {
+            'en': 'Lead collection and management across all channels',
+            'de': 'Lead-Erfassung und -Verwaltung über alle Kanäle',
+        },
+        'icon': 'user-plus',
+        'category': 'crm',
+        'color': '#10b981',
+        'transport_type': 'builtin',
+        'is_builtin': True,
+        'builtin_handler': 'mcp_hub.builtin.leads',
+        'auth_type': 'none',
+        'skill_scopes': {
+            'scopes': ['assistant', 'manager'],
+            'bidirectional': False,
+        },
+    },
 ]

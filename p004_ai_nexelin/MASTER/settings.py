@@ -446,5 +446,10 @@ MCP_SERVERS = {
         'args': ['-m', 'mcp_servers.xlsx.server'],
         'enabled': True,
     },
+    'leads': {
+        'command': 'python',
+        'args': ['-m', 'mcp_servers.leads.server'],
+        'enabled': True,
+    },
 }
 
