@@ -279,7 +279,10 @@ class AgentOrchestrator:
             base = self.agent_config.assistant_prompt or DEFAULT_ASSISTANT_PROMPT
             description = self.agent_config.assistant_description
         else:
-            base = self.agent_config.consultant_prompt or DEFAULT_CONSULTANT_PROMPT
+            base = (
+                self.agent_config.consultant_prompt
+                or getattr(self.client, 'custom_system_prompt', '') or ''
+            ).strip() or DEFAULT_CONSULTANT_PROMPT
             description = self.agent_config.consultant_description
 
         parts = [base]
