@@ -46,14 +46,26 @@ const ToolsPage = () => {
 
   const handleDisconnect = useCallback(async (slug, target) => {
     try {
-      await toolsAPI.disconnect(slug, target);
       const tool = tools.find(t => t.slug === slug);
+      // Find the flow connection ID to delete (detach edge only, keep credentials)
+      let connId;
+      if (multiConn && tool?.connections) {
+        const conn = tool.connections.find(c => c.target === target && c.status === 'connected');
+        connId = conn?.id;
+      } else {
+        connId = tool?.connection?.id;
+      }
+
+      if (connId) {
+        // Detach edge: disable connection but keep credentials intact
+        await toolsAPI.updateFlowConnection(connId, { enabled: false });
+      }
       showToast('🔌', `${tool?.name || slug} ${t('tools.flow.disconnected')}`);
       loadTools();
     } catch (err) {
       console.error('Disconnect error:', err);
     }
-  }, [tools, showToast, t]);
+  }, [tools, showToast, t, multiConn]);
 
   const handleMiddlewareRemove = useCallback(async (conn, middlewareId) => {
     try {

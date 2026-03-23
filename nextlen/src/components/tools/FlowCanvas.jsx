@@ -14,6 +14,8 @@ const PORT_RADIUS = 6;
 const ZOOM_MIN = 0.3, ZOOM_MAX = 2, ZOOM_STEP = 0.1;
 const CANVAS_PADDING = 60;
 const PORT_GAP = 20;
+const LS_POSITIONS_KEY = 'flow-canvas-positions';
+const LS_VIEWPORT_KEY = 'flow-canvas-viewport';
 
 /* ── Helpers ───────────────────────────────────────── */
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -99,10 +101,21 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
   const canvasH = Math.max(500, maxGroupSize * 100 + 200);
   const canvasW = 1200;
 
-  /* ── Node positions ────────────────────── */
-  const [positions, setPositions] = useState(() =>
-    buildInitialPositions(canvasW, canvasH, groups)
-  );
+  /* ── Node positions (persisted to localStorage) ── */
+  const [positions, setPositions] = useState(() => {
+    const fresh = buildInitialPositions(canvasW, canvasH, groups);
+    try {
+      const saved = JSON.parse(localStorage.getItem(LS_POSITIONS_KEY));
+      if (saved && typeof saved === 'object') {
+        const merged = { ...fresh };
+        for (const key in saved) {
+          if (key in merged) merged[key] = saved[key];
+        }
+        return merged;
+      }
+    } catch { /* ignore */ }
+    return fresh;
+  });
 
   useEffect(() => {
     setPositions(prev => {
@@ -115,8 +128,14 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     });
   }, [connectedTools.length, canvasW, canvasH, groups]);
 
-  /* ── Viewport (pan & zoom) ─────────────── */
-  const [viewport, setViewport] = useState({ x: 0, y: 0, zoom: 1 });
+  /* ── Viewport (pan & zoom, persisted) ──── */
+  const [viewport, setViewport] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(LS_VIEWPORT_KEY));
+      if (saved && typeof saved.zoom === 'number') return saved;
+    } catch { /* ignore */ }
+    return { x: 0, y: 0, zoom: 1 };
+  });
 
   /* ── Drag state ────────────────────────── */
   const dragRef = useRef(null);
@@ -261,13 +280,24 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
   const middlewareByEdge = useMemo(() => {
     const map = {};
     connectedTools.forEach(tool => {
-      const mws = tool.connection?.middlewares;
-      if (!mws?.length) return;
-      const targets = getEffectiveTargets(tool);
-      targets.forEach(target => {
-        const edgeId = `${tool.slug}-${target}`;
-        map[edgeId] = mws;
-      });
+      if (tool.connections?.length) {
+        // Multi-connection: each connection has its own middlewares
+        tool.connections
+          .filter(c => c.status === 'connected' && c.enabled && c.middlewares?.length)
+          .forEach(c => {
+            const edgeId = `${tool.slug}-${c.target}`;
+            map[edgeId] = c.middlewares;
+          });
+      } else {
+        // Legacy single connection
+        const mws = tool.connection?.middlewares;
+        if (!mws?.length) return;
+        const targets = getEffectiveTargets(tool);
+        targets.forEach(target => {
+          const edgeId = `${tool.slug}-${target}`;
+          map[edgeId] = mws;
+        });
+      }
     });
     return map;
   }, [connectedTools]);
@@ -396,8 +426,8 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     const conn = connections.find(c => c.id === edgeId);
     if (!conn || conn.target === 'escalation' || !conn.toolSlug) return;
 
-    if (window.confirm('Disconnect this tool?')) {
-      onDisconnect?.(conn.toolSlug);
+    if (window.confirm('Detach this edge?')) {
+      onDisconnect?.(conn.toolSlug, conn.target);
     }
     setSelectedEdge(null);
     setContextMenu(null);
@@ -421,39 +451,55 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     setIsDragging(true);
     setSelectedEdge(null);
     setContextMenu(null);
-    // NOTE: No setPointerCapture — it swallows click events on child elements
   }, [positions, screenToCanvas]);
 
-  const handleNodePointerMove = useCallback((e) => {
-    if (!dragRef.current) return;
-    e.preventDefault();
-    clickGuardRef.current = true;
+  /* Node drag move/up — on document so pointer never "escapes" the node */
+  useEffect(() => {
+    if (!isDragging || !dragRef.current) return;
 
-    const canvas = screenToCanvas(e.clientX, e.clientY);
-    const { nodeId, offsetX, offsetY } = dragRef.current;
-    const newX = canvas.x - offsetX;
-    const newY = canvas.y - offsetY;
+    const handleMove = (e) => {
+      if (!dragRef.current) return;
+      e.preventDefault();
+      clickGuardRef.current = true;
 
-    setPositions(prev => ({
-      ...prev,
-      [nodeId]: { x: newX, y: newY },
-    }));
-  }, [screenToCanvas]);
+      const canvas = screenToCanvas(e.clientX, e.clientY);
+      const { nodeId, offsetX, offsetY } = dragRef.current;
+      setPositions(prev => ({
+        ...prev,
+        [nodeId]: { x: canvas.x - offsetX, y: canvas.y - offsetY },
+      }));
+    };
 
-  const handleNodePointerUp = useCallback(() => {
-    const dragInfo = dragRef.current;
-    dragRef.current = null;
-    setIsDragging(false);
+    const handleUp = () => {
+      const dragInfo = dragRef.current;
+      dragRef.current = null;
+      setIsDragging(false);
 
-    // If no movement happened, treat as click → open popover
-    if (!clickGuardRef.current && dragInfo && !dragInfo.nodeId.startsWith('__')) {
-      const tool = connectedTools.find(t => t.slug === dragInfo.nodeId);
-      if (tool) {
-        const el = document.getElementById(`canvas-tool-${dragInfo.nodeId}`);
-        if (el) onToolClick?.(tool, { currentTarget: el });
+      // Persist positions after drag
+      if (clickGuardRef.current) {
+        setPositions(cur => {
+          try { localStorage.setItem(LS_POSITIONS_KEY, JSON.stringify(cur)); } catch { /* ignore */ }
+          return cur;
+        });
       }
-    }
-  }, [connectedTools, onToolClick]);
+
+      // If no movement happened, treat as click → open popover
+      if (!clickGuardRef.current && dragInfo && !dragInfo.nodeId.startsWith('__')) {
+        const tool = connectedTools.find(t => t.slug === dragInfo.nodeId);
+        if (tool) {
+          const el = document.getElementById(`canvas-tool-${dragInfo.nodeId}`);
+          if (el) onToolClick?.(tool, { currentTarget: el });
+        }
+      }
+    };
+
+    document.addEventListener('pointermove', handleMove);
+    document.addEventListener('pointerup', handleUp);
+    return () => {
+      document.removeEventListener('pointermove', handleMove);
+      document.removeEventListener('pointerup', handleUp);
+    };
+  }, [isDragging, screenToCanvas, connectedTools, onToolClick]);
 
   /* ── Canvas pan handlers ───────────────── */
   const handleCanvasPointerDown = useCallback((e) => {
@@ -571,7 +617,22 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
 
   const resetView = () => setViewport({ x: 0, y: 0, zoom: 1 });
 
+  /* ── Persist viewport to localStorage (debounced) ── */
   useEffect(() => {
+    const timer = setTimeout(() => {
+      try { localStorage.setItem(LS_VIEWPORT_KEY, JSON.stringify(viewport)); } catch { /* ignore */ }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [viewport]);
+
+  const hasRestoredRef = useRef(false);
+  useEffect(() => {
+    // Skip auto-fit if we restored saved viewport
+    if (!hasRestoredRef.current) {
+      hasRestoredRef.current = true;
+      const hasSaved = localStorage.getItem(LS_VIEWPORT_KEY);
+      if (hasSaved) return;
+    }
     const timer = setTimeout(fitToView, 200);
     return () => clearTimeout(timer);
   }, [connectedTools.length]);
@@ -579,29 +640,48 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
   /* ── Drop zone for tool cards from strip ── */
   const [dragOver, setDragOver] = useState(false);
   const [dragOverEdgeId, setDragOverEdgeId] = useState(null);
+  const [isSkillDrag, setIsSkillDrag] = useState(false);
+  const [skillDropPreview, setSkillDropPreview] = useState(null); // { x, y, edgeId }
 
-  /** Find nearest edge to a point on canvas */
-  const findNearestEdge = useCallback((canvasX, canvasY, threshold = 20) => {
+  /** Pre-sampled points for each edge (computed once per connections change) */
+  const edgeSamples = useMemo(() => {
+    const SAMPLES = 16;
+    return connections
+      .filter(c => c.target !== 'escalation')
+      .map(conn => {
+        const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        pathEl.setAttribute('d', conn.pathD);
+        const totalLen = pathEl.getTotalLength();
+        const points = [];
+        for (let i = 0; i <= SAMPLES; i++) {
+          const pt = pathEl.getPointAtLength((i / SAMPLES) * totalLen);
+          points.push({ x: pt.x, y: pt.y });
+        }
+        return { id: conn.id, points };
+      });
+  }, [connections]);
+
+  /** Find nearest edge to a point on canvas, returns { id, point, dist } */
+  const findNearestEdge = useCallback((canvasX, canvasY, threshold = 40) => {
     let nearest = null;
     let minDist = threshold;
+    let nearestPoint = null;
 
-    for (const conn of connections) {
-      // Sample 50 points on bezier
-      const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      pathEl.setAttribute('d', conn.pathD);
-      const totalLen = pathEl.getTotalLength();
-
-      for (let i = 0; i <= 50; i++) {
-        const pt = pathEl.getPointAtLength((i / 50) * totalLen);
+    for (const edge of edgeSamples) {
+      for (const pt of edge.points) {
         const dist = Math.hypot(pt.x - canvasX, pt.y - canvasY);
         if (dist < minDist) {
           minDist = dist;
-          nearest = conn.id;
+          nearest = edge.id;
+          nearestPoint = pt;
         }
       }
     }
-    return nearest;
-  }, [connections]);
+    return nearest ? { id: nearest, point: nearestPoint, dist: minDist } : null;
+  }, [edgeSamples]);
+
+  /** Throttled drag-over handler */
+  const dragOverThrottleRef = useRef(0);
 
   const handleDragOver = useCallback((e) => {
     if (!e.dataTransfer.types.includes('tool-slug')) return;
@@ -609,24 +689,60 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     e.dataTransfer.dropEffect = 'copy';
     setDragOver(true);
 
-    // Check if hovering near an edge
+    // Throttle edge detection to ~30fps
+    const now = Date.now();
+    if (now - dragOverThrottleRef.current < 33) return;
+    dragOverThrottleRef.current = now;
+
+    const skillDrag = e.dataTransfer.types.includes('is-skill');
+    setIsSkillDrag(skillDrag);
+
     const canvasPos = screenToCanvas(e.clientX, e.clientY);
-    const nearEdge = findNearestEdge(canvasPos.x, canvasPos.y);
-    setDragOverEdgeId(nearEdge);
+    const skillThreshold = skillDrag ? 80 : 20;
+    const nearEdge = findNearestEdge(canvasPos.x, canvasPos.y, skillThreshold);
+
+    if (nearEdge) {
+      setDragOverEdgeId(nearEdge.id);
+      if (skillDrag) {
+        setSkillDropPreview({ x: nearEdge.point.x, y: nearEdge.point.y, edgeId: nearEdge.id });
+      }
+    } else {
+      setDragOverEdgeId(null);
+      setSkillDropPreview(null);
+    }
   }, [screenToCanvas, findNearestEdge]);
 
   const handleDragLeave = useCallback(() => {
     setDragOver(false);
     setDragOverEdgeId(null);
+    setIsSkillDrag(false);
+    setSkillDropPreview(null);
   }, []);
 
   const handleDrop = useCallback((e) => {
     e.preventDefault();
     setDragOver(false);
+    setSkillDropPreview(null);
+    setIsSkillDrag(false);
 
     const slug = e.dataTransfer.getData('tool-slug');
+    const group = e.dataTransfer.getData('tool-group');
     if (!slug) return;
 
+    // Skills — ONLY drop onto edges
+    if (group === 'skills') {
+      if (dragOverEdgeId) {
+        const conn = connections.find(c => c.id === dragOverEdgeId);
+        console.log('[SkillDrop]', { slug, dragOverEdgeId, conn: conn ? { id: conn.id, toolSlug: conn.toolSlug, target: conn.target } : null });
+        if (conn && conn.toolSlug) {
+          onMiddlewareAttach?.(conn, slug);
+        }
+      }
+      setDragOverEdgeId(null);
+      return;
+    }
+
+    // Tools/servers — existing behavior
     if (dragOverEdgeId) {
       const conn = connections.find(c => c.id === dragOverEdgeId);
       if (conn && conn.toolSlug) {
@@ -638,7 +754,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
 
     setDragOverEdgeId(null);
     onToolDrop?.(slug);
-  }, [onToolDrop, dragOverEdgeId, connections]);
+  }, [onToolDrop, dragOverEdgeId, connections, onMiddlewareAttach]);
 
   /* ── Prevent default context menu on canvas ── */
   const handleContextMenu = useCallback((e) => {
@@ -687,7 +803,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     <section
       ref={containerRef}
       aria-label="Flow diagram"
-      className={`flow-canvas relative w-full bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden ${isPanning ? 'panning' : ''} ${dragOver ? 'ring-2 ring-primary-400 ring-inset bg-primary-50/30 dark:bg-primary-900/10' : ''}`}
+      className={`flow-canvas relative w-full bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden ${isPanning ? 'panning' : ''} ${dragOver && !isSkillDrag ? 'ring-2 ring-primary-400 ring-inset bg-primary-50/30 dark:bg-primary-900/10' : ''} ${isSkillDrag && dragOverEdgeId ? 'ring-2 ring-violet-400 ring-inset' : ''} ${isSkillDrag && !dragOverEdgeId ? 'ring-2 ring-gray-300 dark:ring-gray-600 ring-inset opacity-90' : ''}`}
       style={{ minHeight: `max(60vh, 500px)`, cursor: isPanning ? 'grabbing' : edgeDrag ? 'crosshair' : 'default' }}
       onPointerDown={handleCanvasPointerDown}
       onDragOver={handleDragOver}
@@ -724,6 +840,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
           onEdgePointerDown={handleEdgePointerDown}
           ghostEdge={ghostEdge}
           dragOverEdgeId={dragOverEdgeId}
+          isSkillDrag={isSkillDrag}
         />
 
         {/* Core nodes */}
@@ -741,8 +858,6 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
               className={`flow-draggable absolute ${isDragging && dragRef.current?.nodeId === nodeId ? 'dragging' : ''}`}
               style={{ left: pos.x, top: pos.y }}
               onPointerDown={(e) => handleNodePointerDown(nodeId, e)}
-              onPointerMove={handleNodePointerMove}
-              onPointerUp={handleNodePointerUp}
             >
               <CoreNode
                 variant={variant}
@@ -777,8 +892,6 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
               className={`flow-draggable absolute ${isBeingDragged ? 'dragging' : ''}`}
               style={{ left: pos.x, top: pos.y }}
               onPointerDown={(e) => handleNodePointerDown(tool.slug, e)}
-              onPointerMove={handleNodePointerMove}
-              onPointerUp={handleNodePointerUp}
             >
               <CanvasToolNode
                 tool={tool}
@@ -811,6 +924,24 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
             );
           });
         })}
+
+        {/* Ghost skill drop preview circle */}
+        {skillDropPreview && (
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              left: skillDropPreview.x,
+              top: skillDropPreview.y,
+              transform: 'translate(-50%, -50%)',
+              zIndex: 10,
+            }}
+          >
+            <div className="w-9 h-9 rounded-full border-2 border-dashed border-primary-400 bg-primary-100/60 dark:bg-primary-900/40
+              flex items-center justify-center animate-pulse shadow-[0_0_16px_rgba(108,92,231,0.35)]">
+              <div className="w-2 h-2 rounded-full bg-primary-500" />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Edge context menu ── */}

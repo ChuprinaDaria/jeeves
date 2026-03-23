@@ -51,7 +51,7 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
   const cat = CAT_COLORS[tool.category] || CAT_COLORS.custom;
   const fields = tool.auth_config?.fields || [];
 
-  // Initialize defaults for fields
+  // Initialize credentials with defaults
   useEffect(() => {
     const defaults = {};
     fields.forEach((f) => {
@@ -67,12 +67,36 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
 
+  const isSkill = tool._group === 'skills';
+
+  // Track if we're reconnecting (already has credentials on server)
+  const hasExistingConnection = tool.connection?.status === 'connected' ||
+    tool.connection?.status === 'disconnected' || tool.connection?.status === 'expired';
+
   const handleClick = () => {
     if (isConnected) return; // Connected cards handled by popover
+    if (isSkill) return;    // Skills are drag-only — drop onto edges
     if (tool.auth_type === 'none') {
       handleNoAuth();
+    } else if (hasExistingConnection && tool.connection?.status !== 'connected') {
+      // Has credentials already — reconnect without re-entering
+      handleReconnect();
     } else {
       setFlipped(true);
+    }
+  };
+
+  const handleReconnect = async () => {
+    setLoading(true);
+    try {
+      // Re-enable existing connection
+      await toolsAPI.updateFlowConnection(tool.connection.id, { enabled: true });
+      onConnected(tool.slug);
+    } catch {
+      // Fallback to flip form if re-enable fails
+      setFlipped(true);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -183,6 +207,11 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
           draggable={true}
           onDragStart={(e) => {
             e.dataTransfer.setData('tool-slug', tool.slug);
+            const group = tool._group || 'tools';
+            e.dataTransfer.setData('tool-group', group);
+            if (group === 'skills') {
+              e.dataTransfer.setData('is-skill', '1');
+            }
             e.dataTransfer.effectAllowed = 'copy';
           }}
           onClick={handleClick}
@@ -209,11 +238,11 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
           <ToolStatusBadge status={tool.connection?.status || 'disconnected'} />
         </div>
 
-        {/* BACK — absolute overlay */}
+        {/* BACK — absolute, full size */}
         <div
           ref={backRef}
-          className="backface-hidden rotate-y-180 absolute inset-0 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 overflow-y-auto"
-          style={{ transformStyle: 'preserve-3d' }}
+          className="backface-hidden rotate-y-180 absolute top-0 left-0 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 overflow-y-auto shadow-lg"
+          style={{ transformStyle: 'preserve-3d', minHeight: '100%' }}
         >
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate">{tool.name}</span>
