@@ -27,7 +27,19 @@ logger = logging.getLogger(__name__)
 MAX_ITERATIONS = 10
 
 # Parameters that the orchestrator auto-injects (hidden from LLM).
-_AUTO_INJECT_PARAMS = frozenset({"client_id"})
+_AUTO_INJECT_PARAMS = frozenset({"client_id", "session_id"})
+
+DEFAULT_ASSISTANT_PROMPT = (
+    "You are Oleg, an AI assistant for the business owner. "
+    "You help manage the business, analyze data, search leads, "
+    "and configure the AI consultant."
+)
+
+DEFAULT_CONSULTANT_PROMPT = (
+    "You are a helpful AI consultant. You assist customers "
+    "with their questions, provide information about products and services, "
+    "and help them find what they need."
+)
 
 
 class AgentOrchestrator:
@@ -51,6 +63,12 @@ class AgentOrchestrator:
         self._sessions: dict[str, ClientSession] = {}  # server_name -> session
         self._tools: list[dict[str, Any]] = []  # MCP Tool dicts
         self._tool_to_server: dict[str, str] = {}  # tool_name -> server_name
+
+        # Scope filtering (set in process())
+        self._scope = 'manager'  # default, set in process()
+        self._tool_to_connection = {}  # server_name -> ToolConnection
+        self._connected_server_names = set()
+        self._session = None  # set in process()
 
     async def connect(self) -> None:
         """Spawn enabled MCP servers and discover their tools."""
@@ -139,6 +157,11 @@ class AgentOrchestrator:
         Returns:
             Final assistant text response.
         """
+        self._scope = 'assistant' if channel == 'sandbox' else 'manager'
+        self._session = session
+
+        await self._build_scope_filter()
+
         system_prompt = self._build_system_prompt(channel)
         messages = self._build_messages(system_prompt, conversation, message)
         llm_tools = self._tools_to_llm_format()
@@ -251,13 +274,29 @@ class AgentOrchestrator:
         return env
 
     def _build_system_prompt(self, channel: str) -> str:
-        """Build the full system prompt from AgentConfig + tool instructions."""
-        base = self.agent_config.system_prompt or "You are a helpful AI assistant."
-        language = self.agent_config.get_language()
+        """Build the full system prompt from AgentConfig + channel routing."""
+        if channel == 'sandbox':
+            base = self.agent_config.assistant_prompt or DEFAULT_ASSISTANT_PROMPT
+            description = self.agent_config.assistant_description
+        else:
+            base = self.agent_config.consultant_prompt or DEFAULT_CONSULTANT_PROMPT
+            description = self.agent_config.consultant_description
 
         parts = [base]
 
-        # Language instruction
+        if description:
+            parts.append(f"\n\nYour capabilities:\n{description}")
+
+        if self._tools:
+            scope_tools = self._get_scope_tool_names()
+            if scope_tools:
+                parts.append(
+                    "\n\nYou have access to the following tools: "
+                    + ", ".join(scope_tools)
+                    + ".\nUse them when needed. Do NOT mention tool names to the user."
+                )
+
+        language = self.agent_config.get_language()
         lang_names = {
             "uk": "Ukrainian", "de": "German", "fr": "French",
             "it": "Italian", "nl": "Dutch", "da": "Danish",
@@ -265,29 +304,16 @@ class AgentOrchestrator:
             "pl": "Polish", "sv": "Swedish", "no": "Norwegian",
         }
         lang_name = lang_names.get(language, "English")
-        parts.append(
-            f"\nYou MUST respond in {lang_name} (code: {language}). "
-            "Do NOT mix languages."
-        )
-
-        # Tool usage hints (only if tools are available)
-        if self._tools:
-            tool_names = [t.name for t in self._tools]
-            parts.append(
-                "\n\nYou have access to the following tools: "
-                + ", ".join(tool_names)
-                + ".\nUse them when the user's question requires information "
-                "from the knowledge base or an action like escalation. "
-                "Do NOT mention tool names to the user."
-            )
-
-        # Channel context
+        parts.append(f"\nYou MUST respond in {lang_name} (code: {language}). Do NOT mix languages.")
         parts.append(f"\nCurrent channel: {channel}.")
+        parts.append("\nDo NOT use markdown formatting. Respond in plain text only.")
 
-        # No markdown
-        parts.append(
-            "\nDo NOT use markdown formatting. Respond in plain text only."
-        )
+        if channel != 'sandbox' and self._has_leads_tool():
+            parts.append(
+                "\n\nWhen you learn the user's name, email, phone, or understand their need, "
+                "call save_lead with the information you have. Update as you learn more. "
+                "Do NOT mention lead collection to the user. Be natural."
+            )
 
         return "\n".join(parts)
 
@@ -309,20 +335,51 @@ class AgentOrchestrator:
         messages.append({"role": "user", "content": current_message})
         return messages
 
+    async def _build_scope_filter(self):
+        """Build mapping of server_name -> ToolConnection for current scope."""
+        from MASTER.tools.models import ToolConnection
+
+        connections = ToolConnection.objects.filter(
+            client=self.client, enabled=True, status='connected',
+            target=self._scope,
+        ).select_related('tool_card')
+
+        self._tool_to_connection = {}
+        self._connected_server_names = set()
+        async for conn in connections:
+            slug = conn.tool_card.slug
+            for server_name in self._sessions:
+                if slug == server_name or slug.startswith(server_name + '-'):
+                    self._tool_to_connection[server_name] = conn
+                    self._connected_server_names.add(server_name)
+                    break
+
+    def _get_scope_tool_names(self) -> list[str]:
+        """Tool names visible to current scope."""
+        return [
+            t.name for t in self._tools
+            if self._tool_to_server.get(t.name) in self._connected_server_names
+        ]
+
+    def _has_leads_tool(self) -> bool:
+        return 'leads' in self._connected_server_names
+
     def _tools_to_llm_format(self) -> list[dict[str, Any]] | None:
         """Convert MCP tool schemas → OpenAI function-calling tool defs.
 
-        ``client_id`` is stripped from the schema because the orchestrator
-        injects it automatically.
+        Only tools belonging to servers in ``_connected_server_names`` are
+        included. Auto-injected parameters are stripped from the schema.
         """
         if not self._tools:
             return None
 
         llm_tools = []
         for tool in self._tools:
-            schema = dict(tool.inputSchema) if tool.inputSchema else {}
+            server_name = self._tool_to_server.get(tool.name)
+            if server_name not in self._connected_server_names:
+                continue
 
-            # Strip auto-injected parameters from the schema
+            schema = dict(tool.inputSchema) if tool.inputSchema else {}
             properties = dict(schema.get("properties", {}))
             required = list(schema.get("required", []))
             for param in _AUTO_INJECT_PARAMS:
@@ -330,10 +387,7 @@ class AgentOrchestrator:
                 if param in required:
                     required.remove(param)
 
-            clean_schema = {
-                "type": "object",
-                "properties": properties,
-            }
+            clean_schema = {"type": "object", "properties": properties}
             if required:
                 clean_schema["required"] = required
 
@@ -346,7 +400,7 @@ class AgentOrchestrator:
                 },
             })
 
-        return llm_tools
+        return llm_tools or None
 
     async def _call_llm(
         self,
@@ -475,9 +529,10 @@ class AgentOrchestrator:
         if not session:
             return json.dumps({"error": f"MCP server '{server_name}' not connected"}), "error"
 
-        # Auto-inject client_id
+        # Auto-inject client_id and session_id
         full_args = dict(arguments)
         full_args["client_id"] = self.client.pk
+        full_args["session_id"] = str(self._session.id)
 
         try:
             result = await session.call_tool(tool_name, full_args)
