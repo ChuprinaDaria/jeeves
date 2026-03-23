@@ -12,6 +12,8 @@ export const TOOL_TARGETS = {
   'calendar':        ['manager'],
   'crm':             ['assistant', 'manager'],
   'analytics':       ['assistant', 'manager'],
+  'leads':           ['assistant', 'manager'],
+  'sales-intel':     ['assistant'],
 };
 
 export const getToolTargets = (slug) => TOOL_TARGETS[slug] || ['assistant'];

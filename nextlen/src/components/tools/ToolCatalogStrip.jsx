@@ -19,6 +19,8 @@ const SLUG_TO_GROUP = {
   'calendar':        'tools',
   'crm':             'tools',
   'analytics':       'tools',
+  'leads':           'servers',
+  'sales-intel':     'servers',
 };
 
 const getToolGroup = (slug) => SLUG_TO_GROUP[slug] || 'tools';
@@ -68,6 +70,8 @@ const SERVER_COLORS = {
   'web-widget':      { border: 'border-[#6c5ce7]', bg: 'bg-[#6c5ce7]/10', text: 'text-[#6c5ce7]' },
   'hitl-matrix':     { border: 'border-[#00a67e]', bg: 'bg-[#00a67e]/10', text: 'text-[#00a67e]' },
   'rag-search':      { border: 'border-[#f59e0b]', bg: 'bg-[#f59e0b]/10', text: 'text-[#f59e0b]' },
+  'leads':           { border: 'border-[#10b981]', bg: 'bg-[#10b981]/10', text: 'text-[#10b981]' },
+  'sales-intel':     { border: 'border-[#3b82f6]', bg: 'bg-[#3b82f6]/10', text: 'text-[#3b82f6]' },
 };
 
 const ServerChip = ({ tool, onConnected, onMouseEnter, onMouseLeave, onOpenAuth }) => {
