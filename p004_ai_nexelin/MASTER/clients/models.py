@@ -2232,10 +2232,12 @@ class Lead(models.Model):
     SOURCE_WEB = 'web'
     SOURCE_TELEGRAM = 'telegram'
     SOURCE_WHATSAPP = 'whatsapp'
+    SOURCE_EMAIL = 'email'
     SOURCE_CHOICES = [
         (SOURCE_WEB, 'Web Chat'),
         (SOURCE_TELEGRAM, 'Telegram'),
         (SOURCE_WHATSAPP, 'WhatsApp'),
+        (SOURCE_EMAIL, 'Email'),
     ]
 
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='leads')
@@ -2245,6 +2247,11 @@ class Lead(models.Model):
         null=True,
         blank=True,
         related_name='leads'
+    )
+    agent_session = models.ForeignKey(
+        'agents.AgentSession', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='leads',
+        help_text='MCP pipeline session that generated this lead',
     )
 
     name = models.CharField(max_length=255, blank=True, default='')
