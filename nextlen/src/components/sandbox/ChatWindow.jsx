@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Send, Mic, Volume2, Trash2, Image, X, BookmarkPlus } from 'lucide-react';
 import { ragAPI, mcpAPI } from '../../api/agent';
 
@@ -419,6 +421,7 @@ const ChatWindow = ({ fullHeight = false }) => {
           onClick={handleClearHistory}
           className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-red-100 dark:hover:bg-red-900 hover:text-red-600 dark:hover:text-red-400 transition"
           title={t('sandbox.clearHistory') || 'Clear History'}
+          aria-label={t('sandbox.clearHistory') || 'Clear History'}
         >
           <Trash2 size={18} />
         </button>
@@ -429,7 +432,7 @@ const ChatWindow = ({ fullHeight = false }) => {
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+            className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}
           >
             <div
               className={`max-w-[80%] p-3 rounded-lg ${
@@ -442,7 +445,20 @@ const ChatWindow = ({ fullHeight = false }) => {
                 <img src={msg.image} alt="User upload" className="w-full rounded-lg mb-2 max-h-48 object-cover" />
               )}
               <div className="flex items-start justify-between gap-2">
-                <p className="text-sm flex-1">{msg.text}</p>
+                {msg.sender === 'ai' ? (
+                  <div className="text-sm flex-1 prose prose-sm dark:prose-invert max-w-none
+                    prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5
+                    prose-headings:my-2 prose-headings:font-semibold
+                    prose-code:bg-gray-200 prose-code:dark:bg-gray-600 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs
+                    prose-pre:bg-gray-900 prose-pre:dark:bg-gray-950 prose-pre:rounded-lg prose-pre:p-3
+                    prose-a:text-indigo-400 prose-a:no-underline prose-a:hover:underline
+                    prose-table:text-xs prose-th:px-2 prose-th:py-1 prose-td:px-2 prose-td:py-1
+                    prose-img:rounded-lg prose-img:max-h-64">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>
+                  </div>
+                ) : (
+                  <p className="text-sm flex-1">{msg.text}</p>
+                )}
                 {msg.sender === 'ai' && (
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button
@@ -450,6 +466,7 @@ const ChatWindow = ({ fullHeight = false }) => {
                       disabled={isPlaying}
                       className="flex items-center justify-center w-6 h-6 rounded hover:bg-gray-600 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition"
                       title={t('sandbox.playVoice') || 'Play voice'}
+                      aria-label={t('sandbox.playVoice') || 'Play voice'}
                     >
                       <Volume2 size={16} />
                     </button>
@@ -462,6 +479,7 @@ const ChatWindow = ({ fullHeight = false }) => {
                           : 'text-gray-700 dark:text-gray-300 hover:bg-gray-600 dark:hover:bg-gray-700'
                       }`}
                       title={msg.savedToKnowledge ? (t('sandbox.savedToKnowledge') || 'Saved to knowledge base') : (t('sandbox.saveToKnowledge') || 'Save to knowledge base')}
+                      aria-label={msg.savedToKnowledge ? (t('sandbox.savedToKnowledge') || 'Saved to knowledge base') : (t('sandbox.saveToKnowledge') || 'Save to knowledge base')}
                     >
                       <BookmarkPlus size={16} />
                     </button>
@@ -479,12 +497,15 @@ const ChatWindow = ({ fullHeight = false }) => {
           </div>
         ))}
         {loading && (
-          <div className="flex justify-start">
-            <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg">
-              <div className="flex gap-1">
-                <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce delay-100"></div>
-                <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce delay-200"></div>
+          <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="bg-gray-100 dark:bg-gray-700/50 p-3 rounded-lg">
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                  <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                  <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                </div>
+                <span className="text-xs text-gray-400 dark:text-gray-500">Thinking...</span>
               </div>
             </div>
           </div>
@@ -500,6 +521,7 @@ const ChatWindow = ({ fullHeight = false }) => {
             onClick={handleRemoveImage}
             className="absolute top-2 right-2 bg-red-500 dark:bg-red-600 text-white p-1.5 rounded-full hover:bg-red-600 dark:hover:bg-red-700 shadow-lg transition-all flex items-center justify-center w-6 h-6"
             title={t('sandbox.removeImage') || 'Remove image'}
+            aria-label={t('sandbox.removeImage') || 'Remove image'}
           >
             <X size={14} />
           </button>
@@ -516,6 +538,7 @@ const ChatWindow = ({ fullHeight = false }) => {
               : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
           }`}
           title={isRecording ? (t('sandbox.stopRecording') || 'Stop recording') : (t('sandbox.startRecording') || 'Start recording')}
+          aria-label={isRecording ? (t('sandbox.stopRecording') || 'Stop recording') : (t('sandbox.startRecording') || 'Start recording')}
           disabled={loading}
         >
           <Mic size={18} />
@@ -532,6 +555,7 @@ const ChatWindow = ({ fullHeight = false }) => {
           htmlFor="image-input"
           className={`flex items-center justify-center w-10 h-10 rounded-lg cursor-pointer transition bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 ${loading || isRecording ? 'opacity-50 cursor-not-allowed' : ''}`}
           title={t('sandbox.uploadImage') || 'Upload image'}
+          aria-label={t('sandbox.uploadImage') || 'Upload image'}
         >
           <Image size={18} />
         </label>
@@ -559,6 +583,7 @@ const ChatWindow = ({ fullHeight = false }) => {
           onClick={handleSend}
           disabled={loading || isRecording || (!input.trim() && !selectedImage)}
           title={t('sandbox.sendMessage') || 'Send message'}
+          aria-label={t('sandbox.sendMessage') || 'Send message'}
           className={`flex items-center justify-center w-10 h-10 btn-primary rounded-lg ${(!input.trim() && !selectedImage) ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <Send size={18} />

@@ -233,7 +233,9 @@
     "newLocationDescription": "For your convenience, you can now test your AI assistant directly on the Train AI page, right after configuring the AI behavior prompt.",
     "goToTraining": "Go to Train AI",
     "assistantTitle": "AI Assistant",
-    "assistantSubtitle": "Chat with your AI assistant"
+    "assistantSubtitle": "Chat with your AI assistant",
+    "inputPlaceholder": "Type your message...",
+    "sendMessage": "Send message"
   },
   "integrations": {
     "title": "Integrations",
@@ -821,7 +823,13 @@
       "dragToConnect": "Drag a tool onto the canvas to connect it",
       "leads": "Leads",
       "leadsCapture": "Lead capture",
-      "leadsTooltip": "Captures incoming leads from connected communication channels"
+      "leadsTooltip": "Captures incoming leads from connected communication channels",
+      "tabAll": "All",
+      "tabServers": "Servers",
+      "tabSkills": "Skills",
+      "tabTools": "Tools",
+      "emptyCategory": "No items in this category yet",
+      "disconnect": "Disconnect"
     }
   }
 }

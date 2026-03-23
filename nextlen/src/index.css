@@ -246,9 +246,43 @@
     box-shadow: 0 0 8px rgba(34,197,94,0.5);
   }
 
+  /* Flow Builder — skill badge pop animation */
+  @keyframes skill-badge-pop {
+    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+    60%  { transform: translate(-50%, -50%) scale(1.15); }
+    100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  }
+
   /* Flow Builder — zoom controls */
   .flow-zoom-controls {
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
   }
+}
+
+/* Message animations */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-in-from-bottom-2 {
+  from { transform: translateY(0.5rem); }
+  to { transform: translateY(0); }
+}
+
+.animate-in {
+  animation: fade-in 0.3s ease-out, slide-in-from-bottom-2 0.3s ease-out;
+}
+
+/* Markdown prose overrides for chat */
+.prose pre code {
+  background: transparent !important;
+  padding: 0 !important;
+  font-size: 0.8rem !important;
+}
+
+.prose :where(code):not(:where([class~="not-prose"] *))::before,
+.prose :where(code):not(:where([class~="not-prose"] *))::after {
+  content: '' !important;
 }
