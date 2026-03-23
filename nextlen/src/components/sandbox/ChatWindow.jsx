@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Send, Mic, Volume2, Trash2, Image, X, BookmarkPlus } from 'lucide-react';
-import { ragAPI } from '../../api/agent';
+import { ragAPI, mcpAPI } from '../../api/agent';
 
 const ChatWindow = ({ fullHeight = false }) => {
   const { t, i18n } = useTranslation();
@@ -14,6 +14,7 @@ const ChatWindow = ({ fullHeight = false }) => {
   const [imagePreview, setImagePreview] = useState(null);
   const [savingQA, setSavingQA] = useState(null); // ID повідомлення, яке зараз зберігається
   const [clientTag, setClientTag] = useState(null); // Зберігаємо tag клієнта
+  const [mcpEnabled, setMcpEnabled] = useState(false);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const audioPlayerRef = useRef(null);
@@ -56,6 +57,12 @@ const ChatWindow = ({ fullHeight = false }) => {
       
       initializeChat();
     }
+  }, []);
+
+  // Check MCP flag
+  useEffect(() => {
+    const flag = localStorage.getItem('mcp_real_agent');
+    if (flag === 'true') setMcpEnabled(true);
   }, []);
 
   const initializeChat = () => {
@@ -142,6 +149,47 @@ const ChatWindow = ({ fullHeight = false }) => {
 
   const handleSend = async () => {
     if (!input.trim() && !selectedImage) return;
+
+    if (mcpEnabled) {
+      setLoading(true);
+      const userMsg = {
+        id: Date.now(),
+        text: input,
+        sender: 'user',
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, userMsg]);
+      const userMessage = input;
+      setInput('');
+
+      mcpAPI.chatSSE(
+        userMessage,
+        'sandbox',
+        (text) => {
+          setMessages(prev => {
+            const last = prev[prev.length - 1];
+            if (last?.sender === 'ai' && last?.streaming) {
+              return [...prev.slice(0, -1), { ...last, text: last.text + text }];
+            }
+            return [...prev, { id: Date.now(), sender: 'ai', text, streaming: true, timestamp: new Date() }];
+          });
+        },
+        () => {
+          setMessages(prev => prev.map(m => ({ ...m, streaming: false })));
+          setLoading(false);
+        },
+        (error) => {
+          setMessages(prev => [...prev, {
+            id: Date.now(),
+            sender: 'ai',
+            text: `Error: ${error}`,
+            timestamp: new Date(),
+          }]);
+          setLoading(false);
+        },
+      );
+      return;
+    }
 
     const userMessage = {
       id: Date.now(),

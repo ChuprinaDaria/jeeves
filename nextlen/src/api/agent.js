@@ -88,6 +88,64 @@ export const ragAPI = {
   },
 };
 
+// MCP SSE Chat (used when mcp_real_agent flag is enabled)
+export const mcpAPI = {
+  chatSSE: (message, channel = 'sandbox', onToken, onDone, onError) => {
+    const tag = localStorage.getItem('client_tag');
+    const baseURL = api.defaults.baseURL || '';
+    const url = `${baseURL}/mcp/chat/`;
+
+    const body = JSON.stringify({ message, channel });
+
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(tag ? { 'X-Client-Tag': tag } : {}),
+        ...api.defaults.headers.common,
+      },
+      body,
+    }).then(response => {
+      if (!response.ok) {
+        onError?.(`HTTP ${response.status}`);
+        return;
+      }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      function read() {
+        reader.read().then(({ done, value }) => {
+          if (done) {
+            onDone?.();
+            return;
+          }
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          let eventType = '';
+          for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              eventType = line.slice(7).trim();
+            } else if (line.startsWith('data: ') && eventType) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                if (eventType === 'token') onToken?.(data.text);
+                else if (eventType === 'done') onDone?.(data);
+                else if (eventType === 'error') onError?.(data.message);
+              } catch (_) {}
+              eventType = '';
+            }
+          }
+          read();
+        });
+      }
+      read();
+    }).catch(err => onError?.(err.message));
+  },
+};
+
 // Legacy agentAPI для сумісності - перенаправляємо на нові RAG ендпоінти
 export const agentAPI = {
   uploadFile: (file, title) => ragAPI.uploadDocument(file, title),
