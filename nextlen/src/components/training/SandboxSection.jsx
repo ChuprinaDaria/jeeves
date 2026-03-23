@@ -77,7 +77,7 @@ const SandboxSection = () => {
           {/* Tab Content */}
           <div>
             {activeTab === 'chat' ? (
-              <ChatWindow />
+              <ChatWindow channel="web" />
             ) : (
               <PhotoUploadTest />
             )}

@@ -34,7 +34,7 @@ const ToolCallBadge = ({ step }) => {
   );
 };
 
-const ChatWindow = ({ fullHeight = false }) => {
+const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
   const { t, i18n } = useTranslation();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -57,19 +57,20 @@ const ChatWindow = ({ fullHeight = false }) => {
 
   // Отримуємо унікальний ключ для історії на базі tag клієнта
   const getStorageKey = () => {
+    const prefix = channel === 'sandbox' ? 'sandbox' : 'consultant';
     // Спочатку перевіряємо URL
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const tag = urlParams.get('tag');
-      if (tag) return `sandbox_chat_history_${tag}`;
+      if (tag) return `${prefix}_chat_history_${tag}`;
     } catch (_) {}
-    
+
     // Потім перевіряємо localStorage
     const storedTag = localStorage.getItem('client_tag');
-    if (storedTag) return `sandbox_chat_history_${storedTag}`;
-    
-    // Fallback на глобальний ключ (не повинно статися, але для безпеки)
-    return 'sandbox_chat_history_default';
+    if (storedTag) return `${prefix}_chat_history_${storedTag}`;
+
+    // Fallback
+    return `${prefix}_chat_history_default`;
   };
 
   // Ініціалізація: визначаємо tag та завантажуємо історію
@@ -196,7 +197,7 @@ const ChatWindow = ({ fullHeight = false }) => {
 
       mcpAPI.chatSSE(
         userMessage,
-        'sandbox',
+        channel,
         (text) => {
           setMcpStatus(null); // got first token, hide status
           setMessages(prev => {
@@ -550,7 +551,7 @@ const ChatWindow = ({ fullHeight = false }) => {
             </div>
           </div>
         )}
-        {messages.length <= 1 && !loading && (
+        {messages.length <= 1 && !loading && channel === 'sandbox' && (
           <div className="flex flex-col items-center gap-4 py-6 animate-in">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/20">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
