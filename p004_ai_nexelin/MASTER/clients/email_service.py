@@ -203,6 +203,76 @@ class EmailService:
                 'message': f'Failed to send email: {str(e)}'
             }
     
+    def send_email_with_attachment(
+        self,
+        to_address: str,
+        subject: str,
+        body: str,
+        file_path: str,
+        is_html: bool = False,
+        cc: list = None,
+        bcc: list = None,
+    ) -> dict:
+        """Send email with file attachment."""
+        import os
+        from email.mime.base import MIMEBase
+        from email import encoders
+
+        if not os.path.isfile(file_path):
+            return {'success': False, 'error': f'File not found: {file_path}'}
+
+        try:
+            msg = MIMEMultipart('mixed')
+            msg['From'] = f"{self.from_name} <{self.from_address}>"
+            msg['To'] = to_address
+            msg['Subject'] = subject
+
+            if cc:
+                msg['Cc'] = ', '.join(cc)
+
+            if is_html:
+                msg.attach(MIMEText(body, 'html'))
+            else:
+                msg.attach(MIMEText(body, 'plain'))
+
+            filename = os.path.basename(file_path)
+            with open(file_path, 'rb') as f:
+                part = MIMEBase('application', 'octet-stream')
+                part.set_payload(f.read())
+            encoders.encode_base64(part)
+            part.add_header('Content-Disposition', f'attachment; filename="{filename}"')
+            msg.attach(part)
+
+            if self.smtp_port == 465:
+                server = smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, timeout=30)
+            elif self.smtp_use_tls:
+                server = smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=30)
+                server.starttls()
+            else:
+                server = smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=30)
+
+            server.login(self.smtp_username, self.smtp_password)
+
+            recipients = [to_address]
+            if cc:
+                recipients.extend(cc)
+            if bcc:
+                recipients.extend(bcc)
+
+            server.sendmail(self.from_address, recipients, msg.as_string())
+            server.quit()
+
+            return {
+                'success': True,
+                'message': f'Email with attachment sent to {to_address}',
+                'to': to_address,
+                'subject': subject,
+                'attachment': filename,
+            }
+        except Exception as e:
+            logger.error(f"Failed to send email with attachment: {e}")
+            return {'success': False, 'error': str(e)}
+
     def get_recent_emails(
         self,
         limit: int = 10,
