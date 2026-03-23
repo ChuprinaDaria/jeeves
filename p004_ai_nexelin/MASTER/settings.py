@@ -451,5 +451,10 @@ MCP_SERVERS = {
         'args': ['-m', 'mcp_servers.leads.server'],
         'enabled': True,
     },
+    'sales-intel': {
+        'command': 'python',
+        'args': ['-m', 'mcp_servers.sales_intel.server'],
+        'enabled': True,
+    },
 }
 

@@ -209,4 +209,24 @@ INITIAL_TOOLS = [
             'bidirectional': False,
         },
     },
+    {
+        'slug': 'sales-intel',
+        'name': 'Sales Intelligence',
+        'tagline': 'Дослідження компаній: techstack, сайт, дані',
+        'tagline_i18n': {
+            'en': 'Company research: techstack, website data, company intel',
+            'de': 'Unternehmensrecherche: Techstack, Website-Daten, Firmeninformationen',
+        },
+        'icon': 'search',
+        'category': 'crm',
+        'color': '#3b82f6',
+        'transport_type': 'builtin',
+        'is_builtin': True,
+        'builtin_handler': 'mcp_hub.builtin.sales_intel',
+        'auth_type': 'none',
+        'skill_scopes': {
+            'scopes': ['assistant'],
+            'bidirectional': False,
+        },
+    },
 ]
