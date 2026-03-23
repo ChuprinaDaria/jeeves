@@ -19,6 +19,20 @@ class AgentConfig(models.Model):
     system_prompt = models.TextField(blank=True)
     greeting_message = models.TextField(blank=True)
 
+    # Dual-agent prompts (MCP pipeline only)
+    assistant_prompt = models.TextField(
+        blank=True,
+        help_text='System prompt for Oleg (assistant, Sandbox). Empty = platform default.')
+    consultant_prompt = models.TextField(
+        blank=True,
+        help_text='System prompt for Vasya (consultant, messengers). Empty = platform default.')
+    assistant_description = models.TextField(
+        blank=True,
+        help_text='Description of assistant capabilities (shown in UI + added to prompt)')
+    consultant_description = models.TextField(
+        blank=True,
+        help_text='Description of consultant capabilities (shown in UI + added to prompt)')
+
     # Generation — null = platform default
     temperature = models.FloatField(null=True, blank=True)
     max_tokens = models.IntegerField(null=True, blank=True)
@@ -101,6 +115,7 @@ class AgentSession(models.Model):
         ('whatsapp_bridge', 'WhatsApp Bridge'),
         ('email', 'Email'),
         ('api', 'API'),
+        ('sandbox', 'Sandbox'),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)

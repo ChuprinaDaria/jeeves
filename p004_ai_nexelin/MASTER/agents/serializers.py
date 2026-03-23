@@ -16,6 +16,8 @@ class AgentConfigSerializer(serializers.ModelSerializer):
             'llm_provider', 'llm_provider_name',
             'embedding_model', 'embedding_model_name',
             'system_prompt', 'greeting_message',
+            'assistant_prompt', 'consultant_prompt',
+            'assistant_description', 'consultant_description',
             'temperature', 'max_tokens',
             'similarity_threshold', 'max_context_chunks', 'top_k',
             'language', 'supported_languages', 'language_detection',

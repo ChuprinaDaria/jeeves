@@ -16,7 +16,16 @@ class AgentConfigAdmin(admin.ModelAdmin):
             'fields': ('llm_provider', 'embedding_model', 'temperature', 'max_tokens'),
             'description': 'Empty = platform defaults',
         }),
-        ('Prompts', {'fields': ('system_prompt', 'greeting_message')}),
+        ('Prompts (Legacy)', {
+            'fields': ('system_prompt', 'greeting_message'),
+            'description': 'Used by legacy pipeline. MCP uses dual prompts below.',
+            'classes': ('collapse',),
+        }),
+        ('Prompts (MCP Dual Agent)', {
+            'fields': ('assistant_prompt', 'assistant_description',
+                       'consultant_prompt', 'consultant_description'),
+            'description': 'Assistant = Oleg (Sandbox). Consultant = Vasya (messengers).',
+        }),
         ('RAG', {
             'fields': ('similarity_threshold', 'max_context_chunks', 'top_k'),
             'description': 'Empty = platform defaults',
