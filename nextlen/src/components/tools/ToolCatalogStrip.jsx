@@ -119,6 +119,11 @@ const ServerChip = ({ tool, onConnected, onMouseEnter, onMouseLeave, onOpenAuth 
           </div>
         </div>
       </div>
+      {tool.tagline && (
+        <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-snug mb-2 line-clamp-2">
+          {tool.tagline}
+        </p>
+      )}
       {isConnected && (
         <div className={`w-full h-1 rounded-full ${colors.bg}`}>
           <div className={`h-full rounded-full ${colors.border.replace('border-', 'bg-')} w-full`} />

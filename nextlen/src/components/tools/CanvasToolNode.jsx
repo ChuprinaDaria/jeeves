@@ -70,6 +70,13 @@ const CanvasToolNode = ({ tool, onClick, isHighlighted, onPortPointerDown, onPor
         </div>
       </div>
 
+      {/* Tagline */}
+      {tool.tagline && (
+        <p className="text-[9px] text-gray-400 dark:text-gray-500 leading-snug mb-1.5 line-clamp-2">
+          {tool.tagline}
+        </p>
+      )}
+
       {/* Scope chips */}
       {isConnected && targets.length > 0 && (
         <div className="flex gap-1 mb-1.5 flex-wrap">
