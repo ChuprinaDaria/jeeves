@@ -198,5 +198,125 @@ async def get_lead_stats(
     return await sync_to_async(_stats)()
 
 
+@mcp.tool()
+async def search_conversations(
+    client_id: int,
+    period: str = "7d",
+    channel: str = "",
+    has_lead: bool = True,
+    limit: int = 20,
+) -> str:
+    """Search recent conversations with message history.
+    Use to review conversations and find unqualified leads.
+    period: '1d', '7d', '30d'. channel: 'telegram', 'whatsapp_meta', 'web', or empty for all.
+    has_lead: True=only with leads, False=only without leads, empty=all."""
+    from asgiref.sync import sync_to_async
+
+    def _search():
+        from MASTER.clients.models import ClientWhatsAppConversation
+
+        qs = ClientWhatsAppConversation.objects.filter(client_id=client_id)
+
+        if period and period.endswith('d'):
+            days = int(period[:-1])
+            qs = qs.filter(updated_at__gte=timezone.now() - timedelta(days=days))
+
+        if channel:
+            if channel == 'telegram':
+                qs = qs.filter(telegram_chat_id__isnull=False).exclude(telegram_chat_id='')
+            elif channel in ('whatsapp_meta', 'whatsapp'):
+                qs = qs.filter(telegram_chat_id__isnull=True)
+
+        # Filter by lead existence
+        if has_lead is False:
+            qs = qs.filter(leads__isnull=True)
+        elif has_lead is True:
+            qs = qs.filter(leads__isnull=False).distinct()
+
+        conversations = []
+        for conv in qs.order_by('-updated_at')[:limit]:
+            messages = conv.messages or []
+            # Last 10 messages for context
+            recent = messages[-10:] if len(messages) > 10 else messages
+
+            # Check if has lead
+            lead_info = None
+            lead = conv.leads.first()
+            if lead:
+                lead_info = {
+                    "id": lead.id,
+                    "name": lead.name,
+                    "interest_score": lead.interest_score,
+                    "status": lead.status,
+                }
+
+            conversations.append({
+                "conversation_id": conv.id,
+                "phone": conv.customer_phone or "",
+                "channel": "telegram" if conv.telegram_chat_id else "whatsapp",
+                "total_messages": conv.total_messages,
+                "last_activity": conv.last_activity_at.isoformat() if conv.last_activity_at else None,
+                "recent_messages": recent,
+                "lead": lead_info,
+            })
+
+        return json.dumps({"conversations": conversations, "total": len(conversations)})
+
+    return await sync_to_async(_search)()
+
+
+@mcp.tool()
+async def batch_qualify(
+    client_id: int,
+    period: str = "7d",
+    min_messages: int = 3,
+) -> str:
+    """Scan all conversations without leads in the given period and return
+    summaries for qualification. Only includes conversations with at least
+    min_messages messages. Returns conversation data for you to analyze
+    and decide which ones to save_lead for."""
+    from asgiref.sync import sync_to_async
+
+    def _batch():
+        from MASTER.clients.models import ClientWhatsAppConversation
+
+        now = timezone.now()
+        days = int(period[:-1]) if period.endswith('d') else 7
+        cutoff = now - timedelta(days=days)
+
+        qs = ClientWhatsAppConversation.objects.filter(
+            client_id=client_id,
+            updated_at__gte=cutoff,
+            leads__isnull=True,
+            total_messages__gte=min_messages,
+        ).order_by('-updated_at')
+
+        candidates = []
+        for conv in qs[:50]:  # cap at 50
+            messages = conv.messages or []
+            # Extract user messages for context
+            user_msgs = [m for m in messages if m.get('role') == 'user']
+
+            candidates.append({
+                "conversation_id": conv.id,
+                "phone": conv.customer_phone or "",
+                "channel": "telegram" if conv.telegram_chat_id else "whatsapp",
+                "total_messages": conv.total_messages,
+                "started": conv.created_at.isoformat() if conv.created_at else None,
+                "last_activity": conv.last_activity_at.isoformat() if conv.last_activity_at else None,
+                "user_messages": [m.get('content', '')[:200] for m in user_msgs[-5:]],
+                "full_messages": messages[-8:],
+            })
+
+        return json.dumps({
+            "candidates": candidates,
+            "total_unqualified": len(candidates),
+            "period": period,
+            "hint": "Review each conversation and call save_lead for promising ones.",
+        })
+
+    return await sync_to_async(_batch)()
+
+
 if __name__ == "__main__":
     mcp.run(transport="stdio")
