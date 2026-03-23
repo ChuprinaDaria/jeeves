@@ -90,7 +90,7 @@ export const ragAPI = {
 
 // MCP SSE Chat (used when mcp_real_agent flag is enabled)
 export const mcpAPI = {
-  chatSSE: (message, channel = 'sandbox', onToken, onDone, onError) => {
+  chatSSE: (message, channel = 'sandbox', onToken, onDone, onError, onStatus) => {
     const tag = localStorage.getItem('client_tag');
     const baseURL = api.defaults.baseURL || '';
     const url = `${baseURL}/mcp/chat/`;
@@ -132,6 +132,7 @@ export const mcpAPI = {
               try {
                 const data = JSON.parse(line.slice(6));
                 if (eventType === 'token') onToken?.(data.text);
+                else if (eventType === 'status') onStatus?.(data);
                 else if (eventType === 'done') onDone?.(data);
                 else if (eventType === 'error') onError?.(data.message);
               } catch (_) {}

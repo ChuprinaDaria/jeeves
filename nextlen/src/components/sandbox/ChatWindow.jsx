@@ -5,6 +5,35 @@ import remarkGfm from 'remark-gfm';
 import { Send, Mic, Volume2, Trash2, Image, X, BookmarkPlus } from 'lucide-react';
 import { ragAPI, mcpAPI } from '../../api/agent';
 
+const BotAvatar = () => (
+  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shrink-0 shadow-md shadow-orange-500/20">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="4" y="8" width="16" height="12" rx="3" fill="white" fillOpacity="0.9"/>
+      <circle cx="9" cy="14" r="1.5" fill="#D97757"/>
+      <circle cx="15" cy="14" r="1.5" fill="#D97757"/>
+      <rect x="10" y="4" width="4" height="5" rx="2" fill="white" fillOpacity="0.9"/>
+      <rect x="11" y="2" width="2" height="3" rx="1" fill="white" fillOpacity="0.7"/>
+      <circle cx="12" cy="1.5" r="1.5" fill="#D97757" fillOpacity="0.8"/>
+    </svg>
+  </div>
+);
+
+const ToolCallBadge = ({ step }) => {
+  const labels = {
+    thinking: 'Thinking...',
+    searching: 'Searching knowledge base...',
+    generating: 'Generating response...',
+  };
+  const label = labels[step] || step;
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-500/10 dark:bg-orange-500/15 border border-orange-500/20 text-orange-600 dark:text-orange-400 text-xs font-medium animate-in">
+      <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+      {label}
+    </div>
+  );
+};
+
 const ChatWindow = ({ fullHeight = false }) => {
   const { t, i18n } = useTranslation();
   const [messages, setMessages] = useState([]);
@@ -17,6 +46,7 @@ const ChatWindow = ({ fullHeight = false }) => {
   const [savingQA, setSavingQA] = useState(null); // ID повідомлення, яке зараз зберігається
   const [clientTag, setClientTag] = useState(null); // Зберігаємо tag клієнта
   const [mcpEnabled, setMcpEnabled] = useState(false);
+  const [mcpStatus, setMcpStatus] = useState(null); // { step: 'thinking' | 'searching' | 'generating' }
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const audioPlayerRef = useRef(null);
@@ -168,6 +198,7 @@ const ChatWindow = ({ fullHeight = false }) => {
         userMessage,
         'sandbox',
         (text) => {
+          setMcpStatus(null); // got first token, hide status
           setMessages(prev => {
             const last = prev[prev.length - 1];
             if (last?.sender === 'ai' && last?.streaming) {
@@ -178,6 +209,7 @@ const ChatWindow = ({ fullHeight = false }) => {
         },
         () => {
           setMessages(prev => prev.map(m => ({ ...m, streaming: false })));
+          setMcpStatus(null);
           setLoading(false);
         },
         (error) => {
@@ -187,7 +219,11 @@ const ChatWindow = ({ fullHeight = false }) => {
             text: `Error: ${error}`,
             timestamp: new Date(),
           }]);
+          setMcpStatus(null);
           setLoading(false);
+        },
+        (statusData) => {
+          setMcpStatus(statusData);
         },
       );
       return;
@@ -432,13 +468,14 @@ const ChatWindow = ({ fullHeight = false }) => {
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}
+            className={`flex gap-2 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} animate-in`}
           >
+            {msg.sender === 'ai' && <BotAvatar />}
             <div
-              className={`max-w-[80%] p-3 rounded-lg ${
+              className={`max-w-[75%] p-3 rounded-2xl group ${
                 msg.sender === 'user'
-                  ? 'bg-primary-500 dark:bg-primary-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700/50 text-gray-800 dark:text-gray-200'
+                  ? 'bg-indigo-500 dark:bg-indigo-600 text-white rounded-br-md'
+                  : 'bg-gray-100 dark:bg-gray-700/50 text-gray-800 dark:text-gray-200 rounded-bl-md'
               }`}
             >
               {msg.image && (
@@ -459,54 +496,87 @@ const ChatWindow = ({ fullHeight = false }) => {
                 ) : (
                   <p className="text-sm flex-1">{msg.text}</p>
                 )}
-                {msg.sender === 'ai' && (
-                  <div className="flex items-center gap-1 flex-shrink-0">
+                {msg.sender === 'ai' && !msg.streaming && (
+                  <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => handleTextToSpeech(msg.text)}
                       disabled={isPlaying}
-                      className="flex items-center justify-center w-6 h-6 rounded hover:bg-gray-600 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition"
+                      className="flex items-center justify-center w-6 h-6 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 transition cursor-pointer"
                       title={t('sandbox.playVoice') || 'Play voice'}
                       aria-label={t('sandbox.playVoice') || 'Play voice'}
                     >
-                      <Volume2 size={16} />
+                      <Volume2 size={14} />
                     </button>
                     <button
                       onClick={() => handleSaveQA(msg.id)}
                       disabled={savingQA === msg.id || msg.savedToKnowledge}
-                      className={`flex items-center justify-center w-6 h-6 rounded transition ${
+                      className={`flex items-center justify-center w-6 h-6 rounded transition cursor-pointer ${
                         msg.savedToKnowledge
-                          ? 'text-green-600 dark:text-green-400'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-600 dark:hover:bg-gray-700'
+                          ? 'text-green-500'
+                          : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
-                      title={msg.savedToKnowledge ? (t('sandbox.savedToKnowledge') || 'Saved to knowledge base') : (t('sandbox.saveToKnowledge') || 'Save to knowledge base')}
-                      aria-label={msg.savedToKnowledge ? (t('sandbox.savedToKnowledge') || 'Saved to knowledge base') : (t('sandbox.saveToKnowledge') || 'Save to knowledge base')}
+                      title={msg.savedToKnowledge ? (t('sandbox.savedToKnowledge') || 'Saved') : (t('sandbox.saveToKnowledge') || 'Save to knowledge base')}
+                      aria-label={msg.savedToKnowledge ? (t('sandbox.savedToKnowledge') || 'Saved') : (t('sandbox.saveToKnowledge') || 'Save to knowledge base')}
                     >
-                      <BookmarkPlus size={16} />
+                      <BookmarkPlus size={14} />
                     </button>
                   </div>
                 )}
               </div>
-              <p
-                className={`text-xs mt-1 ${
-                  msg.sender === 'user' ? 'text-primary-100' : 'text-gray-500 dark:text-gray-400'
-                }`}
-              >
-                {msg.timestamp.toLocaleTimeString()}
+              <p className={`text-[10px] mt-1.5 ${
+                msg.sender === 'user' ? 'text-indigo-200' : 'text-gray-400 dark:text-gray-500'
+              }`}>
+                {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </p>
             </div>
           </div>
         ))}
         {loading && (
-          <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="bg-gray-100 dark:bg-gray-700/50 p-3 rounded-lg">
-              <div className="flex items-center gap-2">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
-                  <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
-                  <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+          <div className="flex gap-2 justify-start animate-in">
+            <BotAvatar />
+            <div className="bg-gray-100 dark:bg-gray-700/50 p-3 rounded-2xl rounded-bl-md">
+              {mcpStatus ? (
+                <ToolCallBadge step={mcpStatus.step} />
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1">
+                    <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}} />
+                    <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}} />
+                    <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}} />
+                  </div>
+                  <span className="text-xs text-gray-400">Thinking...</span>
                 </div>
-                <span className="text-xs text-gray-400 dark:text-gray-500">Thinking...</span>
-              </div>
+              )}
+            </div>
+          </div>
+        )}
+        {messages.length <= 1 && !loading && (
+          <div className="flex flex-col items-center gap-4 py-6 animate-in">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/20">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                <rect x="4" y="8" width="16" height="12" rx="3" fill="white" fillOpacity="0.9"/>
+                <circle cx="9" cy="14" r="1.5" fill="#D97757"/>
+                <circle cx="15" cy="14" r="1.5" fill="#D97757"/>
+                <rect x="10" y="4" width="4" height="5" rx="2" fill="white" fillOpacity="0.9"/>
+                <rect x="11" y="2" width="2" height="3" rx="1" fill="white" fillOpacity="0.7"/>
+                <circle cx="12" cy="1.5" r="1.5" fill="#D97757" fillOpacity="0.8"/>
+              </svg>
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 text-center">Try asking me something:</p>
+            <div className="flex flex-wrap gap-2 justify-center max-w-md">
+              {[
+                'Show my leads from this week',
+                'Research techstack of stripe.com',
+                'What are my lead conversion stats?',
+              ].map((suggestion) => (
+                <button
+                  key={suggestion}
+                  onClick={() => { setInput(suggestion); }}
+                  className="px-3 py-1.5 text-xs rounded-full border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-all cursor-pointer"
+                >
+                  {suggestion}
+                </button>
+              ))}
             </div>
           </div>
         )}
