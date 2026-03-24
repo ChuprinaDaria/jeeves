@@ -134,9 +134,10 @@ const ClientLayout = () => {
     user?.feature_flags?.mcp_knowledge_split
       ? { to: `${basePath}/sandbox`, icon: Bot, label: t('nav.assistant') || 'Assistant' }
       : { to: `${basePath}/sandbox`, icon: FlaskConical, label: t('nav.sandbox'), badge: t('nav.sandboxBadge') || 'Also in Train AI' },
+    { to: `${basePath}/integrations`, icon: Plug2, label: t('nav.integrations') },
     ...(user?.feature_flags?.mcp_tools_dashboard
       ? [{ to: `${basePath}/tools`, icon: Puzzle, label: t('nav.tools') || 'Tools' }]
-      : [{ to: `${basePath}/integrations`, icon: Plug2, label: t('nav.integrations') }]),
+      : []),
     { to: `${basePath}/history`, icon: MessageSquare, label: t('nav.history') },
     ...(user?.leads_enabled ? [{ to: `${basePath}/leads`, icon: Users, label: t('nav.leads') || 'Leads' }] : []),
     { to: `${basePath}/setup`, icon: BookOpen, label: t('nav.promptBook') || 'Prompt Book' },
