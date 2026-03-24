@@ -87,7 +87,7 @@ class LeadDetailView(APIView):
             return Response({'error': 'Client not found'}, status=401)
 
         try:
-            lead = Lead.objects.get(id=lead_id, client=client)
+            lead = Lead.objects.select_related('conversation').get(id=lead_id, client=client)
         except Lead.DoesNotExist:
             return Response({'error': 'Lead not found'}, status=404)
 
@@ -99,7 +99,7 @@ class LeadDetailView(APIView):
             return Response({'error': 'Client not found'}, status=401)
 
         try:
-            lead = Lead.objects.get(id=lead_id, client=client)
+            lead = Lead.objects.select_related('conversation').get(id=lead_id, client=client)
         except Lead.DoesNotExist:
             return Response({'error': 'Lead not found'}, status=404)
 

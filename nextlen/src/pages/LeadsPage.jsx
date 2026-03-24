@@ -102,6 +102,17 @@ const SourceBadge = ({ source }) => {
   );
 };
 
+/* -- CSV helpers -- */
+const INTEREST_LABELS = ['Cold', 'Cool', 'Warm', 'Hot', 'Fire'];
+
+const escapeCsvField = (val) => {
+  const str = String(val ?? '');
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+};
+
 /* -- Delete confirmation dialog -- */
 const DeleteConfirmDialog = ({ lead, onConfirm, onCancel, t }) => (
   <div className="fixed inset-0 z-[60] flex items-center justify-center">
@@ -281,16 +292,6 @@ const LeadsPage = () => {
   };
 
   const [exporting, setExporting] = useState(false);
-
-  const INTEREST_LABELS = ['Cold', 'Cool', 'Warm', 'Hot', 'Fire'];
-
-  const escapeCsvField = (val) => {
-    const str = String(val ?? '');
-    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-      return `"${str.replace(/"/g, '""')}"`;
-    }
-    return str;
-  };
 
   const handleExportCsv = async () => {
     setExporting(true);
