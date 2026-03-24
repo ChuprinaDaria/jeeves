@@ -1,9 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Send, Mic, Volume2, Trash2, Image, X, BookmarkPlus } from 'lucide-react';
 import { ragAPI, mcpAPI } from '../../api/agent';
+import ToolExecutionNode, { TOOL_MAP } from './chat/ToolExecutionNode';
+import ThinkingPipeline from './chat/ThinkingPipeline';
+import QuickActions from './chat/QuickActions';
+import LiveStatus from './chat/LiveStatus';
 
 const BotAvatar = () => (
   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shrink-0 shadow-md shadow-orange-500/20">
@@ -44,9 +48,9 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [savingQA, setSavingQA] = useState(null); // ID повідомлення, яке зараз зберігається
-  const [clientTag, setClientTag] = useState(null); // Зберігаємо tag клієнта
   const [mcpEnabled, setMcpEnabled] = useState(false);
   const [mcpStatus, setMcpStatus] = useState(null); // { step: 'thinking' | 'searching' | 'generating' }
+  const [toolExecutions, setToolExecutions] = useState([]); // [{ tool_call_id, tool, params, status, summary, error }]
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const audioPlayerRef = useRef(null);
@@ -63,7 +67,9 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
       const urlParams = new URLSearchParams(window.location.search);
       const tag = urlParams.get('tag');
       if (tag) return `${prefix}_chat_history_${tag}`;
-    } catch (_) {}
+    } catch {
+      // ignore malformed URL params
+    }
 
     // Потім перевіряємо localStorage
     const storedTag = localStorage.getItem('client_tag');
@@ -77,17 +83,7 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
   useEffect(() => {
     if (!isInitializedRef.current) {
       isInitializedRef.current = true;
-      
-      // Визначаємо tag клієнта
-      try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const tag = urlParams.get('tag') || localStorage.getItem('client_tag');
-        setClientTag(tag);
-      } catch (_) {
-        const tag = localStorage.getItem('client_tag');
-        setClientTag(tag);
-      }
-      
+
       initializeChat();
     }
   }, []);
@@ -126,6 +122,46 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
     ]);
   };
 
+  const handleToolEvent = useCallback((eventType, data) => {
+    const toolCallId = data?.tool_call_id;
+    const toolName = data?.tool_name;
+    if (!toolCallId) return;
+
+    setToolExecutions(prev => {
+      if (eventType === 'tool_start') {
+        // Avoid duplicates if MCP emits multiple times (rare but safe).
+        if (prev.some(t => t.tool_call_id === toolCallId)) return prev;
+        return [
+          ...prev,
+          {
+            tool_call_id: toolCallId,
+            tool: toolName,
+            params: data?.arguments || {},
+            status: 'running',
+          },
+        ];
+      }
+
+      if (eventType === 'tool_result') {
+        return prev.map(t => (
+          t.tool_call_id === toolCallId
+            ? { ...t, status: 'success', summary: (data?.result || '').toString().slice(0, 4000) }
+            : t
+        ));
+      }
+
+      if (eventType === 'tool_error') {
+        return prev.map(t => (
+          t.tool_call_id === toolCallId
+            ? { ...t, status: 'error', error: (data?.error || data?.result || '').toString().slice(0, 4000) }
+            : t
+        ));
+      }
+
+      return prev;
+    });
+  }, []);
+
   // Оновлення привітального повідомлення при зміні мови (якщо тільки воно одне)
   useEffect(() => {
     if (messages.length === 1 && messages[0].id === 1) {
@@ -140,7 +176,8 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
     if (messages.length > 0 && isInitializedRef.current) {
       // Виключаємо image з збереження, бо base64 може бути дуже великим
       const messagesToSave = messages.map(msg => {
-        const { image, ...msgWithoutImage } = msg;
+        const msgWithoutImage = { ...msg };
+        delete msgWithoutImage.image; // base64 images are huge, don't store them in history
         return msgWithoutImage;
       });
       const storageKey = getStorageKey();
@@ -185,6 +222,7 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
 
     if (mcpEnabled) {
       setLoading(true);
+      setToolExecutions([]);
       const userMsg = {
         id: Date.now(),
         text: input,
@@ -226,6 +264,7 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
         (statusData) => {
           setMcpStatus(statusData);
         },
+        (eventType, eventData) => handleToolEvent(eventType, eventData),
       );
       return;
     }
@@ -492,7 +531,46 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
                     prose-a:text-indigo-400 prose-a:no-underline prose-a:hover:underline
                     prose-table:text-xs prose-th:px-2 prose-th:py-1 prose-td:px-2 prose-td:py-1
                     prose-img:rounded-lg prose-img:max-h-64">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+                      img: ({ src, alt }) => (
+                        <a href={src} target="_blank" rel="noopener noreferrer">
+                          <img src={src} alt={alt || ''} className="max-w-full rounded-lg my-2 cursor-pointer hover:opacity-90 transition-opacity" />
+                        </a>
+                      ),
+                      table: ({ children }) => (
+                        <div className="overflow-x-auto my-2">
+                          <table className="min-w-full border border-gray-200 dark:border-gray-700 text-sm">
+                            {children}
+                          </table>
+                        </div>
+                      ),
+                      th: ({ children }) => (
+                        <th className="border border-gray-200 dark:border-gray-700 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 font-medium text-left">
+                          {children}
+                        </th>
+                      ),
+                      td: ({ children }) => (
+                        <td className="border border-gray-200 dark:border-gray-700 px-3 py-1.5">
+                          {children}
+                        </td>
+                      ),
+                      a: ({ href, children }) => {
+                        const isLocalFile = href?.startsWith('/media/') && /\.(xlsx|pdf|csv|doc|docx|zip)$/i.test(href);
+                        if (isLocalFile) {
+                          return (
+                            <a href={href} download className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 font-medium text-sm no-underline">
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                              {children}
+                            </a>
+                          );
+                        }
+                        return (
+                          <a href={href} target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:underline">
+                            {children}
+                          </a>
+                        );
+                      },
+                    }}>{msg.text}</ReactMarkdown>
                   </div>
                 ) : (
                   <p className="text-sm flex-1">{msg.text}</p>
@@ -536,18 +614,35 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
           <div className="flex gap-2 justify-start animate-in">
             <BotAvatar />
             <div className="bg-gray-100 dark:bg-gray-700/50 p-3 rounded-2xl rounded-bl-md">
-              {mcpStatus ? (
-                <ToolCallBadge step={mcpStatus.step} />
-              ) : (
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-1">
-                    <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}} />
-                    <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}} />
-                    <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}} />
+              <div className="flex flex-col gap-2">
+                {mcpStatus ? (
+                  <ToolCallBadge step={mcpStatus.step} />
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-1">
+                      <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}} />
+                      <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}} />
+                      <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}} />
+                    </div>
+                    <span className="text-xs text-gray-400">Thinking...</span>
                   </div>
-                  <span className="text-xs text-gray-400">Thinking...</span>
-                </div>
-              )}
+                )}
+
+                {toolExecutions.length > 0 && (
+                  <div className="space-y-2 mt-1.5 max-h-[180px] overflow-y-auto pr-1">
+                    {toolExecutions.map((t, idx) => (
+                      <ToolExecutionNode
+                        key={t.tool_call_id || idx}
+                        tool={t.tool}
+                        params={t.params}
+                        status={t.status}
+                        summary={t.summary}
+                        error={t.error}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
