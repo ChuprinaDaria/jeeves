@@ -56,6 +56,7 @@ class ToolCard(models.Model):
 
     is_active = models.BooleanField(default=True)
     is_featured = models.BooleanField(default=False)
+    is_system = models.BooleanField(default=False, help_text='System tool — always connected, cannot be disconnected')
     sort_order = models.IntegerField(default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)
