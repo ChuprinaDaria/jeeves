@@ -53,7 +53,7 @@ One migration adding `sentiment` CharField to `ClientWhatsAppConversation`.
 
 `backfill_conversation_sentiment` — iterate existing conversations, determine sentiment from summary/last messages via LLM, save to field.
 
-- **LLM:** Use client's configured `llm_provider_model` (same as agent uses)
+- **Method:** Keyword matching (not LLM) — intentional choice to avoid API costs and rate limits for initial population. Real-time sentiment is handled by `_check_realtime_negative_sentiment` going forward.
 - **Batch size:** 50 conversations per batch, 1s delay between batches
 - **Error handling:** Log error, skip conversation, continue. Failed conversations keep default `neutral`
 - **Idempotent:** Skips conversations where `sentiment != 'neutral'` (already processed)
