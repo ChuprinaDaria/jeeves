@@ -175,6 +175,7 @@ class AgentOrchestrator:
                     self._tools.append(tool)
                     self._tool_to_server[tool.name] = name
 
+                print(f"[MCP] Server '{name}' connected — {len(result.tools)} tool(s)", flush=True)
                 logger.info(
                     "MCP server '%s' connected — %d tool(s): %s",
                     name,
@@ -182,7 +183,8 @@ class AgentOrchestrator:
                     [t.name for t in result.tools],
                 )
 
-            except Exception:
+            except Exception as exc:
+                print(f"[MCP] FAILED to connect server '{name}': {exc}", flush=True)
                 logger.exception("Failed to connect MCP server '%s'", name)
 
     async def disconnect(self) -> None:
