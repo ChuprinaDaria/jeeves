@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Search, ExternalLink, ChevronDown, Globe, MessageCircle, Smartphone, Mail, Users, Trash2 } from 'lucide-react';
+import { Loader2, Search, ExternalLink, ChevronDown, Globe, MessageCircle, Smartphone, Mail, Users, Trash2, Download } from 'lucide-react';
 import api from '../api/axios';
 
 /* ── Heat Indicator (replaces InterestStars) ── */
@@ -158,6 +158,56 @@ const LeadsPage = () => {
     }
   };
 
+  const [exporting, setExporting] = useState(false);
+
+  const INTEREST_LABELS = ['Cold', 'Cool', 'Warm', 'Hot', 'Fire'];
+
+  const escapeCsvField = (val) => {
+    const str = String(val ?? '');
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const handleExportCsv = async () => {
+    setExporting(true);
+    try {
+      const params = { per_page: 10000, export: 'true' };
+      if (search) params.search = search;
+      if (statusFilter) params.status = statusFilter;
+      if (sourceFilter) params.source = sourceFilter;
+
+      const response = await api.get('/clients/leads/', { params });
+      const allLeads = response.data.results || response.data;
+
+      const headers = ['Name', 'Email', 'Phone', 'Source', 'Interest', 'Status', 'Date', 'AI Summary'];
+      const rows = allLeads.map((lead) => [
+        lead.name || '',
+        lead.email || '',
+        lead.phone || '',
+        lead.source || '',
+        INTEREST_LABELS[Math.max(0, Math.min(4, (lead.interest_score || 1) - 1))],
+        lead.status || 'new',
+        lead.created_at ? new Date(lead.created_at).toLocaleDateString() : '',
+        lead.request_summary || '',
+      ]);
+
+      const csv = [headers, ...rows].map((row) => row.map(escapeCsvField).join(',')).join('\n');
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `leads-export-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to export leads:', err);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const PER_PAGE = 25;
 
   const fetchLeads = useCallback(async () => {
@@ -272,6 +322,16 @@ const LeadsPage = () => {
           <option value="whatsapp">WhatsApp</option>
           <option value="email">Email</option>
         </select>
+
+        {/* Export button */}
+        <button
+          onClick={handleExportCsv}
+          disabled={leads.length === 0 || exporting}
+          className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 transition-colors cursor-pointer"
+        >
+          {exporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+          {exporting ? t('leads.exporting') : t('leads.export')}
+        </button>
       </div>
 
       {/* Stats bar */}
