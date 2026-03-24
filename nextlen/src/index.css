@@ -258,21 +258,66 @@
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
   }
+
+  /* Chat — tool color tokens */
+  :root {
+    --tool-green: #00d9a3;
+    --tool-purple: #a29bfe;
+    --tool-amber: #fbbf24;
+    --tool-gray: #6b7280;
+  }
 }
 
-/* Message animations */
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+/* Chat — message & tool animations */
+@keyframes chat-msg-user {
+  from { opacity: 0; transform: translateX(20px) scale(0.97); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+.chat-msg-user {
+  animation: chat-msg-user 0.3s ease-out both;
 }
 
-@keyframes slide-in-from-bottom-2 {
-  from { transform: translateY(0.5rem); }
-  to { transform: translateY(0); }
+@keyframes chat-msg-bot {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.chat-msg-bot {
+  animation: chat-msg-bot 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+.chat-tool-node {
+  animation: flow-node-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes chat-chip-pop {
+  0%   { opacity: 0; transform: scale(0); }
+  60%  { transform: scale(1.1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.chat-chip-pop {
+  animation: chat-chip-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes chat-shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position: 200% 0; }
+}
+.chat-shimmer {
+  background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.08) 50%, transparent 75%);
+  background-size: 200% 100%;
+  animation: chat-shimmer 1.5s infinite;
+}
+
+/* Backward compat */
 .animate-in {
-  animation: fade-in 0.3s ease-out, slide-in-from-bottom-2 0.3s ease-out;
+  animation: chat-msg-bot 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-msg-user, .chat-msg-bot, .chat-tool-node, .chat-chip-pop {
+    animation: none !important;
+    opacity: 1 !important;
+  }
 }
 
 /* Markdown prose overrides for chat */
@@ -306,4 +351,12 @@
 .overflow-y-auto {
   scrollbar-width: thin;
   scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
+}
+
+@keyframes word-cloud-fade-in {
+  from { opacity: 0; filter: blur(4px); }
+  to { opacity: 1; filter: blur(0); }
+}
+.word-cloud-fade-in {
+  animation: word-cloud-fade-in 0.6s ease-out both;
 }

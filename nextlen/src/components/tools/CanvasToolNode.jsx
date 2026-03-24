@@ -3,6 +3,7 @@ import { Lock } from 'lucide-react';
 import ToolStatusBadge from './ToolStatusBadge';
 import ToolIcon from './ToolIcon';
 import { getToolTargets } from './toolTargets';
+import RichCardWrapper, { hasRichCard } from './richcards/RichCardWrapper';
 
 const CAT_COLORS = {
   communication: { bg: 'bg-green-500/10 dark:bg-green-500/15', text: 'text-green-500', border: 'border-green-500/30' },
@@ -33,7 +34,7 @@ const CanvasToolNode = ({ tool, onClick, isHighlighted, onPortPointerDown, onPor
       role="button"
       tabIndex={0}
       aria-label={`${tool.name} — ${isConnected ? t('tools.connected') : t('tools.notConnected')}`}
-      className={`flow-node-enter w-[160px] bg-white dark:bg-gray-800 border rounded-[14px] p-3.5 select-none relative
+      className={`flow-node-enter ${hasRichCard(tool.slug) && isConnected ? 'w-[220px]' : 'w-[160px]'} bg-white dark:bg-gray-800 border rounded-[14px] p-3.5 select-none relative
         transition-all duration-200 cursor-pointer
         ${isConnected ? `${cat.border} border-opacity-100` : 'border-gray-200 dark:border-gray-700'}
         ${isHighlighted === false ? 'opacity-30' : 'opacity-100'}
@@ -76,6 +77,10 @@ const CanvasToolNode = ({ tool, onClick, isHighlighted, onPortPointerDown, onPor
         <p className="text-[9px] text-gray-400 dark:text-gray-500 leading-snug mb-1.5 line-clamp-2">
           {tool.tagline}
         </p>
+      )}
+
+      {hasRichCard(tool.slug) && isConnected && (
+        <RichCardWrapper slug={tool.slug} />
       )}
 
       {/* Scope chips */}

@@ -6,6 +6,7 @@ import ConnectionsLayer from './ConnectionsLayer';
 import OnboardingHint from './OnboardingHint';
 import EdgeSkillBadge from './EdgeSkillBadge';
 import { getToolTargets } from './toolTargets';
+import { hasRichCard } from './richcards/RichCardWrapper';
 
 /* ── Constants ─────────────────────────────────────── */
 const CORE_W = 200, CORE_H = 145;
@@ -19,6 +20,7 @@ const LS_VIEWPORT_KEY = 'flow-canvas-viewport';
 
 /* ── Helpers ───────────────────────────────────────── */
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const getToolWidth = (slug) => hasRichCard(slug) ? 220 : TOOL_W;
 
 const calcPath = (x1, y1, x2, y2) => {
   const dx = Math.abs(x2 - x1) * 0.55;
@@ -44,12 +46,14 @@ const buildInitialPositions = (canvasW, canvasH, groups) => {
   };
 
   layoutColumn(groups.left, CANVAS_PADDING);
-  layoutColumn(groups.right, canvasW - CANVAS_PADDING - TOOL_W);
+  const rightMaxW = groups.right.length ? Math.max(...groups.right.map(t => getToolWidth(t.slug))) : TOOL_W;
+  layoutColumn(groups.right, canvasW - CANVAS_PADDING - rightMaxW);
 
   const bothTotal = groups.both.length;
   groups.both.forEach((tool, i) => {
-    const offset = (i - (bothTotal - 1) / 2) * (TOOL_W + 20);
-    pos[tool.slug] = { x: cx + offset - TOOL_W / 2, y: CANVAS_PADDING };
+    const tw = getToolWidth(tool.slug);
+    const offset = (i - (bothTotal - 1) / 2) * (tw + 20);
+    pos[tool.slug] = { x: cx + offset - tw / 2, y: CANVAS_PADDING };
   });
 
   return pos;
@@ -186,7 +190,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     } else {
       // Tool node — right side port
       return {
-        x: pos.x + TOOL_W,
+        x: pos.x + getToolWidth(nodeId),
         y: pos.y + TOOL_H / 2,
       };
     }
@@ -220,7 +224,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     assistantTools.forEach((tool, portIdx) => {
       const tPos = positions[tool.slug];
       if (!tPos) return;
-      const srcX = tPos.x + TOOL_W, srcY = tPos.y + TOOL_H / 2;
+      const srcX = tPos.x + getToolWidth(tool.slug), srcY = tPos.y + TOOL_H / 2;
       const tgtX = aPos.x;
       const tgtY = getPortY(aPos, portIdx, assistantTools.length);
       conns.push({
@@ -238,7 +242,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     managerTools.forEach((tool, portIdx) => {
       const tPos = positions[tool.slug];
       if (!tPos) return;
-      const srcX = tPos.x + TOOL_W, srcY = tPos.y + TOOL_H / 2;
+      const srcX = tPos.x + getToolWidth(tool.slug), srcY = tPos.y + TOOL_H / 2;
       const tgtX = mPos.x;
       const tgtY = getPortY(mPos, portIdx, managerTools.length);
       conns.push({
@@ -257,7 +261,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
       leadsTools.forEach((tool, portIdx) => {
         const tPos = positions[tool.slug];
         if (!tPos) return;
-        const srcX = tPos.x + TOOL_W, srcY = tPos.y + TOOL_H / 2;
+        const srcX = tPos.x + getToolWidth(tool.slug), srcY = tPos.y + TOOL_H / 2;
         const tgtX = lPos.x;
         const tgtY = getPortY(lPos, portIdx, leadsTools.length);
         conns.push({
@@ -593,7 +597,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     allIds.forEach(id => {
       const p = positions[id];
-      const w = id.startsWith('__') ? CORE_W : TOOL_W;
+      const w = id.startsWith('__') ? CORE_W : getToolWidth(id);
       const h = id.startsWith('__') ? CORE_H : TOOL_H;
       minX = Math.min(minX, p.x);
       minY = Math.min(minY, p.y);
