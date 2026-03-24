@@ -21,6 +21,8 @@ const SLUG_TO_GROUP = {
   'analytics':       'tools',
   'leads':           'servers',
   'sales-intel':     'servers',
+  'email':           'servers',
+  'coaching':        'servers',
 };
 
 const getToolGroup = (slug) => SLUG_TO_GROUP[slug] || 'tools';
