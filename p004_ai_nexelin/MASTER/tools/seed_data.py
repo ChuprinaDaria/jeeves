@@ -187,6 +187,7 @@ INITIAL_TOOLS = [
         'is_builtin': True,
         'builtin_handler': 'mcp_hub.builtin.xlsx_processor',
         'auth_type': 'none',
+        'is_system': True,
         'skill_scopes': {'scopes': ['assistant', 'manager'], 'bidirectional': True},
     },
     {

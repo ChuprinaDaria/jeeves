@@ -199,18 +199,34 @@ async def apply_coaching_suggestion(
     The system verifies that the user's last message was affirmative."""
 
     def _apply():
+        from datetime import timedelta as td
         from MASTER.agents.models import AgentSession, AgentConfig
         from MASTER.clients.models import Client, ClientDocument
         from MASTER.processing.embedding_service import EmbeddingService
 
+        # Resolve current session to find the agent_config (client)
         try:
-            session = AgentSession.objects.get(pk=session_id)
+            current_session = AgentSession.objects.get(pk=session_id)
+            config = current_session.agent_config
         except AgentSession.DoesNotExist:
             return {"error": "Session not found"}
 
-        meta = session.metadata or {}
-        pending = meta.get('pending_suggestions', {})
-        suggestion = pending.get(suggestion_id)
+        # Search across recent sessions for this client (new session per message)
+        suggestion = None
+        source_session = None
+        cutoff = timezone.now() - td(hours=24)
+        recent_sessions = AgentSession.objects.filter(
+            agent_config=config,
+            started_at__gte=cutoff,
+        ).order_by('-started_at')
+
+        for sess in recent_sessions:
+            meta = sess.metadata or {}
+            pending = meta.get('pending_suggestions', {})
+            if suggestion_id in pending:
+                suggestion = pending[suggestion_id]
+                source_session = sess
+                break
 
         if not suggestion:
             return {"error": f"Suggestion {suggestion_id} not found or already applied"}
@@ -250,10 +266,13 @@ async def apply_coaching_suggestion(
             except Exception as e:
                 results.append(f"Instructions update failed: {e}")
 
+        # Clean up suggestion from source session
+        meta = source_session.metadata or {}
+        pending = meta.get('pending_suggestions', {})
         del pending[suggestion_id]
         meta['pending_suggestions'] = pending
-        session.metadata = meta
-        session.save(update_fields=['metadata'])
+        source_session.metadata = meta
+        source_session.save(update_fields=['metadata'])
 
         return {"status": "applied", "suggestion_id": suggestion_id, "results": results}
 
