@@ -368,3 +368,8 @@
 .context-panel-enter {
   animation: context-panel-enter 0.3s ease-out both;
 }
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}

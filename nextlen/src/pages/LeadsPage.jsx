@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Search, ExternalLink, ChevronDown, Globe, MessageCircle, Smartphone, Mail, Users, Trash2, Download } from 'lucide-react';
+import { Loader2, Search, ExternalLink, ChevronDown, Globe, MessageCircle, Smartphone, Mail, Users, Trash2, Download, X } from 'lucide-react';
 import api from '../api/axios';
 
 /* ── Heat Indicator (replaces InterestStars) ── */
@@ -43,7 +43,7 @@ const StatusDropdown = ({ status, onStatusChange, loading }) => {
   }, []);
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative" ref={ref} data-dropdown-open={open}>
       <button
         onClick={() => !loading && setOpen(!open)}
         disabled={loading}
@@ -131,6 +131,126 @@ const DeleteConfirmDialog = ({ lead, onConfirm, onCancel, t }) => (
   </div>
 );
 
+/* -- Slide-in detail panel -- */
+const LeadDetailPanel = ({ lead, onClose, onStatusChange, updatingId, onViewConversation, formatDate, t }) => {
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'Escape') {
+        if (document.querySelector('[data-dropdown-open="true"]')) return;
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div
+        className="relative w-full max-w-md bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 shadow-2xl overflow-y-auto"
+        style={{ animation: 'slideInRight 0.2s ease-out' }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">
+            {lead.name || <span className="text-gray-400 italic">Anonymous #{lead.id}</span>}
+          </h2>
+          <button
+            onClick={onClose}
+            aria-label={t('leads.close')}
+            className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-6">
+          {/* Contact Info */}
+          <div>
+            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+              {t('leads.contactInfo')}
+            </h3>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-500 dark:text-gray-400">{t('leads.email')}</span>
+                <span className="text-gray-900 dark:text-gray-100">{lead.email || '\u2014'}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-500 dark:text-gray-400">{t('leads.phone')}</span>
+                <span className="text-gray-900 dark:text-gray-100">{lead.phone || '\u2014'}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-500 dark:text-gray-400">{t('leads.source')}</span>
+                <SourceBadge source={lead.source} />
+              </div>
+            </div>
+          </div>
+
+          {/* Status & Interest */}
+          <div className="flex items-center gap-4">
+            <div>
+              <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                {t('leads.status')}
+              </h3>
+              <StatusDropdown
+                status={lead.status || 'new'}
+                onStatusChange={(newStatus) => onStatusChange(lead.id, newStatus)}
+                loading={updatingId === lead.id}
+              />
+            </div>
+            <div>
+              <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                {t('leads.interest')}
+              </h3>
+              <HeatIndicator score={lead.interest_score || 0} />
+            </div>
+          </div>
+
+          {/* AI Summary */}
+          <div>
+            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+              {t('leads.aiSummary')}
+            </h3>
+            {lead.request_summary ? (
+              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3">
+                {lead.request_summary}
+              </p>
+            ) : (
+              <p className="text-sm text-gray-400 dark:text-gray-500 italic">
+                {t('leads.noSummary')}
+              </p>
+            )}
+          </div>
+
+          {/* Date */}
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-500 dark:text-gray-400">{t('leads.date')}</span>
+            <span className="text-gray-900 dark:text-gray-100">{formatDate(lead.created_at)}</span>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => lead.conversation_id && onViewConversation(lead.conversation_id)}
+            disabled={!lead.conversation_id}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+          >
+            <ExternalLink size={16} />
+            {t('leads.viewConversationBtn')}
+          </button>
+          {!lead.conversation_id && (
+            <p className="text-xs text-gray-400 dark:text-gray-500 text-center mt-2">
+              {t('leads.noConversation')}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 /* ── Main page ── */
 const LeadsPage = () => {
   const { t } = useTranslation();
@@ -146,11 +266,13 @@ const LeadsPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [updatingId, setUpdatingId] = useState(null);
   const [deletingLead, setDeletingLead] = useState(null);
+  const [selectedLead, setSelectedLead] = useState(null);
 
   const handleDeleteLead = async (leadId) => {
     try {
       await api.delete(`/clients/leads/${leadId}/`);
       setLeads((prev) => prev.filter((lead) => lead.id !== leadId));
+      setSelectedLead((prev) => prev && prev.id === leadId ? null : prev);
     } catch (err) {
       console.error('Failed to delete lead:', err);
     } finally {
@@ -416,7 +538,8 @@ const LeadsPage = () => {
                 {leads.map((lead) => (
                   <tr
                     key={lead.id}
-                    className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                    onClick={() => setSelectedLead(lead)}
+                    className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
                   >
                     {/* Name */}
                     <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">
@@ -444,7 +567,7 @@ const LeadsPage = () => {
                     </td>
 
                     {/* Status dropdown */}
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <StatusDropdown
                         status={lead.status || 'new'}
                         onStatusChange={(newStatus) => handleStatusChange(lead.id, newStatus)}
@@ -521,6 +644,20 @@ const LeadsPage = () => {
           lead={deletingLead}
           onConfirm={() => handleDeleteLead(deletingLead.id)}
           onCancel={() => setDeletingLead(null)}
+          t={t}
+        />
+      )}
+      {selectedLead && (
+        <LeadDetailPanel
+          lead={selectedLead}
+          onClose={() => setSelectedLead(null)}
+          onStatusChange={(id, newStatus) => {
+            handleStatusChange(id, newStatus);
+            setSelectedLead((prev) => prev && prev.id === id ? { ...prev, status: newStatus } : prev);
+          }}
+          updatingId={updatingId}
+          onViewConversation={handleViewConversation}
+          formatDate={formatDate}
           t={t}
         />
       )}
