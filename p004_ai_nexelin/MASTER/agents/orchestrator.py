@@ -83,6 +83,7 @@ class AgentOrchestrator:
         self._tool_to_connection = {}  # server_name -> ToolConnection
         self._connected_server_names = set()
         self._session = None  # set in process()
+        self._tool_scopes: dict[str, list[str]] = getattr(settings, 'MCP_TOOL_SCOPES', {})
 
     async def connect(self) -> None:
         """Spawn enabled MCP servers and discover their tools."""
@@ -157,6 +158,7 @@ class AgentOrchestrator:
         conversation: list[dict[str, str]],
         channel: str = "web",
         external_user_id: str = "",
+        tool_event_cb=None,
     ) -> str:
         """
         Run the agentic loop: LLM ↔ MCP tools until final answer.
@@ -234,8 +236,29 @@ class AgentOrchestrator:
                 except (json.JSONDecodeError, TypeError):
                     raw_args = {}
 
+                tool_call_id = tc.get("id", "")
+
+                # Emit tool_start early so the frontend can display progress.
+                if tool_event_cb:
+                    try:
+                        await tool_event_cb(
+                            "tool_start",
+                            {
+                                "tool_call_id": tool_call_id,
+                                "tool_name": tool_name,
+                                "arguments": raw_args,
+                            },
+                        )
+                    except Exception:
+                        logger.exception("tool_event_cb(tool_start) failed")
+
                 t0 = time.monotonic()
-                tool_result, tool_status = await self._execute_tool_with_middleware(tool_name, raw_args)
+                try:
+                    tool_result, tool_status = await self._execute_tool_with_middleware(
+                        tool_name, raw_args
+                    )
+                except Exception as exc:
+                    tool_result, tool_status = str(exc), "error"
                 tool_latency = int((time.monotonic() - t0) * 1000)
 
                 call_type = "rag" if tool_name == "search" else (
@@ -257,6 +280,31 @@ class AgentOrchestrator:
                     "tool_call_id": tc["id"],
                     "content": tool_result,
                 })
+
+                # Emit tool_result/tool_error (SSE consumers).
+                if tool_event_cb:
+                    try:
+                        truncated = tool_result[:4000] if isinstance(tool_result, str) else str(tool_result)[:4000]
+                        if tool_status == "ok":
+                            await tool_event_cb(
+                                "tool_result",
+                                {
+                                    "tool_call_id": tool_call_id,
+                                    "tool_name": tool_name,
+                                    "result": truncated,
+                                },
+                            )
+                        else:
+                            await tool_event_cb(
+                                "tool_error",
+                                {
+                                    "tool_call_id": tool_call_id,
+                                    "tool_name": tool_name,
+                                    "error": truncated,
+                                },
+                            )
+                    except Exception:
+                        logger.exception("tool_event_cb(tool_result/error) failed")
 
         # Exhausted iterations
         logger.warning("Orchestrator hit MAX_ITERATIONS (%d)", MAX_ITERATIONS)
@@ -339,6 +387,16 @@ class AgentOrchestrator:
                 "Do NOT mention lead collection to the user. Be natural."
             )
 
+        if channel == 'sandbox' and self._has_coaching_tool():
+            parts.append(
+                "\n\nCOACHING: You can review Vasya's (consultant AI) recent conversations "
+                "to find knowledge gaps. When you notice Vasya struggled with a topic, "
+                "proactively suggest to the user: 'I noticed Vasya couldn't answer questions "
+                "about X. Want me to add this to the knowledge base or update his instructions?'\n"
+                "ALWAYS ask for user confirmation before making any changes. "
+                "Never apply changes silently."
+            )
+
         return "\n".join(parts)
 
     @staticmethod
@@ -380,13 +438,21 @@ class AgentOrchestrator:
 
     def _get_scope_tool_names(self) -> list[str]:
         """Tool names visible to current scope."""
-        return [
-            t.name for t in self._tools
-            if self._tool_to_server.get(t.name) in self._connected_server_names
-        ]
+        names = []
+        for t in self._tools:
+            if self._tool_to_server.get(t.name) not in self._connected_server_names:
+                continue
+            tool_allowed = self._tool_scopes.get(t.name)
+            if tool_allowed is not None and self._scope not in tool_allowed:
+                continue
+            names.append(t.name)
+        return names
 
     def _has_leads_tool(self) -> bool:
         return 'leads' in self._connected_server_names
+
+    def _has_coaching_tool(self) -> bool:
+        return 'coaching' in self._connected_server_names
 
     def _tools_to_llm_format(self) -> list[dict[str, Any]] | None:
         """Convert MCP tool schemas → OpenAI function-calling tool defs.
@@ -401,6 +467,11 @@ class AgentOrchestrator:
         for tool in self._tools:
             server_name = self._tool_to_server.get(tool.name)
             if server_name not in self._connected_server_names:
+                continue
+
+            # Tool-level scope filter
+            tool_allowed_scopes = self._tool_scopes.get(tool.name)
+            if tool_allowed_scopes is not None and self._scope not in tool_allowed_scopes:
                 continue
 
             schema = dict(tool.inputSchema) if tool.inputSchema else {}

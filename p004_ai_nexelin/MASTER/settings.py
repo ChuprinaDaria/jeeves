@@ -456,5 +456,26 @@ MCP_SERVERS = {
         'args': ['-m', 'mcp_servers.sales_intel.server'],
         'enabled': True,
     },
+    'email': {
+        'command': 'python',
+        'args': ['-m', 'mcp_servers.email.server'],
+        'enabled': True,
+    },
+    'coaching': {
+        'command': 'python',
+        'args': ['-m', 'mcp_servers.coaching.server'],
+        'enabled': True,
+    },
+}
+
+MCP_TOOL_SCOPES = {
+    'send_email': ['assistant'],
+    'send_email_with_attachment': ['assistant'],
+    'read_emails': ['assistant'],
+    'search_emails': ['assistant'],
+    'analyze_emails': ['assistant'],
+    'send_commercial_email': ['manager'],
+    'update_knowledge_base': [],
+    'update_consultant_instructions': [],
 }
 
