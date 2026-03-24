@@ -11,7 +11,7 @@ setup()
 
 from django.conf import settings  # noqa: E402
 from django.utils import timezone  # noqa: E402
-from fastmcp import FastMCP  # noqa: E402
+from mcp.server.fastmcp import FastMCP  # noqa: E402
 
 mcp = FastMCP("mcp-memory")
 
