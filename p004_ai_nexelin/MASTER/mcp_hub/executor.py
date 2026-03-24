@@ -49,9 +49,15 @@ class MCPExecutor:
             raise
 
     async def _call_builtin(self, tool_card, connection, tool_name, arguments):
-        """Call internal Python handler."""
-        module_path, func_name = tool_card.builtin_handler.rsplit('.', 1)
-        module = importlib.import_module(module_path)
+        """Call internal Python handler.
+
+        builtin_handler format: 'mcp_hub.builtin.xlsx_processor'
+        Imports the module and calls the function with the same name as the
+        last segment (e.g. xlsx_processor.xlsx_processor).
+        """
+        handler_path = tool_card.builtin_handler
+        module = importlib.import_module(handler_path)
+        func_name = handler_path.rsplit('.', 1)[1]
         handler = getattr(module, func_name)
         return await handler(connection=connection, tool_name=tool_name, **arguments)
 
