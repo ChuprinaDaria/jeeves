@@ -416,7 +416,9 @@ class AgentOrchestrator:
                     + ".\nUse them when needed. Do NOT mention tool names to the user."
                     "\nNEVER fabricate file URLs, download links, or tool results. "
                     "If you need a file — call the tool first, then use the URL it returns. "
-                    "If a tool is unavailable, say so honestly."
+                    "When sharing download links, use the EXACT relative path from the tool "
+                    "(e.g. /media/xlsx/...), never add a domain. "
+                    "If a tool fails or is unavailable, say so honestly — never invent data."
                 )
 
         language = self.agent_config.get_language()
