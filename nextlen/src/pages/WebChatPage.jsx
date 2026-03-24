@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Send, Loader2, Image, Moon, Sun, Download, Trash2, Mic, Menu, X, Sparkles, Volume2, VolumeX, Square } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import api from '../api/axios';
 import { ragAPI } from '../api/agent';
 import { clientAPI } from '../api/client';
@@ -1052,11 +1054,59 @@ const WebChatPage = () => {
                   {t('webChat.imageUploaded') || '[Image was uploaded]'}
                 </div>
               )}
-              {message.content && (
+              {message.content && message.role === 'assistant' && !message.isWelcome ? (
+                <div className={`${messageFontClass} prose prose-sm max-w-none
+                  ${darkMode ? 'prose-invert' : ''}
+                  prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5
+                  prose-headings:my-2 prose-headings:font-semibold
+                  prose-code:bg-gray-200 prose-code:dark:bg-gray-600 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs
+                  prose-pre:bg-gray-900 prose-pre:rounded-lg prose-pre:p-3`}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+                    img: ({ src, alt }) => (
+                      <a href={src} target="_blank" rel="noopener noreferrer">
+                        <img src={src} alt={alt || ''} className="max-w-full rounded-lg my-2 cursor-pointer hover:opacity-90 transition-opacity" />
+                      </a>
+                    ),
+                    table: ({ children }) => (
+                      <div className="overflow-x-auto my-2">
+                        <table className="min-w-full border border-gray-200 dark:border-gray-700 text-sm">
+                          {children}
+                        </table>
+                      </div>
+                    ),
+                    th: ({ children }) => (
+                      <th className="border border-gray-200 dark:border-gray-700 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 font-medium text-left">
+                        {children}
+                      </th>
+                    ),
+                    td: ({ children }) => (
+                      <td className="border border-gray-200 dark:border-gray-700 px-3 py-1.5">
+                        {children}
+                      </td>
+                    ),
+                    a: ({ href, children }) => {
+                      const isLocalFile = href?.startsWith('/media/') && /\.(xlsx|pdf|csv|doc|docx|zip)$/i.test(href);
+                      if (isLocalFile) {
+                        return (
+                          <a href={href} download className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 font-medium text-sm no-underline">
+                            <Download size={14} />
+                            {children}
+                          </a>
+                        );
+                      }
+                      return (
+                        <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+                          {children}
+                        </a>
+                      );
+                    },
+                  }}>{message.content}</ReactMarkdown>
+                </div>
+              ) : message.content ? (
                 <p className={`${messageFontClass} whitespace-pre-wrap ${message.isWelcome ? 'text-center font-medium' : ''}`}>
                   {message.content}
                 </p>
-              )}
+              ) : null}
               {message.role === 'assistant' && message.content && !message.isWelcome && (
                 <button
                   onClick={() => playTTS(message.content, message.id)}
