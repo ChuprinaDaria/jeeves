@@ -414,6 +414,9 @@ class AgentOrchestrator:
                     "\n\nYou have access to the following tools: "
                     + ", ".join(scope_tools)
                     + ".\nUse them when needed. Do NOT mention tool names to the user."
+                    "\nNEVER fabricate file URLs, download links, or tool results. "
+                    "If you need a file — call the tool first, then use the URL it returns. "
+                    "If a tool is unavailable, say so honestly."
                 )
 
         language = self.agent_config.get_language()
