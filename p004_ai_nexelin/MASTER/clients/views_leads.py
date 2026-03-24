@@ -35,7 +35,7 @@ class LeadListView(APIView):
         if not getattr(client, 'leads_enabled', False):
             return Response({'error': 'Leads module is not enabled'}, status=403)
 
-        leads = Lead.objects.filter(client=client)
+        leads = Lead.objects.filter(client=client).select_related('conversation')
 
         # Filters
         status_filter = request.GET.get('status')
@@ -61,7 +61,8 @@ class LeadListView(APIView):
 
         # Pagination
         page = int(request.GET.get('page', 1))
-        per_page = min(int(request.GET.get('per_page', 25)), 100)
+        max_per_page = 10000 if request.GET.get('export') == 'true' else 100
+        per_page = min(int(request.GET.get('per_page', 25)), max_per_page)
         total = leads.count()
         offset = (page - 1) * per_page
 
