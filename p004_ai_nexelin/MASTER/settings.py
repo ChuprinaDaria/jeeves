@@ -466,6 +466,16 @@ MCP_SERVERS = {
         'args': ['-m', 'mcp_servers.coaching.server'],
         'enabled': True,
     },
+    'memory': {
+        'command': 'python',
+        'args': ['-m', 'mcp_servers.memory.server'],
+        'enabled': True,
+    },
+    'sequential-thinking': {
+        'command': 'npx',
+        'args': ['-y', '@modelcontextprotocol/server-sequential-thinking'],
+        'enabled': True,
+    },
 }
 
 MCP_TOOL_SCOPES = {
