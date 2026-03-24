@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Search, ExternalLink, ChevronDown, Globe, MessageCircle, Smartphone, Mail, Users } from 'lucide-react';
+import { Loader2, Search, ExternalLink, ChevronDown, Globe, MessageCircle, Smartphone, Mail, Users, Trash2 } from 'lucide-react';
 import api from '../api/axios';
 
 /* ── Heat Indicator (replaces InterestStars) ── */
@@ -102,6 +102,35 @@ const SourceBadge = ({ source }) => {
   );
 };
 
+/* -- Delete confirmation dialog -- */
+const DeleteConfirmDialog = ({ lead, onConfirm, onCancel, t }) => (
+  <div className="fixed inset-0 z-[60] flex items-center justify-center">
+    <div className="absolute inset-0 bg-black/50" onClick={onCancel} />
+    <div className="relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xl p-6 max-w-sm mx-4">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+        {t('leads.deleteConfirmTitle')}
+      </h3>
+      <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+        {t('leads.deleteConfirmMessage', { name: lead.name || `Anonymous #${lead.id}` })}
+      </p>
+      <div className="flex justify-end gap-3">
+        <button
+          onClick={onCancel}
+          className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+        >
+          {t('leads.deleteCancel')}
+        </button>
+        <button
+          onClick={onConfirm}
+          className="px-4 py-2 text-sm font-medium rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors cursor-pointer"
+        >
+          {t('leads.deleteConfirm')}
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 /* ── Main page ── */
 const LeadsPage = () => {
   const { t } = useTranslation();
@@ -116,6 +145,18 @@ const LeadsPage = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [updatingId, setUpdatingId] = useState(null);
+  const [deletingLead, setDeletingLead] = useState(null);
+
+  const handleDeleteLead = async (leadId) => {
+    try {
+      await api.delete(`/clients/leads/${leadId}/`);
+      setLeads((prev) => prev.filter((lead) => lead.id !== leadId));
+    } catch (err) {
+      console.error('Failed to delete lead:', err);
+    } finally {
+      setDeletingLead(null);
+    }
+  };
 
   const PER_PAGE = 25;
 
@@ -356,22 +397,32 @@ const LeadsPage = () => {
                       {formatDate(lead.created_at)}
                     </td>
 
-                    {/* Conversation link */}
+                    {/* Actions */}
                     <td className="px-4 py-3">
-                      {lead.conversation_id ? (
+                      <div className="flex items-center gap-2">
+                        {lead.conversation_id ? (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleViewConversation(lead.conversation_id); }}
+                            title={t('leads.viewConversation')}
+                            aria-label={t('leads.viewConversation')}
+                            className="text-primary-500 hover:text-primary-700 dark:hover:text-primary-300 transition-colors cursor-pointer"
+                          >
+                            <ExternalLink size={16} />
+                          </button>
+                        ) : (
+                          <span className="text-gray-300 dark:text-gray-600" title="No conversation linked">
+                            <ExternalLink size={16} />
+                          </span>
+                        )}
                         <button
-                          onClick={() => handleViewConversation(lead.conversation_id)}
-                          title={t('leads.viewConversation')}
-                          aria-label={t('leads.viewConversation')}
-                          className="text-primary-500 hover:text-primary-700 dark:hover:text-primary-300 transition-colors cursor-pointer"
+                          onClick={(e) => { e.stopPropagation(); setDeletingLead(lead); }}
+                          title="Delete lead"
+                          aria-label="Delete lead"
+                          className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors cursor-pointer"
                         >
-                          <ExternalLink size={16} />
+                          <Trash2 size={16} />
                         </button>
-                      ) : (
-                        <span className="text-gray-300 dark:text-gray-600" title="No conversation linked">
-                          <ExternalLink size={16} />
-                        </span>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -404,6 +455,14 @@ const LeadsPage = () => {
             &rarr;
           </button>
         </div>
+      )}
+      {deletingLead && (
+        <DeleteConfirmDialog
+          lead={deletingLead}
+          onConfirm={() => handleDeleteLead(deletingLead.id)}
+          onCancel={() => setDeletingLead(null)}
+          t={t}
+        />
       )}
     </div>
   );
