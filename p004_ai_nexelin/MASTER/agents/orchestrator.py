@@ -34,41 +34,20 @@ DEFAULT_ASSISTANT_PROMPT = (
     "manage their business, analyze data, and grow.\n\n"
 
     "## How to greet the user\n"
-    "When the user starts a conversation, introduce yourself briefly and tell them "
-    "what you can help with based on the tools that are connected. Be specific — "
-    "mention concrete actions, not abstract capabilities. For example:\n"
-    "- If leads tool is connected: 'I can show your lead stats, review new leads, "
-    "or scan unqualified conversations.'\n"
-    "- If email is connected: 'I can send emails, check your inbox, or send reports.'\n"
-    "- If coaching is connected: 'I can review how your customer-facing AI handled "
-    "recent conversations and suggest improvements.'\n"
-    "- If sales intelligence is connected: 'I can research any company — their tech stack, "
-    "pricing, team — just give me a URL.'\n"
-    "- If knowledge base is connected: 'I can search your knowledge base for answers.'\n"
-    "Keep the greeting short (2-3 sentences max) and relevant to what's actually available.\n\n"
-
-    "## Your capabilities\n"
-    "- LEAD MANAGEMENT: Search leads, view conversation history, batch-qualify "
-    "unqualified conversations, track lead statistics and conversion rates.\n"
-    "- COMPANY RESEARCH: Detect tech stacks of any company website (CRM, analytics, "
-    "frameworks, hosting), extract structured data from any webpage (pricing, team, "
-    "product info).\n"
-    "- KNOWLEDGE BASE: Search the knowledge base for answers.\n"
-    "- EMAIL: Send emails, read inbox via IMAP, search by sender/subject, "
-    "analyze recent emails. Send reports as attachments (e.g. after generating xlsx).\n"
-    "- XLSX: Generate Excel reports from data.\n"
-    "- COACHING: Review the customer-facing AI's conversations, find knowledge gaps, "
-    "suggest updates to knowledge base or its instructions.\n"
-    "- DEEP THINKING: For complex analysis, planning, or multi-step reasoning.\n"
-    "- MEMORY: Remember information across conversations about the user.\n\n"
-
-    "Only mention capabilities that match your connected tools. "
-    "Do NOT mention capabilities you don't have tools for.\n\n"
+    "When the user starts a conversation, introduce yourself briefly and list "
+    "what you can do based on your CONNECTED TOOLS listed below. Be specific — "
+    "mention concrete actions, not abstract capabilities. "
+    "Keep the greeting short (2-3 sentences max).\n\n"
 
     "## Behavior\n"
-    "Be proactive — suggest relevant actions based on the conversation context. "
-    "When the user mentions a company, offer to research it. When discussing leads, "
-    "suggest reviewing unqualified conversations.\n\n"
+    "- ONLY offer capabilities that you actually have connected tools for. "
+    "Your connected tools are listed in the '## Your connected tools' section below.\n"
+    "- NEVER tell the user to configure, enable, connect, or install anything. "
+    "Everything is already set up. Just use your tools.\n"
+    "- NEVER invent instructions for settings panels, admin pages, or configuration steps.\n"
+    "- Be proactive — suggest relevant actions based on the conversation context.\n"
+    "- If the user asks about something you don't have a tool for, say honestly "
+    "that this capability is not connected yet.\n\n"
 
     "You have persistent memory across conversations. At the start of a conversation, "
     "search memories for the current user to recall past interactions. When you learn "
@@ -430,12 +409,15 @@ class AgentOrchestrator:
             parts.append(f"\n\nYour capabilities:\n{description}")
 
         if self._tools:
-            scope_tools = self._get_scope_tool_names()
-            if scope_tools:
+            connected = self._get_connected_tool_descriptions()
+            if connected:
                 parts.append(
-                    "\n\nYou have access to the following tools: "
-                    + ", ".join(scope_tools)
-                    + ".\nUse them when needed. Do NOT mention tool names to the user."
+                    "\n\n## Your connected tools (ACTIVE — you can use these NOW)\n"
+                    + "\n".join(f"- **{name}**: {desc}" for name, desc in connected)
+                    + "\n\nThese tools are ALREADY connected and ready to use. "
+                    "Do NOT tell the user to configure, enable, or connect anything — just use the tools directly. "
+                    "When the user asks what you can do, describe these capabilities in plain language."
+                    "\nDo NOT mention internal tool names to the user."
                     "\nNEVER fabricate file URLs or tool results from scratch. "
                     "If you need to CREATE a file — call the tool first, then use the URL it returns. "
                     "If a user asks for a link you already shared earlier in this conversation, "
@@ -551,6 +533,31 @@ class AgentOrchestrator:
                 continue
             names.append(t.name)
         return names
+
+    # Human-readable descriptions for connected MCP server groups
+    _SERVER_DESCRIPTIONS = {
+        'leads': ('Lead Management', 'Search leads, view conversations, qualify leads, track stats and conversion rates'),
+        'sales-intel': ('Company Research', 'Detect tech stacks of any website, extract structured data (pricing, team, products)'),
+        'rag': ('Knowledge Base', 'Search the knowledge base for answers about the business'),
+        'email': ('Email', 'Send emails, read inbox, search by sender/subject, send reports as attachments'),
+        'xlsx': ('Excel Reports', 'Generate Excel/XLSX reports and spreadsheets from data'),
+        'coaching': ('AI Coaching', 'Review customer-facing AI conversations, find knowledge gaps, suggest improvements'),
+        'memory': ('Memory', 'Remember information about users across conversations'),
+        'sequential-thinking': ('Deep Thinking', 'Complex multi-step analysis, planning, and reasoning'),
+        'escalation': ('Escalation', 'Escalate conversations to human manager when needed'),
+    }
+
+    def _get_connected_tool_descriptions(self) -> list[tuple[str, str]]:
+        """Return (name, description) pairs for connected server groups."""
+        result = []
+        seen = set()
+        for server_name in sorted(self._connected_server_names):
+            if server_name in seen:
+                continue
+            seen.add(server_name)
+            if server_name in self._SERVER_DESCRIPTIONS:
+                result.append(self._SERVER_DESCRIPTIONS[server_name])
+        return result
 
     def _has_leads_tool(self) -> bool:
         return 'leads' in self._connected_server_names
