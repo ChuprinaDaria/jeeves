@@ -2838,17 +2838,32 @@ class ClientWebConversationView(APIView):
             
             if is_negative:
                 logger.info(f"🔴 Real-time NEGATIVE detected in web conversation {conversation.id}: '{user_message[:100]}...'")
-                
+
                 # Update ai_rating to negative
                 conversation.ai_rating = 'negative'
+                conversation.sentiment = 'negative'
                 conversation.rating_timestamp = timezone.now()
-                conversation.save(update_fields=['ai_rating', 'rating_timestamp', 'updated_at'])
-                
+                conversation.save(update_fields=['ai_rating', 'sentiment', 'rating_timestamp', 'updated_at'])
+
                 # Trigger immediate email alert
                 from MASTER.clients.tasks import close_session_and_send_email
                 close_session_and_send_email.delay(conversation.id, force_send=True)
                 logger.info(f"🔴 Immediate alert email triggered for web conversation {conversation.id}")
-                
+
+            else:
+                positive_phrases = [
+                    "thank", "thanks", "great", "excellent", "perfect", "love",
+                    "amazing", "wonderful", "happy", "satisfied", "good job",
+                    "дякую", "чудово", "відмінно", "прекрасно", "задоволен",
+                    "danke", "ausgezeichnet", "perfekt", "wunderbar", "zufrieden",
+                    "merci", "parfait", "excellent", "magnifique", "satisfait",
+                    "gracias", "excelente", "perfecto", "maravilloso", "satisfecho",
+                ]
+                is_positive = any(phrase in message_lower for phrase in positive_phrases)
+                if is_positive and conversation.sentiment != 'positive':
+                    conversation.sentiment = 'positive'
+                    conversation.save(update_fields=['sentiment'])
+
         except Exception as e:
             logger.warning(f"Error in real-time sentiment check for web: {e}", exc_info=True)
 
