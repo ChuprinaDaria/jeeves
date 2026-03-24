@@ -1,10 +1,8 @@
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { ChevronRight, Database, Shield, MessageSquare, Layers } from 'lucide-react';
 import ToolIcon from './ToolIcon';
 
 const ContextPanel = ({ tools }) => {
-  const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(true);
 
   const connected = tools.filter(tool => {
