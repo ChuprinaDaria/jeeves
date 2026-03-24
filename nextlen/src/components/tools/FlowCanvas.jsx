@@ -7,6 +7,7 @@ import OnboardingHint from './OnboardingHint';
 import EdgeSkillBadge from './EdgeSkillBadge';
 import { getToolTargets } from './toolTargets';
 import { hasRichCard } from './richcards/RichCardWrapper';
+import ContextPanel from './ContextPanel';
 
 /* ── Constants ─────────────────────────────────────── */
 const CORE_W = 200, CORE_H = 145;
@@ -815,6 +816,8 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
       onDrop={handleDrop}
       onContextMenu={handleContextMenu}
     >
+      <ContextPanel tools={tools} />
+
       {/* ── Transform layer (pan & zoom) ── */}
       <div
         ref={innerRef}
