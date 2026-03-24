@@ -4,6 +4,7 @@ import FlipToolCard from './FlipToolCard';
 import ConnectModal from './ConnectModal';
 import ToolIcon from './ToolIcon';
 import { toolsAPI } from '../../api/tools';
+import RichCardWrapper, { hasRichCard } from './richcards/RichCardWrapper';
 
 const SLUG_TO_GROUP = {
   'rag-search':      'data',
@@ -132,6 +133,11 @@ const ServerChip = ({ tool, onConnected, onMouseEnter, onMouseLeave, onOpenAuth 
           {tool.tagline}
         </p>
       )}
+      {hasRichCard(tool.slug) && (
+        <div className="mb-2">
+          <RichCardWrapper slug={tool.slug} />
+        </div>
+      )}
       {isConnected && (
         <div className={`w-full h-1 rounded-full ${colors.bg}`}>
           <div className={`h-full rounded-full ${colors.border.replace('border-', 'bg-')} w-full`} />
@@ -247,7 +253,7 @@ const ToolCatalogStrip = ({ tools, onConnected, onToolHover, onToolHoverEnd }) =
                   />
                 );
               }
-              if (group === 'data' || group === 'logic') {
+              if (group === 'data' || group === 'logic' || group === 'analytics') {
                 return (
                   <ServerChip
                     key={tool.slug}

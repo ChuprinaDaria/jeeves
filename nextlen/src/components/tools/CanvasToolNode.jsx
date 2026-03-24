@@ -34,7 +34,7 @@ const CanvasToolNode = ({ tool, onClick, isHighlighted, onPortPointerDown, onPor
       role="button"
       tabIndex={0}
       aria-label={`${tool.name} — ${isConnected ? t('tools.connected') : t('tools.notConnected')}`}
-      className={`flow-node-enter ${hasRichCard(tool.slug) && isConnected ? 'w-[220px]' : 'w-[160px]'} bg-white dark:bg-gray-800 border rounded-[14px] p-3.5 select-none relative
+      className={`flow-node-enter ${hasRichCard(tool.slug) ? 'w-[220px]' : 'w-[160px]'} bg-white dark:bg-gray-800 border rounded-[14px] p-3.5 select-none relative
         transition-all duration-200 cursor-pointer
         ${isConnected ? `${cat.border} border-opacity-100` : 'border-gray-200 dark:border-gray-700'}
         ${isHighlighted === false ? 'opacity-30' : 'opacity-100'}
@@ -79,7 +79,7 @@ const CanvasToolNode = ({ tool, onClick, isHighlighted, onPortPointerDown, onPor
         </p>
       )}
 
-      {hasRichCard(tool.slug) && isConnected && (
+      {hasRichCard(tool.slug) && (
         <RichCardWrapper slug={tool.slug} />
       )}
 
