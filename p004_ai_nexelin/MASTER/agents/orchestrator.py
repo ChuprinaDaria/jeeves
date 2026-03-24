@@ -122,11 +122,10 @@ class AgentOrchestrator:
         self.client = client
         self.agent_config = agent_config
 
-        # Pre-cache values that need sync DB access (before entering async context)
-        self._language = agent_config.get_language()
-        self._temperature = agent_config.get_temperature()
-        self._max_tokens = agent_config.get_max_tokens()
-        self._llm_provider_info = agent_config.get_llm_provider()
+        # Pre-cache values with safe fallbacks (avoid sync DB in async context)
+        self._language = agent_config.language or 'en'
+        self._temperature = agent_config.temperature if agent_config.temperature is not None else 0.7
+        self._max_tokens = agent_config.max_tokens if agent_config.max_tokens is not None else 4096
 
         # Filled by ``connect()``
         self._exit_stack: AsyncExitStack | None = None
