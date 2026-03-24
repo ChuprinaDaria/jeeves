@@ -391,3 +391,16 @@ class EdgeMiddlewareDetailView(APIView):
             return Response(
                 {'error': 'Middleware not found'}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+from MASTER.tools.word_cloud import compute_word_frequencies
+
+
+class WordCloudView(APIView):
+
+    def get(self, request):
+        client = getattr(request, 'client', None)
+        if not client:
+            return Response({'error': 'Client not found'}, status=status.HTTP_401_UNAUTHORIZED)
+        words = compute_word_frequencies(client.id)
+        return Response({'words': words})

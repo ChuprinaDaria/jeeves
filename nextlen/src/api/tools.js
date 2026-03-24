@@ -17,4 +17,6 @@ export const toolsAPI = {
   getEdgeMiddleware: (connectionId) => api.get(`/tools/flow/edges/${connectionId}/middleware/`),
   attachMiddleware: (connectionId, skillSlug) => api.post(`/tools/flow/edges/${connectionId}/middleware/`, { skill_slug: skillSlug }),
   detachMiddleware: (connectionId, middlewareId) => api.delete(`/tools/flow/edges/${connectionId}/middleware/${middlewareId}/`),
+
+  getWordCloud: () => api.get('/tools/word-cloud/'),
 };
