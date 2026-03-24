@@ -1,5 +1,24 @@
 import { useMemo } from 'react';
 
+const EDGE_LABELS = {
+  'rag-search': { assistant: 'Fetch semantic query', manager: 'Fetch semantic profile' },
+  'email-smtp': { assistant: 'Send email', manager: 'Send email' },
+  'telegram': { assistant: 'Send message', manager: 'Escalation' },
+  'whatsapp-bridge': { assistant: 'Send message', manager: 'Escalation' },
+  'web-widget': { assistant: 'Send message', manager: 'Escalation' },
+  'instagram': { assistant: 'Send message', manager: 'Escalation' },
+  'hitl-matrix': { assistant: 'Escalation', manager: 'Live handoff' },
+  'crm': { assistant: 'Query CRM data', manager: 'Query CRM data' },
+  'analytics': { assistant: 'Fetch analytics', manager: 'Fetch analytics' },
+  'xlsx-processor': { assistant: 'Process spreadsheet' },
+  'translation': { assistant: 'Translate text' },
+  'leads': { leads: 'Capture lead' },
+  'sales-intel': { leads: 'Enrich lead data' },
+  'coaching': { assistant: 'Apply coaching rules' },
+  'email': { assistant: 'Fetch email context' },
+  '__escalation': { escalation: 'Escalation' },
+};
+
 const supportsOffsetPath = typeof CSS !== 'undefined' && CSS.supports?.('offset-path', 'path("")');
 
 const ConnectionsLayer = ({
@@ -12,6 +31,7 @@ const ConnectionsLayer = ({
   onEdgePointerDown,
   ghostEdge,
   dragOverEdgeId,
+  isSkillDrag,
 }) => {
   const gradients = useMemo(() => (
     <>
@@ -58,7 +78,10 @@ const ConnectionsLayer = ({
           : highlightedTool === conn.toolSlug;
         const isSelected = selectedEdge === conn.id;
         const isDragOver = dragOverEdgeId === conn.id;
-        const opacity = isHighlighted ? 1 : 0.08;
+        const isSkillTarget = isSkillDrag && conn.target !== 'escalation';
+        const opacity = isSkillDrag
+          ? (isDragOver ? 1 : 0.25)
+          : (isHighlighted ? 1 : 0.08);
 
         return (
           <g
@@ -89,17 +112,18 @@ const ConnectionsLayer = ({
               d={conn.pathD}
               fill="none"
               stroke={`url(#${gradId})`}
-              strokeWidth={isDragOver ? 12 : isSelected ? 10 : 6}
-              opacity={isDragOver ? 0.25 : isSelected ? 0.2 : 0.08}
+              strokeWidth={isDragOver && isSkillDrag ? 18 : isDragOver ? 12 : isSelected ? 10 : isSkillTarget ? 8 : 6}
+              opacity={isDragOver && isSkillDrag ? 0.4 : isDragOver ? 0.25 : isSelected ? 0.2 : isSkillTarget ? 0.12 : 0.08}
               className={isDragOver ? 'animate-pulse' : ''}
             />
 
             {/* Main line */}
             <path
+              id={`edge-path-${conn.id}`}
               d={conn.pathD}
               fill="none"
               stroke={`url(#${gradId})`}
-              strokeWidth={isSelected ? 3 : isDragOver ? 4 : 2}
+              strokeWidth={isDragOver && isSkillDrag ? 5 : isSelected ? 3 : isDragOver ? 4 : isSkillTarget ? 2.5 : 2}
               className="flow-line-animated"
             />
 
@@ -114,6 +138,29 @@ const ConnectionsLayer = ({
                 opacity="0.6"
               />
             )}
+
+            {(() => {
+              const label = conn.toolSlug === '__escalation'
+                ? 'Escalation'
+                : EDGE_LABELS[conn.toolSlug]?.[conn.target];
+              if (!label) return null;
+              return (
+                <text
+                  fill="#94a3b8"
+                  fontSize="9"
+                  fontFamily="'Fira Sans', sans-serif"
+                  fontWeight="500"
+                  textAnchor="middle"
+                  dy="-8"
+                  opacity={isHighlighted ? 0.9 : 0}
+                  style={{ transition: 'opacity 0.3s', pointerEvents: 'none' }}
+                >
+                  <textPath href={`#edge-path-${conn.id}`} startOffset="40%">
+                    {label}
+                  </textPath>
+                </text>
+              );
+            })()}
 
             {/* Animated particles */}
             {conn.target !== 'escalation' && [0, 1, 2].map(p => (

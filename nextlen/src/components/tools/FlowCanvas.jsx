@@ -212,7 +212,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
       id: 'escalation',
       pathD: calcPath(aRightX, aRightY, mLeftX, mLeftY),
       target: 'escalation',
-      toolSlug: null,
+      toolSlug: '__escalation',
       source: '__assistant',
       targetNode: '__manager',
     });
