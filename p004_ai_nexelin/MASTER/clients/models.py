@@ -1495,7 +1495,20 @@ class ClientWhatsAppConversation(models.Model):
         verbose_name='AI Rating',
         help_text='Auto-rating by AI after 5 minutes of inactivity if user did not rate'
     )
-    
+
+    SENTIMENT_CHOICES = [
+        ('positive', 'Positive'),
+        ('neutral', 'Neutral'),
+        ('negative', 'Negative'),
+    ]
+
+    sentiment = models.CharField(
+        max_length=16,
+        choices=SENTIMENT_CHOICES,
+        default='neutral',
+        db_index=True,
+    )
+
     rating_timestamp = models.DateTimeField(
         null=True,
         blank=True,

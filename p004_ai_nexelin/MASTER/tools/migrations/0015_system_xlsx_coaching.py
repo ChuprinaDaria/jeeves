@@ -60,7 +60,7 @@ def reverse(apps, schema_editor):
 class Migration(migrations.Migration):
     dependencies = [
         ('tools', '0014_seed_system_tools'),
-        ('clients', '0052_lead_agent_session'),
+        ('clients', '0051_lead_agent_session'),
     ]
 
     operations = [
