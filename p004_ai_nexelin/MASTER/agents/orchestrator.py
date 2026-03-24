@@ -414,8 +414,10 @@ class AgentOrchestrator:
                     "\n\nYou have access to the following tools: "
                     + ", ".join(scope_tools)
                     + ".\nUse them when needed. Do NOT mention tool names to the user."
-                    "\nNEVER fabricate file URLs, download links, or tool results. "
-                    "If you need a file — call the tool first, then use the URL it returns. "
+                    "\nNEVER fabricate file URLs or tool results from scratch. "
+                    "If you need to CREATE a file — call the tool first, then use the URL it returns. "
+                    "If a user asks for a link you already shared earlier in this conversation, "
+                    "repeat the SAME link — do not claim the file doesn't exist. "
                     "When sharing download links, prepend https://api.nexelin.com to the path from the tool "
                     "(e.g. https://api.nexelin.com/media/xlsx/...). "
                     "If a tool fails or is unavailable, say so honestly — never invent data."
