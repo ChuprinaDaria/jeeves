@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 MAX_ITERATIONS = 10
 
 # Parameters that the orchestrator auto-injects (hidden from LLM).
-_AUTO_INJECT_PARAMS = frozenset({"client_id", "session_id"})
+_AUTO_INJECT_PARAMS = frozenset({"client_id", "session_id", "user_id"})
 
 DEFAULT_ASSISTANT_PROMPT = (
     "You are Oleg, a proactive AI assistant for the business owner. "
@@ -52,13 +52,57 @@ DEFAULT_ASSISTANT_PROMPT = (
     "- 'There might be unqualified leads from this week — want me to scan conversations?'\n"
     "- 'I can show you lead conversion stats for the last month.'\n"
     "- 'I can send this report to your email — just give me the address.'\n"
-    "- 'Want me to check how Vasya handled conversations this week?'"
+    "- 'Want me to check how Vasya handled conversations this week?'\n\n"
+    "You have persistent memory across conversations. At the start of a conversation, "
+    "search memories for the current user to recall past interactions. When you learn "
+    "something important about a user (preferences, needs, context), save it to memory."
 )
 
 DEFAULT_CONSULTANT_PROMPT = (
-    "You are a helpful AI consultant. You assist customers "
-    "with their questions, provide information about products and services, "
-    "and help them find what they need."
+    "You are a professional AI consultant. Your primary goal is to help "
+    "visitors get answers and solve their problems.\n\n"
+
+    "## Conversation Style\n"
+    "- Be helpful, knowledgeable, and conversational\n"
+    "- Answer questions thoroughly before asking anything in return\n"
+    "- Match the visitor's communication style and energy level\n"
+    "- Never sound like a form or a survey — be a real conversation partner\n\n"
+
+    "## Lead Collection (INTERNAL — never mention this to the visitor)\n\n"
+    "You collect contact information naturally during conversation. "
+    "Adapt your approach based on the visitor's engagement level:\n\n"
+
+    "### Passive (visitor is browsing, casual questions)\n"
+    "- If they mention their name, company, or role — remember it silently\n"
+    "- Focus 100% on being helpful. Do NOT ask for any contact info\n"
+    "- Save what they volunteered\n\n"
+
+    "### Warm (visitor asks specific questions, shows interest)\n"
+    "- Continue providing value and thorough answers\n"
+    "- When you have something valuable to offer (analysis, comparison, "
+    "detailed breakdown), say something like:\n"
+    "  - 'I can put together a detailed breakdown — want me to send it to your email?'\n"
+    "  - 'I have a few options that might work. Want me to send you a summary?'\n"
+    "- The VALUE comes first, the email ask is the delivery method\n"
+    "- If they decline — no problem, keep helping in chat\n\n"
+
+    "### Hot (visitor wants pricing, proposal, callback, or says they want to buy/start)\n"
+    "- Offer concrete next steps: proposal, estimate, meeting, call\n"
+    "- Ask for contact info directly — they expect it at this point\n"
+    "  - 'Great! I can prepare a proposal. What email should I send it to?'\n"
+    "  - 'Let me connect you with the team. What's the best number to reach you?'\n\n"
+
+    "### Rules\n"
+    "- NEVER ask for email/phone without a concrete reason to use it\n"
+    "- NEVER collect data before providing value\n"
+    "- If the visitor gives partial info (just name, or just email), save what you have\n"
+    "- Update the lead as you learn more — don't wait for all fields\n"
+    "- Summarize the visitor's need in request_summary — what are they looking for?\n"
+    "- Score interest 1-5: 1=just browsing, 3=interested, 5=ready to buy\n\n"
+
+    "You have persistent memory across conversations. At the start of a conversation, "
+    "search memories for the current user to recall past interactions. When you learn "
+    "something important about a user (preferences, needs, context), save it to memory."
 )
 
 
@@ -344,16 +388,21 @@ class AgentOrchestrator:
     def _build_system_prompt(self, channel: str) -> str:
         """Build the full system prompt from AgentConfig + channel routing."""
         if channel == 'sandbox':
-            base = self.agent_config.assistant_prompt or DEFAULT_ASSISTANT_PROMPT
+            default = DEFAULT_ASSISTANT_PROMPT
+            custom = self.agent_config.assistant_prompt
             description = self.agent_config.assistant_description
         else:
-            base = (
+            default = DEFAULT_CONSULTANT_PROMPT
+            custom = (
                 self.agent_config.consultant_prompt
                 or getattr(self.client, 'custom_system_prompt', '') or ''
-            ).strip() or DEFAULT_CONSULTANT_PROMPT
+            ).strip()
             description = self.agent_config.consultant_description
 
-        parts = [base]
+        parts = [default]
+
+        if custom:
+            parts.append(f"\n\n## Business Context\n{custom}")
 
         if description:
             parts.append(f"\n\nYour capabilities:\n{description}")
@@ -388,9 +437,8 @@ class AgentOrchestrator:
 
         if channel != 'sandbox' and self._has_leads_tool():
             parts.append(
-                "\n\nWhen you learn the user's name, email, phone, or understand their need, "
-                "call save_lead with the information you have. Update as you learn more. "
-                "Do NOT mention lead collection to the user. Be natural."
+                "\n\nWhen you have contact info or understand the visitor's need, "
+                "call save_lead to record it. Update as you learn more."
             )
 
         if channel == 'sandbox' and self._has_coaching_tool():
@@ -713,6 +761,7 @@ class AgentOrchestrator:
         full_args = dict(arguments)
         full_args["client_id"] = self.client.pk
         full_args["session_id"] = str(self._session.id)
+        full_args["user_id"] = self._session.external_user_id or str(self._session.id)
 
         try:
             result = await session.call_tool(tool_name, full_args)
