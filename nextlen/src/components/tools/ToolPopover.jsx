@@ -52,16 +52,18 @@ const ToolPopover = ({ tool, anchorRect, onDisconnect, onClose }) => {
                   <span className="text-xs text-gray-400 dark:text-gray-500">{conn.scope.description}</span>
                 )}
               </div>
-              <button
-                onClick={() => onDisconnect(tool.slug, conn.target)}
-                className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium"
-              >
-                {t('tools.flow.disconnect') || 'Disconnect'}
-              </button>
+              {!tool.is_system && (
+                <button
+                  onClick={() => onDisconnect(tool.slug, conn.target)}
+                  className="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium"
+                >
+                  {t('tools.flow.disconnect') || 'Disconnect'}
+                </button>
+              )}
             </div>
           ))}
         </div>
-      ) : (
+      ) : !tool.is_system ? (
         <button
           onClick={() => {
             if (window.confirm(t('tools.confirmDisconnect'))) {
@@ -74,7 +76,7 @@ const ToolPopover = ({ tool, anchorRect, onDisconnect, onClose }) => {
           <Unplug className="w-4 h-4" />
           {t('tools.disconnect')}
         </button>
-      )}
+      ) : null}
     </div>,
     document.body
   );

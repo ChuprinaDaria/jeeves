@@ -154,3 +154,25 @@ class EdgeMiddleware(models.Model):
 
     def __str__(self):
         return f'{self.skill_card.name} on {self.connection}'
+
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+
+@receiver(post_save, sender='clients.Client')
+def auto_connect_system_tools(sender, instance, created, **kwargs):
+    """Auto-connect system tools when a new client is created."""
+    if not created:
+        return
+    from django.utils import timezone
+    now = timezone.now()
+    for card in ToolCard.objects.filter(is_system=True, is_active=True):
+        scopes = card.skill_scopes.get('scopes', ['assistant', 'manager'])
+        for scope in scopes:
+            ToolConnection.objects.get_or_create(
+                client=instance,
+                tool_card=card,
+                target=scope,
+                defaults={'status': 'connected', 'enabled': True, 'connected_at': now},
+            )

@@ -77,6 +77,7 @@ class ToolCatalogView(APIView):
                 'color': tool.color,
                 'category': tool.category,
                 'is_featured': tool.is_featured,
+                'is_system': tool.is_system,
                 'auth_type': tool.auth_type,
                 'auth_config': tool.auth_config if not tool_conns else None,
                 'skill_scopes': tool.skill_scopes,

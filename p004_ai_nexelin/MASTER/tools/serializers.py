@@ -6,7 +6,7 @@ class ToolCardSerializer(serializers.ModelSerializer):
     class Meta:
         model = ToolCard
         fields = ['slug', 'name', 'tagline', 'tagline_i18n', 'description',
-                  'icon', 'color', 'category', 'is_featured', 'auth_type',
+                  'icon', 'color', 'category', 'is_featured', 'is_system', 'auth_type',
                   'auth_config']
 
 
@@ -45,11 +45,12 @@ class FlowConnectionSerializer(serializers.ModelSerializer):
     icon = serializers.CharField(source='tool_card.icon', read_only=True)
     color = serializers.CharField(source='tool_card.color', read_only=True)
     category = serializers.CharField(source='tool_card.category', read_only=True)
+    is_system = serializers.BooleanField(source='tool_card.is_system', read_only=True)
     middlewares = EdgeMiddlewareSerializer(many=True, read_only=True)
 
     class Meta:
         model = ToolConnection
-        fields = ['id', 'slug', 'name', 'icon', 'color', 'category',
+        fields = ['id', 'slug', 'name', 'icon', 'color', 'category', 'is_system',
                   'status', 'target', 'scope', 'enabled',
                   'position_x', 'position_y', 'connected_at', 'middlewares']
 
@@ -73,6 +74,7 @@ class ToolCatalogItemSerializer(serializers.Serializer):
     color = serializers.CharField()
     category = serializers.CharField()
     is_featured = serializers.BooleanField()
+    is_system = serializers.BooleanField()
     auth_type = serializers.CharField()
     auth_config = serializers.JSONField()
     connection = serializers.DictField(allow_null=True)

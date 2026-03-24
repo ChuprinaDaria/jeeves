@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { Lock } from 'lucide-react';
 import ToolStatusBadge from './ToolStatusBadge';
 import ToolIcon from './ToolIcon';
 import { getToolTargets } from './toolTargets';
@@ -95,7 +96,14 @@ const CanvasToolNode = ({ tool, onClick, isHighlighted, onPortPointerDown, onPor
         </div>
       )}
 
-      <ToolStatusBadge status={tool.connection?.status || 'disconnected'} />
+      {tool.is_system ? (
+        <div className="flex items-center gap-1 text-[10px] text-gray-400">
+          <Lock className="w-2.5 h-2.5" />
+          <span>System</span>
+        </div>
+      ) : (
+        <ToolStatusBadge status={tool.connection?.status || 'disconnected'} />
+      )}
     </div>
   );
 };

@@ -75,6 +75,7 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
 
   const handleClick = () => {
     if (isConnected) return; // Connected cards handled by popover
+    if (tool.is_system) return; // System tools: always connected, no action needed
     if (isSkill) return;    // Skills are drag-only — drop onto edges
     if (tool.auth_type === 'none') {
       handleNoAuth();
