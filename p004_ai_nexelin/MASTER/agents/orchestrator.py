@@ -122,6 +122,12 @@ class AgentOrchestrator:
         self.client = client
         self.agent_config = agent_config
 
+        # Pre-cache values that need sync DB access (before entering async context)
+        self._language = agent_config.get_language()
+        self._temperature = agent_config.get_temperature()
+        self._max_tokens = agent_config.get_max_tokens()
+        self._llm_provider_info = agent_config.get_llm_provider()
+
         # Filled by ``connect()``
         self._exit_stack: AsyncExitStack | None = None
         self._sessions: dict[str, ClientSession] = {}  # server_name -> session
@@ -423,7 +429,7 @@ class AgentOrchestrator:
                     "If a tool fails or is unavailable, say so honestly — never invent data."
                 )
 
-        language = self.agent_config.get_language()
+        language = self._language
         lang_names = {
             "uk": "Ukrainian", "de": "German", "fr": "French",
             "it": "Italian", "nl": "Dutch", "da": "Danish",
@@ -608,8 +614,8 @@ class AgentOrchestrator:
         result = await asyncio.to_thread(
             provider.generate,
             messages=messages,
-            temperature=self.agent_config.get_temperature(),
-            max_tokens=self.agent_config.get_max_tokens(),
+            temperature=self._temperature,
+            max_tokens=self._max_tokens,
         )
         return {
             "message": {"role": "assistant", "content": result.get("content", "")},
@@ -629,8 +635,8 @@ class AgentOrchestrator:
         def _sync_openai_call():
             """All ORM + OpenAI calls must run in sync thread."""
             model = provider.model_name
-            temperature = self.agent_config.get_temperature()
-            max_tokens = self.agent_config.get_max_tokens()
+            temperature = self._temperature
+            max_tokens = self._max_tokens
 
             model_lower = (model or "").lower()
             no_temp = model_lower.startswith(("o1", "o3", "gpt-5.1"))
