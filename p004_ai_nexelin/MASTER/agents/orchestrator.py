@@ -478,7 +478,7 @@ class AgentOrchestrator:
 
     async def _build_scope_filter(self):
         """Build mapping of server_name -> ToolConnection for current scope."""
-        from MASTER.tools.models import ToolConnection
+        from MASTER.tools.models import ToolCard, ToolConnection
 
         connections = ToolConnection.objects.filter(
             client=self.client, enabled=True, status='connected',
@@ -492,6 +492,20 @@ class AgentOrchestrator:
             for server_name in self._sessions:
                 if slug == server_name or slug.startswith(server_name + '-'):
                     self._tool_to_connection[server_name] = conn
+                    self._connected_server_names.add(server_name)
+                    break
+
+        # System tools are always available regardless of ToolConnection
+        system_slugs = set()
+        async for card in ToolCard.objects.filter(is_system=True, is_active=True):
+            scopes = card.skill_scopes.get('scopes', ['assistant', 'manager'])
+            if self._scope in scopes:
+                system_slugs.add(card.slug)
+        for server_name in self._sessions:
+            if server_name in self._connected_server_names:
+                continue
+            for slug in system_slugs:
+                if slug == server_name or slug.startswith(server_name + '-'):
                     self._connected_server_names.add(server_name)
                     break
 
