@@ -579,6 +579,19 @@
     "interest": "Interesse",
     "status": "Status",
     "date": "Datum",
-    "viewConversation": "Gespräch ansehen"
+    "viewConversation": "Gespräch ansehen",
+    "export": "CSV exportieren",
+    "exporting": "Exportiere...",
+    "deleteConfirmTitle": "Lead löschen",
+    "deleteConfirmMessage": "Lead {{name}} löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+    "deleteConfirm": "Löschen",
+    "deleteCancel": "Abbrechen",
+    "detailTitle": "Lead-Details",
+    "contactInfo": "Kontaktinformationen",
+    "aiSummary": "KI-Zusammenfassung",
+    "noSummary": "Noch keine Zusammenfassung",
+    "viewConversationBtn": "Konversation ansehen",
+    "noConversation": "Keine Konversation verknüpft",
+    "close": "Schließen"
   }
 }

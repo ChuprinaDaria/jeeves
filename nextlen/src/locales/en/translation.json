@@ -771,7 +771,20 @@
     "interest": "Interest",
     "status": "Status",
     "date": "Date",
-    "viewConversation": "View conversation"
+    "viewConversation": "View conversation",
+    "export": "Export CSV",
+    "exporting": "Exporting...",
+    "deleteConfirmTitle": "Delete Lead",
+    "deleteConfirmMessage": "Delete lead {{name}}? This action cannot be undone.",
+    "deleteConfirm": "Delete",
+    "deleteCancel": "Cancel",
+    "detailTitle": "Lead Details",
+    "contactInfo": "Contact Information",
+    "aiSummary": "AI Summary",
+    "noSummary": "No summary yet",
+    "viewConversationBtn": "View Conversation",
+    "noConversation": "No conversation linked",
+    "close": "Close"
   },
   "tools": {
     "title": "Tools & Integrations",
