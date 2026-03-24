@@ -5,33 +5,34 @@ import ConnectModal from './ConnectModal';
 import ToolIcon from './ToolIcon';
 import { toolsAPI } from '../../api/tools';
 
-/* ── Category mapping: slug → tab group ── */
 const SLUG_TO_GROUP = {
-  'rag-search':      'servers',
+  'rag-search':      'data',
+  'email':           'data',
+  'crm':             'data',
+  'sales-intel':     'data',
+  'coaching':        'logic',
+  'hitl-matrix':     'logic',
   'translation':     'skills',
   'xlsx-processor':  'skills',
-  'email-smtp':      'tools',
-  'telegram':        'tools',
-  'web-widget':      'tools',
-  'whatsapp-bridge': 'tools',
-  'hitl-matrix':     'servers',
-  'instagram':       'tools',
-  'calendar':        'tools',
-  'crm':             'tools',
-  'analytics':       'tools',
-  'leads':           'servers',
-  'sales-intel':     'servers',
-  'email':           'servers',
-  'coaching':        'servers',
+  'leads':           'skills',
+  'telegram':        'comm',
+  'web-widget':      'comm',
+  'whatsapp-bridge': 'comm',
+  'instagram':       'comm',
+  'email-smtp':      'comm',
+  'calendar':        'comm',
+  'analytics':       'analytics',
 };
 
-const getToolGroup = (slug) => SLUG_TO_GROUP[slug] || 'tools';
+const getToolGroup = (slug) => SLUG_TO_GROUP[slug] || 'comm';
 
 const TABS = [
-  { id: 'all',     labelKey: 'tools.flow.tabAll' },
-  { id: 'servers', labelKey: 'tools.flow.tabServers' },
-  { id: 'skills',  labelKey: 'tools.flow.tabSkills' },
-  { id: 'tools',   labelKey: 'tools.flow.tabTools' },
+  { id: 'all',       labelKey: 'tools.flow.tabAll' },
+  { id: 'data',      labelKey: 'tools.flow.tabData' },
+  { id: 'logic',     labelKey: 'tools.flow.tabLogic' },
+  { id: 'skills',    labelKey: 'tools.flow.tabSkills' },
+  { id: 'comm',      labelKey: 'tools.flow.tabComm' },
+  { id: 'analytics', labelKey: 'tools.flow.tabAnalytics' },
 ];
 
 const SkillChip = ({ tool, onMouseEnter, onMouseLeave }) => {
@@ -69,11 +70,16 @@ const SERVER_COLORS = {
   'whatsapp-bridge': { border: 'border-[#25D366]', bg: 'bg-[#25D366]/10', text: 'text-[#25D366]' },
   'instagram':       { border: 'border-[#E4405F]', bg: 'bg-[#E4405F]/10', text: 'text-[#E4405F]' },
   'email-smtp':      { border: 'border-[#EA4335]', bg: 'bg-[#EA4335]/10', text: 'text-[#EA4335]' },
+  'email':           { border: 'border-[#EA4335]', bg: 'bg-[#EA4335]/10', text: 'text-[#EA4335]' },
   'web-widget':      { border: 'border-[#6c5ce7]', bg: 'bg-[#6c5ce7]/10', text: 'text-[#6c5ce7]' },
   'hitl-matrix':     { border: 'border-[#00a67e]', bg: 'bg-[#00a67e]/10', text: 'text-[#00a67e]' },
   'rag-search':      { border: 'border-[#f59e0b]', bg: 'bg-[#f59e0b]/10', text: 'text-[#f59e0b]' },
   'leads':           { border: 'border-[#10b981]', bg: 'bg-[#10b981]/10', text: 'text-[#10b981]' },
   'sales-intel':     { border: 'border-[#3b82f6]', bg: 'bg-[#3b82f6]/10', text: 'text-[#3b82f6]' },
+  'coaching':        { border: 'border-[#8b5cf6]', bg: 'bg-[#8b5cf6]/10', text: 'text-[#8b5cf6]' },
+  'crm':             { border: 'border-[#0ea5e9]', bg: 'bg-[#0ea5e9]/10', text: 'text-[#0ea5e9]' },
+  'analytics':       { border: 'border-[#f97316]', bg: 'bg-[#f97316]/10', text: 'text-[#f97316]' },
+  'calendar':        { border: 'border-[#14b8a6]', bg: 'bg-[#14b8a6]/10', text: 'text-[#14b8a6]' },
 };
 
 const ServerChip = ({ tool, onConnected, onMouseEnter, onMouseLeave, onOpenAuth }) => {
@@ -189,7 +195,16 @@ const ToolCatalogStrip = ({ tools, onConnected, onToolHover, onToolHoverEnd }) =
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-transparent hover:bg-gray-200 dark:hover:bg-gray-700'
                 }`}
             >
-              {t(tab.labelKey, { defaultValue: tab.id.charAt(0).toUpperCase() + tab.id.slice(1) })}
+              {t(tab.labelKey, {
+                defaultValue: {
+                  all: 'All',
+                  data: 'Data Sources',
+                  logic: 'Business Logic',
+                  skills: 'Skills',
+                  comm: 'Communication',
+                  analytics: 'Analytics',
+                }[tab.id] || tab.id,
+              })}
               {count > 0 && (
                 <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold
                   ${isActive
@@ -232,7 +247,7 @@ const ToolCatalogStrip = ({ tools, onConnected, onToolHover, onToolHoverEnd }) =
                   />
                 );
               }
-              if (group === 'servers') {
+              if (group === 'data' || group === 'logic') {
                 return (
                   <ServerChip
                     key={tool.slug}
