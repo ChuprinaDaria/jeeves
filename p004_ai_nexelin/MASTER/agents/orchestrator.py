@@ -393,16 +393,16 @@ class AgentOrchestrator:
 
     def _build_system_prompt(self, channel: str) -> str:
         """Build the full system prompt from AgentConfig + channel routing."""
+        client_custom = (getattr(self.client, 'custom_system_prompt', '') or '').strip()
         if channel == 'sandbox':
             default = DEFAULT_ASSISTANT_PROMPT
-            custom = self.agent_config.assistant_prompt
+            custom = self.agent_config.assistant_prompt or client_custom
             description = self.agent_config.assistant_description
         else:
             default = DEFAULT_CONSULTANT_PROMPT
             custom = (
-                self.agent_config.consultant_prompt
-                or getattr(self.client, 'custom_system_prompt', '') or ''
-            ).strip()
+                self.agent_config.consultant_prompt or client_custom
+            )
             description = self.agent_config.consultant_description
 
         parts = [default]
