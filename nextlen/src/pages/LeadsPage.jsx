@@ -131,8 +131,8 @@ const LeadsPage = () => {
       const response = await api.get('/clients/leads/', { params });
       const data = response.data;
       setLeads(data.results || data);
-      if (data.count !== undefined) {
-        setTotalPages(Math.ceil(data.count / PER_PAGE));
+      if (data.total !== undefined) {
+        setTotalPages(Math.ceil(data.total / PER_PAGE));
       }
     } catch (err) {
       setError(err.message || t('common.error'));
@@ -229,6 +229,7 @@ const LeadsPage = () => {
           <option value="web">Web</option>
           <option value="telegram">Telegram</option>
           <option value="whatsapp">WhatsApp</option>
+          <option value="email">Email</option>
         </select>
       </div>
 
@@ -285,7 +286,7 @@ const LeadsPage = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
+                <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                   <th className="text-left px-4 py-3 font-medium text-gray-600 dark:text-gray-400">
                     {t('leads.name')}
                   </th>
