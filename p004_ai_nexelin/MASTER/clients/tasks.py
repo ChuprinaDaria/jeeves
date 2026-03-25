@@ -3549,3 +3549,165 @@ def onboard_matrix_manager(self, client_id, manager_user_id, client_name):
         )
         raise self.retry(exc=exc, countdown=10)
 
+
+# In-memory sync tokens per client (survives across task runs within same worker)
+_bridge_sync_tokens = {}
+
+
+@shared_task
+def poll_whatsapp_bridge_messages():
+    """
+    Poll Matrix rooms for incoming WhatsApp bridge messages.
+    Runs every 5s via Celery Beat. For each connected bridge client,
+    syncs new messages and processes them through RAG.
+    """
+    import json
+    import httpx
+
+    from .models import Client, ClientWhatsAppConversation, WhatsAppBridgeConfig
+
+    try:
+        config = WhatsAppBridgeConfig.objects.get(pk=1)
+        if not config.is_enabled:
+            return
+    except WhatsAppBridgeConfig.DoesNotExist:
+        return
+
+    hs = config.homeserver_url
+
+    clients = Client.objects.filter(
+        is_active=True,
+        whatsapp_bridge_enabled=True,
+        whatsapp_bridge_status='connected',
+    ).exclude(
+        whatsapp_bridge_matrix_access_token='',
+    )
+
+    for client in clients:
+        try:
+            _poll_bridge_for_client(client, hs, config)
+        except Exception as e:
+            logger.error(f"Bridge poll error for client {client.id}: {e}")
+
+
+def _poll_bridge_for_client(client, homeserver_url, config):
+    import json
+    import re
+    import httpx
+
+    from .models import ClientWhatsAppConversation
+
+    token = client.whatsapp_bridge_matrix_access_token
+    since = _bridge_sync_tokens.get(client.id)
+
+    headers = {"Authorization": f"Bearer {token}"}
+    params = {
+        "filter": json.dumps({
+            "room": {"timeline": {"limit": 20}},
+            "presence": {"types": []},
+            "account_data": {"types": []},
+        }),
+        "timeout": "0",
+    }
+    if since:
+        params["since"] = since
+
+    resp = httpx.get(
+        f"{homeserver_url}/_matrix/client/v3/sync",
+        headers=headers, params=params, timeout=10.0,
+    )
+    if resp.status_code != 200:
+        logger.warning(f"Bridge sync failed for client {client.id}: {resp.status_code}")
+        return
+
+    data = resp.json()
+    _bridge_sync_tokens[client.id] = data.get("next_batch", since)
+
+    bot_user_id = f"@whatsappbot:{config.homeserver_domain}"
+    my_user_id = client.whatsapp_bridge_matrix_user_id
+
+    for room_id, room_data in data.get("rooms", {}).get("join", {}).items():
+        events = room_data.get("timeline", {}).get("events", [])
+        for event in events:
+            if event.get("type") != "m.room.message":
+                continue
+            sender = event.get("sender", "")
+            # Skip messages from bot, from ourselves, or from whatsappbot
+            if sender == my_user_id or sender == bot_user_id:
+                continue
+            # Only process messages from bridged WhatsApp users (ghost users created by bridge)
+            # They look like @whatsapp_<phone>:nexelin.com
+            if not sender.startswith("@whatsapp_"):
+                continue
+
+            content = event.get("content", {})
+            body = content.get("body", "").strip()
+            if not body:
+                continue
+
+            # Extract phone from sender (@whatsapp_48727842737:nexelin.com -> 48727842737)
+            phone_match = re.match(r"@whatsapp_(\d+):", sender)
+            phone = phone_match.group(1) if phone_match else sender
+
+            _process_bridge_message(client, phone, body, room_id)
+
+
+def _process_bridge_message(client, phone, message_text, room_id):
+    """Process a single incoming WhatsApp bridge message."""
+    from .models import ClientWhatsAppConversation
+    from django.utils import timezone
+
+    conversation = ClientWhatsAppConversation.objects.filter(
+        client=client,
+        customer_phone=phone,
+        is_active=True,
+    ).order_by('-last_activity_at').first()
+
+    if not conversation:
+        conversation = ClientWhatsAppConversation.objects.create(
+            client=client,
+            customer_phone=phone,
+            is_active=True,
+            source='whatsapp_bridge',
+            context_metadata={'platform': 'whatsapp_bridge', 'matrix_room_id': room_id},
+        )
+
+    conversation.add_message('user', message_text)
+
+    # Process via RAG
+    try:
+        from MASTER.rag.views import process_rag_query
+        rag_response = process_rag_query(client, message_text, conversation)
+        if rag_response:
+            conversation.add_message('assistant', rag_response)
+            # Send reply back through Matrix -> WhatsApp bridge
+            _send_bridge_reply(client, room_id, rag_response)
+    except Exception as e:
+        logger.error(f"RAG processing failed for bridge message from {phone}: {e}")
+
+
+def _send_bridge_reply(client, room_id, reply_text):
+    """Send reply back to WhatsApp via Matrix room."""
+    import uuid
+    import httpx
+    from .models import WhatsAppBridgeConfig
+
+    try:
+        config = WhatsAppBridgeConfig.objects.get(pk=1)
+    except WhatsAppBridgeConfig.DoesNotExist:
+        return
+
+    token = client.whatsapp_bridge_matrix_access_token
+    hs = config.homeserver_url
+    txn_id = str(uuid.uuid4())
+
+    try:
+        httpx.put(
+            f"{hs}/_matrix/client/v3/rooms/{room_id}/send/m.room.message/{txn_id}",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"msgtype": "m.text", "body": reply_text},
+            timeout=10.0,
+        )
+    except Exception as e:
+        logger.error(f"Failed to send bridge reply to {room_id}: {e}")
+

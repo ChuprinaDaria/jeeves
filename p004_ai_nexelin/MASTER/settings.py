@@ -256,6 +256,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'MASTER.clients.tasks.check_escalation_timeouts',
         'schedule': 300.0,  # Run every 5 minutes to check for timed out escalations
     },
+    'poll-whatsapp-bridge': {
+        'task': 'MASTER.clients.tasks.poll_whatsapp_bridge_messages',
+        'schedule': 5.0,  # Poll Matrix every 5 seconds for bridge messages
+    },
 }
 
 # === RAG CONFIGS (SHORTENED) ===
