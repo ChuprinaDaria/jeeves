@@ -79,7 +79,7 @@ class ToolCatalogView(APIView):
                 'is_featured': tool.is_featured,
                 'is_system': tool.is_system,
                 'auth_type': tool.auth_type,
-                'auth_config': tool.auth_config if not tool_conns else None,
+                'auth_config': tool.auth_config,
                 'skill_scopes': tool.skill_scopes,
                 'scope_schema': tool.scope_schema,
             }
@@ -138,6 +138,10 @@ class ToolConnectView(APIView):
             conn, _ = ToolConnection.objects.update_or_create(
                 client=client, tool_card=tool_card, target=target,
                 defaults={'status': 'pending'})
+            # Auto-enable bridge on client so login endpoint doesn't reject
+            if tool_card.slug == 'whatsapp-bridge' and not client.whatsapp_bridge_enabled:
+                client.whatsapp_bridge_enabled = True
+                client.save(update_fields=['whatsapp_bridge_enabled'])
             initiate_url = tool_card.auth_config.get('initiate_url', '')
             return Response({'status': 'pending', 'initiate_url': initiate_url})
 
