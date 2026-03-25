@@ -266,25 +266,23 @@ def _bot_login_worker(client_id: int, access_token: str, room_id: str, config, s
                         _update_client_connected(client_id, session['phone'])
                         return
 
-                    # Check for QR code (sent as image or as text)
-                    if content.get("msgtype") == "m.image" and content.get("filename", "") == "qr.png":
-                        # QR as image — download from mxc and convert to base64
-                        mxc = content.get("url", "")
-                        if mxc:
-                            try:
-                                b64 = _download_mxc_as_base64(mxc, hs)
-                                if b64:
-                                    session['qr'] = b64
-                            except Exception as exc:
-                                logger.debug(f"Failed to download QR image: {exc}")
-                    elif content.get("msgtype") == "m.text" and body.startswith("2@") and len(body) > 50:
-                        # QR data as raw text — generate QR image
+                    # Check for QR code — body contains raw QR data starting with "2@"
+                    # regardless of msgtype (mautrix sends it as m.image without actual file)
+                    if body.startswith("2@") and len(body) > 50:
                         try:
                             b64 = _generate_qr_base64(body.strip())
                             if b64:
                                 session['qr'] = b64
                         except Exception as exc:
-                            logger.debug(f"Failed to generate QR from text: {exc}")
+                            logger.debug(f"Failed to generate QR from data: {exc}")
+                    elif content.get("msgtype") == "m.image" and content.get("url", "").startswith("mxc://"):
+                        # Fallback: real image file via mxc
+                        try:
+                            b64 = _download_mxc_as_base64(content["url"], hs)
+                            if b64:
+                                session['qr'] = b64
+                        except Exception as exc:
+                            logger.debug(f"Failed to download QR image: {exc}")
 
                     # Check for errors
                     if "error" in body.lower() or "failed" in body.lower():
