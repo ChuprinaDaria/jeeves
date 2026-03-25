@@ -215,14 +215,14 @@ def _generate_qr_base64(data: str) -> str:
     return base64.b64encode(buf.getvalue()).decode()
 
 
-def _bot_login_worker(client_id: int, access_token: str, room_id: str, config):
-    """Background thread: monitors Matrix room for QR code from bridge bot after !wa login."""
+def _bot_login_worker(client_id: int, access_token: str, room_id: str, config, sync_since=None):
+    """Background thread: monitors Matrix room for QR code from bridge bot after login qr."""
     session = _login_sessions.get(client_id)
     if not session:
         return
 
     hs = config.homeserver_url
-    since = None
+    since = sync_since  # Start from snapshot taken before login command was sent
 
     try:
         for _ in range(120):  # up to ~4 minutes
@@ -369,7 +369,20 @@ def start_whatsapp_login(client) -> dict:
     room_id = _get_or_create_bot_dm(access_token, hs, bot_user_id)
     logger.info(f"Using bot DM room {room_id} for client {client.id}")
 
-    # Send !wa login command
+    # Snapshot sync position BEFORE sending login command so worker ignores old messages
+    sync_since = None
+    try:
+        init_resp = _matrix_request(access_token, hs, "GET", "/sync", params={
+            "filter": json.dumps({
+                "room": {"rooms": [room_id], "timeline": {"limit": 0}},
+                "presence": {"types": []},
+            }), "timeout": "0"}, timeout=10.0)
+        if init_resp.status_code == 200:
+            sync_since = init_resp.json().get("next_batch")
+    except Exception:
+        pass
+
+    # Send login qr command
     import uuid
     txn_id = str(uuid.uuid4())
     resp = _matrix_request(access_token, hs, "PUT",
@@ -391,13 +404,10 @@ def start_whatsapp_login(client) -> dict:
     }
     _login_sessions[client.id] = session
 
-    # Wait briefly for initial response
-    time.sleep(3)
-
     # Start background polling for bot response
     t = threading.Thread(
         target=_bot_login_worker,
-        args=(client.id, access_token, room_id, config),
+        args=(client.id, access_token, room_id, config, sync_since),
         daemon=True,
     )
     t.start()
