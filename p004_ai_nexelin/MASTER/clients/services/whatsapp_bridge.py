@@ -374,7 +374,7 @@ def _bot_login_worker(client_id: int, access_token: str, room_id: str, config, s
 
 
 def _update_client_connected(client_id: int, phone: str):
-    """Update client DB record after successful WhatsApp connection."""
+    """Update client DB record and ToolConnection after successful WhatsApp connection."""
     from django.utils import timezone
     from MASTER.clients.models import Client
     try:
@@ -387,6 +387,14 @@ def _update_client_connected(client_id: int, phone: str):
             'whatsapp_bridge_status', 'whatsapp_bridge_phone',
             'whatsapp_bridge_connected_at', 'whatsapp_bridge_error',
         ])
+        # Also update ToolConnection so frontend sees "connected"
+        from MASTER.tools.models import ToolCard, ToolConnection
+        try:
+            card = ToolCard.objects.get(slug='whatsapp-bridge')
+            ToolConnection.objects.filter(client=c, tool_card=card).update(
+                status='connected', enabled=True)
+        except ToolCard.DoesNotExist:
+            pass
     except Exception as e:
         logger.error(f"Failed to update client {client_id} status: {e}")
 
@@ -495,6 +503,10 @@ def check_login_status(client, login_id: str) -> dict:
     """
     session = _login_sessions.get(client.id)
     if not session:
+        # Session lost (worker restart/different worker) — check DB status
+        client.refresh_from_db()
+        if client.whatsapp_bridge_status == 'connected':
+            return {'status': 'connected', 'phone': client.whatsapp_bridge_phone}
         return {'status': 'error', 'error': 'No active login session'}
 
     # Real-time poll from Matrix
