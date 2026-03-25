@@ -284,12 +284,13 @@ def _bot_login_worker(client_id: int, access_token: str, room_id: str, config, s
                         except Exception as exc:
                             logger.debug(f"Failed to download QR image: {exc}")
 
-                    # Check for errors
-                    if "error" in body.lower() or "failed" in body.lower():
-                        if "login" in body.lower():
-                            session['status'] = 'error'
-                            session['error'] = body[:200]
-                            return
+                    # Check for fatal errors (skip QR timeout — just means previous QR expired)
+                    if ("error" in body.lower() or "failed" in body.lower()) and "login" in body.lower():
+                        if "timed out" in body.lower():
+                            continue  # Previous QR expired, keep waiting for new one
+                        session['status'] = 'error'
+                        session['error'] = body[:200]
+                        return
 
             except Exception as e:
                 logger.debug(f"Bot login poll error for client {client_id}: {e}")
