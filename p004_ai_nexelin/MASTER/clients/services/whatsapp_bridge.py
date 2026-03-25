@@ -374,7 +374,7 @@ def start_whatsapp_login(client) -> dict:
     txn_id = str(uuid.uuid4())
     resp = _matrix_request(access_token, hs, "PUT",
         f"/rooms/{room_id}/send/m.room.message/{txn_id}",
-        json={"msgtype": "m.text", "body": "login"},
+        json={"msgtype": "m.text", "body": "login qr"},
     )
     if resp.status_code not in (200, 201):
         raise WhatsAppBridgeError(f"Failed to send login command: {resp.status_code} {resp.text}")
