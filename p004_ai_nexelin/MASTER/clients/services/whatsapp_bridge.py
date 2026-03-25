@@ -215,6 +215,73 @@ def _generate_qr_base64(data: str) -> str:
     return base64.b64encode(buf.getvalue()).decode()
 
 
+def _poll_once(session: dict, client_id: int):
+    """Single sync poll — updates session with QR/status from Matrix room."""
+    access_token = session.get('access_token')
+    hs = session.get('homeserver_url')
+    room_id = session.get('room_id')
+    since = session.get('sync_since')
+    if not all([access_token, hs, room_id]):
+        return
+
+    try:
+        params = {"filter": json.dumps({
+            "room": {"rooms": [room_id], "timeline": {"limit": 5}},
+            "presence": {"types": []},
+        }), "timeout": "3000"}
+        if since:
+            params["since"] = since
+
+        resp = _matrix_request(access_token, hs, "GET", "/sync", params=params, timeout=10.0)
+        if resp.status_code != 200:
+            return
+
+        data = resp.json()
+        session['sync_since'] = data.get("next_batch", since)
+
+        room_data = data.get("rooms", {}).get("join", {}).get(room_id, {})
+        events = room_data.get("timeline", {}).get("events", [])
+
+        for event in events:
+            if event.get("type") != "m.room.message":
+                continue
+            content = event.get("content", {})
+            body = content.get("body", "")
+
+            if "Successfully logged in" in body or "logged in as" in body.lower():
+                import re
+                phone_match = re.search(r'\+?\d{10,15}', body)
+                session['status'] = 'connected'
+                session['phone'] = phone_match.group(0) if phone_match else ''
+                _update_client_connected(client_id, session['phone'])
+                return
+
+            if body.startswith("2@") and len(body) > 50:
+                try:
+                    b64 = _generate_qr_base64(body.strip())
+                    if b64:
+                        session['qr'] = b64
+                except Exception:
+                    pass
+            elif content.get("msgtype") == "m.image" and content.get("url", "").startswith("mxc://"):
+                try:
+                    b64 = _download_mxc_as_base64(content["url"], hs)
+                    if b64:
+                        session['qr'] = b64
+                except Exception:
+                    pass
+
+            # Skip QR timeout errors from previous attempts
+            if ("error" in body.lower() or "failed" in body.lower()) and "login" in body.lower():
+                if "timed out" not in body.lower():
+                    session['status'] = 'error'
+                    session['error'] = body[:200]
+                    return
+
+    except Exception as e:
+        logger.debug(f"Poll error for client {client_id}: {e}")
+
+
 def _bot_login_worker(client_id: int, access_token: str, room_id: str, config, sync_since=None):
     """Background thread: monitors Matrix room for QR code from bridge bot after login qr."""
     session = _login_sessions.get(client_id)
@@ -393,43 +460,46 @@ def start_whatsapp_login(client) -> dict:
 
     logger.info(f"Sent login command in room {room_id} for client {client.id}")
 
-    # Initialize session
+    # Store session with sync state so check_login_status can poll in real-time
     session = {
         'qr': '',
         'status': 'qr_pending',
         'phone': '',
         'error': '',
         'room_id': room_id,
+        'access_token': access_token,
+        'homeserver_url': hs,
+        'sync_since': sync_since,
     }
     _login_sessions[client.id] = session
-
-    # Start background polling for bot response
-    t = threading.Thread(
-        target=_bot_login_worker,
-        args=(client.id, access_token, room_id, config, sync_since),
-        daemon=True,
-    )
-    t.start()
 
     # Update client status
     client.whatsapp_bridge_status = 'qr_pending'
     client.whatsapp_bridge_error = ''
     client.save(update_fields=['whatsapp_bridge_status', 'whatsapp_bridge_error'])
 
+    # Try to fetch QR synchronously (bot usually responds within 2-3s)
+    time.sleep(3)
+    _poll_once(session, client.id)
+
     return {
         'login_id': str(client.id),
         'qr': session.get('qr', ''),
-        'status': 'qr_pending',
+        'status': session.get('status', 'qr_pending'),
     }
 
 
 def check_login_status(client, login_id: str) -> dict:
     """
-    Check login status from in-memory session (fed by polling background thread).
+    Check login status — does a real-time Matrix sync on each poll.
     """
     session = _login_sessions.get(client.id)
     if not session:
         return {'status': 'error', 'error': 'No active login session'}
+
+    # Real-time poll from Matrix
+    if session.get('status') == 'qr_pending':
+        _poll_once(session, client.id)
 
     status = session.get('status', 'unknown')
 
