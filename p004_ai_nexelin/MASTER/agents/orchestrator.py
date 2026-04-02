@@ -287,6 +287,10 @@ class AgentOrchestrator:
                 except (json.JSONDecodeError, TypeError):
                     raw_args = {}
 
+                # Inject agent scope for knowledge access filtering.
+                if tool_name == 'search':
+                    raw_args.setdefault('requesting_agent', self._scope)
+
                 tool_call_id = tc.get("id", "")
 
                 # Emit tool_start early so the frontend can display progress.
