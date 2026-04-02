@@ -2199,6 +2199,11 @@ class WhatsAppBridgeConfig(models.Model):
         default='nexelin_client_{client_id}',
         help_text="Template for Matrix bot usernames per client"
     )
+    appservice_as_token = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Appservice AS token from mautrix-whatsapp registration.yaml — used to invite users to bridged rooms"
+    )
 
     class Meta:
         verbose_name = 'WhatsApp Bridge Config'

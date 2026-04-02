@@ -3552,6 +3552,86 @@ def onboard_matrix_manager(self, client_id, manager_user_id, client_name):
 
 # In-memory sync tokens per client (survives across task runs within same worker)
 _bridge_sync_tokens = {}
+# Track rooms we've already joined to avoid repeated invite attempts
+_bridge_joined_rooms = {}  # {client_id: set(room_ids)}
+
+
+def _auto_invite_to_bridge_rooms(client, homeserver_url, config, user_headers):
+    """
+    Use appservice AS token to discover bridged rooms and invite the client's
+    Matrix user into any rooms they haven't joined yet.
+    """
+    import httpx
+
+    as_token = config.appservice_as_token
+    if not as_token:
+        return
+
+    my_user_id = client.whatsapp_bridge_matrix_user_id
+    if not my_user_id:
+        return
+
+    # Get rooms user is already in
+    try:
+        resp = httpx.get(
+            f"{homeserver_url}/_matrix/client/v3/joined_rooms",
+            headers=user_headers, timeout=10.0,
+        )
+        if resp.status_code != 200:
+            return
+        joined = set(resp.json().get("joined_rooms", []))
+    except Exception:
+        return
+
+    # Cache to avoid re-checking every 5 seconds
+    if client.id not in _bridge_joined_rooms:
+        _bridge_joined_rooms[client.id] = set()
+    known = _bridge_joined_rooms[client.id]
+
+    if joined == known:
+        # No change — skip the expensive appservice rooms lookup
+        return
+    _bridge_joined_rooms[client.id] = joined
+
+    # Use appservice token to get all rooms the bridge bot manages
+    as_headers = {"Authorization": f"Bearer {as_token}"}
+    bot_localpart = "whatsappbot"
+    bot_user_id = f"@{bot_localpart}:{config.homeserver_domain}"
+    try:
+        resp = httpx.get(
+            f"{homeserver_url}/_matrix/client/v3/joined_rooms?user_id={bot_user_id}",
+            headers=as_headers, timeout=10.0,
+        )
+        if resp.status_code != 200:
+            return
+        bot_rooms = set(resp.json().get("joined_rooms", []))
+    except Exception:
+        return
+
+    # Find rooms the bot is in but user isn't
+    missing = bot_rooms - joined
+    if not missing:
+        return
+
+    # Filter: only invite into rooms that have whatsapp ghost users (bridged chats)
+    for room_id in missing:
+        try:
+            # Invite via appservice (acting as whatsappbot)
+            resp = httpx.post(
+                f"{homeserver_url}/_matrix/client/v3/rooms/{room_id}/invite?user_id={bot_user_id}",
+                headers=as_headers,
+                json={"user_id": my_user_id},
+                timeout=10.0,
+            )
+            if resp.status_code in (200, 403):  # 403 = already invited or joined
+                # Accept invite as user
+                httpx.post(
+                    f"{homeserver_url}/_matrix/client/v3/rooms/{room_id}/join",
+                    headers=user_headers, json={}, timeout=10.0,
+                )
+                logger.info(f"Bridge auto-invited+joined client {client.id} to room {room_id}")
+        except Exception as e:
+            logger.warning(f"Bridge auto-invite failed for room {room_id}: {e}")
 
 
 @shared_task
@@ -3622,6 +3702,21 @@ def _poll_bridge_for_client(client, homeserver_url, config):
 
     data = resp.json()
     _bridge_sync_tokens[client.id] = data.get("next_batch", since)
+
+    # Auto-join rooms where the user has been invited
+    for room_id in data.get("rooms", {}).get("invite", {}):
+        try:
+            httpx.post(
+                f"{homeserver_url}/_matrix/client/v3/rooms/{room_id}/join",
+                headers=headers, json={}, timeout=10.0,
+            )
+            logger.info(f"Bridge auto-joined room {room_id} for client {client.id}")
+        except Exception as e:
+            logger.warning(f"Bridge auto-join failed for room {room_id}: {e}")
+
+    # Auto-invite + join: use appservice token to invite user into bridged rooms
+    # they're not yet a member of. Runs once per new room discovery.
+    _auto_invite_to_bridge_rooms(client, homeserver_url, config, headers)
 
     bot_user_id = f"@whatsappbot:{config.homeserver_domain}"
     my_user_id = client.whatsapp_bridge_matrix_user_id
