@@ -262,6 +262,7 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
       setToolExecutions([]);
       setPipelineSteps([]);
       setLastCompletedTool(null);
+      setDataCards([]);
       const userMsg = {
         id: Date.now(),
         text: input,
@@ -286,7 +287,20 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
           });
         },
         () => {
-          setMessages(prev => prev.map(m => ({ ...m, streaming: false })));
+          // Read current dataCards via state setter to avoid stale closure
+          setDataCards(currentCards => {
+            if (currentCards.length > 0) {
+              setMessages(prev => {
+                const updated = prev.map(m => ({ ...m, streaming: false }));
+                const lastAiIdx = updated.map(m => m.sender).lastIndexOf('ai');
+                if (lastAiIdx >= 0) updated[lastAiIdx] = { ...updated[lastAiIdx], dataCards: [...currentCards] };
+                return updated;
+              });
+            } else {
+              setMessages(prev => prev.map(m => ({ ...m, streaming: false })));
+            }
+            return []; // clear dataCards
+          });
           setMcpStatus(null);
           setLoading(false);
         },
@@ -650,6 +664,13 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
               }`}>
                 {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </p>
+              {msg.dataCards?.length > 0 && (
+                <div className="space-y-2 mt-2">
+                  {msg.dataCards.map((card, idx) => (
+                    <DataCard key={idx} type={card.type} data={card.data} style={{ animationDelay: `${idx * 100}ms` }} />
+                  ))}
+                </div>
+              )}
               {msg.sender === 'ai' && !msg.streaming && msg.id === messages[messages.length - 1]?.id && (
                 <QuickActions
                   lastTool={lastCompletedTool?.tool}
