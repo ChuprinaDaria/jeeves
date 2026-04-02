@@ -107,8 +107,12 @@ class BridgeMessageView(APIView):
 
     def post(self, request):
         from django.conf import settings
+        expected_token = getattr(settings, 'INTEGRATION_SERVICE_TOKEN', '')
+        if not expected_token:
+            logger.error('INTEGRATION_SERVICE_TOKEN not configured — rejecting all bridge messages')
+            return Response({'error': 'Service not configured'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         token = request.headers.get('X-Service-Token', '')
-        if token != getattr(settings, 'INTEGRATION_SERVICE_TOKEN', ''):
+        if not token or token != expected_token:
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
 
         client_id = request.data.get('client_id')
