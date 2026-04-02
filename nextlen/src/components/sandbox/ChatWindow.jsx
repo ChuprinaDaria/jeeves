@@ -9,6 +9,7 @@ import ThinkingPipeline from './chat/ThinkingPipeline';
 import QuickActions from './chat/QuickActions';
 import LiveStatus from './chat/LiveStatus';
 import DataCard from './chat/DataCard';
+import RichMessageCard from './chat/RichMessageCard';
 
 const BotAvatar = () => (
   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shrink-0 shadow-md shadow-orange-500/20">
@@ -153,10 +154,17 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
     if (eventType === 'tool_result') {
       setLastCompletedTool({ tool: toolName, color: (TOOL_MAP[toolName] || {}).color || 'gray' });
 
-      // Detect structured data for DataCard
+      // Detect structured data for DataCard / RichMessageCard
       const resultStr = (data?.result || '').toString();
       try {
         const parsed = JSON.parse(resultStr);
+
+        // Detect rich message types from bridge/connection tool results
+        const RICH_TYPES = ['auth_popup', 'qr_code', 'status_card', 'target_selector', 'connection_created', 'connection_removed'];
+        if (parsed.type && RICH_TYPES.includes(parsed.type)) {
+          setDataCards(prev => [...prev, { _rich: true, data: parsed }]);
+        }
+
         const toolBase = (toolName || '').replace(/-/g, '_');
 
         if (toolBase === 'search_leads' || toolBase === 'lead_search') {
@@ -667,7 +675,11 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
               {msg.dataCards?.length > 0 && (
                 <div className="space-y-2 mt-2">
                   {msg.dataCards.map((card, idx) => (
-                    <DataCard key={idx} type={card.type} data={card.data} style={{ animationDelay: `${idx * 100}ms` }} />
+                    card._rich
+                      ? <RichMessageCard key={idx} data={card.data} onAction={(action, value) => {
+                          if (action === 'target_selected') setInput(value);
+                        }} />
+                      : <DataCard key={idx} type={card.type} data={card.data} style={{ animationDelay: `${idx * 100}ms` }} />
                   ))}
                 </div>
               )}
@@ -709,7 +721,11 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
               {dataCards.length > 0 && (
                 <div className="space-y-2 mt-2">
                   {dataCards.map((card, idx) => (
-                    <DataCard key={idx} type={card.type} data={card.data} style={{ animationDelay: `${idx * 100}ms` }} />
+                    card._rich
+                      ? <RichMessageCard key={idx} data={card.data} onAction={(action, value) => {
+                          if (action === 'target_selected') setInput(value);
+                        }} />
+                      : <DataCard key={idx} type={card.type} data={card.data} style={{ animationDelay: `${idx * 100}ms` }} />
                   ))}
                 </div>
               )}
