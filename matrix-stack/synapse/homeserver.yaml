@@ -120,7 +120,10 @@ enable_metrics: false
 # ============================================
 
 app_service_config_files:
-  - /data/whatsapp-registration.yaml
+    - /data/whatsapp-registration.yaml
+    - /data/meta-facebook-registration.yaml
+    - /data/meta-instagram-registration.yaml
+    - /data/linkedin-registration.yaml
 
 caches:
   global_factor: 1.0

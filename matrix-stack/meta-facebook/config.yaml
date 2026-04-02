@@ -1,0 +1,26 @@
+homeserver:
+    address: http://localhost:8008
+    domain: grot.de
+
+appservice:
+    address: http://localhost:29319
+    port: 29319
+    database:
+        type: postgres
+        uri: postgres://mautrix:${POSTGRES_MAUTRIX_PASSWORD}@localhost:5433/mautrix_meta_facebook
+
+meta:
+    mode: facebook
+
+bridge:
+    permissions:
+        "grot.de": user
+        "@admin:grot.de": admin
+    provisioning:
+        shared_secret: generate
+
+logging:
+    min_level: info
+    writers:
+        - type: stdout
+          format: pretty-colored

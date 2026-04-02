@@ -1,0 +1,23 @@
+homeserver:
+    address: http://localhost:8008
+    domain: grot.de
+
+appservice:
+    address: http://localhost:29321
+    port: 29321
+    database:
+        type: postgres
+        uri: postgres://mautrix:${POSTGRES_MAUTRIX_PASSWORD}@localhost:5433/mautrix_linkedin
+
+bridge:
+    permissions:
+        "grot.de": user
+        "@admin:grot.de": admin
+    provisioning:
+        shared_secret: generate
+
+logging:
+    min_level: info
+    writers:
+        - type: stdout
+          format: pretty-colored

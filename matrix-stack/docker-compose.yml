@@ -69,6 +69,7 @@ services:
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
     volumes:
       - ./data/postgres-mautrix:/var/lib/postgresql/data
+      - ./init-mautrix-dbs.sql:/docker-entrypoint-initdb.d/init-extra-dbs.sql
     ports:
       - "5433:5432"
     networks:
@@ -115,6 +116,75 @@ services:
       WHATSAPP_PROVISIONING_SECRET: ${WHATSAPP_PROVISIONING_SECRET}
     volumes:
       - ./mautrix-whatsapp:/data
+
+  # ============================================
+  # MAUTRIX-META-FACEBOOK - Facebook Messenger Bridge
+  # ============================================
+
+  mautrix-meta-facebook:
+    image: dock.mau.dev/mautrix/meta:latest
+    container_name: grot-mautrix-meta-facebook
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      postgres-mautrix:
+        condition: service_healthy
+    environment:
+      POSTGRES_MAUTRIX_PASSWORD: ${POSTGRES_MAUTRIX_PASSWORD}
+    volumes:
+      - ./meta-facebook:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:29319/_matrix/provision/v3/whoami || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ============================================
+  # MAUTRIX-META-INSTAGRAM - Instagram Bridge
+  # ============================================
+
+  mautrix-meta-instagram:
+    image: dock.mau.dev/mautrix/meta:latest
+    container_name: grot-mautrix-meta-instagram
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      postgres-mautrix:
+        condition: service_healthy
+    environment:
+      POSTGRES_MAUTRIX_PASSWORD: ${POSTGRES_MAUTRIX_PASSWORD}
+    volumes:
+      - ./meta-instagram:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:29320/_matrix/provision/v3/whoami || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ============================================
+  # MAUTRIX-LINKEDIN - LinkedIn Bridge
+  # ============================================
+
+  mautrix-linkedin:
+    image: dock.mau.dev/mautrix/linkedin:latest
+    container_name: grot-mautrix-linkedin
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      postgres-mautrix:
+        condition: service_healthy
+    environment:
+      POSTGRES_MAUTRIX_PASSWORD: ${POSTGRES_MAUTRIX_PASSWORD}
+    volumes:
+      - ./linkedin:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:29321/_matrix/provision/v3/whoami || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   # ============================================
   # MAS - Matrix Authentication Service
