@@ -6,6 +6,8 @@
 // - API calls & memory sync (can offload work from content scripts)
 // - Behaviour tracking & proactive suggestions (to be extended)
 
+import { extractCookies, openLoginPopup, pollForCookies } from '../content/cookie-extractor.js';
+
 // Simple debug logger (can be disabled later)
 function log(...args) {
   // eslint-disable-next-line no-console
@@ -46,4 +48,49 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return undefined;
 });
 
+// ===== Bridge Cookie Extraction =====
 
+chrome.runtime.onMessageExternal.addListener(
+  (message, sender, sendResponse) => {
+    if (message.action === 'nexelin_bridge_auth') {
+      const { bridgeType, apiBaseUrl, authToken } = message;
+
+      (async () => {
+        try {
+          const tabId = await openLoginPopup(bridgeType);
+          if (!tabId) {
+            sendResponse({ error: 'Failed to open login tab' });
+            return;
+          }
+
+          const result = await pollForCookies(bridgeType, tabId);
+
+          if (result.complete) {
+            const resp = await fetch(`${apiBaseUrl}/clients/bridges/${bridgeType}/login/cookies/`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`,
+              },
+              body: JSON.stringify({ cookies: result.cookies }),
+            });
+
+            const data = await resp.json();
+            sendResponse({ success: true, status: data.status });
+          } else {
+            sendResponse({ error: result.error || 'Cookie extraction failed', missing: result.missing });
+          }
+        } catch (e) {
+          sendResponse({ error: e.message });
+        }
+      })();
+
+      return true; // async sendResponse
+    }
+
+    if (message.action === 'nexelin_check_extension') {
+      sendResponse({ installed: true, version: chrome.runtime.getManifest().version });
+      return;
+    }
+  }
+);
