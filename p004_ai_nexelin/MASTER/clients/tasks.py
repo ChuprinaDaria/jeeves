@@ -3674,16 +3674,49 @@ def _process_bridge_message(client, phone, message_text, room_id):
 
     conversation.add_message('user', message_text)
 
-    # Process via RAG
+    # Process via MCP orchestrator (Vasya — consultant agent)
     try:
-        from MASTER.rag.views import process_rag_query
-        rag_response = process_rag_query(client, message_text, conversation)
-        if rag_response:
-            conversation.add_message('assistant', rag_response)
-            # Send reply back through Matrix -> WhatsApp bridge
-            _send_bridge_reply(client, room_id, rag_response)
+        import asyncio
+        from MASTER.agents.models import AgentConfig, AgentSession
+        from MASTER.agents.orchestrator import AgentOrchestrator
+
+        agent_config, _ = AgentConfig.objects.get_or_create(client=client)
+        session = AgentSession.objects.create(
+            agent_config=agent_config,
+            channel='whatsapp_bridge',
+            metadata={'phone': phone, 'matrix_room_id': room_id},
+        )
+
+        # Build conversation history for context
+        conv_history = [
+            {'role': m['role'], 'content': m['content']}
+            for m in (conversation.messages or [])[-20:]
+            if m.get('role') in ('user', 'assistant')
+        ][:-1]  # exclude current message (orchestrator receives it separately)
+
+        async def _run_orchestrator():
+            orchestrator = AgentOrchestrator(client, agent_config)
+            await orchestrator.connect()
+            try:
+                return await orchestrator.process(
+                    message=message_text,
+                    session=session,
+                    conversation=conv_history,
+                    channel='whatsapp_bridge',
+                    external_user_id=phone,
+                )
+            finally:
+                await orchestrator.disconnect()
+
+        response = asyncio.run(_run_orchestrator())
+
+        if response:
+            conversation.add_message('assistant', response)
+            _send_bridge_reply(client, room_id, response)
+        else:
+            logger.warning(f"Empty MCP response for bridge message from {phone}")
     except Exception as e:
-        logger.error(f"RAG processing failed for bridge message from {phone}: {e}")
+        logger.error(f"MCP processing failed for bridge message from {phone}: {e}", exc_info=True)
 
 
 def _send_bridge_reply(client, room_id, reply_text):

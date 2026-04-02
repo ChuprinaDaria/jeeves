@@ -220,18 +220,49 @@ class WhatsAppBridgeMessageView(APIView):
         # Add user message
         conversation.add_message('user', message_text)
 
-        # Process via RAG (same as other channels)
+        # Process via MCP orchestrator (Vasya — consultant agent)
         try:
-            from MASTER.rag.views import process_rag_query
-            rag_response = process_rag_query(client, message_text, conversation)
-            if rag_response:
-                conversation.add_message('assistant', rag_response)
+            import asyncio
+            from MASTER.agents.models import AgentConfig, AgentSession
+            from MASTER.agents.orchestrator import AgentOrchestrator
+
+            agent_config, _ = AgentConfig.objects.get_or_create(client=client)
+            session = AgentSession.objects.create(
+                agent_config=agent_config,
+                channel='whatsapp_bridge',
+                metadata={'phone': sender_phone, 'matrix_room_id': room_id},
+            )
+
+            conv_history = [
+                {'role': m['role'], 'content': m['content']}
+                for m in (conversation.messages or [])[-20:]
+                if m.get('role') in ('user', 'assistant')
+            ][:-1]
+
+            async def _run_orchestrator():
+                orchestrator = AgentOrchestrator(client, agent_config)
+                await orchestrator.connect()
+                try:
+                    return await orchestrator.process(
+                        message=message_text,
+                        session=session,
+                        conversation=conv_history,
+                        channel='whatsapp_bridge',
+                        external_user_id=sender_phone,
+                    )
+                finally:
+                    await orchestrator.disconnect()
+
+            response = asyncio.run(_run_orchestrator())
+
+            if response:
+                conversation.add_message('assistant', response)
                 return Response({
-                    'reply': rag_response,
+                    'reply': response,
                     'conversation_id': conversation.id,
                 })
         except Exception as e:
-            logger.error(f"RAG processing failed for bridge message: {e}", exc_info=True)
+            logger.error(f"MCP processing failed for bridge message: {e}", exc_info=True)
 
         return Response({
             'reply': '',
