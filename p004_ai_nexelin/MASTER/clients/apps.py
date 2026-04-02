@@ -8,3 +8,4 @@ class ClientsConfig(AppConfig):
     def ready(self):
         import MASTER.clients.signals
         import MASTER.rag.qdrant_sync  # noqa: F401 — registers post_save/post_delete signals
+        import MASTER.clients.models_bridge  # noqa: F401 — register bridge models
