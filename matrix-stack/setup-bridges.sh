@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-BRIDGES=("mautrix-whatsapp:whatsapp" "mautrix-meta-facebook:meta-facebook" "mautrix-meta-instagram:meta-instagram" "mautrix-linkedin:linkedin")
+BRIDGES=("mautrix-whatsapp:whatsapp" "meta-facebook:meta-facebook" "meta-instagram:meta-instagram" "linkedin:linkedin")
 
 for entry in "${BRIDGES[@]}"; do
     IFS=':' read -r container name <<< "$entry"

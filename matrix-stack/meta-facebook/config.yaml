@@ -4,19 +4,26 @@ homeserver:
 
 appservice:
     address: http://localhost:29319
+    hostname: 0.0.0.0
     port: 29319
+    id: mautrix-meta-facebook
+    bot:
+        username: facebookbot
+        displayname: Facebook Bridge Bot
     database:
         type: postgres
-        uri: postgres://mautrix:${POSTGRES_MAUTRIX_PASSWORD}@localhost:5433/mautrix_meta_facebook
+        uri: postgres://mautrix:${POSTGRES_MAUTRIX_PASSWORD}@localhost:5433/mautrix_meta_facebook?sslmode=disable
 
 meta:
     mode: facebook
 
 bridge:
+    username_template: facebook_{{.}}
     permissions:
         "grot.de": user
         "@admin:grot.de": admin
     provisioning:
+        prefix: /_matrix/provision
         shared_secret: generate
 
 logging:
