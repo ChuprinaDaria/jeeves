@@ -18,6 +18,11 @@ from .views_whatsapp_bridge import (
     WhatsAppBridgeMessageView,
 )
 from .views_leads import LeadListView, LeadDetailView
+from .views_auto_reply import (
+    ChannelAutoReplyListView,
+    ChannelAutoReplyDetailView,
+    ChannelAutoReplyContactsView,
+)
 
 
 urlpatterns = [
@@ -64,6 +69,11 @@ urlpatterns = [
     path('rag-test/', views.rag_test_query, name='rag-test-query'),
     path('whatsapp/meta/webhook/', MetaWhatsAppWebhookView.as_view(), name='meta_whatsapp_webhook'),
     path('telegram/webhook/', TelegramWebhookView.as_view(), name='telegram_webhook'),
+
+    # Channel Auto-Reply
+    path('channel-auto-reply/', ChannelAutoReplyListView.as_view(), name='channel-auto-reply-list'),
+    path('channel-auto-reply/<str:channel>/', ChannelAutoReplyDetailView.as_view(), name='channel-auto-reply-detail'),
+    path('channel-auto-reply/<str:channel>/contacts/', ChannelAutoReplyContactsView.as_view(), name='channel-auto-reply-contacts'),
 
     # Leads
     path('leads/', LeadListView.as_view(), name='lead-list'),
