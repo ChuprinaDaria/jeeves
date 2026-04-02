@@ -26,3 +26,27 @@ class EncryptedJSONField(models.TextField):
     def deconstruct(self):
         name, path, args, kwargs = super().deconstruct()
         return name, path, args, kwargs
+
+
+class EncryptedTextField(models.TextField):
+    """Stores text data encrypted at rest with Fernet symmetric encryption."""
+
+    def get_prep_value(self, value):
+        if not value:
+            return value
+        f = Fernet(settings.FIELD_ENCRYPTION_KEY.encode()
+                   if isinstance(settings.FIELD_ENCRYPTION_KEY, str)
+                   else settings.FIELD_ENCRYPTION_KEY)
+        return f.encrypt(value.encode()).decode()
+
+    def from_db_value(self, value, expression, connection):
+        if not value:
+            return ''
+        f = Fernet(settings.FIELD_ENCRYPTION_KEY.encode()
+                   if isinstance(settings.FIELD_ENCRYPTION_KEY, str)
+                   else settings.FIELD_ENCRYPTION_KEY)
+        return f.decrypt(value.encode()).decode()
+
+    def deconstruct(self):
+        name, path, args, kwargs = super().deconstruct()
+        return name, path, args, kwargs

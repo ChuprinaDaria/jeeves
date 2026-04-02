@@ -1,6 +1,8 @@
 from django.db import models
 from django.utils import timezone
 
+from MASTER.nexelin_platform.fields import EncryptedTextField
+
 
 class BridgeConfig(models.Model):
     """Global config for each bridge type (one row per bridge)."""
@@ -73,7 +75,7 @@ class ClientBridgeConnection(models.Model):
         related_name='connections',
     )
     matrix_user_id = models.CharField(max_length=255, blank=True)
-    matrix_access_token = models.TextField(blank=True)
+    matrix_access_token = EncryptedTextField(blank=True)
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default='disconnected'
     )
