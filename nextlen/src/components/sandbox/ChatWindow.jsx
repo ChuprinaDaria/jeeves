@@ -52,6 +52,7 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
   const [mcpStatus, setMcpStatus] = useState(null); // { step: 'thinking' | 'searching' | 'generating' }
   const [toolExecutions, setToolExecutions] = useState([]); // [{ tool_call_id, tool, params, status, summary, error }]
   const [pipelineSteps, setPipelineSteps] = useState([]);
+  const [lastCompletedTool, setLastCompletedTool] = useState(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const audioPlayerRef = useRef(null);
@@ -162,6 +163,10 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
       return prev;
     });
 
+    if (eventType === 'tool_result') {
+      setLastCompletedTool({ tool: toolName, color: (TOOL_MAP[toolName] || {}).color || 'gray' });
+    }
+
     // Build ThinkingPipeline steps from tool events
     setPipelineSteps(prev => {
       if (eventType === 'tool_start') {
@@ -239,6 +244,7 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
       setLoading(true);
       setToolExecutions([]);
       setPipelineSteps([]);
+      setLastCompletedTool(null);
       const userMsg = {
         id: Date.now(),
         text: input,
@@ -627,6 +633,15 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
               }`}>
                 {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </p>
+              {msg.sender === 'ai' && !msg.streaming && msg.id === messages[messages.length - 1]?.id && (
+                <QuickActions
+                  lastTool={lastCompletedTool?.tool}
+                  toolColor={lastCompletedTool?.color}
+                  onAction={(action) => {
+                    setInput(action);
+                  }}
+                />
+              )}
             </div>
           </div>
         ))}
