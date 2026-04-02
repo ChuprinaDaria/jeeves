@@ -308,6 +308,21 @@
   animation: chat-shimmer 1.5s infinite;
 }
 
+/* Chat — dark scrollbar */
+.dark .overflow-y-auto::-webkit-scrollbar {
+  width: 6px;
+}
+.dark .overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dark .overflow-y-auto::-webkit-scrollbar-thumb {
+  background: rgb(75 85 99); /* gray-600 */
+  border-radius: 3px;
+}
+.dark .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: rgb(107 114 128); /* gray-500 */
+}
+
 /* Backward compat */
 .animate-in {
   animation: chat-msg-bot 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;

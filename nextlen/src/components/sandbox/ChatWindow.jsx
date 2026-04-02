@@ -8,6 +8,7 @@ import ToolExecutionNode, { TOOL_MAP } from './chat/ToolExecutionNode';
 import ThinkingPipeline from './chat/ThinkingPipeline';
 import QuickActions from './chat/QuickActions';
 import LiveStatus from './chat/LiveStatus';
+import DataCard from './chat/DataCard';
 
 const BotAvatar = () => (
   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shrink-0 shadow-md shadow-orange-500/20">
@@ -22,21 +23,6 @@ const BotAvatar = () => (
   </div>
 );
 
-const ToolCallBadge = ({ step }) => {
-  const labels = {
-    thinking: 'Thinking...',
-    searching: 'Searching knowledge base...',
-    generating: 'Generating response...',
-  };
-  const label = labels[step] || step;
-
-  return (
-    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-500/10 dark:bg-orange-500/15 border border-orange-500/20 text-orange-600 dark:text-orange-400 text-xs font-medium animate-in">
-      <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
-      {label}
-    </div>
-  );
-};
 
 const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
   const { t, i18n } = useTranslation();
@@ -53,6 +39,7 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
   const [toolExecutions, setToolExecutions] = useState([]); // [{ tool_call_id, tool, params, status, summary, error }]
   const [pipelineSteps, setPipelineSteps] = useState([]);
   const [lastCompletedTool, setLastCompletedTool] = useState(null);
+  const [dataCards, setDataCards] = useState([]);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const audioPlayerRef = useRef(null);
@@ -165,6 +152,36 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
 
     if (eventType === 'tool_result') {
       setLastCompletedTool({ tool: toolName, color: (TOOL_MAP[toolName] || {}).color || 'gray' });
+
+      // Detect structured data for DataCard
+      const resultStr = (data?.result || '').toString();
+      try {
+        const parsed = JSON.parse(resultStr);
+        const toolBase = (toolName || '').replace(/-/g, '_');
+
+        if (toolBase === 'search_leads' || toolBase === 'lead_search') {
+          const items = parsed.leads || parsed.results || (Array.isArray(parsed) ? parsed : []);
+          if (items.length > 0) setDataCards(prev => [...prev, { type: 'leads', data: { items } }]);
+        } else if (toolBase === 'create_lead' || toolBase === 'lead_create') {
+          if (parsed.name || parsed.email) setDataCards(prev => [...prev, { type: 'lead', data: parsed }]);
+        } else if (toolBase === 'send_email' || toolBase === 'send-email') {
+          if (parsed.to || parsed.subject) setDataCards(prev => [...prev, { type: 'email', data: parsed }]);
+        } else if (toolBase === 'search' || toolBase === 'rag_search' || toolBase === 'rag-search') {
+          const chunks = parsed.chunks || [];
+          if (chunks.length > 0) {
+            setDataCards(prev => [...prev, {
+              type: 'kb_results',
+              data: { items: chunks.map(c => ({ title: c.document_title, content: c.content, score: c.similarity })) },
+            }]);
+          }
+        } else if (toolBase === 'generate_file' || toolBase === 'generate-file') {
+          if (parsed.name || parsed.url || parsed.file_name) {
+            setDataCards(prev => [...prev, { type: 'file', data: { name: parsed.file_name || parsed.name, url: parsed.url, size: parsed.size } }]);
+          }
+        }
+      } catch (_) {
+        // Not JSON — no DataCard
+      }
     }
 
     // Build ThinkingPipeline steps from tool events
@@ -665,6 +682,13 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
                       summary={te.summary}
                       error={te.error}
                     />
+                  ))}
+                </div>
+              )}
+              {dataCards.length > 0 && (
+                <div className="space-y-2 mt-2">
+                  {dataCards.map((card, idx) => (
+                    <DataCard key={idx} type={card.type} data={card.data} style={{ animationDelay: `${idx * 100}ms` }} />
                   ))}
                 </div>
               )}
