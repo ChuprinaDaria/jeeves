@@ -508,7 +508,7 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`flex gap-2 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} animate-in`}
+            className={`flex gap-2 ${msg.sender === 'user' ? 'justify-end chat-msg-user' : 'justify-start chat-msg-bot'}`}
           >
             {msg.sender === 'ai' && <BotAvatar />}
             <div
@@ -611,7 +611,7 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
           </div>
         ))}
         {loading && (
-          <div className="flex gap-2 justify-start animate-in">
+          <div className="flex gap-2 justify-start chat-msg-bot">
             <BotAvatar />
             <div className="bg-gray-100 dark:bg-gray-700/50 p-3 rounded-2xl rounded-bl-md">
               <div className="flex flex-col gap-2">
