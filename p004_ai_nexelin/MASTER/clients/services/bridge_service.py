@@ -212,7 +212,10 @@ class BridgeService:
             raise BridgeServiceError(f'Unexpected step after cookies: {step_type}')
 
     async def check_status(self, client, bridge_type: str) -> dict:
-        """Check connection status via provisioning API."""
+        """Check connection status via provisioning API.
+
+        Syncs local status with the bridge's actual state.
+        """
         config = await sync_to_async(self._get_config)(bridge_type)
         conn = await self._get_or_create_connection(client, config)
 
@@ -226,11 +229,23 @@ class BridgeService:
             if resp.status_code == 200:
                 logins = resp.json()
                 if logins:
+                    # Sync local state if bridge reports connected
+                    if conn.status != 'connected':
+                        await sync_to_async(conn.mark_connected)(remote_id=conn.remote_id)
                     return {
                         'status': 'connected',
                         'bridge_type': bridge_type,
                         'remote_id': conn.remote_id,
                         'connected_at': conn.connected_at.isoformat() if conn.connected_at else None,
+                    }
+                else:
+                    # Bridge has no active logins — mark expired if was connected
+                    if conn.status == 'connected':
+                        await sync_to_async(conn.mark_expired)()
+                    return {
+                        'status': 'expired' if conn.status == 'connected' else conn.status,
+                        'bridge_type': bridge_type,
+                        'remote_id': conn.remote_id,
                     }
         except Exception as e:
             logger.warning(f'Bridge status check failed for {bridge_type}: {e}')

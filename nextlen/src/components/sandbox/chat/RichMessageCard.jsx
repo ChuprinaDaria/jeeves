@@ -102,7 +102,7 @@ function AuthPopupCard({ data, onComplete }) {
 function QRCodeCard({ data }) {
   return (
     <div className="flex flex-col items-center gap-3 p-4 rounded-xl border border-gray-200 bg-white mt-2">
-      <div className="text-sm font-medium">Scan QR code with WhatsApp</div>
+      <div className="text-sm font-medium">Scan QR code</div>
       {data.qr ? (
         <img src={data.qr.startsWith('data:') ? data.qr : `data:image/png;base64,${data.qr}`}
           alt="QR Code" className="w-48 h-48" />
@@ -148,7 +148,7 @@ function TargetSelectorCard({ data, onSelect }) {
           </button>
         ))}
         {targets.length > 1 && (
-          <button onClick={() => onSelect?.(targets.join(','))}
+          <button onClick={() => onSelect?.('all')}
             className="px-3 py-1.5 rounded-lg text-sm border border-blue-300 bg-blue-50 text-blue-700 font-medium">
             All
           </button>

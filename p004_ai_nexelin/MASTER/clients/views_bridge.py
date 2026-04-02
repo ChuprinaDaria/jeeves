@@ -73,20 +73,6 @@ class BridgeLoginCookiesView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class BridgeLoginStatusView(APIView):
-    """GET /api/bridges/{type}/login/status/"""
-
-    def get(self, request, bridge_type):
-        client = _get_client(request)
-        if not client:
-            return Response({'error': 'Client not found'}, status=status.HTTP_401_UNAUTHORIZED)
-        try:
-            result = async_to_sync(bridge_service.check_status)(client, bridge_type)
-            return Response(result)
-        except BridgeServiceError as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-
 class BridgeLogoutView(APIView):
     """POST /api/bridges/{type}/logout/"""
 
