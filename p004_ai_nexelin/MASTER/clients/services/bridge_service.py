@@ -45,14 +45,52 @@ class BridgeService:
         return conn
 
     async def _ensure_matrix_user(self, client, conn: ClientBridgeConnection):
-        """Create or reuse Matrix user. Reuses existing whatsapp_bridge create_matrix_user."""
+        """Create or reuse a dedicated Matrix user for this client.
+
+        Checks existing credentials on the connection first, then falls back
+        to any existing Matrix user on the Client model (from WhatsApp bridge),
+        and finally creates a new one via the whatsapp_bridge utility.
+        """
         if conn.matrix_user_id and conn.matrix_access_token:
             return
+
+        # Check if another bridge connection already has Matrix credentials
+        existing = await sync_to_async(
+            lambda: ClientBridgeConnection.objects.filter(
+                client=client,
+            ).exclude(
+                matrix_user_id='',
+            ).exclude(
+                matrix_access_token='',
+            ).first()
+        )()
+        if existing:
+            conn.matrix_user_id = existing.matrix_user_id
+            conn.matrix_access_token = existing.matrix_access_token
+            await sync_to_async(conn.save)(
+                update_fields=['matrix_user_id', 'matrix_access_token']
+            )
+            return
+
+        # Check legacy WhatsApp fields on Client model
+        wa_user = await sync_to_async(lambda: client.whatsapp_bridge_matrix_user_id)()
+        wa_token = await sync_to_async(lambda: client.whatsapp_bridge_matrix_access_token)()
+        if wa_user and wa_token:
+            conn.matrix_user_id = wa_user
+            conn.matrix_access_token = wa_token
+            await sync_to_async(conn.save)(
+                update_fields=['matrix_user_id', 'matrix_access_token']
+            )
+            return
+
+        # Last resort: create via whatsapp_bridge utility (will be extracted later)
         from MASTER.clients.services.whatsapp_bridge import create_matrix_user
-        await sync_to_async(create_matrix_user)(client)
-        conn.matrix_user_id = client.whatsapp_bridge_matrix_user_id
-        conn.matrix_access_token = client.whatsapp_bridge_matrix_access_token
-        await sync_to_async(conn.save)(update_fields=['matrix_user_id', 'matrix_access_token'])
+        user_id, access_token = await sync_to_async(create_matrix_user)(client)
+        conn.matrix_user_id = user_id
+        conn.matrix_access_token = access_token
+        await sync_to_async(conn.save)(
+            update_fields=['matrix_user_id', 'matrix_access_token']
+        )
 
     async def start_login(self, client, bridge_type: str) -> dict:
         """Initiate login flow. Returns auth_flow type + data needed by frontend."""
