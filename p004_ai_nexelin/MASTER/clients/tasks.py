@@ -3721,7 +3721,7 @@ def _poll_bridge_for_client(client, homeserver_url, config):
     bot_user_id = f"@whatsappbot:{config.homeserver_domain}"
     my_user_id = client.whatsapp_bridge_matrix_user_id
     # Ghost user for the client's own WhatsApp number — skip their "echo" messages
-    own_phone = client.whatsapp_bridge_phone or ''
+    own_phone = (client.whatsapp_bridge_phone or '').lstrip('+')
     own_ghost_id = f"@whatsapp_{own_phone}:{config.homeserver_domain}" if own_phone else ''
 
     for room_id, room_data in data.get("rooms", {}).get("join", {}).items():
