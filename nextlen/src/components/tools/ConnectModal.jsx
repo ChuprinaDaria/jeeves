@@ -57,6 +57,9 @@ const ConnectModal = ({ tool, onClose, onConnected }) => {
       } else if (data.status === 'pending' && tool.auth_type === 'qr_code') {
         // Start QR flow
         startQrFlow(data.initiate_url);
+      } else if (data.status === 'pending' && tool.auth_type === 'cookies') {
+        // Cookie extraction via Chrome extension
+        startCookieFlow(tool.slug);
       } else if (data.auth_url) {
         // OAuth2 redirect
         window.location.href = data.auth_url;
@@ -86,6 +89,42 @@ const ConnectModal = ({ tool, onClose, onConnected }) => {
       startPolling(id);
     } catch {
       setError('Failed to start QR login');
+    }
+  };
+
+  const startCookieFlow = async (slug) => {
+    const extensionId = import.meta.env.VITE_NEXELIN_EXTENSION_ID;
+    if (!extensionId) {
+      setError('Nexelin extension is required. Set VITE_NEXELIN_EXTENSION_ID.');
+      return;
+    }
+    try {
+      const response = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(
+          extensionId,
+          {
+            action: 'nexelin_bridge_auth',
+            bridgeType: slug,
+            apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '',
+            authToken: localStorage.getItem('access_token') || '',
+          },
+          (resp) => {
+            if (chrome.runtime.lastError) {
+              reject(new Error('Extension not found. Install the Nexelin extension.'));
+            } else if (resp?.error) {
+              reject(new Error(resp.error));
+            } else {
+              resolve(resp);
+            }
+          }
+        );
+      });
+      if (response.success) {
+        onConnected(slug);
+        onClose();
+      }
+    } catch (e) {
+      setError(e.message);
     }
   };
 
