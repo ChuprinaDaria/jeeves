@@ -24,11 +24,18 @@ class BridgeService:
             raise BridgeServiceError(f'Bridge disabled: {bridge_type}')
         return config
 
-    def _provision_headers(self, matrix_access_token: str) -> dict:
-        return {
-            'Authorization': f'Bearer {matrix_access_token}',
-            'Content-Type': 'application/json',
-        }
+    def _provision_headers(self, matrix_access_token: str = '', config: BridgeConfig = None) -> dict:
+        """Build auth headers for mautrix provisioning API.
+
+        API v3 uses Matrix bearer token. If no token available, falls back
+        to provisioning shared secret (used in some admin-level endpoints).
+        """
+        headers = {'Content-Type': 'application/json'}
+        if matrix_access_token:
+            headers['Authorization'] = f'Bearer {matrix_access_token}'
+        elif config and config.provisioning_secret:
+            headers['Authorization'] = f'Bearer {config.provisioning_secret}'
+        return headers
 
     def _provision_url(self, config: BridgeConfig, path: str) -> str:
         base = config.provisioning_url.rstrip('/')
