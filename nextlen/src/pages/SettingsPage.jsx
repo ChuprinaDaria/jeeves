@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Upload, X, Loader2 } from 'lucide-react';
 import { clientAPI } from '../api/client';
 import api from '../api/axios';
+import ChannelsTab from '../components/settings/ChannelsTab';
 
 const SettingsPage = () => {
   const { t } = useTranslation();
@@ -22,6 +23,7 @@ const SettingsPage = () => {
   const [reportMessage, setReportMessage] = useState('');
   const [notificationLanguage, setNotificationLanguage] = useState('en');
   const [greetingMessage, setGreetingMessage] = useState('');
+  const [activeTab, setActiveTab] = useState('general');
 
   // Notification language options
   const notificationLanguageOptions = [
@@ -268,6 +270,26 @@ const SettingsPage = () => {
         <p className="text-gray-600 dark:text-gray-400">{t('settings.subtitle') || 'Manage your account settings'}</p>
       </div>
 
+      {/* Tab Navigation */}
+      <div className="flex gap-2">
+        {['general', 'channels'].map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === tab
+                ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-700'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            {t(`settings.tab${tab === 'general' ? 'General' : 'Channels'}`)}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'channels' && <ChannelsTab />}
+
+      {activeTab === 'general' && <>
       {/* Logo Upload Section */}
       <div className="max-w-2xl">
         <div className="card">
@@ -536,6 +558,7 @@ const SettingsPage = () => {
           </div>
         </div>
       </div>
+      </>}
     </div>
   );
 };
