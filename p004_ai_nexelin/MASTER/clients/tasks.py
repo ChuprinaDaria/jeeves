@@ -3668,7 +3668,6 @@ def _process_bridge_message(client, phone, message_text, room_id):
             client=client,
             customer_phone=phone,
             is_active=True,
-            source='whatsapp_bridge',
             context_metadata={'platform': 'whatsapp_bridge', 'matrix_room_id': room_id},
         )
 
