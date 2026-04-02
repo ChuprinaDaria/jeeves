@@ -43,10 +43,10 @@ def _resolve_embedding_model(client, agent_config, defaults):
     return None
 
 
-def _search_sync(query: str, client_id: int, top_k: int = 10) -> dict:
+def _search_sync(query: str, client_id: int, top_k: int = 10, requesting_agent: str = 'assistant') -> dict:
     """Run the full RAG search pipeline synchronously."""
     from MASTER.agents.models import AgentConfig
-    from MASTER.clients.models import Client
+    from MASTER.clients.models import Client, ClientDocument
     from MASTER.nexelin_platform.models import PlatformDefaults
 
     try:
@@ -102,8 +102,21 @@ def _search_sync(query: str, client_id: int, top_k: int = 10) -> dict:
             embedding_model=embedding_model,
         )
 
-    # Trim to top_k and serialise
+    # Trim to top_k
     results = results[:top_k]
+
+    # Post-filter by scope when requesting_agent is 'manager':
+    # Manager (Vasya) must NOT see 'assistant'-only knowledge blocks.
+    if requesting_agent == 'manager':
+        document_ids = [r.document_id for r in results if r.document_id is not None]
+        if document_ids:
+            assistant_only_doc_ids = set(
+                ClientDocument.objects.filter(
+                    id__in=document_ids,
+                    knowledge_block__target_scope='assistant',
+                ).values_list('id', flat=True)
+            )
+            results = [r for r in results if r.document_id not in assistant_only_doc_ids]
 
     chunks = [
         {
@@ -142,7 +155,7 @@ def _stats_sync(client_id: int) -> dict:
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
-async def search(query: str, client_id: int, top_k: int = 10) -> str:
+async def search(query: str, client_id: int, top_k: int = 10, requesting_agent: str = 'assistant') -> str:
     """Search the client knowledge base using semantic vector similarity.
 
     Use this tool when you need to find relevant information from
@@ -153,8 +166,10 @@ async def search(query: str, client_id: int, top_k: int = 10) -> str:
         query: Natural-language search query describing what information is needed.
         client_id: Numeric ID of the Nexelin client whose knowledge base to search.
         top_k: Maximum number of result chunks to return (default 10).
+        requesting_agent: Role of the agent making the request ('assistant' or 'manager').
+            Manager only sees 'all' and 'manager' scoped knowledge blocks.
     """
-    result = await sync_to_async(_search_sync)(query, client_id, top_k)
+    result = await sync_to_async(_search_sync)(query, client_id, top_k, requesting_agent)
     return json.dumps(result, ensure_ascii=False)
 
 
