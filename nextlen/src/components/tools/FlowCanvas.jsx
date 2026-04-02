@@ -642,40 +642,11 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     return () => clearTimeout(timer);
   }, [connectedTools.length]);
 
-  /* ── Real-time canvas updates from Oleg's bridge tools ── */
+  /* ── Periodic refresh for canvas updates from Oleg's bridge tools ── */
   useEffect(() => {
     if (!onRefresh) return;
-
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${window.location.host}/ws/canvas/`;
-    let ws;
-
-    try {
-      ws = new WebSocket(wsUrl);
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (['tool_connection_created', 'tool_connection_removed', 'tool_connection_status_changed'].includes(data.event)) {
-            onRefresh();
-          }
-        } catch {
-          // ignore parse errors
-        }
-      };
-
-      ws.onerror = () => {
-        // WebSocket not available, fall back to manual refresh
-      };
-    } catch {
-      // WebSocket not supported
-    }
-
-    return () => {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.close();
-      }
-    };
+    const interval = setInterval(onRefresh, 10000); // poll every 10s
+    return () => clearInterval(interval);
   }, [onRefresh]);
 
   /* ── Drop zone for tool cards from strip ── */
