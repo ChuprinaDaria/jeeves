@@ -12,10 +12,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='client',
-            name='llm_provider_fk',
-        ),
+        # RemoveField llm_provider_fk removed — already dropped in 0032
         migrations.AddField(
             model_name='lead',
             name='agent_session',
