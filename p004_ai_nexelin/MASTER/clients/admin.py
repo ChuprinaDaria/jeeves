@@ -17,6 +17,7 @@ from .models import (
     WhatsAppBridgeConfig,
     Lead,
 )
+from .models_auto_reply import ChannelAutoReply
 from django.shortcuts import render
 from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from django.contrib import messages
@@ -1096,3 +1097,10 @@ class LeadAdmin(admin.ModelAdmin):
     readonly_fields = ['created_at', 'updated_at']
     ordering = ['-created_at']
     raw_id_fields = ['client', 'conversation']
+
+
+@admin.register(ChannelAutoReply)
+class ChannelAutoReplyAdmin(admin.ModelAdmin):
+    list_display = ['client', 'channel', 'enabled', 'schedule_mode', 'contact_mode', 'timezone']
+    list_filter = ['channel', 'enabled', 'schedule_mode']
+    search_fields = ['client__company_name', 'client__tag']

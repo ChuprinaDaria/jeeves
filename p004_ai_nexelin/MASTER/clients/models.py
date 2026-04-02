@@ -2304,3 +2304,5 @@ class Lead(models.Model):
 
     def __str__(self):
         return f"Lead: {self.name or self.email or self.phone or 'Unknown'} ({self.get_status_display()})"
+
+from .models_auto_reply import ChannelAutoReply  # noqa: E402, F401
