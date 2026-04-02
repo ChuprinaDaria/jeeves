@@ -51,6 +51,7 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
   const [mcpEnabled, setMcpEnabled] = useState(false);
   const [mcpStatus, setMcpStatus] = useState(null); // { step: 'thinking' | 'searching' | 'generating' }
   const [toolExecutions, setToolExecutions] = useState([]); // [{ tool_call_id, tool, params, status, summary, error }]
+  const [pipelineSteps, setPipelineSteps] = useState([]);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const audioPlayerRef = useRef(null);
@@ -160,6 +161,20 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
 
       return prev;
     });
+
+    // Build ThinkingPipeline steps from tool events
+    setPipelineSteps(prev => {
+      if (eventType === 'tool_start') {
+        const mapped = TOOL_MAP[toolName] || { label: toolName };
+        if (prev.some(s => s.id === toolCallId)) return prev;
+        const updated = prev.map(s => s.status === 'active' ? { ...s, status: 'done' } : s);
+        return [...updated, { id: toolCallId, label: mapped.label, status: 'active' }];
+      }
+      if (eventType === 'tool_result' || eventType === 'tool_error') {
+        return prev.map(s => s.id === toolCallId ? { ...s, status: 'done' } : s);
+      }
+      return prev;
+    });
   }, []);
 
   // Оновлення привітального повідомлення при зміні мови (якщо тільки воно одне)
@@ -223,6 +238,7 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
     if (mcpEnabled) {
       setLoading(true);
       setToolExecutions([]);
+      setPipelineSteps([]);
       const userMsg = {
         id: Date.now(),
         text: input,
@@ -617,36 +633,26 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
         {loading && (
           <div className="flex gap-2 justify-start chat-msg-bot">
             <BotAvatar />
-            <div className="bg-gray-100 dark:bg-gray-700/50 p-3 rounded-2xl rounded-bl-md">
-              <div className="flex flex-col gap-2">
-                {mcpStatus ? (
-                  <ToolCallBadge step={mcpStatus.step} />
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <div className="flex gap-1">
-                      <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}} />
-                      <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}} />
-                      <div className="w-1.5 h-1.5 bg-orange-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}} />
-                    </div>
-                    <span className="text-xs text-gray-400">Thinking...</span>
-                  </div>
-                )}
+            <div className="bg-gray-100 dark:bg-gray-700/50 p-3 rounded-2xl rounded-bl-md min-w-[200px]">
+              <ThinkingPipeline
+                steps={pipelineSteps.length > 0 ? pipelineSteps : []}
+                currentStep={mcpStatus?.step || 'thinking'}
+              />
 
-                {toolExecutions.length > 0 && (
-                  <div className="space-y-2 mt-1.5 max-h-[180px] overflow-y-auto pr-1">
-                    {toolExecutions.map((t, idx) => (
-                      <ToolExecutionNode
-                        key={t.tool_call_id || idx}
-                        tool={t.tool}
-                        params={t.params}
-                        status={t.status}
-                        summary={t.summary}
-                        error={t.error}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
+              {toolExecutions.length > 0 && (
+                <div className="space-y-2 mt-1.5 max-h-[180px] overflow-y-auto pr-1">
+                  {toolExecutions.map((te, idx) => (
+                    <ToolExecutionNode
+                      key={te.tool_call_id || idx}
+                      tool={te.tool}
+                      params={te.params}
+                      status={te.status}
+                      summary={te.summary}
+                      error={te.error}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
