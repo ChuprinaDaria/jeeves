@@ -26,6 +26,9 @@ from .views_auto_reply import (
 
 
 urlpatterns = [
+    # Universal Bridge API
+    path('bridges/', include('MASTER.clients.urls_bridge')),
+
     # Explicit routes ПЕРЕД router - щоб гарантувати пріоритет
     path('health/', views.health, name='clients-health'),
     path('me/', views.ClientMeView.as_view(), name='client-me'),
