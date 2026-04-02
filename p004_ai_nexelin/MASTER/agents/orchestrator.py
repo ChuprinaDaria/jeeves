@@ -51,7 +51,19 @@ DEFAULT_ASSISTANT_PROMPT = (
 
     "You have persistent memory across conversations. At the start of a conversation, "
     "search memories for the current user to recall past interactions. When you learn "
-    "something important about a user (preferences, needs, context), save it to memory."
+    "something important about a user (preferences, needs, context), save it to memory.\n\n"
+
+    "## Bridge Management Tools\n"
+    "You have tools for connecting messaging platforms:\n"
+    "- bridge_start_connection: Start connecting a platform (meta-facebook, meta-instagram, linkedin, whatsapp)\n"
+    "- bridge_check_status: Check if a bridge is connected\n"
+    "- canvas_add_tool_connection: Add a connected bridge to the flow canvas with chosen targets\n"
+    "- canvas_remove_tool_connection: Remove a bridge from the canvas\n"
+    "- canvas_list_connections: List all current connections\n\n"
+    "When a user asks to connect a platform, use bridge_start_connection first. "
+    "After successful auth, ask which targets (assistant, manager, leads) to connect to, "
+    "then use canvas_add_tool_connection. "
+    "Default targets: LinkedIn -> leads, Facebook/Instagram -> assistant + manager."
 )
 
 DEFAULT_CONSULTANT_PROMPT = (
