@@ -3625,6 +3625,9 @@ def _poll_bridge_for_client(client, homeserver_url, config):
 
     bot_user_id = f"@whatsappbot:{config.homeserver_domain}"
     my_user_id = client.whatsapp_bridge_matrix_user_id
+    # Ghost user for the client's own WhatsApp number — skip their "echo" messages
+    own_phone = client.whatsapp_bridge_phone or ''
+    own_ghost_id = f"@whatsapp_{own_phone}:{config.homeserver_domain}" if own_phone else ''
 
     for room_id, room_data in data.get("rooms", {}).get("join", {}).items():
         events = room_data.get("timeline", {}).get("events", [])
@@ -3632,8 +3635,8 @@ def _poll_bridge_for_client(client, homeserver_url, config):
             if event.get("type") != "m.room.message":
                 continue
             sender = event.get("sender", "")
-            # Skip messages from bot, from ourselves, or from whatsappbot
-            if sender == my_user_id or sender == bot_user_id:
+            # Skip messages from bot, ourselves, whatsappbot, or our own WhatsApp ghost
+            if sender in (my_user_id, bot_user_id, own_ghost_id):
                 continue
             # Only process messages from bridged WhatsApp users (ghost users created by bridge)
             # They look like @whatsapp_<phone>:nexelin.com
