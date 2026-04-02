@@ -692,7 +692,12 @@ class TelegramWebhookView(View):
                 
                 if updated_fields:
                     conversation.save(update_fields=updated_fields)
-            
+
+            # Check if Vasya should auto-respond on this channel for this contact
+            from MASTER.clients.auto_reply import should_vasya_respond
+            if not should_vasya_respond(client, 'telegram', str(chat_id)):
+                return HttpResponse("OK")  # Message saved but no auto-reply
+
             # MCP dual-mode: route to orchestrator for flagged clients
             from MASTER.nexelin_platform.models import FeatureFlag
             if FeatureFlag.is_enabled('mcp_real_agent', conversation.client):
