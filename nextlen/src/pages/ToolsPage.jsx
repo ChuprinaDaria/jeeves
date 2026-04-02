@@ -243,6 +243,7 @@ const ToolsPage = () => {
         onConnect={handleConnect}
         onMiddlewareRemove={handleMiddlewareRemove}
         onMiddlewareAttach={handleMiddlewareAttach}
+        onRefresh={loadTools}
       />
 
       {/* Popover */}

@@ -61,7 +61,7 @@ const buildInitialPositions = (canvasW, canvasH, groups) => {
 };
 
 /* ── Component ─────────────────────────────────────── */
-const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconnect, onConnect, onMiddlewareRemove, onMiddlewareAttach }) => {
+const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconnect, onConnect, onMiddlewareRemove, onMiddlewareAttach, onRefresh }) => {
   const containerRef = useRef(null);
   const innerRef = useRef(null);
 
@@ -641,6 +641,42 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     const timer = setTimeout(fitToView, 200);
     return () => clearTimeout(timer);
   }, [connectedTools.length]);
+
+  /* ── Real-time canvas updates from Oleg's bridge tools ── */
+  useEffect(() => {
+    if (!onRefresh) return;
+
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${window.location.host}/ws/canvas/`;
+    let ws;
+
+    try {
+      ws = new WebSocket(wsUrl);
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (['tool_connection_created', 'tool_connection_removed', 'tool_connection_status_changed'].includes(data.event)) {
+            onRefresh();
+          }
+        } catch {
+          // ignore parse errors
+        }
+      };
+
+      ws.onerror = () => {
+        // WebSocket not available, fall back to manual refresh
+      };
+    } catch {
+      // WebSocket not supported
+    }
+
+    return () => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+    };
+  }, [onRefresh]);
 
   /* ── Drop zone for tool cards from strip ── */
   const [dragOver, setDragOver] = useState(false);
