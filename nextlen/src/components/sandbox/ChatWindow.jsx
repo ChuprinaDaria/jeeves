@@ -491,7 +491,7 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
   return (
     <div className={`card flex flex-col ${fullHeight ? 'h-full' : 'h-[600px]'}`}>
       {/* Header with Clear History Button */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-2">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('sandbox.chatTest')}</h3>
         <button
           onClick={handleClearHistory}
@@ -501,6 +501,10 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
         >
           <Trash2 size={18} />
         </button>
+      </div>
+
+      <div className="mb-3">
+        <LiveStatus />
       </div>
 
       {/* Messages */}

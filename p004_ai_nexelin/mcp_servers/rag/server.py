@@ -102,9 +102,6 @@ def _search_sync(query: str, client_id: int, top_k: int = 10, requesting_agent: 
             embedding_model=embedding_model,
         )
 
-    # Trim to top_k
-    results = results[:top_k]
-
     # Post-filter by scope when requesting_agent is 'manager':
     # Manager (Vasya) must NOT see 'assistant'-only knowledge blocks.
     if requesting_agent == 'manager':
@@ -117,6 +114,9 @@ def _search_sync(query: str, client_id: int, top_k: int = 10, requesting_agent: 
                 ).values_list('id', flat=True)
             )
             results = [r for r in results if r.document_id not in assistant_only_doc_ids]
+
+    # Trim to top_k
+    results = results[:top_k]
 
     chunks = [
         {
