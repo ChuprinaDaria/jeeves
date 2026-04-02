@@ -101,6 +101,20 @@ func (c *Client) GetUserID() string {
 	return c.userID
 }
 
+// GetJoinedMembers returns the user IDs of all members in a room
+func (c *Client) GetJoinedMembers(roomID string) ([]string, error) {
+	resp, err := c.client.JoinedMembers(roomID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get joined members for room %s: %w", roomID, err)
+	}
+
+	members := make([]string, 0, len(resp.Joined))
+	for userID := range resp.Joined {
+		members = append(members, userID)
+	}
+	return members, nil
+}
+
 // GetClient returns the underlying gomatrix client (for sync operations)
 func (c *Client) GetClient() *gomatrix.Client {
 	return c.client

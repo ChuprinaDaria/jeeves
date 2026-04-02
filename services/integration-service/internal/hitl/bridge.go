@@ -17,6 +17,7 @@ type ConversationMapping struct {
 	RoomID         string
 	Channel        string // "telegram", "whatsapp", "web"
 	ClientID       int64
+	BridgeType     string // "whatsapp", "meta-facebook", "meta-instagram", "linkedin"
 }
 
 // NewBridge creates a new bridge instance
@@ -28,7 +29,7 @@ func NewBridge() *Bridge {
 }
 
 // RegisterConversation registers a conversation with a Matrix room
-func (b *Bridge) RegisterConversation(conversationID int64, roomID, channel string, clientID int64) {
+func (b *Bridge) RegisterConversation(conversationID int64, roomID, channel string, clientID int64, bridgeType string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -37,6 +38,7 @@ func (b *Bridge) RegisterConversation(conversationID int64, roomID, channel stri
 		RoomID:         roomID,
 		Channel:        channel,
 		ClientID:       clientID,
+		BridgeType:     bridgeType,
 	}
 
 	b.roomToConv[roomID] = mapping
@@ -44,16 +46,16 @@ func (b *Bridge) RegisterConversation(conversationID int64, roomID, channel stri
 }
 
 // GetConversationByRoom returns conversation details for a given Matrix room ID
-func (b *Bridge) GetConversationByRoom(roomID string) (int64, string, int64, bool) {
+func (b *Bridge) GetConversationByRoom(roomID string) (int64, string, int64, string, bool) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
 	mapping, found := b.roomToConv[roomID]
 	if !found {
-		return 0, "", 0, false
+		return 0, "", 0, "", false
 	}
 
-	return mapping.ConversationID, mapping.Channel, mapping.ClientID, true
+	return mapping.ConversationID, mapping.Channel, mapping.ClientID, mapping.BridgeType, true
 }
 
 // GetRoomByConversation returns the Matrix room ID for a given conversation ID

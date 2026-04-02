@@ -55,6 +55,7 @@ type ForwardMessageRequest struct {
 	ConversationID int64  `json:"conversation_id" binding:"required"`
 	Message        string `json:"message" binding:"required"`
 	Channel        string `json:"channel" binding:"required"`
+	BridgeType     string `json:"bridge_type,omitempty"` // "whatsapp", "meta-facebook", "meta-instagram", "linkedin"
 }
 
 // UpdateRoomRequest represents a request to update Matrix room info in Django
