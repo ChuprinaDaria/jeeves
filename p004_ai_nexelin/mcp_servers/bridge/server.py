@@ -22,11 +22,12 @@ async def bridge_start_connection(
     client_id: int,
     bridge_type: str = "",
 ) -> str:
-    """Start connecting a messaging platform (meta-facebook, meta-instagram, linkedin, whatsapp-bridge).
-    Returns auth flow info (popup URL for cookies, or QR code for WhatsApp).
-    The user needs to complete auth in their browser/app."""
+    """Start connecting a messaging platform via cookie bridge.
+    Supported bridge_type: meta-facebook, meta-instagram, linkedin.
+    WhatsApp uses a separate QR flow — do NOT call this for WhatsApp.
+    Returns auth flow info (popup URL for cookie extraction via Chrome Extension)."""
     if not bridge_type:
-        return json.dumps({"error": "bridge_type is required (meta-facebook, meta-instagram, linkedin, whatsapp-bridge)"})
+        return json.dumps({"error": "bridge_type is required (meta-facebook, meta-instagram, linkedin)"})
 
     client = await sync_to_async(Client.objects.get)(pk=client_id)
     try:
