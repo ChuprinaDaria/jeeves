@@ -3771,12 +3771,12 @@ def _process_bridge_message(client, phone, message_text, room_id):
 
     conversation.add_message('user', message_text)
 
-    # Check if Vasya should auto-respond on this channel for this contact
-    from MASTER.clients.auto_reply import should_vasya_respond
-    if not should_vasya_respond(client, 'whatsapp_bridge', phone):
+    # Check if Consultant should auto-respond on this channel for this contact
+    from MASTER.clients.auto_reply import should_consultant_respond
+    if not should_consultant_respond(client, 'whatsapp_bridge', phone):
         return  # Message saved to conversation but no auto-reply
 
-    # Process via MCP orchestrator (Vasya — consultant agent)
+    # Process via MCP orchestrator (Consultant agent)
     try:
         import asyncio
         from MASTER.agents.models import AgentConfig, AgentSession

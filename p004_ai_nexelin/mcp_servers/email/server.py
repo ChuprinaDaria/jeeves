@@ -39,7 +39,7 @@ def _resolve_language(session_id: str, language: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Assistant tools (Oleg)
+# Assistant tools (Nexy)
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
@@ -163,7 +163,7 @@ async def analyze_emails(
 
 
 # ---------------------------------------------------------------------------
-# Manager tool (Vasya)
+# Manager tool (Consultant)
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
@@ -179,7 +179,7 @@ async def send_commercial_email(
     items: list[dict] | None = None,
 ) -> str:
     """Send a structured commercial email (quote/invoice/offer/follow_up).
-    Vasya uses this to send proposals to customers.
+    Consultant uses this to send proposals to customers.
     Body is generated from template if empty. Subject auto-generated from proposal_type.
     NOT for arbitrary emails — only commercial proposals.
 

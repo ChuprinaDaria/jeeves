@@ -337,7 +337,7 @@ class KnowledgeBlockViewSet(viewsets.ModelViewSet):
             scope = self.request.query_params.get('scope')
             if scope == 'manager':
                 qs = qs.filter(target_scope__in=['all', 'manager'])
-            # 'assistant' or no scope param → return all (Oleg sees everything)
+            # 'assistant' or no scope param → return all (Nexy sees everything)
 
         return qs
     
@@ -4115,3 +4115,136 @@ class PixelDashboardStatusView(APIView):
                 'status': server_status,
             },
         })
+
+
+class AnalyticsLeadsView(APIView):
+    permission_classes = []
+
+    def get(self, request):
+        from datetime import timedelta
+        from django.db.models import Count
+        from django.db.models.functions import TruncDate
+        from django.core.cache import cache
+        from django.utils import timezone
+        from MASTER.clients.models import Lead
+
+        client = request.client
+        period = request.query_params.get('period', '30d')
+        if period not in ('7d', '30d', '90d'):
+            return Response({'error': 'Invalid period. Use 7d, 30d, or 90d.'}, status=400)
+
+        cache_key = f'analytics:{client.id}:leads:{period}'
+        cached = cache.get(cache_key)
+        if cached:
+            return Response(cached)
+
+        days = int(period.replace('d', ''))
+        start_date = timezone.now() - timedelta(days=days)
+
+        data = list(
+            Lead.objects.filter(
+                client=client,
+                created_at__gte=start_date
+            ).annotate(
+                date=TruncDate('created_at')
+            ).values('date').annotate(
+                total=Count('id'),
+                converted=Count('id', filter=Q(status='converted'))
+            ).order_by('date')
+        )
+
+        for row in data:
+            row['date'] = row['date'].isoformat()
+
+        result = {'period': period, 'data': data}
+        cache.set(cache_key, result, 300)
+        return Response(result)
+
+
+class AnalyticsSentimentView(APIView):
+    permission_classes = []
+
+    def get(self, request):
+        from datetime import timedelta
+        from django.db.models import Count
+        from django.db.models.functions import TruncDate
+        from django.core.cache import cache
+        from django.utils import timezone
+
+        client = request.client
+        period = request.query_params.get('period', '30d')
+        if period not in ('7d', '30d', '90d'):
+            return Response({'error': 'Invalid period. Use 7d, 30d, or 90d.'}, status=400)
+
+        cache_key = f'analytics:{client.id}:sentiment:{period}'
+        cached = cache.get(cache_key)
+        if cached:
+            return Response(cached)
+
+        days = int(period.replace('d', ''))
+        start_date = timezone.now() - timedelta(days=days)
+
+        data = list(
+            ClientWhatsAppConversation.objects.filter(
+                client=client,
+                started_at__gte=start_date
+            ).annotate(
+                date=TruncDate('started_at')
+            ).values('date').annotate(
+                positive=Count('id', filter=Q(sentiment='positive')),
+                negative=Count('id', filter=Q(sentiment='negative')),
+                neutral=Count('id', filter=Q(sentiment='neutral'))
+            ).order_by('date')
+        )
+
+        for row in data:
+            row['date'] = row['date'].isoformat()
+
+        result = {'period': period, 'data': data}
+        cache.set(cache_key, result, 300)
+        return Response(result)
+
+
+class AnalyticsEscalationsView(APIView):
+    permission_classes = []
+
+    def get(self, request):
+        from datetime import timedelta
+        from django.db.models import Count
+        from django.db.models.functions import TruncDate
+        from django.core.cache import cache
+        from django.utils import timezone
+
+        client = request.client
+        period = request.query_params.get('period', '30d')
+        if period not in ('7d', '30d', '90d'):
+            return Response({'error': 'Invalid period. Use 7d, 30d, or 90d.'}, status=400)
+
+        cache_key = f'analytics:{client.id}:escalations:{period}'
+        cached = cache.get(cache_key)
+        if cached:
+            return Response(cached)
+
+        days = int(period.replace('d', ''))
+        start_date = timezone.now() - timedelta(days=days)
+
+        data = list(
+            ClientWhatsAppConversation.objects.filter(
+                client=client,
+                escalation_started_at__isnull=False,
+                escalation_started_at__gte=start_date
+            ).annotate(
+                date=TruncDate('escalation_started_at')
+            ).values('date').annotate(
+                total=Count('id'),
+                resolved=Count('id', filter=Q(is_waiting_for_manager=False))
+            ).order_by('date')
+        )
+
+        for row in data:
+            row['date'] = row['date'].isoformat()
+            row['pending'] = row['total'] - row['resolved']
+
+        result = {'period': period, 'data': data}
+        cache.set(cache_key, result, 300)
+        return Response(result)

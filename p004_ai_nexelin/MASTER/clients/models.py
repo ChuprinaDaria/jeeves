@@ -918,8 +918,8 @@ class KnowledgeBlock(models.Model):
 
     TARGET_SCOPE_CHOICES = [
         ('all', 'All (available to everyone)'),
-        ('assistant', 'Assistant only (Oleg)'),
-        ('manager', 'Manager only (Vasya)'),
+        ('assistant', 'Assistant only (Nexy)'),
+        ('manager', 'Manager only (Consultant)'),
     ]
 
     id = models.AutoField(primary_key=True)

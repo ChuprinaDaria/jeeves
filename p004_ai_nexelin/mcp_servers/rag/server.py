@@ -103,7 +103,7 @@ def _search_sync(query: str, client_id: int, top_k: int = 10, requesting_agent: 
         )
 
     # Post-filter by scope when requesting_agent is 'manager':
-    # Manager (Vasya) must NOT see 'assistant'-only knowledge blocks.
+    # Manager (Consultant) must NOT see 'assistant'-only knowledge blocks.
     if requesting_agent == 'manager':
         document_ids = [r.document_id for r in results if r.document_id is not None]
         if document_ids:

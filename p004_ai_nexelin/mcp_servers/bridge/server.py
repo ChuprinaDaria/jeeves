@@ -1,4 +1,4 @@
-"""MCP Bridge server — tools for Oleg to manage platform connections."""
+"""MCP Bridge server — tools for Nexy to manage platform connections."""
 import json
 import logging
 from mcp.server.fastmcp import FastMCP

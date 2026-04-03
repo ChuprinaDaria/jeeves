@@ -198,6 +198,28 @@ services:
       - "matrix.nexelin.com:195.201.202.162"
     networks: [nexelin_network]
 
+  # ====================== LANGFLOW ==========================
+  langflow:
+    image: langflowai/langflow:latest
+    container_name: ai_nexelin_langflow
+    restart: unless-stopped
+    ports:
+      - "7860:7860"
+    environment:
+      - LANGFLOW_DATABASE_URL=postgresql://${DB_USER:-admin_user}:${DB_PASS:-admin_pass}@postgres:5432/langflow_db
+      - LANGFLOW_CONFIG_DIR=/app/langflow
+    volumes:
+      - langflow_data:/app/langflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7860/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks: [nexelin_network]
+
   # =================== INTEGRATION SERVICE ==================
   integration-service:
     build:
@@ -233,3 +255,4 @@ volumes:
   static_volume:
   media_volume:
   mautrix_postgres_data:
+  langflow_data:

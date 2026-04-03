@@ -15,6 +15,7 @@ import ToolsPage from './pages/ToolsPage';
 import SetupInstructionsPage from './pages/SetupInstructionsPage';
 import SettingsPage from './pages/SettingsPage';
 import LeadsPage from './pages/LeadsPage';
+import LangflowPage from './pages/LangflowPage';
 import ClientLoginPage from './pages/ClientLoginPage';
 import LoginPage from './pages/LoginPage';
 import WebChatPage from './pages/WebChatPage';
@@ -41,6 +42,7 @@ function App() {
             <Route path="setup" element={<SetupInstructionsPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="leads" element={<LeadsPage />} />
+            <Route path="langflow" element={<LangflowPage />} />
           </Route>
 
           {/* Web Chat for B2C clients */}
@@ -59,6 +61,7 @@ function App() {
               <Route path="/setup" element={<SetupInstructionsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/leads" element={<LeadsPage />} />
+              <Route path="/langflow" element={<LangflowPage />} />
             </Route>
 
           {/* Redirect */}

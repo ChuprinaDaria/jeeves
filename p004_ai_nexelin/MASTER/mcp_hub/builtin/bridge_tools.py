@@ -1,5 +1,5 @@
 """
-MCP builtin tools for Oleg to manage bridge connections and canvas nodes.
+MCP builtin tools for Nexy to manage bridge connections and canvas nodes.
 
 Tools:
 - bridge_start_connection: Initiate bridge auth (QR or cookies)

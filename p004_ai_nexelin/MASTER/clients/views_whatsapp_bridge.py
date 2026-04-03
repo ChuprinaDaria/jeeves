@@ -220,7 +220,7 @@ class WhatsAppBridgeMessageView(APIView):
         # Add user message
         conversation.add_message('user', message_text)
 
-        # Process via MCP orchestrator (Vasya — consultant agent)
+        # Process via MCP orchestrator (Consultant agent)
         try:
             import asyncio
             from MASTER.agents.models import AgentConfig, AgentSession

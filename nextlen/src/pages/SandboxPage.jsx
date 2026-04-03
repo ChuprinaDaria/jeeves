@@ -40,10 +40,10 @@ const SandboxPage = () => {
       <div className="flex flex-col h-[calc(100vh-140px)] min-h-[500px]">
         <div className="mb-4">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {t('sandbox.assistantTitle') || 'AI Assistant'}
+            {t('sandbox.assistantTitle') || 'Nexy Assistant'}
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            {t('sandbox.assistantSubtitle') || 'Chat with your AI assistant'}
+            {t('sandbox.assistantSubtitle') || 'Chat with Nexy, your AI assistant'}
           </p>
         </div>
         <div className="flex-1 min-h-0">

@@ -1,4 +1,4 @@
-"""MCP Coaching server — Oleg trains Vasya via knowledge base and prompt updates."""
+"""MCP Coaching server — Nexy trains Consultant via knowledge base and prompt updates."""
 import json
 import logging
 import uuid
@@ -57,8 +57,8 @@ async def review_vasya_conversations(
     days_back: int = 7,
     min_messages: int = 3,
 ) -> str:
-    """Review Vasya's (consultant AI) recent conversations and identify knowledge gaps.
-    Finds conversations where Vasya couldn't answer, gave generic responses,
+    """Review Consultant's (consultant AI) recent conversations and identify knowledge gaps.
+    Finds conversations where Consultant couldn't answer, gave generic responses,
     or escalated unnecessarily.
     Use this to find areas where the consultant needs training."""
 
@@ -285,7 +285,7 @@ async def get_consultant_prompt(
     client_id: int,
     session_id: str,
 ) -> str:
-    """Read Vasya's current consultant_prompt from AgentConfig.
+    """Read Consultant's current consultant_prompt from AgentConfig.
     Use before suggesting changes to understand the current state."""
 
     def _get():

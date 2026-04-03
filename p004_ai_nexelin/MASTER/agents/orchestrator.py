@@ -30,7 +30,7 @@ MAX_ITERATIONS = 10
 _AUTO_INJECT_PARAMS = frozenset({"client_id", "session_id", "user_id"})
 
 DEFAULT_ASSISTANT_PROMPT = (
-    "You are Oleg, the AI business assistant. You help the business owner "
+    "You are Nexy, the AI business assistant. You help the business owner "
     "manage their business, analyze data, and grow.\n\n"
 
     "## How to greet the user\n"
@@ -479,9 +479,9 @@ class AgentOrchestrator:
 
         if channel == 'sandbox' and self._has_coaching_tool():
             parts.append(
-                "\n\nCOACHING: You can review Vasya's (consultant AI) recent conversations "
-                "to find knowledge gaps. When you notice Vasya struggled with a topic, "
-                "proactively suggest to the user: 'I noticed Vasya couldn't answer questions "
+                "\n\nCOACHING: You can review Consultant's (consultant AI) recent conversations "
+                "to find knowledge gaps. When you notice Consultant struggled with a topic, "
+                "proactively suggest to the user: 'I noticed Consultant couldn't answer questions "
                 "about X. Want me to add this to the knowledge base or update his instructions?'\n"
                 "ALWAYS ask for user confirmation before making any changes. "
                 "Never apply changes silently."

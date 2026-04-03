@@ -4,10 +4,10 @@ from zoneinfo import ZoneInfo
 from .models_auto_reply import ChannelAutoReply
 
 
-def should_vasya_respond(client, channel: str, contact_id: str) -> bool:
+def should_consultant_respond(client, channel: str, contact_id: str) -> bool:
     """
-    Check if Vasya should auto-respond to this message.
-    Returns True if Vasya should respond, False to skip.
+    Check if Consultant should auto-respond to this message.
+    Returns True if Consultant should respond, False to skip.
     """
     if channel in ('web', 'sandbox'):
         return True
