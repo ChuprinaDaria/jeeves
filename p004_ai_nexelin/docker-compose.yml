@@ -208,6 +208,9 @@ services:
     environment:
       - LANGFLOW_DATABASE_URL=postgresql://${DB_USER:-admin_user}:${DB_PASS:-admin_pass}@postgres:5432/langflow_db
       - LANGFLOW_CONFIG_DIR=/app/langflow
+      - LANGFLOW_AUTO_LOGIN=true
+      - LANGFLOW_REMOVE_API_KEYS=false
+      - LANGFLOW_BACKEND_URL=https://api.nexelin.com/langflow/
     volumes:
       - langflow_data:/app/langflow
     depends_on:
