@@ -587,6 +587,16 @@ def logout_whatsapp(client) -> bool:
         'whatsapp_bridge_status', 'whatsapp_bridge_phone',
         'whatsapp_bridge_connected_at', 'whatsapp_bridge_error',
     ])
+
+    # Also update ToolConnection so frontend sees "disconnected"
+    from MASTER.tools.models import ToolCard, ToolConnection
+    try:
+        card = ToolCard.objects.get(slug='whatsapp-bridge')
+        ToolConnection.objects.filter(client=client, tool_card=card).update(
+            status='disconnected', enabled=False)
+    except ToolCard.DoesNotExist:
+        pass
+
     return True
 
 

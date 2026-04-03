@@ -260,6 +260,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'MASTER.clients.tasks.poll_whatsapp_bridge_messages',
         'schedule': 5.0,  # Poll Matrix every 5 seconds for bridge messages
     },
+    'check-whatsapp-bridge-status': {
+        'task': 'MASTER.clients.tasks.check_whatsapp_bridge_status',
+        'schedule': 60.0,  # Check bridge connections every 60 seconds
+    },
 }
 
 # === RAG CONFIGS (SHORTENED) ===
@@ -480,6 +484,11 @@ MCP_SERVERS = {
         'args': ['-y', '@modelcontextprotocol/server-sequential-thinking'],
         'enabled': True,
     },
+    'bridge': {
+        'command': 'python',
+        'args': ['-m', 'mcp_servers.bridge.server'],
+        'enabled': True,
+    },
 }
 
 MCP_TOOL_SCOPES = {
@@ -491,5 +500,10 @@ MCP_TOOL_SCOPES = {
     'send_commercial_email': ['manager'],
     'update_knowledge_base': [],
     'update_consultant_instructions': [],
+    'bridge_start_connection': ['assistant'],
+    'bridge_check_status': ['assistant'],
+    'canvas_add_tool_connection': ['assistant'],
+    'canvas_remove_tool_connection': ['assistant'],
+    'canvas_list_connections': ['assistant'],
 }
 

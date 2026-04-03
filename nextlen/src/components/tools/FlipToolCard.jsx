@@ -124,6 +124,8 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
         onConnected(tool.slug);
       } else if (res.data.status === 'pending' && tool.auth_type === 'qr_code') {
         startQrFlow(res.data.initiate_url);
+      } else if (res.data.status === 'pending' && tool.auth_type === 'cookies') {
+        startCookieFlow(tool.slug);
       } else if (res.data.auth_url) {
         window.location.href = res.data.auth_url;
       }
@@ -138,12 +140,55 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
     }
   };
 
+  const startCookieFlow = async (slug) => {
+    const extensionId = import.meta.env.VITE_NEXELIN_EXTENSION_ID;
+    if (!extensionId) {
+      setError('Nexelin Chrome extension is required for this integration.');
+      return;
+    }
+    try {
+      const response = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(
+          extensionId,
+          {
+            action: 'nexelin_bridge_auth',
+            bridgeType: slug,
+            apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '',
+            authToken: localStorage.getItem('access_token') || '',
+          },
+          (resp) => {
+            if (chrome.runtime.lastError) {
+              reject(new Error('Extension not found. Install the Nexelin Chrome extension.'));
+            } else if (resp?.error) {
+              reject(new Error(resp.error));
+            } else {
+              resolve(resp);
+            }
+          }
+        );
+      });
+      if (response.success) {
+        setFlipped(false);
+        onConnected(slug);
+      }
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
   const startQrFlow = async (initiateUrl) => {
     try {
-      const url = initiateUrl || tool.auth_config?.initiate_url || '/clients/whatsapp/bridge/login/';
+      const raw = initiateUrl || tool.auth_config?.initiate_url || 'clients/whatsapp/bridge/login/';
+      // Strip leading slash so axios appends to baseURL instead of ignoring it
+      const url = raw.startsWith('/') ? raw.slice(1) : raw;
+      // Switch to QR view immediately (empty string = show loader)
+      setQrData('');
       const res = await api.post(url);
       if (res.data.qr) {
         setQrData(res.data.qr);
+      }
+      // Always start polling — QR may arrive later from background thread
+      if (res.data.login_id) {
         startPolling(res.data.login_id);
       }
     } catch {
@@ -153,7 +198,8 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
 
   const startPolling = (id) => {
     let retries = 0;
-    const statusUrl = tool.auth_config?.status_url || '/clients/whatsapp/bridge/login/status/';
+    const rawStatus = tool.auth_config?.status_url || 'clients/whatsapp/bridge/login/status/';
+    const statusUrl = rawStatus.startsWith('/') ? rawStatus.slice(1) : rawStatus;
     pollRef.current = setInterval(async () => {
       retries++;
       if (retries > 48) {
@@ -259,14 +305,20 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
             </div>
           )}
 
-          {qrData ? (
+          {qrData !== null ? (
             <div className="flex flex-col items-center gap-1">
-              <div className="bg-white p-1 rounded">
-                <img src={`data:image/png;base64,${qrData}`} alt="QR" className="w-24 h-24" />
-              </div>
+              {qrData ? (
+                <div className="bg-white p-1 rounded">
+                  <img src={`data:image/png;base64,${qrData}`} alt="QR" className="w-24 h-24" />
+                </div>
+              ) : (
+                <div className="w-24 h-24 flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary-500" />
+                </div>
+              )}
               <div className="flex items-center gap-1 text-[10px] text-gray-500">
                 <Loader2 className="w-3 h-3 animate-spin" />
-                {t('tools.connecting')}
+                {qrData ? t('tools.connecting') : t('tools.flow.startQr')}
               </div>
             </div>
           ) : (

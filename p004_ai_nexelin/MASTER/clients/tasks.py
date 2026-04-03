@@ -3846,3 +3846,55 @@ def _send_bridge_reply(client, room_id, reply_text):
     except Exception as e:
         logger.error(f"Failed to send bridge reply to {room_id}: {e}")
 
+
+@shared_task
+def check_whatsapp_bridge_status():
+    """
+    Periodic check for WhatsApp bridge connections that became disconnected
+    externally (e.g. user removed linked device from WhatsApp).
+    Runs every 60s via Celery Beat.
+    """
+    from .models import Client, WhatsAppBridgeConfig
+    from .services.whatsapp_bridge import get_connection_status
+
+    try:
+        config = WhatsAppBridgeConfig.objects.get(pk=1)
+        if not config.is_enabled:
+            return
+    except WhatsAppBridgeConfig.DoesNotExist:
+        return
+
+    clients = Client.objects.filter(
+        is_active=True,
+        whatsapp_bridge_enabled=True,
+        whatsapp_bridge_status='connected',
+    ).exclude(
+        whatsapp_bridge_matrix_access_token='',
+    )
+
+    for client in clients:
+        try:
+            result = get_connection_status(client)
+            if result.get('status') == 'disconnected':
+                logger.info(
+                    f"WhatsApp bridge externally disconnected for client {client.id}, updating status"
+                )
+                client.whatsapp_bridge_status = 'disconnected'
+                client.whatsapp_bridge_phone = ''
+                client.whatsapp_bridge_connected_at = None
+                client.whatsapp_bridge_error = ''
+                client.save(update_fields=[
+                    'whatsapp_bridge_status', 'whatsapp_bridge_phone',
+                    'whatsapp_bridge_connected_at', 'whatsapp_bridge_error',
+                ])
+                # Also update ToolConnection
+                from MASTER.tools.models import ToolCard, ToolConnection
+                try:
+                    card = ToolCard.objects.get(slug='whatsapp-bridge')
+                    ToolConnection.objects.filter(client=client, tool_card=card).update(
+                        status='disconnected', enabled=False)
+                except ToolCard.DoesNotExist:
+                    pass
+        except Exception as e:
+            logger.error(f"Bridge status check error for client {client.id}: {e}")
+

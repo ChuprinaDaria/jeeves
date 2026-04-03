@@ -538,6 +538,10 @@ class AgentOrchestrator:
                     self._connected_server_names.add(server_name)
                     break
 
+        # Bridge management tools are always available in sandbox scope
+        if self._scope == 'assistant' and 'bridge' in self._sessions:
+            self._connected_server_names.add('bridge')
+
     def _get_scope_tool_names(self) -> list[str]:
         """Tool names visible to current scope."""
         names = []
@@ -561,6 +565,7 @@ class AgentOrchestrator:
         'memory': ('Memory', 'Remember information about users across conversations'),
         'sequential-thinking': ('Deep Thinking', 'Complex multi-step analysis, planning, and reasoning'),
         'escalation': ('Escalation', 'Escalate conversations to human manager when needed'),
+        'bridge': ('Platform Connections', 'Connect and manage messaging platforms (Facebook, Instagram, LinkedIn, WhatsApp)'),
     }
 
     def _get_connected_tool_descriptions(self) -> list[tuple[str, str]]:
