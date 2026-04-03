@@ -37,6 +37,7 @@ async def bridge_start_connection(
 
     if result.get('auth_flow') == 'cookies':
         return json.dumps({
+            "type": "auth_popup",
             "status": "auth_required",
             "auth_flow": "cookies",
             "bridge_type": bridge_type,
@@ -48,6 +49,7 @@ async def bridge_start_connection(
         })
     elif result.get('auth_flow') == 'qr_code':
         return json.dumps({
+            "type": "qr_code",
             "status": "qr_pending",
             "auth_flow": "qr_code",
             "bridge_type": bridge_type,
@@ -74,6 +76,7 @@ async def bridge_check_status(
 
         result = await bridge_service.check_status(client, bridge_type)
         return json.dumps({
+            "type": "status_card",
             "bridge_type": bridge_type,
             "status": result.get("status", "disconnected"),
             "remote_id": result.get("remote_id"),
@@ -128,6 +131,7 @@ async def canvas_add_tool_connection(
         nodes_created.append(f"{target}-{bridge_type}")
 
     return json.dumps({
+        "type": "connection_created",
         "status": "connected",
         "bridge_type": bridge_type,
         "targets": targets,
@@ -149,7 +153,7 @@ async def canvas_remove_tool_connection(
         try:
             conn = await sync_to_async(ToolConnection.objects.get)(pk=connection_id, client=client)
             await sync_to_async(conn.delete)()
-            return json.dumps({"status": "removed", "connection_id": connection_id})
+            return json.dumps({"type": "connection_removed", "status": "removed", "connection_id": connection_id})
         except ToolConnection.DoesNotExist:
             return json.dumps({"error": f"Connection {connection_id} not found"})
 
@@ -162,7 +166,7 @@ async def canvas_remove_tool_connection(
         deleted, _ = await sync_to_async(
             ToolConnection.objects.filter(client=client, tool_card=tool_card).delete
         )()
-        return json.dumps({"status": "removed", "bridge_type": bridge_type, "deleted_count": deleted})
+        return json.dumps({"type": "connection_removed", "status": "removed", "bridge_type": bridge_type, "deleted_count": deleted})
 
     return json.dumps({"error": "connection_id or bridge_type required"})
 
