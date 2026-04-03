@@ -40,9 +40,13 @@ class BridgeService:
             headers['Host'] = 'matrix.nexelin.com'
         return headers
 
-    def _provision_url(self, config: BridgeConfig, path: str) -> str:
+    def _provision_url(self, config: BridgeConfig, path: str, user_id: str = '') -> str:
         base = config.provisioning_url.rstrip('/')
-        return f'{base}/_matrix/provision{path}'
+        url = f'{base}/_matrix/provision{path}'
+        if user_id:
+            sep = '&' if '?' in url else '?'
+            url = f'{url}{sep}user_id={user_id}'
+        return url
 
     async def _get_or_create_connection(self, client, config: BridgeConfig) -> ClientBridgeConnection:
         conn, created = await sync_to_async(
@@ -109,7 +113,8 @@ class BridgeService:
         await self._ensure_matrix_user(client, conn)
 
         # Get available login flows
-        url = self._provision_url(config, '/v3/login/flows')
+        uid = conn.matrix_user_id
+        url = self._provision_url(config, '/v3/login/flows', user_id=uid)
         async with httpx.AsyncClient(timeout=15) as http:
             resp = await http.get(url, headers=self._provision_headers(conn.matrix_access_token, config))
             if resp.status_code != 200:
@@ -121,7 +126,7 @@ class BridgeService:
 
         # Start first available flow
         flow_id = flows[0].get('id', flows[0].get('flow_id', ''))
-        url = self._provision_url(config, f'/v3/login/start/{flow_id}')
+        url = self._provision_url(config, f'/v3/login/start/{flow_id}', user_id=uid)
         async with httpx.AsyncClient(timeout=15) as http:
             resp = await http.post(url, headers=self._provision_headers(conn.matrix_access_token, config))
             if resp.status_code != 200:
@@ -180,7 +185,8 @@ class BridgeService:
 
         url = self._provision_url(
             config,
-            f'/v3/login/step/{conn.login_process_id}/{conn.login_step_id}/cookies'
+            f'/v3/login/step/{conn.login_process_id}/{conn.login_step_id}/cookies',
+            user_id=conn.matrix_user_id,
         )
         async with httpx.AsyncClient(timeout=15) as http:
             resp = await http.post(
@@ -225,7 +231,7 @@ class BridgeService:
         if not conn.matrix_access_token:
             return {'status': conn.status, 'bridge_type': bridge_type}
 
-        url = self._provision_url(config, '/v3/logins')
+        url = self._provision_url(config, '/v3/logins', user_id=conn.matrix_user_id)
         try:
             async with httpx.AsyncClient(timeout=10) as http:
                 resp = await http.get(url, headers=self._provision_headers(conn.matrix_access_token, config))
@@ -266,7 +272,7 @@ class BridgeService:
         conn = await self._get_or_create_connection(client, config)
 
         if conn.matrix_access_token:
-            url = self._provision_url(config, '/v3/logout/all')
+            url = self._provision_url(config, '/v3/logout/all', user_id=conn.matrix_user_id)
             try:
                 async with httpx.AsyncClient(timeout=10) as http:
                     await http.post(url, headers=self._provision_headers(conn.matrix_access_token, config))
