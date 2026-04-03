@@ -119,13 +119,15 @@ class BridgeService:
             resp = await http.get(url, headers=self._provision_headers(conn.matrix_access_token, config))
             if resp.status_code != 200:
                 raise BridgeServiceError(f'Failed to get login flows: {resp.status_code} {resp.text}')
-            flows = resp.json()
+            data = resp.json()
+            flows = data.get('flows', data) if isinstance(data, dict) else data
 
         if not flows:
             raise BridgeServiceError(f'No login flows available for {bridge_type}')
 
         # Start first available flow
-        flow_id = flows[0].get('id', flows[0].get('flow_id', ''))
+        first = flows[0] if isinstance(flows, list) else flows
+        flow_id = first.get('id', first.get('flow_id', ''))
         url = self._provision_url(config, f'/v3/login/start/{flow_id}', user_id=uid)
         async with httpx.AsyncClient(timeout=15) as http:
             resp = await http.post(url, headers=self._provision_headers(conn.matrix_access_token, config))
