@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Nexelin Web Agent",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Nexelin Chrome extension: page intelligence, RAG chat assistant, semantic data collection, and bridge cookie extraction.",
-  "permissions": ["storage", "activeTab", "scripting", "cookies"],
+  "permissions": ["storage", "activeTab", "scripting", "cookies", "sidePanel"],
   "host_permissions": [
     "*://*/"
   ],
@@ -12,8 +12,10 @@
     "type": "module"
   },
   "action": {
-    "default_title": "Nexelin Web Agent",
-    "default_popup": "popup.html"
+    "default_title": "Nexelin Web Agent"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
   },
   "content_scripts": [
     {

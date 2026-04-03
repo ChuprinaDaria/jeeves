@@ -18,6 +18,11 @@ chrome.runtime.onInstalled.addListener(() => {
   log('Service worker installed');
 });
 
+// Open side panel when the extension icon is clicked
+chrome.action.onClicked.addListener((tab) => {
+  chrome.sidePanel.open({ tabId: tab.id });
+});
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message || !message.type) {
     return;

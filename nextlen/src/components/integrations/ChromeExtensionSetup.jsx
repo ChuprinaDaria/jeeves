@@ -10,6 +10,7 @@ const ChromeExtensionSetup = ({ onClose }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [copied, setCopied] = useState(false);
+  const [visible, setVisible] = useState(false);
 
   const extensionDownloadUrl =
     import.meta.env.VITE_EXTENSION_DOWNLOAD_URL ||
@@ -17,7 +18,14 @@ const ChromeExtensionSetup = ({ onClose }) => {
 
   useEffect(() => {
     loadClientInfo();
+    // Trigger slide-in after mount
+    requestAnimationFrame(() => setVisible(true));
   }, []);
+
+  const handleClose = () => {
+    setVisible(false);
+    setTimeout(onClose, 300);
+  };
 
   const loadClientInfo = async () => {
     try {
@@ -48,161 +56,178 @@ const ChromeExtensionSetup = ({ onClose }) => {
     window.open(extensionDownloadUrl, '_blank', 'noopener,noreferrer');
   };
 
-  if (loading) {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-2xl w-full mx-4">
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="animate-spin text-primary-500 dark:text-primary-400" size={32} />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   const extensionEnabled = clientInfo?.extension_enabled || false;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-2xl w-full mx-4 my-8">
-        <div className="flex items-center justify-between mb-6">
+    <div className="fixed inset-0 z-50 flex justify-end">
+      {/* Backdrop */}
+      <div
+        className={`absolute inset-0 bg-black transition-opacity duration-300 ${
+          visible ? 'opacity-40' : 'opacity-0'
+        }`}
+        onClick={handleClose}
+      />
+
+      {/* Sidebar */}
+      <div
+        className={`relative w-full max-w-md h-full bg-white dark:bg-gray-800 shadow-2xl
+          transform transition-transform duration-300 ease-out
+          ${visible ? 'translate-x-0' : 'translate-x-full'}
+          flex flex-col`}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between p-6 border-b border-gray-200 dark:border-gray-700 shrink-0">
           <div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-              Google Chrome Extension Setup
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              Chrome Extension
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Web AI Agent for browsing & automation. Scrape pages into Knowledge Blocks and collect contact data.
+              Web AI Agent for browsing, scraping &amp; social bridge auth
             </p>
           </div>
-          <button 
-            onClick={onClose} 
-            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+          <button
+            onClick={handleClose}
+            className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
-            <X size={24} />
+            <X size={20} />
           </button>
         </div>
 
-        {error && (
-          <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="text-red-600 dark:text-red-400 mt-0.5" size={18} />
-              <div className="text-sm text-red-700 dark:text-red-200">{error}</div>
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="animate-spin text-primary-500" size={28} />
             </div>
-          </div>
-        )}
-
-        {success && (
-          <div className="mb-4 p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700">
-            <div className="flex items-start gap-2">
-              <Check className="text-green-600 dark:text-green-400 mt-0.5" size={18} />
-              <div className="text-sm text-green-700 dark:text-green-200">{success}</div>
-            </div>
-          </div>
-        )}
-
-        {!extensionEnabled ? (
-          <div className="space-y-4">
-            <div className="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="text-yellow-600 dark:text-yellow-400 mt-0.5" size={18} />
-                <div className="text-sm text-yellow-700 dark:text-yellow-200">
-                  <p className="font-medium mb-1">Extension is disabled</p>
-                  <p>Ask Nexelin support to enable the browser extension for your account in the admin panel.</p>
+          ) : (
+            <>
+              {error && (
+                <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="text-red-600 dark:text-red-400 mt-0.5 shrink-0" size={16} />
+                    <div className="text-sm text-red-700 dark:text-red-200">{error}</div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {/* Client Token Section */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Client token (X-Client-Token)
-              </label>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-900 rounded-lg text-sm font-mono text-gray-900 dark:text-gray-100 break-all">
-                  {clientInfo?.tag || '—'}
-                </code>
-                {clientInfo?.tag && (
-                  <button
-                    type="button"
-                    onClick={handleCopyToken}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                      copied
-                        ? 'bg-green-600 dark:bg-green-500 text-white'
-                        : 'bg-primary-600 dark:bg-primary-500 text-white hover:bg-primary-700 dark:hover:bg-primary-600'
-                    }`}
-                  >
-                    {copied ? <Check size={16} /> : <Copy size={16} />}
-                    {copied ? 'Copied!' : t('common.copy') || 'Copy'}
-                  </button>
-                )}
-              </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                Paste this token into extension settings. All requests use header <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-900 rounded">X-Client-Token</code>.
-              </p>
-            </div>
+              )}
 
-            {/* Download Section */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Download Extension
-              </label>
-              <button
-                type="button"
-                onClick={handleDownload}
-                className="w-full px-4 py-3 rounded-lg bg-primary-600 dark:bg-primary-500 text-white hover:bg-primary-700 dark:hover:bg-primary-600 transition-colors flex items-center justify-center gap-2 font-medium"
-              >
-                <Download size={20} />
-                Download Chrome Extension ZIP
-              </button>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                Download the extension ZIP file and load it via Developer mode in Chrome.
-              </p>
-            </div>
+              {success && (
+                <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700">
+                  <div className="flex items-start gap-2">
+                    <Check className="text-green-600 dark:text-green-400 mt-0.5 shrink-0" size={16} />
+                    <div className="text-sm text-green-700 dark:text-green-200">{success}</div>
+                  </div>
+                </div>
+              )}
 
-            {/* Instructions Section */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                Installation & Usage Instructions
-              </label>
-              <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 dark:text-gray-300">
-                <li>
-                  <strong>Download the extension:</strong> Click the download button above to get the ZIP file.
-                </li>
-                <li>
-                  <strong>Enable Developer mode:</strong> Open Chrome and go to <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-900 rounded">chrome://extensions/</code>, then enable "Developer mode" in the top right.
-                </li>
-                <li>
-                  <strong>Load the extension:</strong> Click "Load unpacked" and select the extracted extension folder.
-                </li>
-                <li>
-                  <strong>Configure the extension:</strong> Open the extension popup, paste your client token (copied above) and click "Save token".
-                </li>
-                <li>
-                  <strong>Use the extension:</strong> Navigate to any website and use the buttons "Scrap text" or "Collect mails" in the extension popup to add content to your Knowledge Blocks.
-                </li>
-              </ol>
-            </div>
+              {!extensionEnabled ? (
+                <div className="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="text-yellow-600 dark:text-yellow-400 mt-0.5 shrink-0" size={16} />
+                    <div className="text-sm text-yellow-700 dark:text-yellow-200">
+                      <p className="font-medium mb-1">Extension is disabled</p>
+                      <p>Ask Nexelin support to enable it for your account.</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Download */}
+                  <div>
+                    <button
+                      type="button"
+                      onClick={handleDownload}
+                      className="w-full px-4 py-3 rounded-xl bg-primary-600 dark:bg-primary-500 text-white
+                        hover:bg-primary-700 dark:hover:bg-primary-600 transition-colors
+                        flex items-center justify-center gap-2 font-medium shadow-sm"
+                    >
+                      <Download size={18} />
+                      Download Extension
+                    </button>
+                  </div>
 
-            {/* Features Section */}
-            <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700">
-              <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2">
-                What the extension does:
-              </h4>
-              <ul className="list-disc list-inside space-y-1 text-sm text-blue-800 dark:text-blue-200">
-                <li><strong>Scrap text:</strong> Extracts structured content (headings, lists, tables, quotes) from pages and saves them to Knowledge Blocks with embeddings.</li>
-                <li><strong>Collect mails:</strong> Extracts emails, phone numbers, and addresses from pages and stores them for easy access.</li>
-                <li>All data is organized by website domain and accessible in the "Extension data" tab.</li>
-              </ul>
-            </div>
-          </div>
-        )}
+                  {/* Client Token */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                      Client Token
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg text-sm font-mono text-gray-900 dark:text-gray-100 break-all border border-gray-200 dark:border-gray-700">
+                        {clientInfo?.tag || '—'}
+                      </code>
+                      {clientInfo?.tag && (
+                        <button
+                          type="button"
+                          onClick={handleCopyToken}
+                          className={`p-2 rounded-lg transition-colors shrink-0 ${
+                            copied
+                              ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                          }`}
+                        >
+                          {copied ? <Check size={16} /> : <Copy size={16} />}
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1.5">
+                      Paste into extension settings
+                    </p>
+                  </div>
 
-        <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                  {/* Setup steps */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                      Setup
+                    </label>
+                    <div className="space-y-3">
+                      {[
+                        { n: '1', text: 'Download the ZIP above and unzip it' },
+                        { n: '2', text: <>Go to <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs">chrome://extensions/</code> → enable <strong>Developer mode</strong></> },
+                        { n: '3', text: 'Click "Load unpacked" → select the extension folder' },
+                        { n: '4', text: 'Open the extension popup → paste your Client Token → Save' },
+                      ].map((step) => (
+                        <div key={step.n} className="flex items-start gap-3">
+                          <span className="shrink-0 w-6 h-6 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 flex items-center justify-center text-xs font-bold">
+                            {step.n}
+                          </span>
+                          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{step.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Capabilities */}
+                  <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700">
+                    <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+                      Capabilities
+                    </h4>
+                    <div className="space-y-2">
+                      {[
+                        { label: 'Scrap text', desc: 'Extract content from pages → Knowledge Blocks' },
+                        { label: 'Collect contacts', desc: 'Emails, phones, addresses from any page' },
+                        { label: 'Social bridges', desc: 'Auth for Facebook, Instagram, LinkedIn bridges' },
+                      ].map((cap) => (
+                        <div key={cap.label} className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary-500 mt-1.5 shrink-0" />
+                          <p className="text-sm text-gray-700 dark:text-gray-300">
+                            <strong>{cap.label}:</strong> {cap.desc}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="shrink-0 p-4 border-t border-gray-200 dark:border-gray-700">
           <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            onClick={handleClose}
+            className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600
+              text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700
+              transition-colors text-sm font-medium"
           >
             {t('common.close') || 'Close'}
           </button>
@@ -213,4 +238,3 @@ const ChromeExtensionSetup = ({ onClose }) => {
 };
 
 export default ChromeExtensionSetup;
-
