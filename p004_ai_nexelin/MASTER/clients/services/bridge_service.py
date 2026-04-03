@@ -35,6 +35,9 @@ class BridgeService:
             headers['Authorization'] = f'Bearer {matrix_access_token}'
         elif config and config.provisioning_secret:
             headers['Authorization'] = f'Bearer {config.provisioning_secret}'
+        # NPM reverse proxy routes by Host header
+        if config and config.provisioning_url and '195.201.202.162' in config.provisioning_url:
+            headers['Host'] = 'matrix.nexelin.com'
         return headers
 
     def _provision_url(self, config: BridgeConfig, path: str) -> str:
