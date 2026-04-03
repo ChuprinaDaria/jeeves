@@ -111,7 +111,7 @@ class BridgeService:
         # Get available login flows
         url = self._provision_url(config, '/v3/login/flows')
         async with httpx.AsyncClient(timeout=15) as http:
-            resp = await http.get(url, headers=self._provision_headers(conn.matrix_access_token))
+            resp = await http.get(url, headers=self._provision_headers(conn.matrix_access_token, config))
             if resp.status_code != 200:
                 raise BridgeServiceError(f'Failed to get login flows: {resp.status_code} {resp.text}')
             flows = resp.json()
@@ -123,7 +123,7 @@ class BridgeService:
         flow_id = flows[0].get('id', flows[0].get('flow_id', ''))
         url = self._provision_url(config, f'/v3/login/start/{flow_id}')
         async with httpx.AsyncClient(timeout=15) as http:
-            resp = await http.post(url, headers=self._provision_headers(conn.matrix_access_token))
+            resp = await http.post(url, headers=self._provision_headers(conn.matrix_access_token, config))
             if resp.status_code != 200:
                 raise BridgeServiceError(f'Failed to start login: {resp.status_code} {resp.text}')
             step = resp.json()
@@ -185,7 +185,7 @@ class BridgeService:
         async with httpx.AsyncClient(timeout=15) as http:
             resp = await http.post(
                 url,
-                headers=self._provision_headers(conn.matrix_access_token),
+                headers=self._provision_headers(conn.matrix_access_token, config),
                 json={'cookies': cookies},
             )
 
@@ -228,7 +228,7 @@ class BridgeService:
         url = self._provision_url(config, '/v3/logins')
         try:
             async with httpx.AsyncClient(timeout=10) as http:
-                resp = await http.get(url, headers=self._provision_headers(conn.matrix_access_token))
+                resp = await http.get(url, headers=self._provision_headers(conn.matrix_access_token, config))
             if resp.status_code == 200:
                 logins = resp.json()
                 if logins:
@@ -269,7 +269,7 @@ class BridgeService:
             url = self._provision_url(config, '/v3/logout/all')
             try:
                 async with httpx.AsyncClient(timeout=10) as http:
-                    await http.post(url, headers=self._provision_headers(conn.matrix_access_token))
+                    await http.post(url, headers=self._provision_headers(conn.matrix_access_token, config))
             except Exception as e:
                 logger.warning(f'Bridge logout API failed for {bridge_type}: {e}')
 
