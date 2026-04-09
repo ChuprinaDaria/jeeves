@@ -569,12 +569,6 @@ class MetaWhatsAppWebhookView(View):
                             notify_manager_of_escalation.delay(conversation.id, rag_response.escalation_summary or message_body[:200])
                             logger.info(f"HITL escalation triggered for Meta WhatsApp conversation {conversation.id}")
                     
-                    # Matrix HITL (parallel with Telegram)
-                    if rag_response.requires_escalation:
-                        from MASTER.clients.tasks import send_matrix_escalation
-                        escalation_lang = getattr(conversation, 'forced_language', '') or getattr(conversation, 'last_user_language', '') or language or 'en'
-                        send_matrix_escalation(conversation, client, "whatsapp", message_body, rag_response.escalation_summary, escalation_lang)
-
                     # Save lead data if present
                     if hasattr(rag_response, 'lead_data') and rag_response.lead_data:
                         try:

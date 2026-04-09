@@ -16,43 +16,6 @@ except ImportError:
         pass
 
 
-@receiver(pre_save, sender=Client)
-def capture_old_matrix_manager_ids(sender, instance: Client, **kwargs):
-    """Store old matrix_manager_user_ids before save so post_save can detect new ones."""
-    if instance.pk:
-        try:
-            old = Client.objects.filter(pk=instance.pk).values_list(
-                'matrix_manager_user_ids', flat=True
-            ).first()
-            instance._old_matrix_manager_user_ids = old or []
-        except Exception:
-            instance._old_matrix_manager_user_ids = []
-    else:
-        instance._old_matrix_manager_user_ids = []
-
-
-@receiver(post_save, sender=Client)
-def onboard_new_matrix_managers(sender, instance: Client, created, **kwargs):
-    """Detect newly added Matrix manager IDs and send them a welcome DM."""
-    old_ids = set(getattr(instance, '_old_matrix_manager_user_ids', []))
-    new_ids = set(instance.matrix_manager_user_ids or [])
-    added = new_ids - old_ids
-
-    if not added:
-        return
-
-    client_name = instance.company_name or instance.tag or str(instance.pk)
-    for manager_user_id in added:
-        if not manager_user_id or not manager_user_id.strip():
-            continue
-        try:
-            from .tasks import onboard_matrix_manager
-            onboard_matrix_manager.delay(instance.pk, manager_user_id.strip(), client_name)
-            logger.info(f"Queued onboarding for Matrix manager {manager_user_id} (client {instance.pk})")
-        except Exception as e:
-            logger.error(f"Failed to queue onboarding for {manager_user_id}: {e}")
-
-
 @receiver(post_save, sender=Client)
 def regenerate_web_qrs_on_domain_change(sender, instance: Client, created, **kwargs):
     """Regenerates QR codes for web integration when webchat_domain changes"""

@@ -76,32 +76,13 @@ def _escalate_sync(client_id, conversation_id, reason, customer_name, channel, s
         except Exception as e:
             logger.error(f"Failed to dispatch Telegram escalation: {e}")
 
-    # 2. Matrix notification — via existing function (Integration Service HTTP)
-    matrix_dispatched = False
-    if getattr(client, "matrix_hitl_enabled", False):
-        try:
-            from MASTER.clients.tasks import send_matrix_escalation
-            send_matrix_escalation(
-                conversation=conv,
-                client=client,
-                channel=channel,
-                message_body=question_summary,
-                escalation_summary=reason,
-                language=getattr(conv, "escalation_language", "en"),
-            )
-            matrix_dispatched = True
-            logger.info(f"Dispatched Matrix escalation for conversation {conv.id}")
-        except Exception as e:
-            logger.error(f"Failed to dispatch Matrix escalation: {e}")
-
-    manager_notified = telegram_dispatched or matrix_dispatched
+    manager_notified = telegram_dispatched
 
     return {
         "escalation_id": f"esc-{conv.id}-{int(timezone.now().timestamp())}",
         "conversation_id": conversation_id,
         "manager_notified": manager_notified,
         "telegram": telegram_dispatched,
-        "matrix": matrix_dispatched,
         "estimated_wait": "2-5 minutes" if manager_notified else "No manager channel configured",
         "reason": reason,
     }
@@ -117,13 +98,11 @@ def _check_availability_sync(client_id):
 
     has_telegram = bool(getattr(client, "telegram_bot_token", ""))
     manager_ids = client.get_manager_telegram_ids() if hasattr(client, "get_manager_telegram_ids") else []
-    has_matrix = bool(getattr(client, "matrix_homeserver_url", ""))
 
     return {
-        "available": (has_telegram and len(manager_ids) > 0) or has_matrix,
+        "available": has_telegram and len(manager_ids) > 0,
         "channels": {
             "telegram": has_telegram and len(manager_ids) > 0,
-            "matrix": has_matrix,
         },
         "telegram_manager_count": len(manager_ids),
     }

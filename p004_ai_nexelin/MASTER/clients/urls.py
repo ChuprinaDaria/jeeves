@@ -9,14 +9,6 @@ from .views_telephony import (
     TelephonyDetailView,
     TelephonyVoicesView,
 )
-from .views_whatsapp_bridge import (
-    WhatsAppBridgeConfigView,
-    WhatsAppBridgeLoginView,
-    WhatsAppBridgeQRPollView,
-    WhatsAppBridgeLogoutView,
-    WhatsAppBridgeStatusView,
-    WhatsAppBridgeMessageView,
-)
 from .views_leads import LeadListView, LeadDetailView
 from .views_auto_reply import (
     ChannelAutoReplyListView,
@@ -26,9 +18,6 @@ from .views_auto_reply import (
 
 
 urlpatterns = [
-    # Universal Bridge API
-    path('bridges/', include('MASTER.clients.urls_bridge')),
-
     # Explicit routes ПЕРЕД router - щоб гарантувати пріоритет
     path('health/', views.health, name='clients-health'),
     path('me/', views.ClientMeView.as_view(), name='client-me'),
@@ -49,13 +38,6 @@ urlpatterns = [
     path('pixel-status/', views.PixelDashboardStatusView.as_view(), name='client-pixel-status'),
     path('top-prompts/', views.TopPromptsView.as_view(), name='top-prompts'),
     path('whatsapp/meta/config/', views.ClientWhatsAppConfigView.as_view(), name='client-whatsapp-meta-config'),
-    # WhatsApp Bridge (mautrix-whatsapp)
-    path('whatsapp/bridge/config/', WhatsAppBridgeConfigView.as_view(), name='client-whatsapp-bridge-config'),
-    path('whatsapp/bridge/login/', WhatsAppBridgeLoginView.as_view(), name='client-whatsapp-bridge-login'),
-    path('whatsapp/bridge/login/status/', WhatsAppBridgeQRPollView.as_view(), name='client-whatsapp-bridge-login-status'),
-    path('whatsapp/bridge/logout/', WhatsAppBridgeLogoutView.as_view(), name='client-whatsapp-bridge-logout'),
-    path('whatsapp/bridge/status/', WhatsAppBridgeStatusView.as_view(), name='client-whatsapp-bridge-status'),
-    path('whatsapp/bridge/message/', WhatsAppBridgeMessageView.as_view(), name='client-whatsapp-bridge-message'),
     path('telegram/config/', views.ClientTelegramConfigView.as_view(), name='client-telegram-config'),
     path('email-smtp/config/', views.ClientEmailSMTPConfigView.as_view(), name='client-email-smtp-config'),
     path('reports/daily-digest/send/', views.SendDailyDigestNowView.as_view(), name='client-send-daily-digest-now'),

@@ -237,9 +237,6 @@ CELERY_TASK_ANNOTATIONS = {
 }
 CELERY_WORKER_CONCURRENCY = env.int("CELERY_WORKER_CONCURRENCY", default=1)
 
-# === INTEGRATION SERVICE (Matrix HITL) ===
-INTEGRATION_SERVICE_URL = env("INTEGRATION_SERVICE_URL", default="http://ai_nexelin_integration_service:8080")
-
 # Celery Beat schedule for periodic tasks
 from celery.schedules import crontab
 CELERY_BEAT_SCHEDULE = {
@@ -254,14 +251,6 @@ CELERY_BEAT_SCHEDULE = {
     'check-escalation-timeouts': {
         'task': 'MASTER.clients.tasks.check_escalation_timeouts',
         'schedule': 300.0,  # Run every 5 minutes to check for timed out escalations
-    },
-    'poll-whatsapp-bridge': {
-        'task': 'MASTER.clients.tasks.poll_whatsapp_bridge_messages',
-        'schedule': 5.0,  # Poll Matrix every 5 seconds for bridge messages
-    },
-    'check-whatsapp-bridge-status': {
-        'task': 'MASTER.clients.tasks.check_whatsapp_bridge_status',
-        'schedule': 60.0,  # Check bridge connections every 60 seconds
     },
 }
 
@@ -483,11 +472,6 @@ MCP_SERVERS = {
         'args': ['-y', '@modelcontextprotocol/server-sequential-thinking'],
         'enabled': True,
     },
-    'bridge': {
-        'command': 'python',
-        'args': ['-m', 'mcp_servers.bridge.server'],
-        'enabled': True,
-    },
 }
 
 MCP_TOOL_SCOPES = {
@@ -499,8 +483,6 @@ MCP_TOOL_SCOPES = {
     'send_commercial_email': ['manager'],
     'update_knowledge_base': [],
     'update_consultant_instructions': [],
-    'bridge_start_connection': ['assistant'],
-    'bridge_check_status': ['assistant'],
     'canvas_add_tool_connection': ['assistant'],
     'canvas_remove_tool_connection': ['assistant'],
     'canvas_list_connections': ['assistant'],
