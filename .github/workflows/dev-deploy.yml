@@ -5,7 +5,7 @@ on:
     branches:
       - dev
     paths:
-      - 'p004_ai_nexelin/**'
+      - 'backend/**'
       - 'nextlen/**'
       - '.github/workflows/dev-deploy.yml'
 
@@ -33,7 +33,7 @@ jobs:
         with:
           filters: |
             backend:
-              - 'p004_ai_nexelin/**'
+              - 'backend/**'
               - '.github/workflows/dev-deploy.yml'
             frontend:
               - 'nextlen/**'
@@ -52,7 +52,7 @@ jobs:
     if: needs.check-changes.outputs.backend == 'true'
     defaults:
       run:
-        working-directory: ./p004_ai_nexelin
+        working-directory: ./backend
 
     steps:
       - name: 📥 Checkout code

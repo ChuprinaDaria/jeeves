@@ -7,7 +7,7 @@ import sys
 import django
 
 # Додаємо шлях до проекту
-sys.path.append('/home/dchuprina/p004_ai_nexelin')
+sys.path.append('/home/dchuprina/backend')
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'MASTER.settings')
 django.setup()  # type: ignore
 

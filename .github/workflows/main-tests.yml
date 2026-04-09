@@ -5,14 +5,14 @@ on:
     branches:
       - main
     paths:
-      - 'p004_ai_nexelin/**'
+      - 'backend/**'
       - 'nextlen/**'
       - '.github/workflows/main-tests.yml'
   pull_request:
     branches:
       - main
     paths:
-      - 'p004_ai_nexelin/**'
+      - 'backend/**'
       - 'nextlen/**'
       - '.github/workflows/main-tests.yml'
 
@@ -41,7 +41,7 @@ jobs:
         with:
           filters: |
             backend:
-              - 'p004_ai_nexelin/**'
+              - 'backend/**'
               - '.github/workflows/main-tests.yml'
             frontend:
               - 'nextlen/**'
@@ -60,7 +60,7 @@ jobs:
     if: needs.check-changes.outputs.backend == 'true'
     defaults:
       run:
-        working-directory: ./p004_ai_nexelin
+        working-directory: ./backend
     
     services:
       postgres:
@@ -136,9 +136,9 @@ jobs:
         with:
           name: backend-coverage-report
           path: |
-            p004_ai_nexelin/MASTER/coverage.xml
-            p004_ai_nexelin/MASTER/htmlcov/**
-            p004_ai_nexelin/MASTER/junit.xml
+            backend/MASTER/coverage.xml
+            backend/MASTER/htmlcov/**
+            backend/MASTER/junit.xml
           retention-days: 30
 
       - name: 📈 Coverage summary

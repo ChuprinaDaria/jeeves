@@ -55,7 +55,7 @@ All settings are centralized in `MASTER/settings.py`:
 ## Project Structure
 
 ```
-p004_ai_nexelin/
+backend/
 ├── MASTER/                          # Main Django project
 │   ├── accounts/                    # User management app
 │   │   ├── admin.py                 # User admin configuration
@@ -405,7 +405,7 @@ The AI Nexelin platform is built on a microservices architecture with the follow
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd p004_ai_nexelin
+   cd backend
    ```
 
 2. **Create environment file**
@@ -439,7 +439,7 @@ The AI Nexelin platform is built on a microservices architecture with the follow
 1. **Clone and setup**
    ```bash
    git clone <repository-url>
-   cd p004_ai_nexelin
+   cd backend
    python3 -m venv venv
    source venv/bin/activate
    ```

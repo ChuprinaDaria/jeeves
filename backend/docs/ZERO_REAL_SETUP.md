@@ -365,7 +365,7 @@ docker exec -it postgres_container psql -U zero_client_1 -d zero_client_1
 docker network ls
 
 # Приєднати контейнер до network (якщо потрібно)
-docker network connect p004_ai_nexelin_default zero_client_1
+docker network connect backend_default zero_client_1
 ```
 
 ### Проблема: Port вже зайнятий

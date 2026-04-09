@@ -100,7 +100,7 @@ def check_zero_container_health_task(config_id):
 
 ```bash
 git clone [ваш-репозиторий]
-cd p004_ai_nexelin
+cd backend
 ```
 
 ### Шаг 2: Настроить Google OAuth

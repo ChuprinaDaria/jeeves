@@ -32,7 +32,7 @@ class ZeroDockerManager:
         image: str = "",
         repo_url: str = "https://github.com/Mail-0/Zero",
         repo_branch: str = "staging",
-        network: str = "p004_ai_nexelin_default"
+        network: str = "backend_default"
     ) -> Dict[str, Any]:
         """
         Start a Zero container for a client.

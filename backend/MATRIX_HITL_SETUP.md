@@ -5,7 +5,7 @@
 ### 1. Застосуйте міграцію
 
 ```bash
-cd p004_ai_nexelin
+cd backend
 python manage.py migrate
 ```
 

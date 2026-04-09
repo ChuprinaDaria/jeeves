@@ -12,7 +12,7 @@
 Pipeline автоматично визначає, що змінилося:
 
 - ✅ **Якщо зміни тільки у фронтенді** (`nextlen/**`) → деплоїться тільки фронтенд
-- ✅ **Якщо зміни тільки у бекенді** (`p004_ai_nexelin/**`) → деплоїться тільки бекенд
+- ✅ **Якщо зміни тільки у бекенді** (`backend/**`) → деплоїться тільки бекенд
 - ✅ **Якщо зміни в обох** → деплоїться і фронтенд, і бекенд
 
 ## 🔐 Налаштування GitHub Secrets
@@ -50,7 +50,7 @@ VITE_API_URL=https://api.nexelin.com/api
 
 **Jobs:**
 1. **check-changes** - Визначає, що змінилося
-2. **backend-tests** - Запускається тільки якщо зміни в `p004_ai_nexelin/**`
+2. **backend-tests** - Запускається тільки якщо зміни в `backend/**`
    - Тести з покриттям
    - Звіти coverage (XML, HTML)
 3. **frontend-tests** - Запускається тільки якщо зміни в `nextlen/**`
@@ -64,7 +64,7 @@ VITE_API_URL=https://api.nexelin.com/api
 
 **Jobs:**
 1. **check-changes** - Визначає, що змінилося
-2. **deploy-backend** - Запускається тільки якщо зміни в `p004_ai_nexelin/**`
+2. **deploy-backend** - Запускається тільки якщо зміни в `backend/**`
    - Безпечний деплой (зберігає database volumes)
    - Health checks
    - Детальне логування
@@ -115,7 +115,7 @@ VITE_API_URL=https://api.nexelin.com/api
 
 ```bash
 # Backend
-cd p004_ai_nexelin
+cd backend
 bash scripts/deploy-backend-safe.sh \
   --host your-server \
   --user deploy \
@@ -133,7 +133,7 @@ bash scripts/deploy-ftp-safe.sh \
 ### Health Check
 
 ```bash
-cd p004_ai_nexelin
+cd backend
 bash scripts/health-check.sh \
   --host your-server \
   --user deploy \
@@ -156,8 +156,8 @@ git push origin dev
 ### Зміни тільки у бекенді
 
 ```bash
-# Змінюємо файл у p004_ai_nexelin/
-git add p004_ai_nexelin/MASTER/clients/views.py
+# Змінюємо файл у backend/
+git add backend/MASTER/clients/views.py
 git commit -m "Update client views"
 git push origin dev
 ```
@@ -168,7 +168,7 @@ git push origin dev
 
 ```bash
 # Змінюємо файли в обох частинах
-git add nextlen/ p004_ai_nexelin/
+git add nextlen/ backend/
 git commit -m "Update both frontend and backend"
 git push origin dev
 ```
@@ -186,7 +186,7 @@ git push origin dev
 
 ### Backend деплой не запускається
 
-1. Перевірте, чи є зміни в `p004_ai_nexelin/**`
+1. Перевірте, чи є зміни в `backend/**`
 2. Перевірте SSH ключ у secrets
 3. Перевірте права доступу на сервері
 

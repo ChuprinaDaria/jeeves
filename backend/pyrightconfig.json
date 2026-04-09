@@ -1,5 +1,5 @@
 {
-  "venvPath": "/home/dchuprina/p004_ai_nexelin",
+  "venvPath": "/home/dchuprina/backend",
   "venv": "venv",
   "pythonVersion": "3.12",
   "include": [
@@ -17,13 +17,13 @@
     {
       "root": ".",
       "venv": "venv",
-      "pythonPath": "/home/dchuprina/p004_ai_nexelin/venv/bin/python"
+      "pythonPath": "/home/dchuprina/backend/venv/bin/python"
     }
   ],
   "extraPaths": [
-    "/home/dchuprina/p004_ai_nexelin/venv/lib/python3.12/site-packages",
-    "/home/dchuprina/p004_ai_nexelin/venv/lib/python3.12/site-packages/django-stubs",
-    "/home/dchuprina/p004_ai_nexelin/venv/lib/python3.12/site-packages/django-stubs/django-stubs"
+    "/home/dchuprina/backend/venv/lib/python3.12/site-packages",
+    "/home/dchuprina/backend/venv/lib/python3.12/site-packages/django-stubs",
+    "/home/dchuprina/backend/venv/lib/python3.12/site-packages/django-stubs/django-stubs"
   ]
 }
 
