@@ -227,7 +227,7 @@ class WebWidgetScriptView(View):
         # Шлях до статичного файлу віджета
         widget_js_path = os.path.join(
             settings.BASE_DIR.parent,  # Виходимо з backend
-            'nextlen',
+            'frontend',
             'public',
             'static',
             'widget',

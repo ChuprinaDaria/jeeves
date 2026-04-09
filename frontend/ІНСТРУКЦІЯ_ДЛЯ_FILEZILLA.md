@@ -15,7 +15,7 @@ http://localhost:8000/api/... net::ERR_CONNECTION_REFUSED
 
 ### Крок 1: Переконайтеся що `.env.production` існує і правильний
 
-В директорії `nextlen/` має бути файл `.env.production` з вмістом:
+В директорії `frontend/` має бути файл `.env.production` з вмістом:
 
 ```bash
 VITE_API_URL=https://api.nexelin.com/api
@@ -24,7 +24,7 @@ VITE_MOCK_MODE=false
 
 **Як перевірити:**
 ```bash
-cd nextlen
+cd frontend
 cat .env.production
 ```
 
@@ -41,7 +41,7 @@ echo "VITE_MOCK_MODE=false" >> .env.production
 **ВАЖЛИВО:** Завжди робіть свіжий build перед завантаженням!
 
 ```bash
-cd nextlen
+cd frontend
 npm run build:prod
 ```
 
@@ -54,7 +54,7 @@ npm run build:prod
 Після build перевірте один з файлів:
 
 ```bash
-cd nextlen/dist/assets
+cd frontend/dist/assets
 grep -r "api.nexelin.com" . | head -1
 ```
 
@@ -74,7 +74,7 @@ grep -r "api.nexelin.com" . | head -1
 
 2. **Перейдіть в корінь сайту** (зазвичай `/` або `/public_html/`)
 
-3. **Завантажте ВСІ файли з папки `nextlen/dist/`:**
+3. **Завантажте ВСІ файли з папки `frontend/dist/`:**
    - `index.html`
    - `.htaccess` (ВАЖЛИВО!)
    - `assets/` (вся папка)
@@ -126,7 +126,7 @@ grep -r "api.nexelin.com" . | head -1
 Якщо ви часто завантажуєте файли, використовуйте скрипт деплою замість FileZilla:
 
 ```bash
-cd nextlen
+cd frontend
 ./deploy-ftp.sh
 ```
 

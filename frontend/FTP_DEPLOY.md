@@ -15,7 +15,7 @@ VITE_MOCK_MODE=false
 ### Крок 2: Production Build
 
 ```bash
-cd nextlen
+cd frontend
 npm install
 npm run build:prod
 ```

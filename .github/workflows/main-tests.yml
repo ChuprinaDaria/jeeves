@@ -6,14 +6,14 @@ on:
       - main
     paths:
       - 'backend/**'
-      - 'nextlen/**'
+      - 'frontend/**'
       - '.github/workflows/main-tests.yml'
   pull_request:
     branches:
       - main
     paths:
       - 'backend/**'
-      - 'nextlen/**'
+      - 'frontend/**'
       - '.github/workflows/main-tests.yml'
 
 env:
@@ -44,7 +44,7 @@ jobs:
               - 'backend/**'
               - '.github/workflows/main-tests.yml'
             frontend:
-              - 'nextlen/**'
+              - 'frontend/**'
               - '.github/workflows/main-tests.yml'
 
       - name: 📊 Show changes
@@ -161,7 +161,7 @@ jobs:
     if: needs.check-changes.outputs.frontend == 'true'
     defaults:
       run:
-        working-directory: ./nextlen
+        working-directory: ./frontend
 
     steps:
       - name: 📥 Checkout code
@@ -172,7 +172,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: nextlen/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
 
       - name: 📥 Install dependencies
         run: npm ci
@@ -188,7 +188,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: frontend-build
-          path: nextlen/dist/**
+          path: frontend/dist/**
           retention-days: 7
 
       - name: ✅ Build summary

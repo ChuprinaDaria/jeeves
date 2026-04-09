@@ -10,7 +10,7 @@
 
 ### 1️⃣ Створіть `.env.production` файл
 
-В корені проєкту `nextlen/` створіть файл `.env.production`:
+В корені проєкту `frontend/` створіть файл `.env.production`:
 
 ```env
 VITE_API_URL=https://api.nexelin.com/api
@@ -20,7 +20,7 @@ VITE_MOCK_MODE=false
 ### 2️⃣ Встановіть залежності та зробіть build
 
 ```bash
-cd nextlen
+cd frontend
 npm install
 npm run build:ftp
 ```

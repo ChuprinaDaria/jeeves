@@ -51,7 +51,7 @@ urlpatterns = [
     path('widget/chat.js', WebWidgetScriptView.as_view(), name='web_widget_script'),
     path('widget/chat', WebWidgetChatIframeView.as_view(), name='web_widget_iframe'),
 
-    # Client portal тепер обробляється React додатком (nextlen), не Django
+    # Client portal тепер обробляється React додатком (frontend), не Django
 ]
 
 # Serve media & static files

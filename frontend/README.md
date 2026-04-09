@@ -34,7 +34,7 @@ src/
 1. Клонуйте репозиторій
 ```bash
 git clone <repository-url>
-cd nextlen
+cd frontend
 ```
 
 2. Встановіть залежності

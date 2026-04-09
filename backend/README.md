@@ -576,13 +576,13 @@ VECTOR_SEARCH_CONFIG_EXPLAIN_QUERIES=True
    
    Фронтенд буде доступний на: `http://localhost:5173`
 
-#### Nextlen Frontend (React) - `nextlen/`
+#### Frontend Frontend (React) - `frontend/`
 
-Якщо ви працюєте з Nextlen фронтендом:
+Якщо ви працюєте з Frontend фронтендом:
 
-1. **Navigate to nextlen directory**
+1. **Navigate to frontend directory**
    ```bash
-   cd ../nextlen  # або абсолютний шлях до nextlen
+   cd ../frontend  # або абсолютний шлях до frontend
    ```
 
 2. **Install dependencies**
@@ -769,12 +769,12 @@ docker-compose exec web python manage.py createsuperuser
    
    Фронтенд буде доступний на: `http://localhost:5173`
 
-**Nextlen Frontend (nextlen/)**
+**Frontend Frontend (frontend/)**
 
-Якщо ви працюєте з Nextlen фронтендом:
+Якщо ви працюєте з Frontend фронтендом:
 
 ```bash
-cd ../nextlen  # або абсолютний шлях
+cd ../frontend  # або абсолютний шлях
 npm install
 npm start
 ```

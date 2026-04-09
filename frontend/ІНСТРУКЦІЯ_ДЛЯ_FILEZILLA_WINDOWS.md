@@ -15,7 +15,7 @@ http://localhost:8000/api/... net::ERR_CONNECTION_REFUSED
 
 ### Крок 1: Переконайтеся що `.env.production` існує і правильний
 
-В директорії `nextlen\` має бути файл `.env.production` з вмістом:
+В директорії `frontend\` має бути файл `.env.production` з вмістом:
 
 ```
 VITE_API_URL=https://api.nexelin.com/api
@@ -24,19 +24,19 @@ VITE_MOCK_MODE=false
 
 **Як перевірити (PowerShell):**
 ```powershell
-cd nextlen
+cd frontend
 Get-Content .env.production
 ```
 
 **Або через CMD:**
 ```cmd
-cd nextlen
+cd frontend
 type .env.production
 ```
 
 **Якщо файлу немає або він неправильний:**
 
-Відкрийте Блокнот (Notepad) і створіть файл `.env.production` в папці `nextlen\` з таким вмістом:
+Відкрийте Блокнот (Notepad) і створіть файл `.env.production` в папці `frontend\` з таким вмістом:
 ```
 VITE_API_URL=https://api.nexelin.com/api
 VITE_MOCK_MODE=false
@@ -53,11 +53,11 @@ VITE_MOCK_MODE=false
 **Відкрийте PowerShell або CMD в папці проєкту:**
 
 ```powershell
-cd C:\шлях\до\nexelin_web\nextlen
+cd C:\шлях\до\nexelin_web\frontend
 npm run build:prod
 ```
 
-Або якщо ви вже в папці `nextlen`:
+Або якщо ви вже в папці `frontend`:
 ```powershell
 npm run build:prod
 ```
@@ -101,7 +101,7 @@ findstr /S /I "api.nexelin.com" *.js
 
 3. **У лівій панелі (Local site)** перейдіть в папку:
    ```
-   C:\шлях\до\nexelin_web\nextlen\dist
+   C:\шлях\до\nexelin_web\frontend\dist
    ```
 
 4. **У правій панелі (Remote site)** перейдіть в корінь сайту (зазвичай `/` або `/public_html/`)
@@ -144,7 +144,7 @@ findstr /S /I "api.nexelin.com" *.js
 
 ### Помилка 3: `.env.production` неправильний або відсутній
 **Рішення:** 
-- Перевірте що файл існує в `nextlen\`
+- Перевірте що файл існує в `frontend\`
 - Відкрийте його в Блокноті і перевірте що там `VITE_API_URL=https://api.nexelin.com/api`
 
 ### Помилка 4: Забули завантажити `.htaccess`
@@ -162,7 +162,7 @@ findstr /S /I "api.nexelin.com" *.js
 
 ## 🔄 Швидкий чеклист перед завантаженням:
 
-- [ ] `.env.production` існує в `nextlen\` і містить правильний URL
+- [ ] `.env.production` існує в `frontend\` і містить правильний URL
 - [ ] Виконано `npm run build:prod` (без помилок)
 - [ ] Перевірено що в `dist\assets\` є `api.nexelin.com` (не localhost)
 - [ ] Готові завантажити файли з `dist\` (не з `src\`)
@@ -176,7 +176,7 @@ findstr /S /I "api.nexelin.com" *.js
 ### Як швидко відкрити PowerShell в потрібній папці:
 
 1. Відкрийте Провідник (Explorer)
-2. Перейдіть в папку `nextlen`
+2. Перейдіть в папку `frontend`
 3. Натисніть Shift + Права кнопка миші
 4. Виберіть "Open PowerShell window here" або "Open in Terminal"
 
@@ -192,7 +192,7 @@ npm --version
 ### Як видалити стару папку dist і зробити свіжий build:
 
 ```powershell
-cd nextlen
+cd frontend
 Remove-Item -Recurse -Force dist
 npm run build:prod
 ```
@@ -227,7 +227,7 @@ npm run build:prod
 
 Після build виконайте в PowerShell:
 ```powershell
-cd nextlen\dist\assets
+cd frontend\dist\assets
 Select-String -Path *.js -Pattern "api.nexelin.com" | Select-Object -First 1
 ```
 

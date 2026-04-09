@@ -11,7 +11,7 @@
 
 Pipeline автоматично визначає, що змінилося:
 
-- ✅ **Якщо зміни тільки у фронтенді** (`nextlen/**`) → деплоїться тільки фронтенд
+- ✅ **Якщо зміни тільки у фронтенді** (`frontend/**`) → деплоїться тільки фронтенд
 - ✅ **Якщо зміни тільки у бекенді** (`backend/**`) → деплоїться тільки бекенд
 - ✅ **Якщо зміни в обох** → деплоїться і фронтенд, і бекенд
 
@@ -53,7 +53,7 @@ VITE_API_URL=https://api.nexelin.com/api
 2. **backend-tests** - Запускається тільки якщо зміни в `backend/**`
    - Тести з покриттям
    - Звіти coverage (XML, HTML)
-3. **frontend-tests** - Запускається тільки якщо зміни в `nextlen/**`
+3. **frontend-tests** - Запускається тільки якщо зміни в `frontend/**`
    - ESLint перевірка
    - Production build
 
@@ -68,7 +68,7 @@ VITE_API_URL=https://api.nexelin.com/api
    - Безпечний деплой (зберігає database volumes)
    - Health checks
    - Детальне логування
-3. **deploy-frontend** - Запускається тільки якщо зміни в `nextlen/**`
+3. **deploy-frontend** - Запускається тільки якщо зміни в `frontend/**`
    - Build production версії
    - FTP деплой
    - Health check
@@ -122,7 +122,7 @@ bash scripts/deploy-backend-safe.sh \
   --compose-path /opt/ai-nexelin/docker-compose.yml
 
 # Frontend
-cd nextlen
+cd frontend
 bash scripts/deploy-ftp-safe.sh \
   --host w020c360.kasserver.com \
   --user f017cd3a \
@@ -145,8 +145,8 @@ bash scripts/health-check.sh \
 ### Зміни тільки у фронтенді
 
 ```bash
-# Змінюємо файл у nextlen/
-git add nextlen/src/pages/WebChatPage.jsx
+# Змінюємо файл у frontend/
+git add frontend/src/pages/WebChatPage.jsx
 git commit -m "Update chat page"
 git push origin dev
 ```
@@ -168,7 +168,7 @@ git push origin dev
 
 ```bash
 # Змінюємо файли в обох частинах
-git add nextlen/ backend/
+git add frontend/ backend/
 git commit -m "Update both frontend and backend"
 git push origin dev
 ```
@@ -192,7 +192,7 @@ git push origin dev
 
 ### Frontend деплой не запускається
 
-1. Перевірте, чи є зміни в `nextlen/**`
+1. Перевірте, чи є зміни в `frontend/**`
 2. Перевірте FTP credentials у secrets
 3. Перевірте, чи встановлено `lftp` на runner
 
