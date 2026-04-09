@@ -101,7 +101,6 @@ class ClientSerializer(serializers.ModelSerializer):
             'mcp_sse_streaming': FeatureFlag.is_enabled('mcp_sse_streaming', obj),
             'mcp_knowledge_split': FeatureFlag.is_enabled('mcp_knowledge_split', obj),
             'mcp_tools_multi_connection': FeatureFlag.is_enabled('mcp_tools_multi_connection', obj),
-            'langflow_enabled': FeatureFlag.is_enabled('langflow_enabled', obj),
         }
 
 

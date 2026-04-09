@@ -163,30 +163,6 @@ services:
       - web
     networks: [nexelin_network]
 
-  # ====================== LANGFLOW ==========================
-  langflow:
-    image: langflowai/langflow:latest
-    container_name: ai_nexelin_langflow
-    restart: unless-stopped
-    ports:
-      - "7860:7860"
-    environment:
-      - LANGFLOW_DATABASE_URL=postgresql://${DB_USER:-admin_user}:${DB_PASS:-admin_pass}@postgres:5432/langflow_db
-      - LANGFLOW_CONFIG_DIR=/app/langflow
-      - LANGFLOW_AUTO_LOGIN=true
-      - LANGFLOW_REMOVE_API_KEYS=false
-      - LANGFLOW_BACKEND_URL=https://api.nexelin.com/langflow/
-    volumes:
-      - langflow_data:/app/langflow
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7860/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks: [nexelin_network]
 
 # ===================== NETWORKS & VOLUMES ====================
 networks:
@@ -197,4 +173,3 @@ volumes:
   postgres_data:
   static_volume:
   media_volume:
-  langflow_data:
