@@ -19,7 +19,7 @@ def get_detector():
     """Build detector lazily from PlatformDefaults.supported_languages."""
     global _detector
     if _detector is None:
-        from MASTER.nexelin_platform.models import PlatformDefaults
+        from MASTER.concierge_platform.models import PlatformDefaults
         defaults = PlatformDefaults.get()
         languages = []
         for code in (defaults.supported_languages or list(_CODE_TO_LINGUA.keys())):

@@ -24,7 +24,7 @@ def _resolve_embedding_model(client_id: int):
     """Resolve embedding model: AgentConfig -> Client -> PlatformDefaults."""
     from MASTER.clients.models import Client
     from MASTER.agents.models import AgentConfig
-    from MASTER.nexelin_platform.models import PlatformDefaults
+    from MASTER.concierge_platform.models import PlatformDefaults
 
     client = Client.objects.select_related(
         'embedding_model', 'branch', 'specialization',

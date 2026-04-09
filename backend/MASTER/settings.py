@@ -109,7 +109,7 @@ INSTALLED_APPS = [
     "MASTER.api",
     "MASTER.processing",
     "MASTER.rag",
-    "MASTER.nexelin_platform",
+    "MASTER.concierge_platform",
     "MASTER.tools",
     "MASTER.agents",
     "MASTER.mcp_hub",

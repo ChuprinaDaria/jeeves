@@ -47,7 +47,7 @@ def _search_sync(query: str, client_id: int, top_k: int = 10, requesting_agent: 
     """Run the full RAG search pipeline synchronously."""
     from MASTER.agents.models import AgentConfig
     from MASTER.clients.models import Client, ClientDocument
-    from MASTER.nexelin_platform.models import PlatformDefaults
+    from MASTER.concierge_platform.models import PlatformDefaults
 
     try:
         client = Client.objects.select_related(

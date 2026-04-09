@@ -1,5 +1,5 @@
 import pytest
-from MASTER.nexelin_platform.fields import EncryptedJSONField
+from MASTER.concierge_platform.fields import EncryptedJSONField
 
 
 @pytest.mark.django_db

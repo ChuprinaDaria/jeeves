@@ -1,4 +1,4 @@
-from MASTER.nexelin_platform.models import FeatureFlag
+from MASTER.concierge_platform.models import FeatureFlag
 
 
 FIELD_MAP = {

@@ -10,7 +10,7 @@ async def rag_search(connection, tool_name, query, **kwargs):
     """Search knowledge base via existing VectorSearchService.
     Wraps existing code — does not rewrite anything."""
     from MASTER.agents.models import AgentConfig
-    from MASTER.nexelin_platform.models import PlatformDefaults
+    from MASTER.concierge_platform.models import PlatformDefaults
     from MASTER.clients.models import Client
 
     client = connection.client

@@ -1,5 +1,5 @@
 import pytest
-from MASTER.nexelin_platform.models import PlatformDefaults
+from MASTER.concierge_platform.models import PlatformDefaults
 
 
 @pytest.mark.django_db

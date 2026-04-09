@@ -1,6 +1,6 @@
 from uuid import uuid4
 from django.db import models
-from MASTER.nexelin_platform.models import PlatformDefaults
+from MASTER.concierge_platform.models import PlatformDefaults
 
 
 class AgentConfig(models.Model):

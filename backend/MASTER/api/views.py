@@ -438,7 +438,7 @@ class PublicRAGChatView(APIView):
                 rag_query = f"{history_text}\n\nLast user message:\n{message}"
 
             # MCP Agent path: route through AgentOrchestrator for flagged clients
-            from MASTER.nexelin_platform.models import FeatureFlag
+            from MASTER.concierge_platform.models import FeatureFlag
             if FeatureFlag.is_enabled('mcp_real_agent', client):
                 try:
                     return self._handle_mcp_agent(client, message, raw_context, language)
@@ -2547,7 +2547,7 @@ class SaveSandboxQAView(APIView):
         
         try:
             # Determine scope based on feature flag
-            from MASTER.nexelin_platform.models import FeatureFlag
+            from MASTER.concierge_platform.models import FeatureFlag
             scope = 'assistant' if FeatureFlag.is_enabled('mcp_knowledge_split', client) else 'all'
 
             # Знайти або створити knowledge block "Sandbox"

@@ -5,7 +5,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from MASTER.nexelin_platform.models import FeatureFlag
+from MASTER.concierge_platform.models import FeatureFlag
 from .models import ToolCard, ToolConnection, EdgeMiddleware
 from .serializers import (
     ToolCatalogItemSerializer, ToolConnectionSerializer,

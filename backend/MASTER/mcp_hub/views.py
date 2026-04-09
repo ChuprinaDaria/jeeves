@@ -6,7 +6,7 @@ from django.http import JsonResponse, StreamingHttpResponse
 from django.views import View
 
 from MASTER.agents.models import AgentConfig, AgentSession
-from MASTER.nexelin_platform.models import FeatureFlag
+from MASTER.concierge_platform.models import FeatureFlag
 from MASTER.tools.models import ToolConnection
 from .executor import executor
 

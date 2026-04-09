@@ -2,7 +2,7 @@ from django.db import migrations
 
 
 def create_flag(apps, schema_editor):
-    FeatureFlag = apps.get_model('nexelin_platform', 'FeatureFlag')
+    FeatureFlag = apps.get_model('concierge_platform', 'FeatureFlag')
     Client = apps.get_model('clients', 'Client')
 
     flag, created = FeatureFlag.objects.get_or_create(
@@ -21,14 +21,14 @@ def create_flag(apps, schema_editor):
 
 
 def remove_flag(apps, schema_editor):
-    FeatureFlag = apps.get_model('nexelin_platform', 'FeatureFlag')
+    FeatureFlag = apps.get_model('concierge_platform', 'FeatureFlag')
     FeatureFlag.objects.filter(key='langflow_enabled').delete()
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('nexelin_platform', '0005_create_mcp_real_agent_flag'),
+        ('concierge_platform', '0005_create_mcp_real_agent_flag'),
         ('clients', '0060_encrypt_matrix_access_token'),
     ]
 

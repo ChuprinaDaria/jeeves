@@ -366,7 +366,7 @@ class MetaWhatsAppWebhookView(View):
             ).first()
             
             # MCP dual-mode: route to orchestrator for flagged clients
-            from MASTER.nexelin_platform.models import FeatureFlag
+            from MASTER.concierge_platform.models import FeatureFlag
             _conv_client = conversation.client if conversation else client
             if _conv_client and FeatureFlag.is_enabled('mcp_real_agent', _conv_client):
                 from MASTER.agents.dispatch import generate_response_dual

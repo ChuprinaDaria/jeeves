@@ -1,6 +1,6 @@
 import pytest
 from django.core.cache import cache
-from MASTER.nexelin_platform.models import SystemMessage
+from MASTER.concierge_platform.models import SystemMessage
 
 
 @pytest.fixture(autouse=True)

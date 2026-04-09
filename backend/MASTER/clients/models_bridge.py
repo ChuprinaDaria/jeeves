@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils import timezone
 
-from MASTER.nexelin_platform.fields import EncryptedTextField
+from MASTER.concierge_platform.fields import EncryptedTextField
 
 
 class BridgeConfig(models.Model):

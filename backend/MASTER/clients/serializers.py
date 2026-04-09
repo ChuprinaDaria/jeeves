@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from MASTER.nexelin_platform.models import FeatureFlag
+from MASTER.concierge_platform.models import FeatureFlag
 from MASTER.clients.models import (
     Client,
     ClientDocument,

@@ -50,18 +50,18 @@ MESSAGES = [
 
 
 def forward(apps, schema_editor):
-    SystemMessage = apps.get_model('nexelin_platform', 'SystemMessage')
+    SystemMessage = apps.get_model('concierge_platform', 'SystemMessage')
     for key, desc, translations in MESSAGES:
         SystemMessage.objects.get_or_create(
             key=key, defaults={'description': desc, 'translations': translations})
 
 
 def reverse(apps, schema_editor):
-    SystemMessage = apps.get_model('nexelin_platform', 'SystemMessage')
+    SystemMessage = apps.get_model('concierge_platform', 'SystemMessage')
     keys = [m[0] for m in MESSAGES]
     SystemMessage.objects.filter(key__in=keys).delete()
 
 
 class Migration(migrations.Migration):
-    dependencies = [('nexelin_platform', '0002_seed_platform_defaults')]
+    dependencies = [('concierge_platform', '0002_seed_platform_defaults')]
     operations = [migrations.RunPython(forward, reverse)]

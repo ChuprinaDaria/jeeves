@@ -10,18 +10,18 @@ FLAGS = [
 
 
 def forward(apps, schema_editor):
-    FeatureFlag = apps.get_model('nexelin_platform', 'FeatureFlag')
+    FeatureFlag = apps.get_model('concierge_platform', 'FeatureFlag')
     for key, desc in FLAGS:
         FeatureFlag.objects.get_or_create(
             key=key, defaults={'description': desc, 'rollout': 'off'})
 
 
 def reverse(apps, schema_editor):
-    FeatureFlag = apps.get_model('nexelin_platform', 'FeatureFlag')
+    FeatureFlag = apps.get_model('concierge_platform', 'FeatureFlag')
     keys = [f[0] for f in FLAGS]
     FeatureFlag.objects.filter(key__in=keys).delete()
 
 
 class Migration(migrations.Migration):
-    dependencies = [('nexelin_platform', '0003_seed_system_messages')]
+    dependencies = [('concierge_platform', '0003_seed_system_messages')]
     operations = [migrations.RunPython(forward, reverse)]

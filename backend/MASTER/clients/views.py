@@ -332,7 +332,7 @@ class KnowledgeBlockViewSet(viewsets.ModelViewSet):
         qs = KnowledgeBlock.objects.filter(client=client, is_active=True)
 
         # Scope filtering — only when feature flag is enabled
-        from MASTER.nexelin_platform.models import FeatureFlag
+        from MASTER.concierge_platform.models import FeatureFlag
         if FeatureFlag.is_enabled('mcp_knowledge_split', client):
             scope = self.request.query_params.get('scope')
             if scope == 'manager':

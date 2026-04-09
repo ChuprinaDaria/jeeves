@@ -46,7 +46,7 @@ async def translation(connection, tool_name, text='', direction='inbound', **kwa
 def _translate_sync(text, direction, client, config,
                     source_language=None, target_language=None):
     """Sync translation using existing infrastructure."""
-    from MASTER.nexelin_platform.language import detect_language
+    from MASTER.concierge_platform.language import detect_language
     from MASTER.clients.news_utils import translate_text
 
     # Detect source language if not provided

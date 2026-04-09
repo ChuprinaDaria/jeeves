@@ -688,7 +688,7 @@ class TelegramWebhookView(View):
                 return HttpResponse("OK")  # Message saved but no auto-reply
 
             # MCP dual-mode: route to orchestrator for flagged clients
-            from MASTER.nexelin_platform.models import FeatureFlag
+            from MASTER.concierge_platform.models import FeatureFlag
             if FeatureFlag.is_enabled('mcp_real_agent', conversation.client):
                 from MASTER.agents.dispatch import generate_response_dual
                 response_text = generate_response_dual(

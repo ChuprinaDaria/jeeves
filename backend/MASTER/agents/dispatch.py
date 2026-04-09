@@ -1,7 +1,7 @@
 """Dual-mode dispatch: MCP agent vs legacy pipeline."""
 import logging
 from asgiref.sync import async_to_sync
-from MASTER.nexelin_platform.models import FeatureFlag
+from MASTER.concierge_platform.models import FeatureFlag
 
 logger = logging.getLogger(__name__)
 

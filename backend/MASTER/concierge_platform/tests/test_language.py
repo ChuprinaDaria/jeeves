@@ -1,5 +1,5 @@
 import pytest
-from MASTER.nexelin_platform.language import detect_language
+from MASTER.concierge_platform.language import detect_language
 
 
 class TestLanguageDetection:
