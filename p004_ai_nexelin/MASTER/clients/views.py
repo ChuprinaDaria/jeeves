@@ -2100,17 +2100,6 @@ class ClientLogoUploadView(APIView):
                 except Exception as e:
                     print(f"Помилка регенерації QR-коду {qr_code.name}: {e}")
             
-            # Backward compatibility: регенеруємо RestaurantTable QR-коди
-            if client.client_type == 'restaurant':
-                from MASTER.restaurant.models import RestaurantTable
-                tables = RestaurantTable.objects.filter(client=client)
-                for table in tables:
-                    try:
-                        table.generate_qr_code()
-                        table.save(update_fields=['qr_code', 'qr_code_url'])
-                    except Exception as e:
-                        print(f"Помилка регенерації QR-коду для столика {table.table_number}: {e}")
-            
             # Отримуємо повний URL логотипу
             logo_url = None
             if client.logo:
@@ -2166,17 +2155,6 @@ class ClientLogoUploadView(APIView):
                     except Exception as e:
                         print(f"Помилка регенерації QR-коду {qr_code.name}: {e}")
                 
-                # Backward compatibility: регенеруємо RestaurantTable QR-коди
-                if client.client_type == 'restaurant':
-                    from MASTER.restaurant.models import RestaurantTable
-                    tables = RestaurantTable.objects.filter(client=client)
-                    for table in tables:
-                        try:
-                            table.generate_qr_code()
-                            table.save(update_fields=['qr_code', 'qr_code_url'])
-                        except Exception as e:
-                            print(f"Помилка регенерації QR-коду для столика {table.table_number}: {e}")
-            
             return Response({'message': 'Logo deleted successfully'})
             
         except Exception as e:
@@ -2188,7 +2166,7 @@ class ClientLogoUploadView(APIView):
 
 class ClientRegenerateQRsView(APIView):
     """
-    API endpoint для форсова регенерації всіх QR-кодів клієнта (ClientQRCode та RestaurantTable)
+    API endpoint для форсова регенерації всіх QR-кодів клієнта (ClientQRCode)
     POST /api/clients/{id}/regenerate-qrs/
     """
     permission_classes = [IsAuthenticated]
@@ -2219,22 +2197,10 @@ class ClientRegenerateQRsView(APIView):
                 except Exception as e:
                     errors.append(f"QR code {qr_code.name}: {str(e)}")
             
-            # Регенеруємо RestaurantTable QR-коди (backward compatibility)
-            from MASTER.restaurant.models import RestaurantTable
-            tables = RestaurantTable.objects.filter(client=client)
-            for table in tables:
-                try:
-                    table.generate_qr_code()
-                    table.save(update_fields=['qr_code', 'qr_code_url'])
-                    regenerated_count += 1
-                except Exception as e:
-                    errors.append(f"Table {table.table_number}: {str(e)}")
-            
             response_data = {
                 'message': f'Successfully regenerated {regenerated_count} QR code(s)',
                 'regenerated_count': regenerated_count,
                 'total_qr_codes': qr_codes.count(),
-                'total_tables': tables.count(),
             }
             
             if errors:
@@ -2301,10 +2267,6 @@ class ClientConversationsView(APIView):
                 whatsapp_convs += 1
         
         logger.info(f"📊 Conversations by type: Web={web_convs}, Telegram={telegram_convs}, WhatsApp={whatsapp_convs}, WebWidget={web_widget_convs}")
-        
-        # Також отримуємо RestaurantConversation для backward compatibility
-        from MASTER.restaurant.models import RestaurantConversation
-        restaurant_conversations = RestaurantConversation.objects.filter(client=client).order_by('-started_at')
         
         # Формуємо список розмов
         conversations_list = []
@@ -2403,44 +2365,6 @@ class ClientConversationsView(APIView):
                 'qr_code_name': conv.qr_code.name if conv.qr_code else None,
                 'source': source
             })
-        
-        # Додаємо RestaurantConversation (backward compatibility)
-        for conv in restaurant_conversations:
-            # Перевіряємо, чи вже є ця розмова в списку (може бути дублікат)
-            if not any(c['customer_phone'] == conv.customer_phone and c['source'] == 'restaurant' for c in conversations_list):
-                last_message = conv.messages[-1] if conv.messages else None
-                last_message_text = last_message.get('content', '') if last_message else ''
-                
-                rest_activity = getattr(conv, 'last_activity_at', None) or conv.started_at
-                time_diff = now - rest_activity
-                if time_diff < timedelta(hours=1):
-                    timestamp = f"{int(time_diff.seconds / 60)} minutes ago"
-                elif time_diff < timedelta(hours=24):
-                    timestamp = f"{int(time_diff.seconds / 3600)} hours ago"
-                elif time_diff < timedelta(days=7):
-                    timestamp = f"{time_diff.days} days ago"
-                else:
-                    timestamp = rest_activity.strftime('%Y-%m-%d')
-
-                customer_name = conv.customer_phone
-                if len(customer_name) > 10:
-                    customer_name = f"+{customer_name[-9:]}" if customer_name.startswith('+') else customer_name[-9:]
-
-                conversations_list.append({
-                    'id': f"rest_{conv.id}",
-                    'conversation_id': conv.id,
-                    'customerName': customer_name,
-                    'customer_phone': conv.customer_phone,
-                    'lastMessage': last_message_text,
-                    'timestamp': timestamp,
-                    'started_at': conv.started_at.isoformat(),
-                    'last_activity_at': rest_activity.isoformat(),
-                    'unread': 0,
-                    'is_active': conv.is_active,
-                    'total_messages': conv.total_messages,
-                    'table_number': conv.table.table_number if conv.table else None,
-                    'source': 'restaurant'
-                })
         
         # Сортуємо за останньою активністю (найновіші перші)
         conversations_list.sort(key=lambda x: x.get('last_activity_at', x['started_at']), reverse=True)
@@ -2544,69 +2468,10 @@ class ClientConversationDetailView(APIView):
             })
             
         except ClientWhatsAppConversation.DoesNotExist:
-            # Backward compatibility: перевіряємо RestaurantConversation
-            from MASTER.restaurant.models import RestaurantConversation
-            try:
-                conversation = RestaurantConversation.objects.get(id=conversation_id, client=client)
-                
-                messages = []
-                for idx, msg in enumerate(conversation.messages or []):
-                    role = msg.get('role', 'user')
-                    content = msg.get('content', '')
-                    timestamp_str = msg.get('timestamp', '')
-                    
-                    try:
-                        from datetime import datetime
-                        if timestamp_str:
-                            timestamp_dt = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-                            timestamp = timestamp_dt.strftime('%I:%M %p')
-                        else:
-                            timestamp = ''
-                    except Exception:
-                        timestamp = ''
-                    
-                    messages.append({
-                        'id': idx + 1,
-                        'text': content,
-                        'sender': 'customer' if role == 'user' else 'ai',
-                        'timestamp': timestamp,
-                        'photo': None,
-                    })
-                
-                now = timezone.now()
-                time_diff = now - conversation.started_at
-                
-                if time_diff < timedelta(hours=1):
-                    timestamp_display = f"{int(time_diff.seconds / 60)} minutes ago"
-                elif time_diff < timedelta(hours=24):
-                    timestamp_display = f"{int(time_diff.seconds / 3600)} hours ago"
-                elif time_diff < timedelta(days=7):
-                    timestamp_display = f"{time_diff.days} days ago"
-                else:
-                    timestamp_display = conversation.started_at.strftime('%Y-%m-%d')
-                
-                customer_name = conversation.customer_phone
-                if len(customer_name) > 10:
-                    customer_name = f"+{customer_name[-9:]}" if customer_name.startswith('+') else customer_name[-9:]
-                
-                return Response({
-                    'id': f"rest_{conversation.id}",
-                    'conversation_id': conversation.id,
-                    'customerName': customer_name,
-                    'customer_phone': conversation.customer_phone,
-                    'timestamp': timestamp_display,
-                    'started_at': conversation.started_at.isoformat(),
-                    'is_active': conversation.is_active,
-                    'total_messages': conversation.total_messages,
-                    'table_number': conversation.table.table_number if conversation.table else None,
-                    'messages': messages,
-                    'source': 'restaurant'
-                })
-            except RestaurantConversation.DoesNotExist:
-                return Response(
-                    {'error': 'Conversation not found'},
-                    status=status.HTTP_404_NOT_FOUND
-                )
+            return Response(
+                {'error': 'Conversation not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -3195,28 +3060,15 @@ class ClientTopQuestionsView(APIView):
         # Отримуємо всі розмови клієнта
         conversations = ClientWhatsAppConversation.objects.filter(client=client)
         
-        # Також отримуємо RestaurantConversation для backward compatibility
-        from MASTER.restaurant.models import RestaurantConversation
-        restaurant_conversations = RestaurantConversation.objects.filter(client=client)
-        
         # Збираємо всі повідомлення користувачів
         user_messages = []
-        
+
         for conv in conversations:
             if conv.messages:
                 for msg in conv.messages:
                     if msg.get('role') == 'user':
                         content = msg.get('content', '').strip()
                         if content and len(content) > 10:  # Мінімальна довжина питання
-                            user_messages.append(content)
-        
-        # Backward compatibility
-        for conv in restaurant_conversations:
-            if conv.messages:
-                for msg in conv.messages:
-                    if msg.get('role') == 'user':
-                        content = msg.get('content', '').strip()
-                        if content and len(content) > 10:
                             user_messages.append(content)
         
         # Підраховуємо частоти (простий підхід - по першому реченню)
@@ -3287,12 +3139,6 @@ class ClientRecentActivityView(APIView):
         conversations = ClientWhatsAppConversation.objects.filter(
             client=client
         ).order_by('-last_activity_at', '-updated_at', '-started_at')[:20]
-
-        # Також отримуємо RestaurantConversation для backward compatibility
-        from MASTER.restaurant.models import RestaurantConversation
-        restaurant_conversations = RestaurantConversation.objects.filter(
-            client=client
-        ).order_by('-started_at', '-updated_at')[:20]
 
         # Формуємо список активностей
         for conv in conversations:
@@ -3378,44 +3224,6 @@ class ClientRecentActivityView(APIView):
                 'lead_id': lead.id,
             })
 
-        # Backward compatibility: RestaurantConversation
-        for conv in restaurant_conversations:
-            if not any(a.get('type') == 'new_chat' and conv.customer_phone in a.get('text', '') for a in activities):
-                if conv.started_at:
-                    last_activity = getattr(conv, 'last_activity_at', None) or conv.started_at
-                    time_diff = now - last_activity
-
-                    if time_diff < timedelta(minutes=1):
-                        time_ago = "just now"
-                    elif time_diff < timedelta(hours=1):
-                        minutes = int(time_diff.seconds / 60)
-                        time_ago = f"{minutes} min ago"
-                    elif time_diff < timedelta(days=1):
-                        hours = int(time_diff.seconds / 3600)
-                        time_ago = f"{hours} hour{'s' if hours > 1 else ''} ago"
-                    elif time_diff < timedelta(days=7):
-                        days = time_diff.days
-                        time_ago = f"{days} day{'s' if days > 1 else ''} ago"
-                    else:
-                        time_ago = last_activity.strftime('%Y-%m-%d')
-
-                    customer_phone = conv.customer_phone or ''
-                    if customer_phone.startswith('web_'):
-                        customer_display = 'Web visitor'
-                    elif customer_phone.startswith('+'):
-                        customer_display = f"{customer_phone[:4]}...{customer_phone[-4:]}"
-                    else:
-                        customer_display = customer_phone or 'Visitor'
-
-                    activities.append({
-                        'type': 'new_chat',
-                        'text': f"Chat with {customer_display}",
-                        'time': time_ago,
-                        'timestamp': last_activity.isoformat(),
-                        'conversation_id': conv.id,
-                        'session_id': getattr(conv, 'session_id', '') or '',
-                    })
-
         # Сортуємо за timestamp (найновіші перші)
         activities.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
 
@@ -3468,100 +3276,72 @@ class ClientStatsView(APIView):
         all_conversations = ClientWhatsAppConversation.objects.filter(client=client)
         conversations_last_month = all_conversations.filter(started_at__gte=last_month)
         
-        # Backward compatibility: RestaurantConversation
-        from MASTER.restaurant.models import RestaurantConversation
-        all_restaurant_conversations = RestaurantConversation.objects.filter(client=client)
-        restaurant_conversations_last_month = all_restaurant_conversations.filter(started_at__gte=last_month)
-        
         # Total Chats - загальна кількість розмов
-        total_chats = all_conversations.count() + all_restaurant_conversations.count()
-        total_chats_last_month = conversations_last_month.count() + restaurant_conversations_last_month.count()
-        
+        total_chats = all_conversations.count()
+        total_chats_last_month = conversations_last_month.count()
+
         # Активні користувачі - унікальні номери телефонів
         active_phones = set()
         for conv in all_conversations:
             if conv.customer_phone:
                 active_phones.add(conv.customer_phone)
-        for conv in all_restaurant_conversations:
-            if conv.customer_phone:
-                active_phones.add(conv.customer_phone)
-        
+
         active_users = len(active_phones)
-        
+
         # Активні користувачі за минулий місяць
         active_phones_last_month = set()
         for conv in conversations_last_month:
             if conv.customer_phone:
                 active_phones_last_month.add(conv.customer_phone)
-        for conv in restaurant_conversations_last_month:
-            if conv.customer_phone:
-                active_phones_last_month.add(conv.customer_phone)
-        
+
         active_users_last_month = len(active_phones_last_month)
-        
+
         # Загальна кількість повідомлень (Messages instead of Bookings)
         total_messages = 0
         for conv in all_conversations:
             if conv.messages:
                 total_messages += len(conv.messages)
-        for conv in all_restaurant_conversations:
-            if conv.messages:
-                total_messages += len(conv.messages)
-        
+
         # Повідомлення за минулий місяць
         messages_last_month = 0
         for conv in conversations_last_month:
             if conv.messages:
                 messages_last_month += len(conv.messages)
-        for conv in restaurant_conversations_last_month:
-            if conv.messages:
-                messages_last_month += len(conv.messages)
-        
+
         # Conversion Rate - відсоток активних розмов (з повідомленнями > 1)
         active_conversations = 0
         for conv in all_conversations:
             if conv.messages and len(conv.messages) > 1:
                 active_conversations += 1
-        for conv in all_restaurant_conversations:
-            if conv.messages and len(conv.messages) > 1:
-                active_conversations += 1
-        
+
         conversion_rate = 0
         if total_chats > 0:
             conversion_rate = round((active_conversations / total_chats) * 100)
-        
+
         # Активні розмови за минулий місяць
         active_conversations_last_month = 0
         for conv in conversations_last_month:
             if conv.messages and len(conv.messages) > 1:
                 active_conversations_last_month += 1
-        for conv in restaurant_conversations_last_month:
-            if conv.messages and len(conv.messages) > 1:
-                active_conversations_last_month += 1
-        
+
         conversion_rate_last_month = 0
         if total_chats_last_month > 0:
             conversion_rate_last_month = round((active_conversations_last_month / total_chats_last_month) * 100)
-        
+
         # Розраховуємо зміни в процентах
         # Для Total Chats
         chats_change = 0
         if total_chats_last_month > 0:
             # Порівнюємо з попереднім місяцем (приблизно)
             prev_month_start = last_month - timedelta(days=30)
-            prev_month_conversations = all_conversations.filter(
+            prev_month_total = all_conversations.filter(
                 started_at__gte=prev_month_start,
                 started_at__lt=last_month
             ).count()
-            prev_month_restaurant = all_restaurant_conversations.filter(
-                started_at__gte=prev_month_start,
-                started_at__lt=last_month
-            ).count()
-            prev_month_total = prev_month_conversations + prev_month_restaurant
-            
+
             if prev_month_total > 0:
                 chats_change = round(((total_chats_last_month - prev_month_total) / prev_month_total) * 100)
-        
+
         # Для Active Users
         users_change = 0
         if active_users_last_month > 0:
@@ -3574,19 +3354,11 @@ class ClientStatsView(APIView):
             for conv in prev_conv:
                 if conv.customer_phone:
                     prev_month_phones.add(conv.customer_phone)
-            
-            prev_rest_conv = all_restaurant_conversations.filter(
-                started_at__gte=prev_month_start,
-                started_at__lt=last_month
-            )
-            for conv in prev_rest_conv:
-                if conv.customer_phone:
-                    prev_month_phones.add(conv.customer_phone)
-            
+
             prev_month_users = len(prev_month_phones)
             if prev_month_users > 0:
                 users_change = round(((active_users_last_month - prev_month_users) / prev_month_users) * 100)
-        
+
         # Для Messages
         messages_change = 0
         if messages_last_month > 0:
@@ -3598,15 +3370,7 @@ class ClientStatsView(APIView):
             for conv in prev_conv:
                 if conv.messages:
                     prev_month_messages += len(conv.messages)
-            
-            prev_rest_conv = all_restaurant_conversations.filter(
-                started_at__gte=prev_month_start,
-                started_at__lt=last_month
-            )
-            for conv in prev_rest_conv:
-                if conv.messages:
-                    prev_month_messages += len(conv.messages)
-            
+
             if prev_month_messages > 0:
                 messages_change = round(((messages_last_month - prev_month_messages) / prev_month_messages) * 100)
         

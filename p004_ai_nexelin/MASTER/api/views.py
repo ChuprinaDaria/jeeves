@@ -1656,7 +1656,7 @@ class BootstrapProvisionView(APIView):
                     specialization=specialization,
                     company_name=f"{branch.name} / {specialization.name}",
                     is_active=True,
-                    client_type=('restaurant' if 'rest' in (specialization.slug or '').lower() else 'generic'),
+                    client_type='generic',
                     tag=client_token,
                     description=f"Auto-created for token {client_token}",
                 )
@@ -1665,13 +1665,6 @@ class BootstrapProvisionView(APIView):
         if getattr(client, 'specialization_id', None) != getattr(specialization, 'id', None):
             client.specialization = specialization
             client.save(update_fields=['specialization'])
-        desired_type = 'restaurant' if 'rest' in (specialization.slug or '').lower() else 'generic'
-        if getattr(client, 'client_type', None) != desired_type:
-            try:
-                client.client_type = desired_type  # type: ignore[attr-defined]
-                client.save(update_fields=['client_type'])
-            except Exception:
-                pass
 
         branch_id = getattr(branch, 'id', None)
         specialization_id = getattr(specialization, 'id', None)
@@ -1781,24 +1774,12 @@ class ClientFeaturesOverviewView(APIView):
         labels = {
             'uk': {
                 'title': 'Можливості клієнтської панелі',
-                'restaurant': {
-                    'menu': {'title': 'Меню', 'desc': 'Керування категоріями, меню та позиціями'},
-                    'orders': {'title': 'Замовлення', 'desc': 'Перегляд і оновлення статусів замовлень'},
-                    'tables': {'title': 'Столи', 'desc': 'Столи, QR-коди та доступ по токену'},
-                    'chat': {'title': 'AI-офіціант', 'desc': 'Чат з порадами та контекстом з меню'},
-                },
                 'generic': {
                     'documents': {'title': 'Документи', 'desc': 'Завантаження та обробка документів'},
                 }
             },
             'en': {
                 'title': 'Client Portal Features',
-                'restaurant': {
-                    'menu': {'title': 'Menu', 'desc': 'Manage categories, menus and items'},
-                    'orders': {'title': 'Orders', 'desc': 'View and update order statuses'},
-                    'tables': {'title': 'Tables', 'desc': 'Tables, QR codes and token access'},
-                    'chat': {'title': 'AI Waiter', 'desc': 'Chat with menu-aware recommendations'},
-                },
                 'generic': {
                     'documents': {'title': 'Documents', 'desc': 'Upload and process documents'},
                 }
@@ -1806,18 +1787,9 @@ class ClientFeaturesOverviewView(APIView):
         }
 
         l = labels['uk' if lang == 'uk' else 'en']
-        sections = []
-        if ct == 'restaurant':
-            sections = [
-                {'key': 'menu', 'title': l['restaurant']['menu']['title'], 'description': l['restaurant']['menu']['desc'], 'endpoints': ['/api/restaurant/menu/', '/api/restaurant/menu-items/']},
-                {'key': 'orders', 'title': l['restaurant']['orders']['title'], 'description': l['restaurant']['orders']['desc'], 'endpoints': ['/api/restaurant/orders/']},
-                {'key': 'tables', 'title': l['restaurant']['tables']['title'], 'description': l['restaurant']['tables']['desc'], 'endpoints': ['/api/restaurant/tables/']},
-                {'key': 'chat', 'title': l['restaurant']['chat']['title'], 'description': l['restaurant']['chat']['desc'], 'endpoints': ['/api/restaurant/chat/']},
-            ]
-        else:
-            sections = [
-                {'key': 'documents', 'title': l['generic']['documents']['title'], 'description': l['generic']['documents']['desc'], 'endpoints': ['/api/clients/documents/']},
-            ]
+        sections = [
+            {'key': 'documents', 'title': l['generic']['documents']['title'], 'description': l['generic']['documents']['desc'], 'endpoints': ['/api/clients/documents/']},
+        ]
 
         return Response({
             'language': lang,

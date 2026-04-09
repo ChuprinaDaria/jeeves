@@ -24,9 +24,6 @@ from django.contrib import messages
 from django.http import HttpRequest
 from MASTER.accounts.models import Roles, User
 
-# Restaurant admin configurations moved to restaurant app
-
-
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
     list_display = [
@@ -123,7 +120,7 @@ class ClientAdmin(admin.ModelAdmin):
             {
                 'fields': ('features',),
                 'classes': ('collapse',),
-                'description': 'Enable specific features for this client (e.g., restaurant menu, chat, ordering)',
+                'description': 'Enable specific features for this client',
             },
         ),
         (

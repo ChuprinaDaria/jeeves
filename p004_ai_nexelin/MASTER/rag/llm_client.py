@@ -503,8 +503,6 @@ Confirm the action after completing it. Do NOT mention email capabilities when i
             'law': 'legal',
             'hotel': 'hotel',
             'hospitality': 'hotel',
-            'restaurant': 'restaurant',
-            'food': 'restaurant',
         }
         
         for key, prompt_key in mapping.items():

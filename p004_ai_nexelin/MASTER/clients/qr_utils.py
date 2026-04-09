@@ -138,23 +138,6 @@ def save_qr_png_to_field(model_instance, field_name: str, png_bytes: bytes, file
     getattr(model_instance, field_name).save(filename, ContentFile(png_bytes), save=False)
 
 
-def generate_whatsapp_qr_for_table(table, branch_slug: str, specialization_slug: str, client_token: str) -> bytes:
-    """Генерує QR-код для столика з логотипом ресторану"""
-    # Створюємо prefill текст
-    prefill_text = build_start2_prefill(branch_slug, specialization_slug, client_token, table.table_number)
-    
-    # Створюємо WhatsApp посилання
-    whatsapp_link = build_wa_me_link(prefill_text)
-    
-    # Отримуємо шлях до логотипу ресторану
-    logo_path = None
-    if table.restaurant and table.restaurant.logo:
-        logo_path = table.restaurant.logo.path
-    
-    # Генеруємо QR-код з логотипом
-    return render_qr_with_logo(whatsapp_link, logo_path)
-
-
 def generate_whatsapp_qr_for_client_qr(qr_code, branch_slug: str, specialization_slug: str, client_token: str) -> bytes:
     """Генерує QR-код для ClientQRCode з логотипом клієнта"""
     # Створюємо prefill текст (використовуємо qr_token замість table_number)

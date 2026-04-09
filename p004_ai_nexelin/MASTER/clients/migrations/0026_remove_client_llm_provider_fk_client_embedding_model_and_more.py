@@ -9,7 +9,6 @@ class Migration(migrations.Migration):
     dependencies = [
         ('EmbeddingModel', '0005_alter_embeddingmodel_server_type'),
         ('clients', '0025_add_llm_provider_fk'),
-        ('restaurant', '0006_alter_menuitemembedding_vector_dim_1536'),
     ]
 
     operations = [

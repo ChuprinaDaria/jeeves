@@ -19,7 +19,6 @@ from pgvector.django import CosineDistance  # type: ignore[attr-defined]
 from MASTER.branches.models import BranchEmbedding
 from MASTER.specializations.models import SpecializationEmbedding
 from MASTER.clients.models import ClientEmbedding
-from MASTER.restaurant.models import MenuItemEmbedding
 from MASTER.EmbeddingModel.models import EmbeddingModel
 
 if TYPE_CHECKING:
@@ -29,7 +28,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-SearchLevel = Literal['branch', 'specialization', 'client', 'menu']
+SearchLevel = Literal['branch', 'specialization', 'client']
 
 
 class SearchResult:
@@ -114,9 +113,6 @@ class VectorSearchService:
         if client:
             # Пошук ТІЛЬКИ в даних цього клієнта (ізольований, приватний)
             results.extend(self._search_client_level(query_vector, client))
-            # Також шукаємо в меню ресторану для клієнтів ресторанного типу
-            if client.client_type == 'restaurant':
-                results.extend(self._search_menu_level(query_vector, client))
 
         # Sort by weighted similarity and limit results
         results.sort(key=lambda r: r.similarity, reverse=True)
@@ -259,59 +255,6 @@ class VectorSearchService:
             ))
         
         logger.info(f"Client search: found {len(results)} results for client '{client.user}'")
-        return results
-    
-    def _search_menu_level(
-        self,
-        query_vector: list[float],
-        client: Client,
-    ) -> list[SearchResult]:
-        """Search MenuItem embeddings for restaurant clients using only the client's current embedding model."""
-        weight = self.weights.get('menu', 0.8)  # Використовуємо вагу для меню
-        
-        # Фільтруємо embeddings тільки по поточній моделі клієнта
-        embedding_model = getattr(client, 'embedding_model', None)
-        
-        queryset = MenuItemEmbedding.objects.filter(
-            menu_item__client=client
-        )
-        
-        # Якщо клієнт має обрану модель, використовуємо тільки її embeddings
-        if embedding_model:
-            queryset = queryset.filter(embedding_model=embedding_model)
-        
-        queryset = queryset.annotate(
-            similarity=1 - Cast(
-                CosineDistance(F('vector'), query_vector),
-                output_field=FloatField()
-            )
-        ).filter(
-            similarity__gte=self.similarity_threshold
-        ).order_by('-similarity')[:self.max_results_per_level]
-        
-        if self.config['explain_queries']:
-            self._explain_query(queryset)
-        
-        results = []
-        for emb in queryset:
-            weighted_similarity = self._get_similarity(emb) * weight
-            results.append(SearchResult(
-                content=emb.content,
-                similarity=weighted_similarity,
-                level='menu',
-                document_id=emb.menu_item.id,
-                document_title=emb.menu_item.name,
-                metadata={
-                    'menu_item_id': emb.menu_item.id,
-                    'menu_item_name': emb.menu_item.name,
-                    'category': emb.menu_item.category.name if emb.menu_item.category else None,
-                    'price': float(emb.menu_item.get_display_price()),
-                    'language': emb.language,
-                },
-                chunk_index=0,  # Menu items are single chunks
-            ))
-        
-        logger.info(f"Menu search: found {len(results)} results for client '{client.user}'")
         return results
     
     def _set_pgvector_parameters(self) -> None:

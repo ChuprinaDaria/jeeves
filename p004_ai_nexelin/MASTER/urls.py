@@ -35,11 +35,6 @@ urlpatterns = [
     path('api/specializations/', include('MASTER.specializations.urls')),
     path('api/clients/', include('MASTER.clients.urls')),
     path('api/rag/', include('MASTER.api.urls')),
-    path('api/restaurant/', include('MASTER.restaurant.urls')),
-
-    # Public restaurant routes
-    path('restaurant/', include(('MASTER.restaurant.urls', 'restaurant'), namespace='restaurant-public')),
-
     # Twilio webhook
     path('api/whatsapp/status/', TwilioWhatsAppWebhookView.as_view(), name='twilio_whatsapp_status_direct'),
 

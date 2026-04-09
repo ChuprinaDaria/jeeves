@@ -9,7 +9,6 @@ import json, hmac, hashlib, logging, requests, base64
 from urllib.parse import unquote
 
 from .models import Client, ClientQRCode, ClientWhatsAppConversation
-from MASTER.restaurant.models import RestaurantTable, RestaurantConversation
 
 logger = logging.getLogger(__name__)
 
@@ -278,9 +277,8 @@ class MetaWhatsAppWebhookView(View):
                 send_whatsapp_text(from_number, "Клієнт не знайдено")
                 return
             
-            # Шукаємо QR код або стіл
+            # Шукаємо QR код
             qr_code = None
-            table = None
             
             try:
                 qr_code = ClientQRCode.objects.get(
@@ -290,24 +288,15 @@ class MetaWhatsAppWebhookView(View):
                 )
                 logger.info(f"Found ClientQRCode: {qr_code.name}")
             except ClientQRCode.DoesNotExist:
-                try:
-                    table = RestaurantTable.objects.get(
-                        client=client,
-                        table_number=table_number,
-                        is_active=True
-                    )
-                    logger.info(f"Found RestaurantTable: {table.table_number}")
-                except RestaurantTable.DoesNotExist:
-                    logger.warning(f"QR code or table not found: {table_number}")
-                    send_whatsapp_text(from_number, "QR код або стіл не знайдено")
-                    return
+                logger.warning(f"QR code not found: {table_number}")
+                send_whatsapp_text(from_number, "QR код не знайдено")
+                return
             
             # Створюємо або оновлюємо розмову
             conversation, created = ClientWhatsAppConversation.objects.get_or_create(
                 customer_phone=from_number,
                 client=client,
                 qr_code=qr_code,
-                table=table,
                 is_active=True,
                 defaults={
                     'started_at': timezone.now(),
@@ -345,8 +334,6 @@ class MetaWhatsAppWebhookView(View):
             if qr_code:
                 location_name = qr_code.name or qr_code.location or "цей QR код"
                 response_text = f"Привіт! Ви зайшли через {location_name} в {client.company_name}. Чим можу допомогти?"
-            elif table:
-                response_text = f"Привіт! Ви зайшли до столика {table_number} в {client.company_name}. Чим можу допомогти?"
             else:
                 response_text = f"Привіт! Вітаємо в {client.company_name}. Чим можу допомогти?"
             
@@ -377,25 +364,6 @@ class MetaWhatsAppWebhookView(View):
                 customer_phone=from_number,
                 is_active=True
             ).first()
-            
-            # Backward compatibility
-            if not conversation:
-                conversation_restaurant = RestaurantConversation.objects.filter(
-                    customer_phone=from_number,
-                    is_active=True
-                ).first()
-                if conversation_restaurant:
-                    conversation, _ = ClientWhatsAppConversation.objects.get_or_create(
-                        customer_phone=from_number,
-                        client=conversation_restaurant.client,
-                        table=conversation_restaurant.table,
-                        is_active=True,
-                        defaults={
-                            'started_at': conversation_restaurant.started_at,
-                            'messages': conversation_restaurant.messages,
-                            'total_messages': conversation_restaurant.total_messages,
-                        }
-                    )
             
             # MCP dual-mode: route to orchestrator for flagged clients
             from MASTER.nexelin_platform.models import FeatureFlag

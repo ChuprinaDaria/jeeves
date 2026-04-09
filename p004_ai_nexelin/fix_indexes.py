@@ -15,8 +15,7 @@ with connection.cursor() as cursor:
     cursor.execute("DROP INDEX IF EXISTS clients_clientembedding_vector_idx;")
     cursor.execute("DROP INDEX IF EXISTS branches_branchembedding_vector_idx;")
     cursor.execute("DROP INDEX IF EXISTS specializations_specializationembedding_vector_idx;")
-    cursor.execute("DROP INDEX IF EXISTS restaurant_menuitememebedding_vector_idx;")
-    
+
     # Створюємо нові індекси типу IVFFlat
     print("Створення нових IVFFlat індексів...")
     try:
@@ -36,11 +35,5 @@ with connection.cursor() as cursor:
         print("- Індекс для specializations_specializationembedding створено")
     except Exception as e:
         print(f"Помилка при створенні індексу specializations_specializationembedding: {e}")
-    
-    try:
-        cursor.execute("CREATE INDEX restaurant_menuitememebedding_vector_idx ON restaurant_menuitememebedding USING ivfflat (vector vector_cosine_ops) WITH (lists = 100);")
-        print("- Індекс для restaurant_menuitememebedding створено")
-    except Exception as e:
-        print(f"Помилка при створенні індексу restaurant_menuitememebedding: {e}")
     
     print("Оновлення індексів завершено!")

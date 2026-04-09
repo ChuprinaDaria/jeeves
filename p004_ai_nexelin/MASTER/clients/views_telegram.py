@@ -20,7 +20,6 @@ from django.utils import timezone
 from django.db.models import Q
 
 from .models import Client, ClientWhatsAppConversation, ClientQRCode
-from MASTER.restaurant.models import RestaurantTable, RestaurantConversation
 
 logger = logging.getLogger(__name__)
 
@@ -495,10 +494,9 @@ class TelegramWebhookView(View):
                 send_telegram_message(self._get_bot_token_for_chat(chat_id), chat_id, "Telegram інтеграція не активна для цього клієнта.")
                 return HttpResponse("Telegram not enabled", status=400)
             
-            # Спробуємо знайти QR код
+            # Шукаємо QR код
             qr_code = None
-            table = None
-            
+
             try:
                 qr_code = ClientQRCode.objects.get(
                     client=client,
@@ -507,17 +505,9 @@ class TelegramWebhookView(View):
                 )
                 logger.info(f"Found ClientQRCode: {qr_code.name}")
             except ClientQRCode.DoesNotExist:
-                try:
-                    table = RestaurantTable.objects.get(
-                        client=client,
-                        table_number=table_number,
-                        is_active=True
-                    )
-                    logger.info(f"Found RestaurantTable: {table.table_number}")
-                except RestaurantTable.DoesNotExist:
-                    logger.warning(f"QR code or table not found: {table_number}")
-                    send_telegram_message(client.telegram_bot_token, chat_id, "QR код або столик не знайдено.")
-                    return HttpResponse("QR code or table not found", status=404)
+                logger.warning(f"QR code not found: {table_number}")
+                send_telegram_message(client.telegram_bot_token, chat_id, "QR код не знайдено.")
+                return HttpResponse("QR code not found", status=404)
             
             # Створюємо або оновлюємо розмову
             # 1) Пробуємо знайти існуючу розмову по telegram_chat_id або старому префіксу customer_phone=telegram_<chat_id>
@@ -533,7 +523,6 @@ class TelegramWebhookView(View):
                 conversation = ClientWhatsAppConversation.objects.create(
                     client=client,
                     qr_code=qr_code,
-                    table=table,
                     customer_phone=f"telegram_{chat_id}",  # зберігаємо для сумісності
                     telegram_chat_id=str(chat_id),
                     started_at=timezone.now(),

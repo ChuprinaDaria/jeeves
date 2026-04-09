@@ -10,7 +10,6 @@ import hmac
 import hashlib
 from urllib.parse import unquote
 from .models import Client, ClientQRCode, ClientWhatsAppConversation
-from MASTER.restaurant.models import RestaurantTable, RestaurantConversation
 from django.utils import timezone
 import logging
 from twilio.rest import Client as TwilioClient
@@ -145,12 +144,11 @@ class TwilioWhatsAppWebhookView(View):
                 logger.warning(f"Client not found for token: {client_token}")
                 return HttpResponse("Client not found", status=404)
             
-            # Спробуємо знайти QR код за qr_token (table_number тепер може бути qr_token)
+            # Шукаємо QR код за qr_token
             qr_code = None
-            table = None
             
             try:
-                # Спочатку шукаємо ClientQRCode за qr_token
+                # Шукаємо ClientQRCode за qr_token
                 qr_code = ClientQRCode.objects.get(
                     client=client,
                     qr_token=table_number,
@@ -158,25 +156,14 @@ class TwilioWhatsAppWebhookView(View):
                 )
                 logger.info(f"Found ClientQRCode: {qr_code.name}")
             except ClientQRCode.DoesNotExist:
-                # Якщо не знайдено, спробуємо знайти RestaurantTable (backward compatibility)
-                try:
-                    table = RestaurantTable.objects.get(
-                        client=client,
-                        table_number=table_number,
-                        is_active=True
-                    )
-                    logger.info(f"Found RestaurantTable: {table.table_number}")
-                except RestaurantTable.DoesNotExist:
-                    logger.warning(f"QR code or table not found: {table_number} for client {getattr(client, 'id', 'unknown')}")
-                    return HttpResponse("QR code or table not found", status=404)
+                logger.warning(f"QR code not found: {table_number} for client {getattr(client, 'id', 'unknown')}")
+                return HttpResponse("QR code not found", status=404)
             
             # Створюємо або оновлюємо розмову
-            # Використовуємо ClientWhatsAppConversation для всіх клієнтів
             conversation, created = ClientWhatsAppConversation.objects.get_or_create(
                 customer_phone=from_number,
                 client=client,
                 qr_code=qr_code,
-                table=table,
                 is_active=True,
                 defaults={
                     'started_at': timezone.now(),
@@ -224,19 +211,6 @@ class TwilioWhatsAppWebhookView(View):
                 response_text = templates.get(lang, templates['en']).format(
                     location=location_name, company=client.company_name
                 )
-            elif table:
-                templates = {
-                    'en': "Hi! You entered at table {table} in {company}. How can I help?",
-                    'de': "Hallo! Sie sind am Tisch {table} bei {company} eingestiegen. Wie kann ich helfen?",
-                    'fr': "Bonjour ! Vous êtes entré à la table {table} chez {company}. Comment puis-je vous aider ?",
-                    'es': "¡Hola! Entraste en la mesa {table} en {company}. ¿En qué puedo ayudarte?",
-                    'it': "Ciao! Sei entrato al tavolo {table} da {company}. Come posso aiutarti?",
-                    'nl': "Hallo! Je bent bij tafel {table} bij {company} binnengekomen. Hoe kan ik helpen?",
-                    'da': "Hej! Du kom ind ved bord {table} hos {company}. Hvordan kan jeg hjælpe?",
-                }
-                response_text = templates.get(lang, templates['en']).format(
-                    table=table_number, company=client.company_name
-                )
             else:
                 templates = {
                     'en': "Hi! Welcome to {company}. How can I help?",
@@ -261,8 +235,7 @@ class TwilioWhatsAppWebhookView(View):
             
             # Логуємо успішну обробку
             qr_id = getattr(qr_code, 'id', None) if qr_code else None
-            table_id = getattr(table, 'id', None) if table else None
-            logger.info(f"START2 processed successfully: client={getattr(client, 'id', 'unknown')}, qr_code={qr_id}, table={table_id}, phone={from_number}, conversation={getattr(conversation, 'id', 'unknown')}")
+            logger.info(f"START2 processed successfully: client={getattr(client, 'id', 'unknown')}, qr_code={qr_id}, phone={from_number}, conversation={getattr(conversation, 'id', 'unknown')}")
             
             # ВІДПРАВЛЯЄМО ПОВІДОМЛЕННЯ ЧЕРЕЗ TWILIO API
             send_whatsapp_message(from_number, response_text)
@@ -278,32 +251,12 @@ class TwilioWhatsAppWebhookView(View):
         Обробляє звичайні повідомлення (не START2) з RAG логікою
         """
         try:
-            # Шукаємо активну розмову для цього номера (спочатку ClientWhatsAppConversation, потім RestaurantConversation для сумісності)
+            # Шукаємо активну розмову для цього номера
             conversation = ClientWhatsAppConversation.objects.filter(
                 customer_phone=from_number,
                 is_active=True
             ).first()
-            
-            # Backward compatibility: якщо не знайдено, шукаємо RestaurantConversation
-            if not conversation:
-                conversation_restaurant = RestaurantConversation.objects.filter(
-                    customer_phone=from_number,
-                    is_active=True
-                ).first()
-                if conversation_restaurant:
-                    # Конвертуємо RestaurantConversation в ClientWhatsAppConversation
-                    conversation, _ = ClientWhatsAppConversation.objects.get_or_create(
-                        customer_phone=from_number,
-                        client=conversation_restaurant.client,
-                        table=conversation_restaurant.table,
-                        is_active=True,
-                        defaults={
-                            'started_at': conversation_restaurant.started_at,
-                            'messages': conversation_restaurant.messages,
-                            'total_messages': conversation_restaurant.total_messages,
-                        }
-                    )
-            
+
             if not conversation:
                 # Якщо немає активної розмови, використовуємо RAG з першим доступним клієнтом
                 response_text = self.generate_rag_response_without_conversation(message_body)
@@ -327,19 +280,16 @@ class TwilioWhatsAppWebhookView(View):
         Генерує відповідь за допомогою RAG без активної розмови
         """
         try:
-            # Знаходимо першого клієнта ресторану з даними
-            client = Client.objects.filter(
-                client_type='restaurant'
-            ).exclude(
+            # Знаходимо першого клієнта з даними
+            client = Client.objects.exclude(
                 embeddings__isnull=True
             ).first()
-            
+
             if not client:
-                # Якщо немає клієнтів з даними, використовуємо будь-якого ресторанного клієнта
-                client = Client.objects.filter(client_type='restaurant').first()
-            
+                client = Client.objects.first()
+
             if not client:
-                return "Привіт! Для початку роботи надішліть команду START2 з QR-коду столика."
+                return "Привіт! Для початку роботи надішліть команду START2 з QR-коду."
             
             # Використовуємо RAG API для генерації відповіді
             try:
@@ -383,9 +333,6 @@ class TwilioWhatsAppWebhookView(View):
         try:
             # Отримуємо клієнта з розмови
             client = conversation.client
-            
-            # Перевіряємо чи це ClientWhatsAppConversation
-            is_client_conversation = isinstance(conversation, ClientWhatsAppConversation)
             
             # HITL: Check if conversation is waiting for manager response
             # NEW ARCHITECTURE: Allow chat to continue, but inform user about pending escalation
@@ -444,17 +391,16 @@ class TwilioWhatsAppWebhookView(View):
             from MASTER.clients.tasks import detect_language_from_messages, detect_explicit_language_request
             detected_language = detect_language_from_messages([{'role': 'user', 'content': message_body}]) or 'en'
             explicit_lang = detect_explicit_language_request(message_body)
-            if is_client_conversation:
-                lang_fields = []
-                conversation.last_user_language = detected_language
-                lang_fields.append('last_user_language')
-                # forced_language зберігається до наступного явного запиту на зміну
-                # Якщо знайдено новий явний запит - оновлюємо, якщо ні - залишаємо як є
-                if explicit_lang:
-                    conversation.forced_language = explicit_lang
-                    lang_fields.append('forced_language')
-                # Якщо explicit_lang is None - не чіпаємо forced_language (залишаємо попереднє значення)
-                conversation.save(update_fields=lang_fields)
+            lang_fields = []
+            conversation.last_user_language = detected_language
+            lang_fields.append('last_user_language')
+            # forced_language зберігається до наступного явного запиту на зміну
+            # Якщо знайдено новий явний запит - оновлюємо, якщо ні - залишаємо як є
+            if explicit_lang:
+                conversation.forced_language = explicit_lang
+                lang_fields.append('forced_language')
+            # Якщо explicit_lang is None - не чіпаємо forced_language (залишаємо попереднє значення)
+            conversation.save(update_fields=lang_fields)
             # Потік 3: Бот → юзер (без ескалації)
             # Те саме — відповідаємо мовою останнього повідомлення юзера.
             # Виняток: якщо юзер явно написав "говори тільки англійською" — фіксуємо до наступного явного запиту на зміну.
@@ -551,25 +497,8 @@ class TwilioWhatsAppWebhookView(View):
                 response_text = pending_escalation_notice + response_text
             
             # Зберігаємо повідомлення в розмову
-            # Використовуємо метод add_message якщо це ClientWhatsAppConversation
-            if is_client_conversation:
-                conversation.add_message('user', message_body)
-                conversation.add_message('assistant', response_text)
-            else:
-                # Backward compatibility для RestaurantConversation
-                if not conversation.messages:
-                    conversation.messages = []
-                conversation.messages.append({
-                    'role': 'user',
-                    'content': message_body,
-                    'timestamp': timezone.now().isoformat()
-                })
-                conversation.messages.append({
-                    'role': 'assistant',
-                    'content': response_text,
-                    'timestamp': timezone.now().isoformat()
-                })
-                conversation.save()
+            conversation.add_message('user', message_body)
+            conversation.add_message('assistant', response_text)
             
             return response_text
             

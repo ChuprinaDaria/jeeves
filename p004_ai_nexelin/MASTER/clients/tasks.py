@@ -487,55 +487,6 @@ def restart_zero_container_task(config_id: int) -> Dict[str, Any]:
 
 
 @shared_task(bind=True, max_retries=3)
-def regenerate_qrs_for_client_task(self, client_id: int) -> Dict[str, Any]:
-    """
-    Асинхронна задача для регенерації QR-кодів всіх столиків клієнта.
-    
-    Args:
-        client_id: ID клієнта (ресторану)
-        
-    Returns:
-        Dict з результатом операції
-    """
-    try:
-        from .models import Client
-        from MASTER.restaurant.models import RestaurantTable
-        
-        client = Client.objects.get(id=client_id)
-        
-        if client.client_type != 'restaurant':
-            return {"status": "skipped", "message": "Client is not a restaurant"}
-        
-        tables = RestaurantTable.objects.filter(client=client)
-        regenerated_count = 0
-        
-        for table in tables:
-            try:
-                table.generate_qr_code()
-                table.save(update_fields=["qr_code"])
-                regenerated_count += 1
-            except Exception as e:
-                logger.error(f"Failed to regenerate QR for table {table.table_number}: {str(e)}")
-        
-        logger.info(f"Regenerated QR codes for {regenerated_count} tables of client {client_id}")
-        return {
-            "status": "success", 
-            "regenerated_count": regenerated_count,
-            "total_tables": tables.count()
-        }
-        
-    except Exception as e:
-        if "Client" in str(type(e)) and "DoesNotExist" in str(type(e)):
-            error_msg = f"Client with id {client_id} not found"
-            logger.error(error_msg)
-            return {"status": "error", "message": error_msg}
-        else:
-            error_msg = f"Failed to regenerate QR codes for client {client_id}: {str(e)}"
-            logger.error(error_msg, exc_info=True)
-            return {"status": "error", "message": error_msg}
-
-
-@shared_task(bind=True, max_retries=3)
 def process_web_parsing_request(self, parsing_request_id: int) -> Dict[str, Any]:
     """
     Process web parsing request: download documents and create knowledge block.

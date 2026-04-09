@@ -826,9 +826,6 @@ from django.db.models import F
 from django.dispatch import receiver
 from typing import Any, Protocol, cast
 
-# Restaurant models moved to restaurant app
-
-
 class _HasDelay(Protocol):
     def delay(self, *args: Any, **kwargs: Any) -> Any: ...
 
@@ -1354,7 +1351,7 @@ class WebParsingRequest(models.Model):
 
 
 class ClientWhatsAppConversation(models.Model):
-    """WhatsApp conversation history for all clients (not just restaurants)"""
+    """WhatsApp conversation history for all clients"""
     id = models.AutoField(primary_key=True)
     
     client = models.ForeignKey(
@@ -1373,17 +1370,6 @@ class ClientWhatsAppConversation(models.Model):
         related_name='conversations',
         verbose_name='QR Code',
         help_text='QR code that started this conversation'
-    )
-    
-    # Restaurant table (for backward compatibility, optional)
-    table = models.ForeignKey(
-        'restaurant.RestaurantTable',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='client_conversations',
-        verbose_name='Table',
-        help_text='Restaurant table (for backward compatibility)'
     )
     
     customer_phone = models.CharField(
