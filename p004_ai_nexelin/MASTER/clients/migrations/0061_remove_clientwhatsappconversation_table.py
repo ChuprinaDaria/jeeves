@@ -10,6 +10,6 @@ class Migration(migrations.Migration):
     operations = [
         migrations.RemoveField(
             model_name='clientwhatsappconversation',
-            field_name='table',
+            name='table',
         ),
     ]

@@ -33,7 +33,8 @@
     "billing": "Billing",
     "leads": "Leads",
     "tools": "Tools",
-    "assistant": "Assistant"
+    "assistant": "Assistant",
+    "langflow": "Langflow"
   },
   "auth": {
     "welcomeBack": "Welcome Back",

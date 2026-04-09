@@ -3,3 +3,4 @@ p004_ai_nexelin/chrome_extension/nexelin-chrome-extension.zip
 .env
 matrix-stack/.env
 matrix-stack/data/
+.aider*

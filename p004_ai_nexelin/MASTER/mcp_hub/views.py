@@ -1,5 +1,6 @@
 import json
 import logging
+import asyncio
 
 from django.http import JsonResponse, StreamingHttpResponse
 from django.views import View
@@ -125,13 +126,53 @@ class ChatSSEView(View):
         await orchestrator.connect()
         try:
             yield self._sse('status', {'step': 'generating'})
-            result = await orchestrator.process(
-                message=message,
-                session=session,
-                conversation=None,
-                channel=channel,
-                external_user_id='',
+
+            tool_event_queue: asyncio.Queue[tuple[str, dict]] = asyncio.Queue()
+
+            async def tool_event_cb(event_type: str, event_data: dict):
+                await tool_event_queue.put((event_type, event_data))
+
+            process_task = asyncio.create_task(
+                orchestrator.process(
+                    message=message,
+                    session=session,
+                    conversation=None,
+                    channel=channel,
+                    external_user_id='',
+                    tool_event_cb=tool_event_cb,
+                )
             )
+
+            # Drain tool events while the orchestrator is running.
+            result = ""
+            while True:
+                get_task = asyncio.create_task(tool_event_queue.get())
+                done, pending = await asyncio.wait(
+                    {get_task, process_task},
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+
+                if process_task in done:
+                    try:
+                        result = process_task.result()
+                    finally:
+                        get_task.cancel()
+                    break
+
+                # Queue item wins first.
+                try:
+                    event_type, event_data = get_task.result()
+                    yield self._sse(event_type, event_data)
+                finally:
+                    # Ensure task is cleaned up.
+                    if not get_task.done():
+                        get_task.cancel()
+
+            # Drain anything that arrived after process finished.
+            while not tool_event_queue.empty():
+                event_type, event_data = tool_event_queue.get_nowait()
+                yield self._sse(event_type, event_data)
+
             yield self._sse('token', {'text': result})
         except Exception as e:
             logger.error(f'MCP orchestrator failed in SSE: {e}', exc_info=True)

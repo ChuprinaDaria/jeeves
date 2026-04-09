@@ -6,7 +6,6 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('clients', '0050_add_target_scope_to_knowledge_block'),
         ('tools', '0007_seed_xlsx_processor'),
     ]
 

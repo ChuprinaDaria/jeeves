@@ -1,0 +1,83 @@
+- generic [ref=e3]:
+  - link "Skip to content" [ref=e4] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e5]:
+    - generic [ref=e7]:
+      - img "DASHA TEST" [ref=e8]
+      - banner [ref=e9]: DASHA TEST
+    - navigation [ref=e10]:
+      - link "Dashboard" [ref=e11] [cursor=pointer]:
+        - /url: /l/srtyh/dashboard
+        - img [ref=e12]
+        - generic [ref=e17]: Dashboard
+      - link "Train AI" [ref=e18] [cursor=pointer]:
+        - /url: /l/srtyh/training
+        - img [ref=e19]
+        - generic [ref=e22]: Train AI
+      - link "Assistant" [ref=e23] [cursor=pointer]:
+        - /url: /l/srtyh/sandbox
+        - img [ref=e24]
+        - generic [ref=e27]: Assistant
+      - link "Integrations" [ref=e28] [cursor=pointer]:
+        - /url: /l/srtyh/integrations
+        - img [ref=e29]
+        - generic [ref=e31]: Integrations
+      - link "Tools" [ref=e32] [cursor=pointer]:
+        - /url: /l/srtyh/tools
+        - img [ref=e33]
+        - generic [ref=e35]: Tools
+      - link "Activity" [ref=e36] [cursor=pointer]:
+        - /url: /l/srtyh/history
+        - img [ref=e37]
+        - generic [ref=e39]: Activity
+      - link "Leads" [ref=e40] [cursor=pointer]:
+        - /url: /l/srtyh/leads
+        - img [ref=e41]
+        - generic [ref=e46]: Leads
+      - link "Langflow" [ref=e47] [cursor=pointer]:
+        - /url: /l/srtyh/langflow
+        - img [ref=e48]
+        - generic [ref=e52]: Langflow
+      - link "Prompt Book" [ref=e53] [cursor=pointer]:
+        - /url: /l/srtyh/setup
+        - img [ref=e54]
+        - generic [ref=e56]: Prompt Book
+      - link "Settings" [ref=e57] [cursor=pointer]:
+        - /url: /l/srtyh/settings
+        - img [ref=e58]
+        - generic [ref=e61]: Settings
+  - generic [ref=e62]:
+    - banner [ref=e63]:
+      - generic [ref=e64]:
+        - generic [ref=e65]:
+          - generic [ref=e66]: DASHA TEST
+          - paragraph [ref=e67]: dfvdf
+        - generic [ref=e68]:
+          - button "Switch to dark mode" [ref=e69] [cursor=pointer]:
+            - img [ref=e70]
+          - button "EN EN" [ref=e73] [cursor=pointer]:
+            - img [ref=e74]
+            - generic [ref=e77]:
+              - img "EN" [ref=e78]
+              - generic [ref=e79]: EN
+    - main [ref=e80]:
+      - generic [ref=e324]:
+        - generic [ref=e325]:
+          - heading "Langflow" [level=1] [ref=e326]
+          - link "common.openInNewTab" [ref=e327] [cursor=pointer]:
+            - /url: https://app.nexelin.com
+        - iframe [active] [ref=e329]:
+          - generic [ref=f1e4]:
+            - generic [ref=f1e5]:
+              - img [ref=f1e7]
+              - heading "NEXELIN" [level=1] [ref=f1e10]
+              - paragraph [ref=f1e11]: Enter your access code to continue
+            - generic [ref=f1e13]:
+              - generic [ref=f1e14]:
+                - generic [ref=f1e15]: Access Code
+                - textbox "Access Code" [active] [ref=f1e16]:
+                  - /placeholder: Enter your code...
+              - button "Continue" [disabled] [ref=f1e17]:
+                - img [ref=f1e18]
+                - text: Continue
+            - paragraph [ref=f1e21]: Your access code was provided by your administrator

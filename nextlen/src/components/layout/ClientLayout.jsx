@@ -17,7 +17,8 @@ import {
   Settings,
   Menu,
   X,
-  Users
+  Users,
+  Workflow
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -140,6 +141,9 @@ const ClientLayout = () => {
       : []),
     { to: `${basePath}/history`, icon: MessageSquare, label: t('nav.history') },
     ...(user?.leads_enabled ? [{ to: `${basePath}/leads`, icon: Users, label: t('nav.leads') || 'Leads' }] : []),
+    ...(user?.feature_flags?.langflow_enabled
+      ? [{ to: `${basePath}/langflow`, icon: Workflow, label: t('nav.langflow') || 'Langflow' }]
+      : []),
     { to: `${basePath}/setup`, icon: BookOpen, label: t('nav.promptBook') || 'Prompt Book' },
     { to: `${basePath}/settings`, icon: Settings, label: t('nav.settings') || 'Settings' },
   ];

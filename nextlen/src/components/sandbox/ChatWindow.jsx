@@ -113,6 +113,7 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
   };
 
   const handleToolEvent = useCallback((eventType, data) => {
+    console.log('[ToolEvent]', eventType, data?.tool_name, data?.result?.substring?.(0, 100));
     const toolCallId = data?.tool_call_id;
     const toolName = data?.tool_name;
     if (!toolCallId) return;
@@ -162,6 +163,7 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
         // Detect rich message types from bridge/connection tool results
         const RICH_TYPES = ['auth_popup', 'qr_code', 'status_card', 'target_selector', 'connection_created', 'connection_removed'];
         if (parsed.type && RICH_TYPES.includes(parsed.type)) {
+          console.log('[RichCard] Detected:', parsed.type, parsed);
           setDataCards(prev => [...prev, { _rich: true, data: parsed }]);
         }
 
