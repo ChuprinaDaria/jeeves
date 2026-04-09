@@ -1,9 +1,0 @@
-[  105075ms] [ERROR] Access to XMLHttpRequest at 'https://api.nexelin.com/api/clients/pixel-status/' from origin 'https://app.nexelin.com' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ https://app.nexelin.com/l/srtyh/dashboard:0
-[  105078ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://api.nexelin.com/api/clients/pixel-status/:0
-[ 1040101ms] [ERROR] Framing 'https://api.nexelin.com/' violates the following Content Security Policy directive: "frame-ancestors 'self' https://mg.nexelin.com http://mg.nexelin.com". The request has been blocked.
- @ :0
-[ 1040124ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ chrome-error://chromewebdata/:0
-[ 1295200ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ https://api.nexelin.com/assets/index-D19P5VcO.js:0
-[ 1295230ms] [ERROR] Refused to apply style from 'https://api.nexelin.com/assets/index-CoKVa2Rf.css' because its MIME type ('text/html') is not a supported stylesheet MIME type, and strict MIME checking is enabled. @ https://api.nexelin.com/langflow/:0
-[ 1767928ms] [ERROR] Refused to apply style from 'https://api.nexelin.com/assets/index-CoKVa2Rf.css' because its MIME type ('text/html') is not a supported stylesheet MIME type, and strict MIME checking is enabled. @ https://api.nexelin.com/langflow/:0
-[ 1767970ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ https://api.nexelin.com/assets/index-D19P5VcO.js:0
