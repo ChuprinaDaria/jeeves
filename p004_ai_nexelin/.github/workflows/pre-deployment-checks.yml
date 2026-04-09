@@ -72,13 +72,6 @@ jobs:
           pip install pip-audit
           pip-audit --desc || echo "Dependency check completed"
 
-      - name: Check Node.js dependencies (Frontend)
-        run: |
-          if [ -f "MASTER/client_portal/package.json" ]; then
-            cd MASTER/client_portal
-            npm outdated || echo "npm outdated check completed"
-          fi
-
   # Configuration Validation
   config-validation:
     name: Configuration Validation
