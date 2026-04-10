@@ -35,6 +35,18 @@ class PlatformDefaults(models.Model):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
 
+    @classmethod
+    def get_default_llm_provider(cls):
+        """Return the active LLMProvider flagged as default, or None."""
+        from Jeeves.EmbeddingModel.models import LLMProvider
+        return LLMProvider.objects.filter(is_default=True, is_active=True).first()
+
+    @classmethod
+    def get_default_embedding_model(cls):
+        """Return the active EmbeddingModel flagged as default, or None."""
+        from Jeeves.EmbeddingModel.models import EmbeddingModel
+        return EmbeddingModel.objects.filter(is_default=True, is_active=True).first()
+
     def __str__(self):
         return 'Platform Defaults'
 
