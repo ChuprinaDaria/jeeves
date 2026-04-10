@@ -337,7 +337,7 @@ class KnowledgeBlockViewSet(viewsets.ModelViewSet):
             scope = self.request.query_params.get('scope')
             if scope == 'manager':
                 qs = qs.filter(target_scope__in=['all', 'manager'])
-            # 'assistant' or no scope param → return all (Nexy sees everything)
+            # 'assistant' or no scope param → return all (Jeevs sees everything)
 
         return qs
     

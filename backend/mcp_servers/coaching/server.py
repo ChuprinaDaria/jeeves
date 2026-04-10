@@ -1,4 +1,4 @@
-"""MCP Coaching server — Nexy trains Consultant via knowledge base and prompt updates."""
+"""MCP Coaching server — Jeevs trains Consultant via knowledge base and prompt updates."""
 import json
 import logging
 import uuid

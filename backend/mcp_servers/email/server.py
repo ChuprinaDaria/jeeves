@@ -39,7 +39,7 @@ def _resolve_language(session_id: str, language: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Assistant tools (Nexy)
+# Assistant tools (Jeevs)
 # ---------------------------------------------------------------------------
 
 @mcp.tool()

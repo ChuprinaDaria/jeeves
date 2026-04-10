@@ -40,7 +40,7 @@ const DEFAULT_CHANNELS = [
   { icon: WhatsappLogo,    accent: 'sage',  name: 'WhatsApp',     desc: '+49 xxx xxx xx',          status: 'connected' },
   { icon: Browser,         accent: 'iris',  name: 'Web Widget',   desc: 'widget.example.com',      status: 'connected' },
   { icon: EnvelopeSimple,  accent: 'rose',  name: 'Email',        desc: 'ai@client-domain.com',    status: 'connected' },
-  { icon: DeviceMobile,    accent: 'amber', name: 'iOS App',      desc: 'Jeeves Chat',             status: 'draft' },
+  { icon: DeviceMobile,    accent: 'amber', name: 'iOS App',      desc: 'Jeevs Chat',              status: 'draft' },
 ];
 
 const DEFAULT_AGENTS = [

@@ -648,7 +648,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     return () => clearTimeout(timer);
   }, [connectedTools.length]);
 
-  /* ── Periodic refresh for canvas updates from Nexy's bridge tools ── */
+  /* ── Periodic refresh for canvas updates from Jeevs's bridge tools ── */
   useEffect(() => {
     if (!onRefresh) return;
     const interval = setInterval(onRefresh, 10000); // poll every 10s

@@ -61,7 +61,7 @@ const SandboxPage = () => {
         <div className="flex justify-between items-start mb-6 animate-fade-up">
           <div>
             <h1 className="text-[28px] font-bold tracking-tightest">
-              {t('sandbox.assistantTitle') || 'Nexy Assistant'}
+              {t('sandbox.assistantTitle') || 'Jeevs'}
             </h1>
             <div className="font-mono text-[13px] text-fog mt-1">
               live AI assistant · MCP enabled

@@ -22,8 +22,8 @@
   },
   "nav": {
     "dashboard": "Dashboard",
-    "training": "Jeevs",
-    "sandbox": "Sandbox",
+    "training": "Concierge Knowledge",
+    "sandbox": "Jeevs",
     "sandboxBadge": "Also in Train AI",
     "integrations": "Integrations",
     "history": "Activity",
@@ -104,8 +104,8 @@
     "promptTemplate": "Prompt Template"
   },
   "training": {
-    "title": "Jeevs",
-    "subtitle": "Teach your butler — feed him knowledge, shape his tone, let him rehearse",
+    "title": "Concierge Knowledge",
+    "subtitle": "Feed the knowledge base, shape the system prompt, sync the vector index",
     "uploadFiles": "Upload Training Files",
     "uploadedFiles": "Uploaded Files",
     "noFiles": "No files uploaded yet",
@@ -186,7 +186,7 @@
   "sandbox": {
     "title": "Sandbox",
     "subtitle": "Test your AI assistant before going live",
-    "chatTest": "Nexy Chat",
+    "chatTest": "Jeevs Chat",
     "typeMessage": "Type your message...",
     "photoUpload": "Photo Upload Test",
     "photoSubtitle": "Test how AI responds to image uploads",
@@ -232,8 +232,8 @@
     "newLocationTitle": "Sandbox is now also available in Train AI!",
     "newLocationDescription": "For your convenience, you can now test your AI assistant directly on the Train AI page, right after configuring the AI behavior prompt.",
     "goToTraining": "Go to Train AI",
-    "assistantTitle": "Nexy Assistant",
-    "assistantSubtitle": "Chat with Nexy, your AI assistant",
+    "assistantTitle": "Jeevs",
+    "assistantSubtitle": "Chat with Jeevs, your AI assistant",
     "inputPlaceholder": "Type your message...",
     "sendMessage": "Send message"
   },
@@ -354,9 +354,9 @@
     "promptBook": "Prompt Book",
     "extensionData": "Extension data",
     "whatsappSetup": "WhatsApp Integration Setup",
-    "whatsappIntro": "Follow these steps to connect your WhatsApp Business account with Nexy Assistant.",
+    "whatsappIntro": "Follow these steps to connect your WhatsApp Business account with Jeevs.",
     "telegramSetup": "Telegram Bot Integration Setup",
-    "telegramIntro": "Follow these steps to connect your Telegram bot with Nexy Assistant.",
+    "telegramIntro": "Follow these steps to connect your Telegram bot with Jeevs.",
     "telegramDone": "Done! Your Telegram bot is now connected and can receive messages through Concierge.",
     "emailSetup": "Email SMTP Integration Setup",
     "emailIntro": "Follow these steps to configure email SMTP for your AI assistant to send and receive emails.",

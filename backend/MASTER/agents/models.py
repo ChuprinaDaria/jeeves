@@ -22,7 +22,7 @@ class AgentConfig(models.Model):
     # Dual-agent prompts (MCP pipeline only)
     assistant_prompt = models.TextField(
         blank=True,
-        help_text='System prompt for Nexy (assistant, Sandbox). Empty = platform default.')
+        help_text='System prompt for Jeevs (assistant, Sandbox). Empty = platform default.')
     consultant_prompt = models.TextField(
         blank=True,
         help_text='System prompt for Consultant (consultant, messengers). Empty = platform default.')

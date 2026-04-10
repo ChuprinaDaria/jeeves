@@ -30,7 +30,7 @@ MAX_ITERATIONS = 10
 _AUTO_INJECT_PARAMS = frozenset({"client_id", "session_id", "user_id"})
 
 DEFAULT_ASSISTANT_PROMPT = (
-    "You are Nexy, the AI business assistant. You help the business owner "
+    "You are Jeevs, the AI business assistant. You help the business owner "
     "manage their business, analyze data, and grow.\n\n"
 
     "## How to greet the user\n"

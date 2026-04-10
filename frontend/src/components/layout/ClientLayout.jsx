@@ -8,7 +8,6 @@ import {
   Loader2,
   LayoutDashboard,
   GraduationCap,
-  FlaskConical,
   Bot,
   MessageSquare,
   Plug2,
@@ -128,16 +127,14 @@ const ClientLayout = () => {
   const basePath = `/l/${tag}`;
 
   const navItems = [
-    { to: `${basePath}/dashboard`, icon: LayoutDashboard, label: t('nav.dashboard') },
-    { to: `${basePath}/training`, icon: GraduationCap, label: t('nav.training') },
-    user?.feature_flags?.mcp_knowledge_split
-      ? { to: `${basePath}/sandbox`, icon: Bot, label: t('nav.assistant') || 'Assistant' }
-      : { to: `${basePath}/sandbox`, icon: FlaskConical, label: t('nav.sandbox'), badge: t('nav.sandboxBadge') || 'Also in Train AI' },
-    { to: `${basePath}/integrations`, icon: Plug2, label: t('nav.integrations') },
-    { to: `${basePath}/tools`, icon: Puzzle, label: t('nav.tools') || 'Tools' },
-    { to: `${basePath}/history`, icon: MessageSquare, label: t('nav.history') },
+    { to: `${basePath}/dashboard`,    icon: LayoutDashboard, label: t('nav.dashboard') },
+    { to: `${basePath}/sandbox`,      icon: Bot,             label: t('nav.sandbox') || 'Jeevs' },
+    { to: `${basePath}/history`,      icon: MessageSquare,   label: t('nav.history') },
+    { to: `${basePath}/training`,     icon: GraduationCap,   label: t('nav.training') || 'Concierge Knowledge' },
     ...(user?.leads_enabled ? [{ to: `${basePath}/leads`, icon: Users, label: t('nav.leads') || 'Leads' }] : []),
-    { to: `${basePath}/settings`, icon: Settings, label: t('nav.settings') || 'Settings' },
+    { to: `${basePath}/integrations`, icon: Plug2,           label: t('nav.integrations') },
+    { to: `${basePath}/tools`,        icon: Puzzle,          label: t('nav.tools') || 'Tools' },
+    { to: `${basePath}/settings`,     icon: Settings,        label: t('nav.settings') || 'Settings' },
   ];
 
   const closeSidebar = () => setIsSidebarOpen(false);

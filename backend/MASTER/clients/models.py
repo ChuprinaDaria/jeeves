@@ -915,7 +915,7 @@ class KnowledgeBlock(models.Model):
 
     TARGET_SCOPE_CHOICES = [
         ('all', 'All (available to everyone)'),
-        ('assistant', 'Assistant only (Nexy)'),
+        ('assistant', 'Assistant only (Jeevs)'),
         ('manager', 'Manager only (Consultant)'),
     ]
 

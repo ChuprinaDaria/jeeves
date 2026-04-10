@@ -271,7 +271,7 @@ LLM_CONFIG = {
 }
 SYSTEM_PROMPTS = {
     'default': (
-        "My name is Jeeves. I am your AI assistant powered by Concierge. "
+        "My name is Jeevs. I am your AI assistant powered by Concierge. "
         "I'm here to help you with any questions or tasks. "
         "If I don't know something, I'll tell you honestly rather than guess."
     )

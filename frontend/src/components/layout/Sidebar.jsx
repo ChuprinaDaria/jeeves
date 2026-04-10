@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import {
   SquaresFour,
   GraduationCap,
-  Flask,
   Robot,
   PlugsConnected,
   PuzzlePiece,
@@ -89,19 +88,17 @@ const Sidebar = () => {
 
   // Nav sections — grouped for the stationery vibe
   const mainNav = [
-    { to: '/dashboard', icon: SquaresFour,    label: t('nav.dashboard') },
-    { to: '/history',   icon: ChatDots,       label: t('nav.history') },
-    { to: '/training',  icon: GraduationCap,  label: t('nav.training') },
+    { to: '/dashboard', icon: SquaresFour,   label: t('nav.dashboard') },
+    { to: '/sandbox',   icon: Robot,         label: t('nav.sandbox') || 'Jeevs' },
+    { to: '/history',   icon: ChatDots,      label: t('nav.history') },
+    { to: '/training',  icon: GraduationCap, label: t('nav.training') || 'Concierge Knowledge' },
     ...(user?.leads_enabled ? [{ to: '/leads', icon: UsersThree, label: t('nav.leads') || 'Leads' }] : []),
   ];
 
   const configureNav = [
     { to: '/tools',        icon: PuzzlePiece,    label: t('nav.tools') || 'Tools' },
     { to: '/integrations', icon: PlugsConnected, label: t('nav.integrations') },
-    user?.feature_flags?.mcp_knowledge_split
-      ? { to: '/sandbox', icon: Robot, label: t('nav.assistant') || 'Assistant' }
-      : { to: '/sandbox', icon: Flask, label: t('nav.sandbox') },
-    { to: '/settings', icon: GearSix,  label: t('nav.settings') || 'Settings' },
+    { to: '/settings',     icon: GearSix,        label: t('nav.settings') || 'Settings' },
   ];
 
   const withTag = (to) => (tag ? `${to}?tag=${tag}` : to);
