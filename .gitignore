@@ -57,5 +57,8 @@ Thumbs.db
 # Playwright
 .playwright-mcp/
 
+# Claude Code superpowers scratch (plans/specs are session-local)
+docs/superpowers/
+
 # Extension zip (built artifact)
 backend/chrome_extension/*.zip
