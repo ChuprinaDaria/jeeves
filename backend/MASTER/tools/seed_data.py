@@ -115,30 +115,6 @@ INITIAL_TOOLS = [
         'auth_type': 'none',
     },
     {
-        'slug': 'hitl-matrix',
-        'name': 'Live Manager',
-        'tagline': 'Escalate complex questions to a live manager',
-        'tagline_i18n': {
-            'en': 'Escalate complex questions to a live manager',
-            'de': 'Leiten Sie komplexe Fragen an einen Live-Manager weiter',
-        },
-        'icon': 'users',
-        'category': 'communication',
-        'color': '#9333ea',
-        'transport_type': 'builtin',
-        'is_builtin': True,
-        'builtin_handler': 'mcp_hub.builtin.hitl_matrix',
-        'auth_type': 'credentials',
-        'auth_config': {
-            'fields': [
-                {'name': 'manager_user_ids', 'label': 'Matrix Manager IDs', 'type': 'tags',
-                 'placeholder': '@manager:matrix.org', 'required': True},
-                {'name': 'homeserver_url', 'label': 'Homeserver URL',
-                 'placeholder': 'https://matrix.org'},
-            ]
-        },
-    },
-    {
         'slug': 'rag-search',
         'name': 'Knowledge Base',
         'tagline': 'Knowledge base — the assistant searches your documents for answers',

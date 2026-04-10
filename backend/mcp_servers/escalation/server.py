@@ -121,7 +121,6 @@ def _active_escalations_sync(client_id):
             "customer_phone",
             "manager_escalation_context",
             "escalation_started_at",
-            "matrix_escalation_active",
         )[:20]
     )
 
@@ -133,7 +132,6 @@ def _active_escalations_sync(client_id):
                 "customer": c["customer_phone"],
                 "context": c["manager_escalation_context"],
                 "started_at": c["escalation_started_at"].isoformat() if c["escalation_started_at"] else None,
-                "matrix_active": c["matrix_escalation_active"],
             }
             for c in convs
         ],

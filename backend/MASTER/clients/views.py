@@ -3828,7 +3828,7 @@ class PixelDashboardStatusView(APIView):
 
         # Active escalations (HITL)
         active_escalations = 0
-        if client.hitl_enabled or client.matrix_hitl_enabled:
+        if client.hitl_enabled:
             active_escalations = ClientWhatsAppConversation.objects.filter(
                 client=client,
                 is_active=True,

@@ -7,7 +7,6 @@ const EDGE_LABELS = {
   'whatsapp-bridge': { assistant: 'Send message', manager: 'Escalation' },
   'web-widget': { assistant: 'Send message', manager: 'Escalation' },
   'instagram': { assistant: 'Send message', manager: 'Escalation' },
-  'hitl-matrix': { assistant: 'Escalation', manager: 'Live handoff' },
   'crm': { assistant: 'Query CRM data', manager: 'Query CRM data' },
   'analytics': { assistant: 'Fetch analytics', manager: 'Fetch analytics' },
   'xlsx-processor': { assistant: 'Process spreadsheet' },

@@ -546,60 +546,6 @@ class PublicRAGChatView(APIView):
                         except Exception as e:
                             logger.warning(f"Failed to trigger HITL escalation: {e}")
 
-            # HITL: Matrix escalation (independent from Telegram)
-            if getattr(rag_response, 'requires_escalation', False) and getattr(client, 'matrix_hitl_enabled', False):
-                if hitl_conv:
-                    if hitl_conv.matrix_room_id and hitl_conv.matrix_escalation_active:
-                        logger.info(f"Matrix escalation already active for conversation {hitl_conv.id} (room {hitl_conv.matrix_room_id}), skipping")
-                    else:
-                        matrix_manager_user_ids = getattr(client, 'matrix_manager_user_ids', []) or []
-                        if matrix_manager_user_ids:
-                            try:
-                                escalation_summary = getattr(rag_response, 'escalation_summary', '') or message[:200]
-                                escalation_lang = getattr(hitl_conv, 'forced_language', '') or getattr(hitl_conv, 'last_user_language', '') or language or 'en'
-                                hitl_conv.escalation_language = escalation_lang
-                                hitl_conv.escalation_started_at = now()
-                                hitl_conv.save(update_fields=['escalation_language', 'escalation_started_at'])
-
-                                manager_lang = getattr(client, 'notification_language', 'en') or 'en'
-                                # question = raw original user message, never translated/rephrased
-                                question_for_manager = message
-                                summary_for_manager = escalation_summary
-                                # Translate ONLY context (AI summary) to manager's language
-                                if manager_lang != escalation_lang and escalation_summary:
-                                    try:
-                                        from MASTER.clients.news_utils import translate_text
-                                        translated_s = translate_text(escalation_summary, manager_lang, max_tokens=500)
-                                        if translated_s and translated_s.strip():
-                                            summary_for_manager = f"{escalation_summary}\n\n[{manager_lang.upper()}]: {translated_s}"
-                                    except Exception as _te:
-                                        logger.warning(f"Manager context translation failed: {_te}")
-
-                                customer_name_web = f"Web User {str(session_id)[:8]}"
-                                payload = {
-                                    "conversation_id": hitl_conv.id,
-                                    "client_id": client.id,
-                                    "client_name": str(client.company_name or ''),
-                                    "customer_name": customer_name_web,
-                                    "channel": "web_widget",
-                                    "question": question_for_manager,
-                                    "context": summary_for_manager,
-                                    "language": escalation_lang,
-                                    "manager_user_ids": matrix_manager_user_ids,
-                                }
-                                # Reuse existing room if available
-                                if hitl_conv.matrix_room_id:
-                                    payload["room_id"] = hitl_conv.matrix_room_id
-                                print(f"HITL MATRIX: sending escalation, conv={hitl_conv.id}, managers={matrix_manager_user_ids}", flush=True)
-                                resp = requests.post(
-                                    "http://integration-service:8080/api/v1/hitl/escalate",
-                                    json=payload,
-                                    timeout=10,
-                                )
-                                logger.info(f"Matrix HITL escalation triggered: status={resp.status_code}, conv={hitl_conv.id}, reuse_room={bool(hitl_conv.matrix_room_id)}")
-                            except Exception as e:
-                                logger.warning(f"Failed to trigger Matrix HITL escalation: {e}")
-            
             # Save lead data if present
             if hasattr(rag_response, 'lead_data') and rag_response.lead_data and conv:
                 try:
@@ -3203,42 +3149,3 @@ class PackageReceiveView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-# =============================================================================
-# Integration Service API Endpoints (for Matrix HITL)
-# =============================================================================
-
-@csrf_exempt
-@require_POST
-def integration_update_room(request):
-    """Called by Integration Service after Matrix room is created"""
-    data = json.loads(request.body)
-    conversation_id = data.get('conversation_id')
-    room_id = data.get('matrix_room_id') or data.get('room_id')
-    
-    try:
-        from MASTER.clients.models import ClientWhatsAppConversation
-        conv = ClientWhatsAppConversation.objects.get(id=conversation_id)
-        conv.matrix_room_id = room_id
-        conv.matrix_escalation_active = True
-        conv.save(update_fields=['matrix_room_id', 'matrix_escalation_active'])
-        return JsonResponse({'status': 'ok'})
-    except ClientWhatsAppConversation.DoesNotExist:
-        return JsonResponse({'status': 'ok', 'note': 'conversation not found, skipped'})
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=400)
-
-
-@csrf_exempt
-@require_POST
-def integration_forward_message(request):
-    """Called by Integration Service when manager replies in Matrix"""
-    data = json.loads(request.body)
-    conversation_id = data.get('conversation_id')
-    message = data.get('message')
-    
-    try:
-        from MASTER.clients.tasks import process_manager_hitl_response
-        process_manager_hitl_response.delay(conversation_id, message, None)
-        return JsonResponse({'status': 'ok'})
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=400)

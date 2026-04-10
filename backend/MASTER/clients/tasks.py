@@ -3080,18 +3080,18 @@ def notify_manager_of_escalation(self, conversation_id: int, question_summary: s
 
 
 @shared_task
-def process_manager_hitl_response(conversation_id: int, manager_response: str, manager_telegram_id: int = None) -> Dict[str, Any]:
+def process_manager_hitl_response(conversation_id: int, manager_response: str, manager_telegram_id: int) -> Dict[str, Any]:
     """
     Process manager's response to an escalated question.
-    
+
     The AI will rephrase the manager's response to maintain tone of voice,
     then send it to the customer.
-    
+
     Args:
         conversation_id: ID of the conversation
         manager_response: Raw response text from the manager
-        manager_telegram_id: Telegram ID of the manager who responded (None for Matrix responses)
-    
+        manager_telegram_id: Telegram ID of the manager who responded
+
     Returns:
         Dict with success status and the final response sent to customer
     """
@@ -3099,33 +3099,21 @@ def process_manager_hitl_response(conversation_id: int, manager_response: str, m
     from MASTER.rag.llm_client import LLMClient
     from django.utils import timezone
     from MASTER.clients.views_telegram import send_telegram_message
-    
+
     try:
         # Use select_for_update to lock the row and prevent race conditions when multiple managers respond
         from django.db import transaction
         with transaction.atomic():
             conversation = ClientWhatsAppConversation.objects.select_for_update().select_related('client').get(id=conversation_id)
             client = conversation.client
-            
+
             # Check if still waiting for manager (another manager might have already responded)
-            # Also check Matrix escalation if manager_telegram_id is None (Matrix response)
-            is_matrix_response = manager_telegram_id is None
-            if is_matrix_response:
-                # For Matrix, check matrix_escalation_active instead
-                if not getattr(conversation, 'matrix_escalation_active', False):
-                    logger.warning(
-                        f"Conversation {conversation_id} Matrix escalation was not active "
-                        f"(likely already handled by another manager)"
-                    )
-                    return {"success": False, "error": "Not waiting for manager", "already_handled": True}
-            else:
-                # For Telegram, check is_waiting_for_manager
-                if not conversation.is_waiting_for_manager:
-                    logger.warning(
-                        f"Conversation {conversation_id} was not waiting for manager response "
-                        f"(likely already handled by another manager {manager_telegram_id})"
-                    )
-                    return {"success": False, "error": "Not waiting for manager", "already_handled": True}
+            if not conversation.is_waiting_for_manager:
+                logger.warning(
+                    f"Conversation {conversation_id} was not waiting for manager response "
+                    f"(likely already handled by another manager {manager_telegram_id})"
+                )
+                return {"success": False, "error": "Not waiting for manager", "already_handled": True}
         
         # Потік 2: Менеджер → система → юзер
         # Менеджер відповів іспанською? Окей. Беремо мову останнього повідомлення юзера і перекладаємо на неї.
@@ -3180,18 +3168,8 @@ def process_manager_hitl_response(conversation_id: int, manager_response: str, m
                 final_response = manager_response
         
         # Send response to customer based on platform
-        # For Matrix responses, determine platform from conversation metadata or Matrix room info
         platform = conversation.context_metadata.get('platform', 'unknown') if conversation.context_metadata else 'unknown'
-        
-        # If platform is unknown but we have Matrix escalation, try to infer from conversation fields
-        if platform == 'unknown' and is_matrix_response:
-            if conversation.telegram_chat_id:
-                platform = 'telegram'
-            elif conversation.customer_phone:
-                platform = 'whatsapp'
-            elif conversation.session_id:
-                platform = 'web'
-        
+
         send_success = False
         
         if platform == 'telegram' and conversation.telegram_chat_id:
@@ -3217,50 +3195,32 @@ def process_manager_hitl_response(conversation_id: int, manager_response: str, m
         
         # Add manager response as assistant message
         from django.utils import timezone
-        manager_metadata = {'hitl_response': True}
-        if manager_telegram_id is not None:
-            manager_metadata['manager_id'] = manager_telegram_id
-        else:
-            manager_metadata['source'] = 'matrix'
-        
+        manager_metadata = {'hitl_response': True, 'manager_id': manager_telegram_id}
+
         conversation.messages.append({
             'role': 'assistant',
             'content': final_response,
             'timestamp': timezone.now().isoformat(),
             'metadata': manager_metadata
         })
-        
-        # Atomically update conversation state (only if still waiting for manager)
-        # For Matrix responses, update matrix_escalation_active instead
-        if is_matrix_response:
-            # Update Matrix escalation state
-            updated = ClientWhatsAppConversation.objects.filter(
-                id=conversation_id,
-                matrix_escalation_active=True  # Only update if Matrix escalation is active
-            ).update(
-                matrix_escalation_active=False,
-                messages=conversation.messages,  # Update messages list
-                total_messages=len(conversation.messages),
-                last_activity_at=timezone.now()
-            )
-        else:
-            # Update Telegram escalation state
-            updated = ClientWhatsAppConversation.objects.filter(
-                id=conversation_id,
-                is_waiting_for_manager=True  # Only update if still waiting
-            ).update(
-                is_waiting_for_manager=False,
-                manager_escalation_context="",
-                last_escalation_message_id="",
-                escalation_manager_id="",
-                escalation_started_at=None,
-                escalation_original_query="",
-                escalation_language="",
-                messages=conversation.messages,  # Update messages list
-                total_messages=len(conversation.messages),
-                last_activity_at=timezone.now()
-            )
-        
+
+        # Atomically update Telegram escalation state (only if still waiting for manager)
+        updated = ClientWhatsAppConversation.objects.filter(
+            id=conversation_id,
+            is_waiting_for_manager=True  # Only update if still waiting
+        ).update(
+            is_waiting_for_manager=False,
+            manager_escalation_context="",
+            last_escalation_message_id="",
+            escalation_manager_id="",
+            escalation_started_at=None,
+            escalation_original_query="",
+            escalation_language="",
+            messages=conversation.messages,  # Update messages list
+            total_messages=len(conversation.messages),
+            last_activity_at=timezone.now()
+        )
+
         if updated == 0:
             # Another manager already processed this conversation
             logger.warning(

@@ -215,13 +215,11 @@ class ResponseGenerator:
         
         # Check if client has HITL enabled for fallback detection
         hitl_enabled = client and getattr(client, 'hitl_enabled', False)
-        matrix_hitl_enabled = client and getattr(client, 'matrix_hitl_enabled', False)
         manager_ids = client.get_manager_telegram_ids() if client and hasattr(client, 'get_manager_telegram_ids') else []
-        matrix_manager_ids = getattr(client, 'matrix_manager_user_ids', []) or [] if client else []
-        hitl_available = (hitl_enabled and len(manager_ids) > 0) or (matrix_hitl_enabled and len(matrix_manager_ids) > 0)
+        hitl_available = hitl_enabled and len(manager_ids) > 0
 
         # Debug logging for HITL status
-        logger.info(f"HITL status: enabled={hitl_enabled}, matrix_enabled={matrix_hitl_enabled}, telegram_mgrs={manager_ids}, matrix_mgrs={matrix_manager_ids}, available={hitl_available}")
+        logger.info(f"HITL status: enabled={hitl_enabled}, telegram_mgrs={manager_ids}, available={hitl_available}")
         
         # Check for [escalate] tag in query (forced escalation from system prompt)
         # This allows users to add [escalate] markers in their prompts for specific questions

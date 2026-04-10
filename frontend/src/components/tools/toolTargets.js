@@ -8,7 +8,6 @@ export const TOOL_TARGETS = {
   'rag-search':      ['assistant'],
   'translation':     ['assistant'],
   'xlsx-processor':  ['assistant', 'manager'],
-  'hitl-matrix':     ['manager'],
   'calendar':        ['manager'],
   'crm':             ['assistant', 'manager'],
   'analytics':       ['assistant', 'manager'],

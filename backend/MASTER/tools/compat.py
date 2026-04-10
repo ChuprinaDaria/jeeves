@@ -20,8 +20,6 @@ FIELD_MAP = {
     ('whatsapp-bridge', 'phone'): 'whatsapp_bridge_phone',
     ('whatsapp-bridge', 'matrix_user_id'): 'whatsapp_bridge_matrix_user_id',
     ('whatsapp-bridge', 'matrix_access_token'): 'whatsapp_bridge_matrix_access_token',
-    ('hitl-matrix', 'manager_user_ids'): 'matrix_manager_user_ids',
-    ('hitl-matrix', 'homeserver_url'): 'matrix_homeserver_url',
 }
 
 ENABLED_MAP = {
@@ -30,7 +28,6 @@ ENABLED_MAP = {
     'email-smtp': 'email_smtp_enabled',
     'whatsapp-bridge': 'whatsapp_bridge_enabled',
     'web-widget': 'widget_enabled',
-    'hitl-matrix': 'matrix_hitl_enabled',
 }
 
 

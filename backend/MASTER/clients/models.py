@@ -282,23 +282,6 @@ class Client(models.Model):
         help_text="List of manager Telegram user IDs for escalation. Example: [123456789, 987654321]. Managers receive questions when AI cannot answer."
     )
     
-    # Matrix.org HITL configuration
-    matrix_hitl_enabled = models.BooleanField(
-        default=False,
-        help_text="Enable Matrix.org for HITL escalations (unified interface for all channels)"
-    )
-    matrix_manager_user_ids = models.JSONField(
-        default=list,
-        blank=True,
-        help_text="List of Matrix user IDs for managers (e.g., ['@manager1:matrix.org', '@manager2:matrix.org']). Managers receive escalations in Matrix rooms."
-    )
-    matrix_homeserver_url = models.CharField(
-        max_length=255,
-        default='https://matrix.org',
-        blank=True,
-        help_text="Matrix homeserver URL (default: https://matrix.org)"
-    )
-
     # WhatsApp Bridge (mautrix-whatsapp) — per-client configuration
     whatsapp_bridge_enabled = models.BooleanField(
         default=False,
@@ -1611,34 +1594,6 @@ class ClientWhatsAppConversation(models.Model):
         help_text='Explicitly requested language (persists until user requests a change)'
     )
 
-    # Matrix.org HITL fields
-    matrix_room_id = models.CharField(
-        max_length=255,
-        blank=True,
-        null=True,
-        verbose_name='Matrix Room ID',
-        help_text="Matrix room ID for HITL escalation (e.g., !abc123:matrix.org)"
-    )
-    matrix_room_alias = models.CharField(
-        max_length=255,
-        blank=True,
-        null=True,
-        verbose_name='Matrix Room Alias',
-        help_text="Matrix room alias (e.g., #escalation-123:matrix.org)"
-    )
-    matrix_escalation_active = models.BooleanField(
-        default=False,
-        verbose_name='Matrix Escalation Active',
-        help_text="Whether there's an active escalation in Matrix room"
-    )
-    matrix_last_event_id = models.CharField(
-        max_length=255,
-        blank=True,
-        null=True,
-        verbose_name='Matrix Last Event ID',
-        help_text="Last processed Matrix event ID (for sync)"
-    )
-    
     class Meta:
         verbose_name = 'Client WhatsApp Conversation'
         verbose_name_plural = 'Client WhatsApp Conversations'
@@ -1662,21 +1617,6 @@ class ClientWhatsAppConversation(models.Model):
     def __str__(self):
         qr_name = self.qr_code.name if self.qr_code else "No QR"
         return f"{self.client.company_name} - {self.customer_phone} - {qr_name}"
-    
-    def set_matrix_room(self, room_id: str, room_alias: str = None, event_id: str = None):
-        """Store Matrix room information for HITL escalation."""
-        self.matrix_room_id = room_id
-        if room_alias:
-            self.matrix_room_alias = room_alias
-        if event_id:
-            self.matrix_last_event_id = event_id
-        self.matrix_escalation_active = True
-        self.save(update_fields=['matrix_room_id', 'matrix_room_alias', 'matrix_last_event_id', 'matrix_escalation_active'])
-    
-    def mark_matrix_escalation_resolved(self):
-        """Mark Matrix escalation as resolved."""
-        self.matrix_escalation_active = False
-        self.save(update_fields=['matrix_escalation_active'])
     
     def add_message(self, role: str, content: str):
         """Adds a message to the conversation"""
