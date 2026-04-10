@@ -34,6 +34,7 @@ urlpatterns = [
     path('api/branches/', include('MASTER.branches.urls')),
     path('api/specializations/', include('MASTER.specializations.urls')),
     path('api/clients/', include('MASTER.clients.urls')),
+    path('api/', include('MASTER.concierge_platform.urls')),
     path('api/rag/', include('MASTER.api.urls')),
     # Twilio webhook
     path('api/whatsapp/status/', TwilioWhatsAppWebhookView.as_view(), name='twilio_whatsapp_status_direct'),
