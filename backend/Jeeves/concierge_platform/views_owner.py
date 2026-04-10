@@ -96,3 +96,27 @@ class ReverifyLicenseView(APIView):
             ),
             "grace_days_remaining": lic.grace_days_remaining,
         })
+
+
+from Jeeves.concierge_platform.models import PlatformDefaults
+from Jeeves.concierge_platform.serializers import PlatformDefaultsSerializer
+
+
+class PlatformDefaultsView(APIView):
+    """Singleton get/put for /owner/settings/defaults."""
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsOwner]
+
+    def get(self, request):
+        obj = PlatformDefaults.get()
+        return Response(PlatformDefaultsSerializer(obj).data)
+
+    def put(self, request):
+        obj = PlatformDefaults.get()
+        serializer = PlatformDefaultsSerializer(
+            obj, data=request.data, partial=False,
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
