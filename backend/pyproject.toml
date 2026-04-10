@@ -48,6 +48,11 @@ exclude_dirs = ["migrations", "venv", "env", ".venv", "tests", "test"]
 skips = ["B101", "B601"]
 
 [tool.pytest.ini_options]
+# pythonpath makes `from MASTER.xxx import ...` work without needing a
+# PYTHONPATH env var. pytest adds these to sys.path before plugins load,
+# which is earlier than conftest.py — required because pytest-django
+# imports MASTER.settings at plugin load time.
+pythonpath = ["."]
 testpaths = ["MASTER"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]

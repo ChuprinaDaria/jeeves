@@ -38,7 +38,6 @@ class Migration(migrations.Migration):
                 ('qr_token', models.CharField(editable=False, help_text='Unique token for this QR code used in WhatsApp links', max_length=64, unique=True, verbose_name='QR Token')),
                 ('is_active', models.BooleanField(default=True, help_text='Whether this QR code is active', verbose_name='Active')),
                 ('location', models.CharField(blank=True, help_text='Where this QR code is placed (e.g., "Front Desk", "Table 5", "Reception") or URL for Web Chat', max_length=200, verbose_name='Location')),
-                ('integration_type', models.CharField(choices=[('whatsapp', 'WhatsApp'), ('web', 'Web Chat')], default='whatsapp', help_text='Type of integration this QR code is for', max_length=20, verbose_name='Integration Type')),
                 ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Created At')),
                 ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Updated At')),
                 ('client', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='qr_codes', to='clients.client', verbose_name='Client')),
@@ -66,7 +65,6 @@ class Migration(migrations.Migration):
                 ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Updated At')),
                 ('client', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='whatsapp_conversations', to='clients.client', verbose_name='Client')),
                 ('qr_code', models.ForeignKey(blank=True, help_text='QR code that started this conversation', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='conversations', to='clients.clientqrcode', verbose_name='QR Code')),
-                ('table', models.ForeignKey(blank=True, help_text='Restaurant table (for backward compatibility)', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='client_conversations', to='restaurant.restauranttable', verbose_name='Table')),
             ],
             options={
                 'verbose_name': 'Client WhatsApp Conversation',
@@ -97,26 +95,6 @@ class Migration(migrations.Migration):
             name='knowledge_block',
             field=models.ForeignKey(blank=True, help_text='Knowledge block this document belongs to', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='documents', to='clients.knowledgeblock'),
         ),
-        migrations.CreateModel(
-            name='WebParsingRequest',
-            fields=[
-                ('id', models.AutoField(primary_key=True, serialize=False)),
-                ('website_url', models.URLField(help_text='URL of the website to parse', max_length=500, verbose_name='Website URL')),
-                ('description', models.TextField(blank=True, help_text='Description of the parsing request', verbose_name='Description')),
-                ('price', models.DecimalField(blank=True, decimal_places=2, help_text='Price for this parsing service (admin only)', max_digits=10, null=True, verbose_name='Price')),
-                ('status', models.CharField(choices=[('pending', 'Pending'), ('in_progress', 'In Progress'), ('completed', 'Completed')], default='pending', help_text='Current status of the parsing request', max_length=20, verbose_name='Status')),
-                ('path_to_documents', models.CharField(blank=True, help_text='Server URL and directory path where parsed documents are stored (admin only)', max_length=500, verbose_name='Path to Documents')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Created At')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Updated At')),
-                ('client', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='web_parsing_requests', to='clients.client', verbose_name='Client')),
-                ('knowledge_block', models.ForeignKey(blank=True, help_text='Knowledge block created from this parsing', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='parsing_requests', to='clients.knowledgeblock', verbose_name='Knowledge Block')),
-            ],
-            options={
-                'verbose_name': 'Web Parsing Request',
-                'verbose_name_plural': 'Web Parsing Requests',
-                'ordering': ['-created_at'],
-            },
-        ),
         migrations.AddIndex(
             model_name='clientqrcode',
             index=models.Index(fields=['client', 'is_active'], name='clients_cli_client__8d0707_idx'),
@@ -135,10 +113,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name='clientwhatsappconversation',
-            index=models.Index(fields=['table'], name='clients_cli_table_i_1dce13_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='clientwhatsappconversation',
             index=models.Index(fields=['started_at'], name='clients_cli_started_efc906_idx'),
         ),
         migrations.AddIndex(
@@ -152,13 +126,5 @@ class Migration(migrations.Migration):
         migrations.AlterUniqueTogether(
             name='knowledgeblock',
             unique_together={('client', 'name')},
-        ),
-        migrations.AddIndex(
-            model_name='webparsingrequest',
-            index=models.Index(fields=['client', 'status'], name='clients_web_client__ff4d37_idx'),
-        ),
-        migrations.AddIndex(
-            model_name='webparsingrequest',
-            index=models.Index(fields=['status', 'created_at'], name='clients_web_status_2b41ef_idx'),
         ),
     ]

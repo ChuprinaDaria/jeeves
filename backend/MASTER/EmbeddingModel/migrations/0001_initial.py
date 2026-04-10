@@ -11,6 +11,16 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # pgvector extension is required by VectorField columns created in
+        # branches/, specializations/, and clients/ initial migrations.
+        # All of those apps transitively depend on EmbeddingModel.0001_initial,
+        # so creating the extension here ensures it exists before any
+        # VectorField is materialised. Idempotent via IF NOT EXISTS so it's
+        # safe on re-runs and --reuse-db.
+        migrations.RunSQL(
+            sql="CREATE EXTENSION IF NOT EXISTS vector;",
+            reverse_sql="DROP EXTENSION IF EXISTS vector;",
+        ),
         migrations.CreateModel(
             name='EmbeddingModel',
             fields=[
