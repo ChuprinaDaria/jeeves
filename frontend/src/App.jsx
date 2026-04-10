@@ -12,7 +12,6 @@ import SandboxPage from './pages/SandboxPage';
 import HistoryPage from './pages/HistoryPage';
 import IntegrationsPage from './pages/IntegrationsPage';
 import ToolsPage from './pages/ToolsPage';
-import SetupInstructionsPage from './pages/SetupInstructionsPage';
 import SettingsPage from './pages/SettingsPage';
 import LeadsPage from './pages/LeadsPage';
 import ClientLoginPage from './pages/ClientLoginPage';
@@ -38,7 +37,6 @@ function App() {
             <Route path="integrations" element={<IntegrationsPage />} />
             <Route path="tools" element={<ToolsPage />} />
             <Route path="history" element={<HistoryPage />} />
-            <Route path="setup" element={<SetupInstructionsPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="leads" element={<LeadsPage />} />
           </Route>
@@ -56,7 +54,6 @@ function App() {
               <Route path="/integrations" element={<IntegrationsPage />} />
               <Route path="/tools" element={<ToolsPage />} />
               <Route path="/history" element={<HistoryPage />} />
-              <Route path="/setup" element={<SetupInstructionsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/leads" element={<LeadsPage />} />
             </Route>

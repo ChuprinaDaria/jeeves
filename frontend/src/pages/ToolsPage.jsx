@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RefreshCw } from 'lucide-react';
+import { ArrowClockwise } from '@phosphor-icons/react';
 import { toolsAPI } from '../api/tools';
 import ToolCatalogStrip from '../components/tools/ToolCatalogStrip';
 import FlowCanvas from '../components/tools/FlowCanvas';
@@ -178,38 +178,43 @@ const ToolsPage = () => {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-[1200px] mx-auto">
         {/* Skeleton strip */}
         <div className="flex gap-3 overflow-hidden">
-          {[1,2,3,4,5].map(i => (
-            <div key={i} className="w-[160px] h-[100px] rounded-xl bg-gray-200 dark:bg-gray-700 animate-pulse shrink-0" />
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="w-[160px] h-[100px] rounded-lg bg-linen border-[1.5px] border-rule animate-pulse shrink-0" />
           ))}
         </div>
-        {/* Skeleton canvas with blurred core node placeholders */}
-        <div className="relative w-full rounded-xl bg-gray-100 dark:bg-gray-800 overflow-hidden" style={{ minHeight: 'max(60vh, 400px)' }}>
-          <div className="absolute top-1/2 left-[35%] -translate-x-1/2 -translate-y-1/2 w-[200px] h-[140px] rounded-2xl bg-gray-200 dark:bg-gray-700 animate-pulse blur-[2px]" />
-          <div className="absolute top-1/2 left-[65%] -translate-x-1/2 -translate-y-1/2 w-[200px] h-[140px] rounded-2xl bg-gray-200 dark:bg-gray-700 animate-pulse blur-[2px]" />
+        {/* Skeleton canvas */}
+        <div className="relative w-full rounded-lg bg-linen border-[1.5px] border-rule overflow-hidden"
+             style={{ minHeight: 'max(60vh, 400px)' }}>
+          <div className="absolute top-1/2 left-[35%] -translate-x-1/2 -translate-y-1/2 w-[200px] h-[140px] rounded-xl bg-mist border-[1.5px] border-rule animate-pulse" />
+          <div className="absolute top-1/2 left-[65%] -translate-x-1/2 -translate-y-1/2 w-[200px] h-[140px] rounded-xl bg-mist border-[1.5px] border-rule animate-pulse" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 max-w-full overflow-x-hidden">
+    <div className="space-y-6 max-w-[1200px] mx-auto overflow-x-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-end justify-between animate-fade-up">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {t('tools.flow.title')} <span className="text-primary-500">{t('tools.flow.titleAccent')}</span>
+          <h1 className="text-[28px] font-bold tracking-tightest text-ink">
+            {t('tools.flow.title')}{' '}
+            <span className="text-iris">{t('tools.flow.titleAccent')}</span>
           </h1>
+          <div className="font-mono text-[13px] text-fog mt-1">
+            mcp · drag from catalog · drop on canvas
+          </div>
         </div>
-        <div className="flex gap-4 text-xs text-gray-500 dark:text-gray-400">
+        <div className="flex gap-5 font-mono text-[11px] uppercase tracking-wider text-fog">
           <span className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.6)]" />
-            {connectedCount} {t('tools.flow.statsConnected')}
+            <span className="w-1.5 h-1.5 rounded-full bg-sage shadow-[0_0_4px_rgba(123,200,159,0.55)]" />
+            <span className="text-sage">{connectedCount}</span> {t('tools.flow.statsConnected')}
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+            <span className="w-1.5 h-1.5 rounded-full bg-fog" />
             {availableCount} {t('tools.flow.statsAvailable')}
           </span>
         </div>
@@ -217,11 +222,14 @@ const ToolsPage = () => {
 
       {/* Tool Catalog Strip */}
       {error ? (
-        <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
-          <span className="text-sm text-red-700 dark:text-red-400">{error}</span>
-          <button onClick={() => { setLoading(true); loadTools(); }}
-            className="flex items-center gap-1 text-sm font-medium text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 min-h-0">
-            <RefreshCw className="w-3.5 h-3.5" /> {t('tools.retry')}
+        <div className="flex items-center gap-3 p-4 bg-paper border-[1.5px] border-rose rounded-lg">
+          <span className="text-[13px] text-rose">{error}</span>
+          <button
+            onClick={() => { setLoading(true); loadTools(); }}
+            className="flex items-center gap-1.5 font-mono text-[12px] uppercase tracking-wider text-rose
+                       hover:text-ink transition-colors bg-transparent min-h-0"
+          >
+            <ArrowClockwise size={14} weight="light" /> {t('tools.retry')}
           </button>
         </div>
       ) : (

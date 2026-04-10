@@ -8,7 +8,6 @@ import {
   PlugsConnected,
   PuzzlePiece,
   ChatDots,
-  BookOpen,
   GearSix,
   UsersThree,
   List,
@@ -97,14 +96,11 @@ const Sidebar = () => {
   ];
 
   const configureNav = [
+    { to: '/tools',        icon: PuzzlePiece,    label: t('nav.tools') || 'Tools' },
     { to: '/integrations', icon: PlugsConnected, label: t('nav.integrations') },
     user?.feature_flags?.mcp_knowledge_split
       ? { to: '/sandbox', icon: Robot, label: t('nav.assistant') || 'Assistant' }
       : { to: '/sandbox', icon: Flask, label: t('nav.sandbox') },
-    ...(user?.feature_flags?.mcp_tools_dashboard
-      ? [{ to: '/tools', icon: PuzzlePiece, label: t('nav.tools') || 'Tools' }]
-      : []),
-    { to: '/setup',    icon: BookOpen, label: t('nav.promptBook') || 'Prompt Book' },
     { to: '/settings', icon: GearSix,  label: t('nav.settings') || 'Settings' },
   ];
 

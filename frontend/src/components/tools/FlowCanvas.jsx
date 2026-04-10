@@ -1,5 +1,11 @@
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
-import { ZoomIn, ZoomOut, Maximize2, RotateCcw, Trash2 } from 'lucide-react';
+import {
+  MagnifyingGlassPlus as ZoomIn,
+  MagnifyingGlassMinus as ZoomOut,
+  ArrowsOut as Maximize2,
+  ArrowCounterClockwise as RotateCcw,
+  Trash as Trash2,
+} from '@phosphor-icons/react';
 import CoreNode from './CoreNode';
 import CanvasToolNode from './CanvasToolNode';
 import ConnectionsLayer from './ConnectionsLayer';
@@ -815,7 +821,11 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     <section
       ref={containerRef}
       aria-label="Flow diagram"
-      className={`flow-canvas relative w-full bg-gray-50 dark:bg-gray-900 rounded-xl overflow-hidden ${isPanning ? 'panning' : ''} ${dragOver && !isSkillDrag ? 'ring-2 ring-primary-400 ring-inset bg-primary-50/30 dark:bg-primary-900/10' : ''} ${isSkillDrag && dragOverEdgeId ? 'ring-2 ring-violet-400 ring-inset' : ''} ${isSkillDrag && !dragOverEdgeId ? 'ring-2 ring-gray-300 dark:ring-gray-600 ring-inset opacity-90' : ''}`}
+      className={`flow-canvas relative w-full bg-linen border-[1.5px] border-rule rounded-lg overflow-hidden
+        ${isPanning ? 'panning' : ''}
+        ${dragOver && !isSkillDrag ? 'ring-2 ring-iris ring-inset bg-mist' : ''}
+        ${isSkillDrag && dragOverEdgeId ? 'ring-2 ring-iris ring-inset' : ''}
+        ${isSkillDrag && !dragOverEdgeId ? 'ring-2 ring-rule ring-inset opacity-90' : ''}`}
       style={{ minHeight: `max(60vh, 500px)`, cursor: isPanning ? 'grabbing' : edgeDrag ? 'crosshair' : 'default' }}
       onPointerDown={handleCanvasPointerDown}
       onDragOver={handleDragOver}
@@ -888,7 +898,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
         {/* Escalation label */}
         {escLabel && (
           <div
-            className="absolute text-[10px] text-gray-400 dark:text-gray-500 font-medium tracking-wider uppercase pointer-events-none"
+            className="absolute font-mono text-[10px] text-fog tracking-wider uppercase pointer-events-none"
             style={{ left: escLabel.x, top: escLabel.y, transform: 'translate(-50%, -50%)' }}
           >
             escalation
@@ -950,9 +960,9 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
               zIndex: 10,
             }}
           >
-            <div className="w-9 h-9 rounded-full border-2 border-dashed border-primary-400 bg-primary-100/60 dark:bg-primary-900/40
-              flex items-center justify-center animate-pulse shadow-[0_0_16px_rgba(108,92,231,0.35)]">
-              <div className="w-2 h-2 rounded-full bg-primary-500" />
+            <div className="w-9 h-9 rounded-full border-2 border-dashed border-iris bg-iris-soft/40
+              flex items-center justify-center animate-pulse shadow-[0_0_16px_rgba(155,126,216,0.35)]">
+              <div className="w-2 h-2 rounded-full bg-iris" />
             </div>
           </div>
         )}
@@ -961,21 +971,23 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
       {/* ── Edge context menu ── */}
       {contextMenu && (
         <div
-          className="absolute z-30 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg py-1 min-w-[160px]"
+          className="absolute z-30 bg-paper border-[1.5px] border-rule rounded-lg shadow-ink py-1 min-w-[160px]"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
           {contextMenu.edgeId !== 'escalation' && (
             <button
               onClick={() => handleDeleteEdge(contextMenu.edgeId)}
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors cursor-pointer"
+              className="flex items-center gap-2 w-full px-3 py-2 text-[13px] text-rose
+                         hover:bg-rose-soft/40 transition-colors cursor-pointer bg-transparent"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 size={14} weight="light" />
               Remove connection
             </button>
           )}
           <button
             onClick={() => { setSelectedEdge(null); setContextMenu(null); }}
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+            className="flex items-center gap-2 w-full px-3 py-2 text-[13px] text-slate
+                       hover:bg-mist hover:text-ink transition-colors cursor-pointer bg-transparent"
           >
             Cancel
           </button>
@@ -994,60 +1006,63 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
         const btnY = mid.y * viewport.zoom + viewport.y;
         return (
           <button
-            className="absolute z-20 w-7 h-7 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg transition-all cursor-pointer"
+            className="absolute z-20 w-7 h-7 rounded-full border-[1.5px] border-rose bg-paper
+                       hover:bg-rose-soft text-rose flex items-center justify-center
+                       shadow-ink-sm transition-all cursor-pointer"
             style={{ left: btnX, top: btnY, transform: 'translate(-50%, -50%)' }}
             onClick={() => handleDeleteEdge(selectedEdge)}
             title="Delete connection"
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash2 size={13} weight="light" />
           </button>
         );
       })()}
 
       {/* ── Zoom controls (fixed in corner) ── */}
-      <div className="flow-zoom-controls absolute bottom-4 right-4 flex items-center gap-1 bg-white/90 dark:bg-gray-800/90 border border-gray-200 dark:border-gray-700 rounded-xl p-1 shadow-sm z-20">
+      <div className="flow-zoom-controls absolute bottom-4 right-4 flex items-center gap-1
+                      bg-paper/95 border-[1.5px] border-rule rounded-lg p-1 shadow-ink-sm z-20">
         <button
           onClick={zoomOut}
           disabled={viewport.zoom <= ZOOM_MIN}
-          className="p-1.5 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition-colors"
+          className="p-1.5 rounded-sm text-slate hover:bg-mist hover:text-ink disabled:opacity-30 transition-colors bg-transparent"
           aria-label="Zoom out"
         >
-          <ZoomOut className="w-4 h-4" />
+          <ZoomOut size={16} weight="light" />
         </button>
-        <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400 min-w-[3ch] text-center tabular-nums">
+        <span className="font-mono text-[11px] text-slate min-w-[4ch] text-center tabular-nums">
           {zoomPercent}%
         </span>
         <button
           onClick={zoomIn}
           disabled={viewport.zoom >= ZOOM_MAX}
-          className="p-1.5 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 transition-colors"
+          className="p-1.5 rounded-sm text-slate hover:bg-mist hover:text-ink disabled:opacity-30 transition-colors bg-transparent"
           aria-label="Zoom in"
         >
-          <ZoomIn className="w-4 h-4" />
+          <ZoomIn size={16} weight="light" />
         </button>
-        <div className="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-0.5" />
+        <div className="w-px h-4 bg-rule mx-0.5" />
         <button
           onClick={fitToView}
-          className="p-1.5 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          className="p-1.5 rounded-sm text-slate hover:bg-mist hover:text-ink transition-colors bg-transparent"
           aria-label="Fit to view"
           title="Fit to view"
         >
-          <Maximize2 className="w-4 h-4" />
+          <Maximize2 size={16} weight="light" />
         </button>
         <button
           onClick={resetView}
-          className="p-1.5 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          className="p-1.5 rounded-sm text-slate hover:bg-mist hover:text-ink transition-colors bg-transparent"
           aria-label="Reset view"
           title="Reset zoom & position"
         >
-          <RotateCcw className="w-4 h-4" />
+          <RotateCcw size={16} weight="light" />
         </button>
       </div>
 
       {/* ── Keyboard hint ── */}
       {connectedTools.length > 0 && (
-        <div className="absolute bottom-4 left-4 text-[10px] text-gray-400 dark:text-gray-500 pointer-events-none select-none z-20">
-          Scroll to zoom · Drag background to pan · Drag nodes to move · Click edge to select · Del to remove
+        <div className="absolute bottom-4 left-4 font-mono text-[10px] text-fog tracking-wide uppercase pointer-events-none select-none z-20">
+          scroll · drag bg to pan · drag node to move · click edge · del to remove
         </div>
       )}
     </section>

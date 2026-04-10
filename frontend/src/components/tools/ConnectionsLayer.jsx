@@ -33,27 +33,34 @@ const ConnectionsLayer = ({
   dragOverEdgeId,
   isSkillDrag,
 }) => {
+  // Concierge palette as SVG gradients.
+  // Solid, warm, no electric neon — these are the same accents as the Dashboard.
   const gradients = useMemo(() => (
     <>
+      {/* iris — assistant */}
       <linearGradient id="grad-assistant" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="#6c5ce7" stopOpacity="0.6" />
-        <stop offset="100%" stopColor="#a29bfe" stopOpacity="0.3" />
+        <stop offset="0%"   stopColor="#9B7ED8" stopOpacity="0.75" />
+        <stop offset="100%" stopColor="#D4C5F0" stopOpacity="0.45" />
       </linearGradient>
+      {/* sage — manager / HITL */}
       <linearGradient id="grad-manager" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="#00a67e" stopOpacity="0.6" />
-        <stop offset="100%" stopColor="#00d9a3" stopOpacity="0.3" />
+        <stop offset="0%"   stopColor="#7BC89F" stopOpacity="0.75" />
+        <stop offset="100%" stopColor="#C5E8D5" stopOpacity="0.45" />
       </linearGradient>
+      {/* amber — leads */}
       <linearGradient id="grad-leads" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.6" />
-        <stop offset="100%" stopColor="#fbbf24" stopOpacity="0.3" />
+        <stop offset="0%"   stopColor="#E8A86D" stopOpacity="0.75" />
+        <stop offset="100%" stopColor="#F5DABC" stopOpacity="0.45" />
       </linearGradient>
+      {/* muted slate — escalation fallback */}
       <linearGradient id="grad-escalation" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="#6b7280" stopOpacity="0.3" />
-        <stop offset="100%" stopColor="#6b7280" stopOpacity="0.1" />
+        <stop offset="0%"   stopColor="#9E9790" stopOpacity="0.35" />
+        <stop offset="100%" stopColor="#9E9790" stopOpacity="0.12" />
       </linearGradient>
+      {/* iris ghost — drag preview */}
       <linearGradient id="grad-ghost" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.6" />
-        <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.3" />
+        <stop offset="0%"   stopColor="#9B7ED8" stopOpacity="0.7" />
+        <stop offset="100%" stopColor="#9B7ED8" stopOpacity="0.3" />
       </linearGradient>
     </>
   ), []);
@@ -70,8 +77,9 @@ const ConnectionsLayer = ({
         const gradId = conn.target === 'escalation' ? 'grad-escalation'
           : conn.target === 'leads' ? 'grad-leads'
           : conn.target === 'assistant' ? 'grad-assistant' : 'grad-manager';
-        const dotColor = conn.target === 'assistant' ? '#a29bfe'
-          : conn.target === 'leads' ? '#fbbf24' : '#00d9a3';
+        // Solid dot colours from the Concierge palette
+        const dotColor = conn.target === 'assistant' ? '#9B7ED8'
+          : conn.target === 'leads' ? '#E8A86D' : '#7BC89F';
 
         const isHighlighted = highlightedTool === null
           ? true
@@ -127,15 +135,15 @@ const ConnectionsLayer = ({
               className="flow-line-animated"
             />
 
-            {/* Selection indicator */}
+            {/* Selection indicator — iris dashed overlay */}
             {isSelected && (
               <path
                 d={conn.pathD}
                 fill="none"
-                stroke="#8b5cf6"
+                stroke="#9B7ED8"
                 strokeWidth="1"
                 strokeDasharray="4 4"
-                opacity="0.6"
+                opacity="0.7"
               />
             )}
 
@@ -146,14 +154,15 @@ const ConnectionsLayer = ({
               if (!label) return null;
               return (
                 <text
-                  fill="#94a3b8"
+                  fill="#9E9790"
                   fontSize="9"
-                  fontFamily="'Fira Sans', sans-serif"
-                  fontWeight="500"
+                  fontFamily="'Ubuntu Mono', monospace"
+                  fontWeight="400"
+                  letterSpacing="0.5"
                   textAnchor="middle"
                   dy="-8"
-                  opacity={isHighlighted ? 0.9 : 0}
-                  style={{ transition: 'opacity 0.3s', pointerEvents: 'none' }}
+                  opacity={isHighlighted ? 0.85 : 0}
+                  style={{ transition: 'opacity 0.3s', pointerEvents: 'none', textTransform: 'uppercase' }}
                 >
                   <textPath href={`#edge-path-${conn.id}`} startOffset="40%">
                     {label}

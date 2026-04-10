@@ -15,7 +15,7 @@ const RichCardWrapper = ({ slug, clientId }) => {
   if (!CardComponent) return null;
 
   return (
-    <Suspense fallback={<div className="h-[90px] animate-pulse bg-gray-100 dark:bg-gray-700 rounded-lg" />}>
+    <Suspense fallback={<div className="h-[90px] animate-pulse bg-linen rounded-sm" />}>
       <CardComponent clientId={clientId} />
     </Suspense>
   );

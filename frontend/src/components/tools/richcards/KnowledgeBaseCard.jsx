@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import cloud from 'd3-cloud';
 import { toolsAPI } from '../../../api/tools';
 
-const COLORS = ['#22C55E', '#a29bfe', '#fbbf24', '#00d9a3', '#8b5cf6', '#f472b6', '#38bdf8'];
+// Warm Concierge palette for the word cloud — iris/sage/amber/rose only.
+const COLORS = ['#9B7ED8', '#7BC89F', '#E8A86D', '#E8729A', '#9B7ED8', '#7BC89F', '#E8A86D'];
 
 const KnowledgeBaseCard = ({ clientId }) => {
   const svgRef = useRef(null);
@@ -41,7 +42,7 @@ const KnowledgeBaseCard = ({ clientId }) => {
         text.setAttribute('text-anchor', 'middle');
         text.setAttribute('transform', `translate(${d.x},${d.y}) rotate(${d.rotate})`);
         text.setAttribute('font-size', `${d.size}px`);
-        text.setAttribute('font-family', "'Fira Code', monospace");
+        text.setAttribute('font-family', "'Ubuntu Mono', monospace");
         text.setAttribute('fill', COLORS[i % COLORS.length]);
         text.setAttribute('opacity', '0.85');
         text.textContent = d.text;
@@ -55,7 +56,7 @@ const KnowledgeBaseCard = ({ clientId }) => {
   if (!words.length) {
     return (
       <div className="w-full h-[90px] flex items-center justify-center">
-        <div className="text-[9px] text-gray-500">No documents yet</div>
+        <div className="font-mono text-[9px] text-fog uppercase tracking-wide">No documents yet</div>
       </div>
     );
   }

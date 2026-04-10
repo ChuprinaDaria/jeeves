@@ -107,6 +107,103 @@
   .safe-top    { padding-top: env(safe-area-inset-top); }
   .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 
+  /* ──────── Flow canvas ──────── */
+  .flow-canvas {
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .flow-canvas.panning { cursor: grabbing; }
+
+  /* Warm cream dot grid — barely-there, never harsh */
+  .dot-grid {
+    background-image: radial-gradient(circle, rgba(45, 42, 38, 0.12) 1px, transparent 1px);
+    background-size: 30px 30px;
+  }
+
+  .flow-draggable {
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: box-shadow 0.2s, transform 0.15s;
+  }
+  .flow-draggable:hover {
+    box-shadow: 0 4px 16px rgba(45, 42, 38, 0.10);
+  }
+  .flow-draggable.dragging {
+    cursor: grabbing;
+    z-index: 50 !important;
+    box-shadow: 0 12px 32px rgba(45, 42, 38, 0.18);
+    transition: box-shadow 0.15s;
+  }
+
+  .flow-port {
+    cursor: crosshair;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .flow-port:hover {
+    transform: translate(-50%, -50%) scale(1.5);
+    box-shadow: 0 0 8px rgba(123, 200, 159, 0.5);
+  }
+
+  .flow-zoom-controls {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  /* ──────── Flow animations ──────── */
+  @keyframes flow-dash { to { stroke-dashoffset: -20; } }
+  .flow-line-animated {
+    stroke-dasharray: 8 4;
+    animation: flow-dash 1s linear infinite;
+  }
+
+  @keyframes flow-particle {
+    0%   { offset-distance: 0%;   opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 1; }
+    100% { offset-distance: 100%; opacity: 0; }
+  }
+  .flow-particle {
+    offset-rotate: 0deg;
+    animation: flow-particle var(--particle-duration, 2.5s) linear infinite;
+    animation-delay: var(--particle-delay, 0s);
+  }
+
+  @keyframes flow-node-enter {
+    from { opacity: 0; transform: scale(0.88); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  .flow-node-enter {
+    animation: flow-node-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  @keyframes flow-toast-in {
+    from { transform: translateY(80px); opacity: 0; }
+    to   { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes flow-toast-out {
+    from { transform: translateY(0); opacity: 1; }
+    to   { transform: translateY(80px); opacity: 0; }
+  }
+
+  @keyframes flow-pulse-arrow {
+    0%, 100% { opacity: 0.4; transform: translateY(0); }
+    50%      { opacity: 1;   transform: translateY(8px); }
+  }
+
+  @keyframes skill-badge-pop {
+    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+    60%  { transform: translate(-50%, -50%) scale(1.15); }
+    100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  }
+
+  /* Card flip (FlipToolCard) */
+  .perspective-1000  { perspective: 1000px; }
+  .backface-hidden   { backface-visibility: hidden; }
+  .rotate-y-180      { transform: rotateY(180deg); }
+
   @media (prefers-reduced-motion: reduce) {
     .animate-fade-up {
       animation: none !important;

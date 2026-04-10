@@ -22,7 +22,7 @@
   },
   "nav": {
     "dashboard": "Dashboard",
-    "training": "Train AI",
+    "training": "Jeevs",
     "sandbox": "Sandbox",
     "sandboxBadge": "Also in Train AI",
     "integrations": "Integrations",
@@ -104,8 +104,8 @@
     "promptTemplate": "Prompt Template"
   },
   "training": {
-    "title": "Train Your AI",
-    "subtitle": "Upload files and customize your AI assistant",
+    "title": "Jeevs",
+    "subtitle": "Teach your butler — feed him knowledge, shape his tone, let him rehearse",
     "uploadFiles": "Upload Training Files",
     "uploadedFiles": "Uploaded Files",
     "noFiles": "No files uploaded yet",
