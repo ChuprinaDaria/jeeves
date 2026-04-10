@@ -22,9 +22,9 @@ mcp = FastMCP(
 
 def _resolve_embedding_model(client_id: int):
     """Resolve embedding model: AgentConfig -> Client -> PlatformDefaults."""
-    from MASTER.clients.models import Client
-    from MASTER.agents.models import AgentConfig
-    from MASTER.concierge_platform.models import PlatformDefaults
+    from Jeeves.clients.models import Client
+    from Jeeves.agents.models import AgentConfig
+    from Jeeves.concierge_platform.models import PlatformDefaults
 
     client = Client.objects.select_related(
         'embedding_model', 'branch', 'specialization',
@@ -63,7 +63,7 @@ async def review_vasya_conversations(
     Use this to find areas where the concierge needs training."""
 
     def _review():
-        from MASTER.agents.models import AgentSession, AgentLog
+        from Jeeves.agents.models import AgentSession, AgentLog
 
         cutoff = timezone.now() - timedelta(days=days_back)
 
@@ -151,7 +151,7 @@ async def suggest_knowledge_update(
     """
 
     def _suggest():
-        from MASTER.agents.models import AgentSession
+        from Jeeves.agents.models import AgentSession
 
         suggestion_id = str(uuid.uuid4())[:8]
 
@@ -200,9 +200,9 @@ async def apply_coaching_suggestion(
 
     def _apply():
         from datetime import timedelta as td
-        from MASTER.agents.models import AgentSession, AgentConfig
-        from MASTER.clients.models import Client, ClientDocument
-        from MASTER.processing.embedding_service import EmbeddingService
+        from Jeeves.agents.models import AgentSession, AgentConfig
+        from Jeeves.clients.models import Client, ClientDocument
+        from Jeeves.processing.embedding_service import EmbeddingService
 
         # Resolve current session to find the agent_config (client)
         try:
@@ -289,7 +289,7 @@ async def get_consultant_prompt(
     Use before suggesting changes to understand the current state."""
 
     def _get():
-        from MASTER.agents.models import AgentConfig
+        from Jeeves.agents.models import AgentConfig
         try:
             config = AgentConfig.objects.get(client_id=client_id)
             return {

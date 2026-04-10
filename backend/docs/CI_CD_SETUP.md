@@ -9,7 +9,7 @@ This project uses GitHub Actions for Continuous Integration and Continuous Deplo
 ### 1. Frontend CI/CD (`frontend-ci-cd.yml`)
 
 **Triggers:**
-- Push to `main` branch (changes in `MASTER/client_portal/**`)
+- Push to `main` branch (changes in `Jeeves/client_portal/**`)
 - Pull requests to `main` branch
 
 **Jobs:**
@@ -38,7 +38,7 @@ This project uses GitHub Actions for Continuous Integration and Continuous Deplo
 ### 2. Backend CI/CD (`backend-ci-cd.yml`)
 
 **Triggers:**
-- Push to `main` branch (changes in `MASTER/**`, `requirements.txt`, Dockerfiles)
+- Push to `main` branch (changes in `Jeeves/**`, `requirements.txt`, Dockerfiles)
 - Pull requests to `main` branch
 
 **Jobs:**

@@ -18,7 +18,7 @@ on:
 
 env:
   PYTHON_VERSION: '3.12'
-  DJANGO_SETTINGS_MODULE: 'MASTER.settings'
+  DJANGO_SETTINGS_MODULE: 'Jeeves.settings'
   NODE_VERSION: '20'
 
 jobs:
@@ -105,7 +105,7 @@ jobs:
 
       - name: 🗄️ Setup database
         run: |
-          cd MASTER
+          cd Jeeves
           python manage.py migrate --noinput
         env:
           DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/test_db
@@ -115,9 +115,9 @@ jobs:
 
       - name: 🧪 Run tests with coverage
         run: |
-          cd MASTER
+          cd Jeeves
           pytest \
-            --cov=MASTER \
+            --cov=Jeeves \
             --cov-report=xml \
             --cov-report=html \
             --cov-report=term \
@@ -136,19 +136,19 @@ jobs:
         with:
           name: backend-coverage-report
           path: |
-            backend/MASTER/coverage.xml
-            backend/MASTER/htmlcov/**
-            backend/MASTER/junit.xml
+            backend/Jeeves/coverage.xml
+            backend/Jeeves/htmlcov/**
+            backend/Jeeves/junit.xml
           retention-days: 30
 
       - name: 📈 Coverage summary
         run: |
           echo "## 📊 Backend Test Coverage Report" >> $GITHUB_STEP_SUMMARY
-          if [ -f MASTER/coverage.xml ]; then
+          if [ -f Jeeves/coverage.xml ]; then
             echo "✅ Coverage report generated successfully" >> $GITHUB_STEP_SUMMARY
             echo "📁 Coverage files:" >> $GITHUB_STEP_SUMMARY
-            echo "- XML: MASTER/coverage.xml" >> $GITHUB_STEP_SUMMARY
-            echo "- HTML: MASTER/htmlcov/index.html" >> $GITHUB_STEP_SUMMARY
+            echo "- XML: Jeeves/coverage.xml" >> $GITHUB_STEP_SUMMARY
+            echo "- HTML: Jeeves/htmlcov/index.html" >> $GITHUB_STEP_SUMMARY
           else
             echo "⚠️ Coverage report not found" >> $GITHUB_STEP_SUMMARY
           fi

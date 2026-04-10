@@ -1,0 +1,1 @@
+# Jeeves module type stubs

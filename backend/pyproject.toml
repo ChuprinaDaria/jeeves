@@ -27,7 +27,7 @@ profile = "black"
 line_length = 120
 skip = ["migrations", "venv", "env", ".venv", "node_modules"]
 known_django = "django"
-known_first_party = ["MASTER"]
+known_first_party = ["Jeeves"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -48,15 +48,15 @@ exclude_dirs = ["migrations", "venv", "env", ".venv", "tests", "test"]
 skips = ["B101", "B601"]
 
 [tool.pytest.ini_options]
-# pythonpath makes `from MASTER.xxx import ...` work without needing a
+# pythonpath makes `from Jeeves.xxx import ...` work without needing a
 # PYTHONPATH env var. pytest adds these to sys.path before plugins load,
 # which is earlier than conftest.py — required because pytest-django
-# imports MASTER.settings at plugin load time.
+# imports Jeeves.settings at plugin load time.
 pythonpath = ["."]
-testpaths = ["MASTER"]
+testpaths = ["Jeeves"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-DJANGO_SETTINGS_MODULE = "MASTER.settings"
+DJANGO_SETTINGS_MODULE = "Jeeves.settings"
 django_find_project = false
 

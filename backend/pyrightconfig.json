@@ -3,7 +3,7 @@
   "venv": "venv",
   "pythonVersion": "3.12",
   "include": [
-    "MASTER"
+    "Jeeves"
   ],
   "stubPaths": ["typings"],
   "pythonPlatform": "Linux",

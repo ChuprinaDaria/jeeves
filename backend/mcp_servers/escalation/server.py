@@ -32,7 +32,7 @@ mcp = FastMCP(
 # ---------------------------------------------------------------------------
 
 def _escalate_sync(client_id, conversation_id, reason, customer_name, channel, summary):
-    from MASTER.clients.models import Client, ClientWhatsAppConversation
+    from Jeeves.clients.models import Client, ClientWhatsAppConversation
 
     try:
         client = Client.objects.get(pk=client_id)
@@ -69,7 +69,7 @@ def _escalate_sync(client_id, conversation_id, reason, customer_name, channel, s
     telegram_dispatched = False
     if client.hitl_enabled:
         try:
-            from MASTER.clients.tasks import notify_manager_of_escalation
+            from Jeeves.clients.tasks import notify_manager_of_escalation
             notify_manager_of_escalation.delay(conv.id, question_summary)
             telegram_dispatched = True
             logger.info(f"Dispatched Telegram escalation for conversation {conv.id}")
@@ -89,7 +89,7 @@ def _escalate_sync(client_id, conversation_id, reason, customer_name, channel, s
 
 
 def _check_availability_sync(client_id):
-    from MASTER.clients.models import Client
+    from Jeeves.clients.models import Client
 
     try:
         client = Client.objects.get(pk=client_id)
@@ -109,7 +109,7 @@ def _check_availability_sync(client_id):
 
 
 def _active_escalations_sync(client_id):
-    from MASTER.clients.models import ClientWhatsAppConversation
+    from Jeeves.clients.models import ClientWhatsAppConversation
 
     convs = (
         ClientWhatsAppConversation.objects.filter(

@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 from mcp_servers.common.django_setup import setup
 setup()
 
-from MASTER.clients.models import Lead, Client
-from MASTER.agents.models import AgentSession
+from Jeeves.clients.models import Lead, Client
+from Jeeves.agents.models import AgentSession
 from django.db.models import Count, Avg, Q
 
 mcp = FastMCP("mcp-leads")
@@ -213,7 +213,7 @@ async def search_conversations(
     from asgiref.sync import sync_to_async
 
     def _search():
-        from MASTER.clients.models import ClientWhatsAppConversation
+        from Jeeves.clients.models import ClientWhatsAppConversation
 
         qs = ClientWhatsAppConversation.objects.filter(client_id=client_id)
 
@@ -278,7 +278,7 @@ async def batch_qualify(
     from asgiref.sync import sync_to_async
 
     def _batch():
-        from MASTER.clients.models import ClientWhatsAppConversation
+        from Jeeves.clients.models import ClientWhatsAppConversation
 
         now = timezone.now()
         days = int(period[:-1]) if period.endswith('d') else 7

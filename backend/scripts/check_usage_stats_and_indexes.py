@@ -7,13 +7,13 @@ def setup_django() -> None:
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "MASTER.settings")
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "Jeeves.settings")
     django.setup()
 
 
 def check_usage_stats_query() -> None:
-    from MASTER.processing.models import UsageStats
-    from MASTER.clients.models import Client
+    from Jeeves.processing.models import UsageStats
+    from Jeeves.clients.models import Client
 
     client = Client.objects.first()
     qs = UsageStats.objects.filter(client=client)

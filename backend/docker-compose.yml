@@ -44,12 +44,12 @@ services:
     container_name: concierge_web
     restart: unless-stopped
     command: >
-      sh -c "gunicorn MASTER.wsgi:application --bind 0.0.0.0:8000 --workers 3 --threads 2 --timeout 120"
+      sh -c "gunicorn Jeeves.wsgi:application --bind 0.0.0.0:8000 --workers 3 --threads 2 --timeout 120"
     ports:
       - "8000:8000"
     env_file: ../.env
     environment:
-      DJANGO_SETTINGS_MODULE: MASTER.settings
+      DJANGO_SETTINGS_MODULE: Jeeves.settings
       DEBUG: "0"
       SECRET_KEY: ${SECRET_KEY:-dev-secret}
       DB_NAME: ${DB_NAME:-admin_db}
@@ -86,10 +86,10 @@ services:
       context: .
     container_name: concierge_celery_worker
     restart: unless-stopped
-    command: sh -c "celery -A MASTER worker -l info"
+    command: sh -c "celery -A Jeeves worker -l info"
     env_file: ../.env
     environment:
-      DJANGO_SETTINGS_MODULE: MASTER.settings
+      DJANGO_SETTINGS_MODULE: Jeeves.settings
       DEBUG: "0"
       SECRET_KEY: ${SECRET_KEY:-dev-secret}
       DB_NAME: ${DB_NAME:-admin_db}
@@ -121,10 +121,10 @@ services:
       context: .
     container_name: concierge_celery_beat
     restart: unless-stopped
-    command: sh -c "celery -A MASTER beat -l info"
+    command: sh -c "celery -A Jeeves beat -l info"
     env_file: ../.env
     environment:
-      DJANGO_SETTINGS_MODULE: MASTER.settings
+      DJANGO_SETTINGS_MODULE: Jeeves.settings
       DEBUG: "0"
       SECRET_KEY: ${SECRET_KEY:-dev-secret}
       DB_NAME: ${DB_NAME:-admin_db}

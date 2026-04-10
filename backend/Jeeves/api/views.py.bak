@@ -1,0 +1,431 @@
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .serializers import RAGQuerySerializer, DocumentUploadSerializer
+from Jeeves.rag.response_generator import ResponseGenerator
+from Jeeves.clients.models import ClientAPIKey, Client, ClientDocument
+from Jeeves.branches.models import Branch
+from Jeeves.specializations.models import Specialization
+from django.contrib.auth import get_user_model
+from django.utils.crypto import get_random_string
+from django.utils.text import slugify
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.conf import settings
+import hashlib
+from Jeeves.accounts.models import User as AppUser
+
+
+class RAGQueryView(APIView):
+    def post(self, request):
+        if not hasattr(request, 'client'):
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        serializer = RAGQuerySerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        query = serializer.validated_data['query']
+        client = request.client
+        
+        return Response({
+            'query': query,
+            'client': client.user.username,
+            'specialization': client.specialization.name,
+            'results': []
+        })
+
+
+class DocumentUploadView(APIView):
+    def post(self, request):
+        # Accept either API-key based client (middleware) or JWT-authenticated user
+        client = getattr(request, 'client', None)
+        if client is None and getattr(request, 'user', None) is not None and request.user.is_authenticated:
+            client = getattr(request.user, 'client_profile', None)
+        if client is None:
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        serializer = DocumentUploadSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Persist document
+        uploaded = serializer.validated_data['file']
+        title = serializer.validated_data['title']
+        # Derive file_type from extension
+        import os
+        _, ext = os.path.splitext(getattr(uploaded, 'name', '') or '')
+        ext = (ext or '').lower().lstrip('.')
+        allowed = {'pdf', 'txt', 'csv', 'json', 'docx'}
+        file_type = ext if ext in allowed else 'txt'
+        doc = ClientDocument(
+            client=client,
+            title=title,
+            file=uploaded,
+            file_type=file_type,
+            file_size=getattr(uploaded, 'size', 0) or 0,
+            metadata={'source': 'client_portal'}
+        )
+        doc.save()
+        
+        return Response({
+            'message': 'Document uploaded successfully',
+            'document_id': getattr(doc, 'id', None),
+            'title': getattr(doc, 'title', ''),
+            'file': getattr(getattr(doc, 'file', None), 'url', ''),
+            'file_type': getattr(doc, 'file_type', ''),
+            'uploaded_at': getattr(doc, 'uploaded_at', None),
+        }, status=status.HTTP_201_CREATED)
+
+
+class APIDocsView(APIView):
+    def get(self, request):
+        if not hasattr(request, 'client'):
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        client = request.client
+        
+        docs = {
+            'client': client.user.get_full_name(),
+            'specialization': client.specialization.name,
+            'branch': client.specialization.branch.name,
+            'endpoints': {
+                'query': {
+                    'url': '/api/rag/query/',
+                    'method': 'POST',
+                    'headers': {
+                        'X-API-Key': 'your_api_key',
+                        'Content-Type': 'application/json'
+                    },
+                    'body': {
+                        'query': 'Your question here'
+                    }
+                },
+                'upload': {
+                    'url': '/api/rag/upload/',
+                    'method': 'POST',
+                    'headers': {
+                        'X-API-Key': 'your_api_key'
+                    },
+                    'body': 'multipart/form-data with file'
+                },
+                'bootstrap': {
+                    'url': '/api/rag/bootstrap/<branch_slug>/<specialization_slug>/<client_token>/',
+                    'method': 'POST',
+                    'auth': 'public (no API key)',
+                    'path_params': {
+                        'branch_slug': 'slug філії (наприклад, kyiv)',
+                        'specialization_slug': 'slug спеціалізації (наприклад, restaurant)',
+                        'client_token': 'унікальний токен клієнта (наприклад, acme-001)'
+                    },
+                    'response': {
+                        'branch': {'id': 1, 'name': 'Kyiv', 'slug': 'kyiv'},
+                        'specialization': {'id': 10, 'name': 'Restaurant', 'slug': 'restaurant', 'branch_id': 1},
+                        'client': {'id': 100, 'user_id': 200, 'username': 'client_acme-001', 'email': 'client_acme-001@example.local', 'specialization_id': 10},
+                        'api_key': {'key': 'acme-001', 'name': 'bootstrap:acme-001', 'is_active': True}
+                    }
+                }
+            }
+        }
+        
+        return Response(docs)
+
+
+class PublicRAGChatView(APIView):
+    def post(self, request):
+        api_key = request.headers.get('X-API-Key')
+        if not api_key:
+            return Response({'error': 'API key required'}, status=status.HTTP_401_UNAUTHORIZED)
+        try:
+            key_obj = ClientAPIKey.objects.get(key=api_key, is_active=True)
+            if not key_obj.is_valid():
+                return Response({'error': 'Invalid API key'}, status=status.HTTP_401_UNAUTHORIZED)
+            client = key_obj.client
+        except ClientAPIKey.DoesNotExist:
+            return Response({'error': 'Invalid API key'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        message = request.data.get('message', '')
+        if not message:
+            return Response({'error': 'message is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        generator = ResponseGenerator()
+        rag_response = generator.generate(query=message, client=client, stream=False)
+        return Response({
+            'response': getattr(rag_response, 'answer', ''),
+            'sources': getattr(rag_response, 'sources', []),
+            'num_chunks': getattr(rag_response, 'num_chunks', 0),
+            'total_tokens': getattr(rag_response, 'total_tokens', 0),
+        })
+
+
+class TokenByClientTokenView(APIView):
+    """Issue JWT for client user by provided client_token (ClientAPIKey.key).
+
+    Request JSON: { client_token: string }
+    Response: { access, refresh, client: { id, username, email } }
+    """
+    def post(self, request):
+        token = (request.data or {}).get('client_token')
+        if not token:
+            return Response({'error': 'client_token is required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            api_key = ClientAPIKey.objects.select_related('client__user').get(key=token, is_active=True)
+        except ClientAPIKey.DoesNotExist:
+            return Response({'error': 'Invalid client_token'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        user = api_key.client.user
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'access': str(getattr(refresh, 'access_token', refresh)),
+            'refresh': str(refresh),
+            'client': {
+                'id': api_key.client.id,
+                'username': user.username,
+                'email': user.email,
+                'client_type': getattr(api_key.client, 'client_type', 'generic'),
+            }
+        })
+
+class BootstrapProvisionView(APIView):
+    """Idempotent endpoint to create/link Branch, Specialization, and Client by path.
+
+    Path format: /api/rag/bootstrap/<branch_slug>/<specialization_slug>/<client_token>/
+    - branch_slug: slug of Branch to create or reuse
+    - specialization_slug: slug under Branch to create or reuse
+    - client_token: unique token to identify Client's username/email namespace
+
+    Behavior:
+    - Ensures Branch(branch_slug) exists
+    - Ensures Specialization(branch=..., slug=specialization_slug) exists
+    - Ensures User(role=client) and Client linked to the specialization exist for client_token
+      (creates a new User with generated email if necessary)
+    - Returns stable IDs and minimal credentials for follow-up integration
+    """
+
+    def post(self, request, branch_slug: str, specialization_slug: str, client_token: str):
+        User = AppUser
+
+        # 1) Branch (idempotent by slug)
+        branch, _ = Branch.objects.get_or_create(  # type: ignore
+            slug=branch_slug,
+            defaults={
+                'name': branch_slug.replace('-', ' ').title(),
+                'is_active': True,
+            },
+        )
+
+        # 2) Specialization (idempotent by (branch, slug))
+        specialization, _ = Specialization.objects.get_or_create(  # type: ignore
+            branch=branch,
+            slug=specialization_slug,
+            defaults={
+                'name': specialization_slug.replace('-', ' ').title(),
+                'is_active': True,
+            },
+        )
+
+        # 3) Client user (role=client), identified by client_token
+        # Build a safe, deterministic base username within DB limits
+        max_username_len = getattr(User._meta.get_field('username'), 'max_length', 150)  # type: ignore
+        token_hash = hashlib.sha1(client_token.encode('utf-8')).hexdigest()[:8]
+        token_slug = slugify(client_token)
+        base_prefix = "client_"
+        reserved = 1 + len(token_hash)  # '_' + hash
+        max_base_len = max_username_len - len(base_prefix) - reserved
+        safe_base = (token_slug[:max_base_len] if max_base_len > 0 else '')
+        username = f"{base_prefix}{safe_base}_{token_hash}"
+
+        # Reuse client if API key for this token already exists
+        client_api = ClientAPIKey.objects.select_related('client').filter(key=client_token).first()
+        client = getattr(client_api, 'client', None)
+
+        # Prefer existing client by username if still none
+        if client is None:
+            client = Client.objects.filter(user__username=username).first()
+        if client is None:
+            # Create user with minimal required fields (without relying on manager-specific methods)
+            email = f"{username[:40]}@example.local"
+            user = User(
+                username=username,
+                email=email,
+                first_name=username[:30],  # Truncate to fit first_name field limit
+                last_name='Auto',
+            )
+            # Ensure uniqueness; if conflict, append a short numeric suffix trimming as needed
+            counter = 1
+            while User.objects.filter(username=user.username).exists():
+                suffix = f"-{counter}"
+                trim_len = max_username_len - len(suffix)
+                user.username = (username[:trim_len] + suffix) if trim_len > 0 else username
+                counter += 1
+                if counter > 99:
+                    break
+            user.set_password(get_random_string(12))
+            user.save()
+            # Ensure role is client if model has 'role'
+            if hasattr(user, 'role'):
+                try:
+                    user.role = 'client'  # type: ignore[attr-defined]
+                    user.save(update_fields=['role'])
+                except Exception:
+                    pass
+
+            client = Client.objects.create(
+                user=user,
+                specialization=specialization,
+                company_name=f"{branch.name} / {specialization.name}",
+                is_active=True,
+                client_type=('restaurant' if 'rest' in (specialization.slug or '').lower() else 'generic'),
+            )
+        else:
+            # Update specialization if differs
+            if getattr(client, 'specialization_id', None) != getattr(specialization, 'id', None):
+                client.specialization = specialization
+                client.save(update_fields=['specialization'])
+            desired_type = 'restaurant' if 'rest' in (specialization.slug or '').lower() else 'generic'
+            if getattr(client, 'client_type', None) != desired_type:
+                try:
+                    client.client_type = desired_type  # type: ignore[attr-defined]
+                    client.save(update_fields=['client_type'])
+                except Exception:
+                    pass
+
+        branch_id = getattr(branch, 'id', None)
+        specialization_id = getattr(specialization, 'id', None)
+        client_id = getattr(client, 'id', None)
+        user_id = getattr(client, 'user_id', None)
+
+        # 4) Bind client_token to API key (rag_token)
+        api_key_obj, _ = ClientAPIKey.objects.get_or_create(
+            client=client,
+            key=client_token,
+            defaults={
+                'name': f'bootstrap:{client_token}',
+                'is_active': True,
+            }
+        )
+
+        return Response({
+            'branch': {
+                'id': branch_id,
+                'name': branch.name,
+                'slug': branch.slug,
+            },
+            'specialization': {
+                'id': specialization_id,
+                'name': specialization.name,
+                'slug': specialization.slug,
+                'branch_id': branch_id,
+            },
+            'client': {
+                'id': client_id,
+                'user_id': user_id,
+                'username': client.user.username,
+                'email': client.user.email,
+                'specialization_id': getattr(client, 'specialization_id', None),
+            },
+            'api_key': {
+                'key': api_key_obj.key,
+                'name': api_key_obj.name,
+                'is_active': api_key_obj.is_active,
+            }
+        }, status=status.HTTP_201_CREATED)
+
+
+class ProvisionLinkView(APIView):
+    """Create or ensure (branch, specialization, client) exist and return client portal URL.
+
+    Request JSON: { branch: string, specialization: string, token: string }
+    Response: { url, branch, specialization, client, api_key }
+    """
+    def post(self, request):
+        data = request.data or {}
+        branch_slug = data.get('branch')
+        specialization_slug = data.get('specialization')
+        client_token = data.get('token')
+        if not branch_slug or not specialization_slug or not client_token:
+            return Response({'error': 'branch, specialization, token are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Reuse bootstrap logic by calling the view method directly
+        bootstrap_view = BootstrapProvisionView()
+        bootstrap_response = bootstrap_view.post(request, branch_slug, specialization_slug, client_token)
+        if bootstrap_response.status_code not in (200, 201):
+            return bootstrap_response
+
+        payload = bootstrap_response.data
+        base_url = getattr(settings, 'CLIENT_PORTAL_BASE_URL', 'http://192.168.0.40:8000').rstrip('/')
+        url = f"{base_url}/{branch_slug}/{specialization_slug}/{client_token}/admin"
+        payload_out = dict(payload)
+        payload_out['url'] = url
+        return Response(payload_out, status=status.HTTP_201_CREATED)
+
+
+class ClientFeaturesOverviewView(APIView):
+    """Return a localized overview of client features/menu based on client type.
+
+    Auth: JWT (client user) or X-API-Key (sets request.client).
+    Optional: query param lang=uk|en|de|fr|ru (fallback to Accept-Language, then en).
+    """
+    def get(self, request):
+        client = getattr(request, 'client', None)
+        if client is None and getattr(request, 'user', None) is not None and request.user.is_authenticated:
+            client = getattr(request.user, 'client_profile', None)
+        if client is None:
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Language detection
+        lang = (request.query_params.get('lang') or '').lower()
+        if not lang:
+            lang = (request.headers.get('Accept-Language') or 'en').split(',')[0].split('-')[0].lower()
+        if lang not in {'uk','en','de','fr','ru'}:
+            lang = 'en'
+
+        ct = getattr(client, 'client_type', 'generic')
+
+        # Localized labels
+        labels = {
+            'uk': {
+                'title': 'Можливості клієнтської панелі',
+                'restaurant': {
+                    'menu': {'title': 'Меню', 'desc': 'Керування категоріями, меню та позиціями'},
+                    'orders': {'title': 'Замовлення', 'desc': 'Перегляд і оновлення статусів замовлень'},
+                    'tables': {'title': 'Столи', 'desc': 'Столи, QR-коди та доступ по токену'},
+                    'chat': {'title': 'AI-офіціант', 'desc': 'Чат з порадами та контекстом з меню'},
+                },
+                'generic': {
+                    'documents': {'title': 'Документи', 'desc': 'Завантаження та обробка документів'},
+                }
+            },
+            'en': {
+                'title': 'Client Portal Features',
+                'restaurant': {
+                    'menu': {'title': 'Menu', 'desc': 'Manage categories, menus and items'},
+                    'orders': {'title': 'Orders', 'desc': 'View and update order statuses'},
+                    'tables': {'title': 'Tables', 'desc': 'Tables, QR codes and token access'},
+                    'chat': {'title': 'AI Waiter', 'desc': 'Chat with menu-aware recommendations'},
+                },
+                'generic': {
+                    'documents': {'title': 'Documents', 'desc': 'Upload and process documents'},
+                }
+            }
+        }
+
+        l = labels['uk' if lang == 'uk' else 'en']
+        sections = []
+        if ct == 'restaurant':
+            sections = [
+                {'key': 'menu', 'title': l['restaurant']['menu']['title'], 'description': l['restaurant']['menu']['desc'], 'endpoints': ['/api/restaurant/menu/', '/api/restaurant/menu-items/']},
+                {'key': 'orders', 'title': l['restaurant']['orders']['title'], 'description': l['restaurant']['orders']['desc'], 'endpoints': ['/api/restaurant/orders/']},
+                {'key': 'tables', 'title': l['restaurant']['tables']['title'], 'description': l['restaurant']['tables']['desc'], 'endpoints': ['/api/restaurant/tables/']},
+                {'key': 'chat', 'title': l['restaurant']['chat']['title'], 'description': l['restaurant']['chat']['desc'], 'endpoints': ['/api/restaurant/chat/']},
+            ]
+        else:
+            sections = [
+                {'key': 'documents', 'title': l['generic']['documents']['title'], 'description': l['generic']['documents']['desc'], 'endpoints': ['/api/clients/documents/']},
+            ]
+
+        return Response({
+            'language': lang,
+            'client_type': ct,
+            'title': l['title'],
+            'sections': sections,
+        })

@@ -20,8 +20,8 @@ mcp = FastMCP(
 
 def _get_email_service(client_id: int):
     """Get EmailService for a client."""
-    from MASTER.clients.models import Client
-    from MASTER.clients.email_service import EmailService
+    from Jeeves.clients.models import Client
+    from Jeeves.clients.email_service import EmailService
     client = Client.objects.get(pk=client_id)
     return EmailService(client)
 
@@ -31,7 +31,7 @@ def _resolve_language(session_id: str, language: str) -> str:
     if language:
         return language
     try:
-        from MASTER.agents.models import AgentSession
+        from Jeeves.agents.models import AgentSession
         session = AgentSession.objects.select_related('agent_config').get(pk=session_id)
         return session.agent_config.get_language()
     except Exception:
@@ -193,7 +193,7 @@ async def send_commercial_email(
         return json.dumps({"error": f"Invalid proposal_type. Must be one of: {sorted(VALID_TYPES)}"})
 
     def _send():
-        from MASTER.clients.models import Client
+        from Jeeves.clients.models import Client
         client = Client.objects.get(pk=client_id)
         company = getattr(client, 'company_name', '') or client.name or 'Our Company'
 

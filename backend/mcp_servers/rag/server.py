@@ -45,9 +45,9 @@ def _resolve_embedding_model(client, agent_config, defaults):
 
 def _search_sync(query: str, client_id: int, top_k: int = 10, requesting_agent: str = 'assistant') -> dict:
     """Run the full RAG search pipeline synchronously."""
-    from MASTER.agents.models import AgentConfig
-    from MASTER.clients.models import Client, ClientDocument
-    from MASTER.concierge_platform.models import PlatformDefaults
+    from Jeeves.agents.models import AgentConfig
+    from Jeeves.clients.models import Client, ClientDocument
+    from Jeeves.concierge_platform.models import PlatformDefaults
 
     try:
         client = Client.objects.select_related(
@@ -70,7 +70,7 @@ def _search_sync(query: str, client_id: int, top_k: int = 10, requesting_agent: 
         return {"chunks": [], "error": "No embedding model configured"}
 
     # Create query embedding
-    from MASTER.processing.embedding_service import EmbeddingService
+    from Jeeves.processing.embedding_service import EmbeddingService
 
     embed_result = EmbeddingService.create_embedding(query, embedding_model)
     query_vector = embed_result.get("vector", [])
@@ -81,7 +81,7 @@ def _search_sync(query: str, client_id: int, top_k: int = 10, requesting_agent: 
     use_qdrant = os.environ.get("USE_QDRANT", "true").lower() in ("true", "1", "yes")
 
     if use_qdrant:
-        from MASTER.rag.qdrant_search import QdrantSearchService
+        from Jeeves.rag.qdrant_search import QdrantSearchService
 
         service = QdrantSearchService()
         results = service.search(
@@ -91,7 +91,7 @@ def _search_sync(query: str, client_id: int, top_k: int = 10, requesting_agent: 
             query_text=query,
         )
     else:
-        from MASTER.rag.vector_search import VectorSearchService
+        from Jeeves.rag.vector_search import VectorSearchService
 
         service = VectorSearchService()
         results = service.search(
@@ -133,7 +133,7 @@ def _search_sync(query: str, client_id: int, top_k: int = 10, requesting_agent: 
 
 def _stats_sync(client_id: int) -> dict:
     """Return document and chunk counts for a client."""
-    from MASTER.clients.models import Client, ClientDocument, ClientEmbedding
+    from Jeeves.clients.models import Client, ClientDocument, ClientEmbedding
 
     try:
         client = Client.objects.get(pk=client_id)

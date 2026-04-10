@@ -26,7 +26,7 @@ Deploy your own AI assistant — **Jeeves** comes ready out of the box. Rename h
 ```
 .
 ├── backend/              Django + DRF + MCP servers
-│   ├── MASTER/           Django project (settings, urls, apps)
+│   ├── Jeeves/           Django project (settings, urls, apps)
 │   ├── mcp_servers/      Standalone MCP tool servers
 │   ├── chrome_extension/ Browser extension source
 │   └── docker-compose.yml

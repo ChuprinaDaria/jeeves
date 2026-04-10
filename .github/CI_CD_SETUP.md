@@ -157,7 +157,7 @@ git push origin dev
 
 ```bash
 # Змінюємо файл у backend/
-git add backend/MASTER/clients/views.py
+git add backend/Jeeves/clients/views.py
 git commit -m "Update client views"
 git push origin dev
 ```

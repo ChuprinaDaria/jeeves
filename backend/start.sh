@@ -29,16 +29,16 @@ mkdir -p nginx/ssl
 echo -e "${YELLOW}Копіювання конфігурації NGINX...${NC}"
 cp nginx/conf.d/default.conf nginx/conf.d/default.conf
 
-# Створення директорії для фронтенду в MASTER/client_portal, якщо її немає
-if [ ! -d "MASTER/client_portal" ]; then
+# Створення директорії для фронтенду в Jeeves/client_portal, якщо її немає
+if [ ! -d "Jeeves/client_portal" ]; then
     echo -e "${YELLOW}Створення директорії для фронтенду...${NC}"
-    mkdir -p MASTER/client_portal
+    mkdir -p Jeeves/client_portal
     
     # Копіювання Dockerfile.frontend
-    cp Dockerfile.frontend MASTER/client_portal/Dockerfile
+    cp Dockerfile.frontend Jeeves/client_portal/Dockerfile
     
     # Створення nginx.conf для фронтенду
-    cp nginx.conf MASTER/client_portal/nginx.conf
+    cp nginx.conf Jeeves/client_portal/nginx.conf
 fi
 
 # Перевірка наявності .env файлу

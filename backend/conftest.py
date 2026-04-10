@@ -5,7 +5,7 @@ Loaded automatically by pytest from the `backend/` directory (which is /app
 inside the `web` container). Two responsibilities:
 
 1.  Make sure the backend root is on sys.path so imports like
-    `from MASTER.concierge_platform.models import ...` work regardless of
+    `from Jeeves.concierge_platform.models import ...` work regardless of
     which CWD pytest is invoked from. The pyproject.toml pytest config sets
     `django_find_project = false`, which disables Django's auto-path logic,
     so we add it explicitly here.

@@ -4,5 +4,5 @@ import django
 
 
 def setup():
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'MASTER.settings')
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Jeeves.settings')
     django.setup()

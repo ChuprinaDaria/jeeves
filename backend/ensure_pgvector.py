@@ -7,7 +7,7 @@ import django
 from django.core.exceptions import ImproperlyConfigured
 
 # Налаштування Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'MASTER.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Jeeves.settings')
 
 try:
     django.setup()
