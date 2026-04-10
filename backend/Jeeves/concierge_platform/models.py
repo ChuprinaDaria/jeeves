@@ -8,10 +8,6 @@ class PlatformDefaults(models.Model):
         verbose_name = 'Platform Defaults'
         verbose_name_plural = 'Platform Defaults'
 
-    default_llm_provider = models.ForeignKey(
-        'EmbeddingModel.LLMProvider', on_delete=models.SET_NULL, null=True, blank=True)
-    default_embedding_model = models.ForeignKey(
-        'EmbeddingModel.EmbeddingModel', on_delete=models.SET_NULL, null=True, blank=True)
     default_temperature = models.FloatField(null=True, blank=True)
     default_max_tokens = models.IntegerField(null=True, blank=True)
     default_similarity_threshold = models.FloatField(null=True, blank=True)

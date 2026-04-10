@@ -6,8 +6,7 @@ from .models import PlatformDefaults, FeatureFlag, SystemMessage
 class PlatformDefaultsAdmin(admin.ModelAdmin):
     fieldsets = (
         ('LLM', {
-            'fields': ('default_llm_provider', 'default_embedding_model',
-                       'default_temperature', 'default_max_tokens'),
+            'fields': ('default_temperature', 'default_max_tokens'),
         }),
         ('RAG', {
             'fields': ('default_similarity_threshold', 'default_max_context_chunks',
