@@ -155,6 +155,8 @@ export const AuthProvider = ({ children }) => {
     logout,
     loginByClientToken,
     isAuthenticated: !!user,
+    isOwner: user?.role === 'owner',
+    setUserDirect: setUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
