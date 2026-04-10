@@ -22,8 +22,8 @@
     return;
   }
   
-  // URL чату - власний домен або app.nexelin.com
-  const baseUrl = customDomain ? ('https://' + customDomain) : 'https://app.nexelin.com';
+  // Chat URL — custom domain takes precedence, otherwise the script host
+  const baseUrl = customDomain ? ('https://' + customDomain) : window.location.origin;
   const chatUrl = baseUrl + '/client?tag=' + tag;
   
   // Стилі

@@ -171,7 +171,7 @@ jobs:
       - name: 🏥 Health check frontend
         run: |
           sleep 5
-          curl -f -I https://app.nexelin.com/ || echo "⚠️ Frontend health check failed"
+          curl -f -I https://${{ vars.FRONTEND_DEPLOY_URL }}/ || echo "⚠️ Frontend health check failed"
         continue-on-error: true
 
       - name: 📝 Deployment log
@@ -181,6 +181,6 @@ jobs:
           echo "**Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "**URL:** https://app.nexelin.com" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** https://${{ vars.FRONTEND_DEPLOY_URL }}" >> $GITHUB_STEP_SUMMARY
           echo "**Time:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
 
