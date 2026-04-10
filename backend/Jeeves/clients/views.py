@@ -1881,7 +1881,7 @@ class ClientExtensionDataView(APIView):
 
         Body:
         {
-            "site": "lazysoft.pl",
+            "site": "example.com",
             "emails": [...],
             "phones": [...],
             "addresses": [...]
@@ -1950,7 +1950,7 @@ class ClientExtensionDataView(APIView):
 
         Body:
         {
-            "site": "lazysoft.pl"
+            "site": "example.com"
         }
 
         Повністю видаляє дані розширення для конкретного сайту.
