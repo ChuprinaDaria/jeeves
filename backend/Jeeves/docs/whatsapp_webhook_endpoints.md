@@ -17,7 +17,7 @@ Meta отправляет GET запрос для верификации webhook
 
 ```http
 GET /api/whatsapp/meta/webhook/?hub.mode=subscribe&hub.verify_token=YOUR_VERIFY_TOKEN&hub.challenge=RANDOM_CHALLENGE_STRING HTTP/1.1
-Host: api.nexelin.com
+Host: api.example.com
 User-Agent: facebookexternalua
 Accept: */*
 ```
@@ -60,7 +60,7 @@ Meta отправляет POST запрос при получении сообщ
 
 ```http
 POST /api/whatsapp/meta/webhook/ HTTP/1.1
-Host: api.nexelin.com
+Host: api.example.com
 Content-Type: application/json
 X-Hub-Signature-256: sha256=abc123def456...
 User-Agent: facebookexternalua
@@ -204,13 +204,13 @@ X-Hub-Signature-256: sha256=abc123def456789...
 ### Верификация webhook
 
 ```bash
-curl -X GET "https://api.nexelin.com/api/whatsapp/meta/webhook/?hub.mode=subscribe&hub.verify_token=my_verify_token_123&hub.challenge=challenge_string_456"
+curl -X GET "https://api.example.com/api/whatsapp/meta/webhook/?hub.mode=subscribe&hub.verify_token=my_verify_token_123&hub.challenge=challenge_string_456"
 ```
 
 ### Тестовый POST запрос (без подписи - для разработки)
 
 ```bash
-curl -X POST "https://api.nexelin.com/api/whatsapp/meta/webhook/" \
+curl -X POST "https://api.example.com/api/whatsapp/meta/webhook/" \
   -H "Content-Type: application/json" \
   -d '{
     "object": "whatsapp_business_account",
@@ -249,7 +249,7 @@ curl -X POST "https://api.nexelin.com/api/whatsapp/meta/webhook/" \
 ### Как это работает?
 
 1. **При настройке webhook в Meta Business Manager:**
-   - Вы указываете URL webhook: `https://api.nexelin.com/api/whatsapp/meta/webhook/`
+   - Вы указываете URL webhook: `https://api.example.com/api/whatsapp/meta/webhook/`
    - Вы указываете Verify Token: например, `my_secret_token_12345`
 
 2. **Meta отправляет GET запрос для проверки:**
@@ -312,7 +312,7 @@ META_VERIFY_TOKEN = "global_verify_token_456"
 
 **Примеры хороших токенов:**
 ```
-nexelin_webhook_2024_abc123xyz
+your_verify_token_here
 client_1_verify_token_secure_789
 whatsapp_meta_verify_xyz456def
 ```
@@ -343,7 +343,7 @@ openssl rand -hex 20
 2. Выберите ваше приложение → WhatsApp → Configuration
 3. В разделе **Webhook** нажмите **Edit**
 4. В поле **Verify Token** введите ваш токен (например: `my_secret_token_12345`)
-5. В поле **Callback URL** введите: `https://api.nexelin.com/api/whatsapp/meta/webhook/`
+5. В поле **Callback URL** введите: `https://api.example.com/api/whatsapp/meta/webhook/`
 6. Нажмите **Verify and Save**
 
 ### Важные моменты
@@ -380,7 +380,7 @@ openssl rand -hex 20
 
 3. **Укажите токен в Meta Business Manager:**
    - Verify Token: `a1b2c3d4e5f6789012345678901234567890ab`
-   - Callback URL: `https://api.nexelin.com/api/whatsapp/meta/webhook/`
+   - Callback URL: `https://api.example.com/api/whatsapp/meta/webhook/`
 
 4. **Meta автоматически отправит GET запрос:**
    ```
@@ -399,8 +399,8 @@ openssl rand -hex 20
 
 ## Настройка в Meta Business Manager
 
-1. **Callback URL**: `https://api.nexelin.com/api/whatsapp/meta/webhook/`
-   или `https://api.nexelin.com/api/clients/whatsapp/meta/webhook/`
+1. **Callback URL**: `https://api.example.com/api/whatsapp/meta/webhook/`
+   или `https://api.example.com/api/clients/whatsapp/meta/webhook/`
 
 2. **Verify Token**: Значение из `Client.meta_verify_token` (для per-client настройки)
    или глобальный `META_VERIFY_TOKEN` из settings
@@ -425,19 +425,19 @@ openssl rand -hex 20
 **Через Django Admin:**
 1. Зайдите в Django Admin → Clients
 2. Выберите нужного клиента
-3. Проверьте поле **"Meta verify token"** - должно быть: `nexelin_webhook_2024_abc123xyz`
+3. Проверьте поле **"Meta verify token"** - должно быть: `your_verify_token_here`
 4. Проверьте поле **"Whatsapp meta enabled"** - должно быть включено (✅)
 
 **Через базу данных:**
 ```sql
 SELECT id, company_name, meta_verify_token, whatsapp_meta_enabled 
 FROM clients_client 
-WHERE meta_verify_token = 'nexelin_webhook_2024_abc123xyz';
+WHERE meta_verify_token = 'your_verify_token_here';
 ```
 
 **Через API:**
 ```bash
-curl -X GET "https://api.nexelin.com/api/clients/whatsapp/meta/config/" \
+curl -X GET "https://api.example.com/api/clients/whatsapp/meta/config/" \
   -H "Authorization: Bearer YOUR_API_KEY"
 ```
 
@@ -462,7 +462,7 @@ INFO: Meta WhatsApp webhook verified successfully for client: 1 (Company Name)
 **Логи при ошибке:**
 ```
 WARNING: Meta WhatsApp webhook verification failed:
-  - Received token: nexelin_web... (length: 32)
+  - Received token: your_ver...... (length: 32)
   - Clients with this token: 0
   - Clients with enabled WhatsApp: 1
   - Global token set: False
@@ -479,14 +479,14 @@ WARNING: Meta WhatsApp webhook verification failed:
 
 **Пример правильного токена:**
 ```
-nexelin_webhook_2024_abc123xyz
+your_verify_token_here
 ```
 
 **Примеры неправильных токенов:**
 ```
-nexelin_webhook_2024_abc123xyz   # лишний пробел в конце
+your_verify_token_here   # лишний пробел в конце
 Nexelin_webhook_2024_abc123xyz   # неправильный регистр
-nexelin_webhook_2024_abc123xy    # не хватает символа
+your_verify_token_here_    # не хватает символа
 ```
 
 #### 4. Проверьте, что `whatsapp_meta_enabled=True`
@@ -508,16 +508,16 @@ WHERE id = YOUR_CLIENT_ID;
 #### 5. Проверьте URL обратного вызова
 
 Убедитесь, что URL точно совпадает:
-- ✅ Правильно: `https://api.nexelin.com/api/whatsapp/meta/webhook/`
-- ❌ Неправильно: `https://api.nexelin.com/api/whatsapp/meta/webhook` (без слеша в конце)
-- ❌ Неправильно: `http://api.nexelin.com/api/whatsapp/meta/webhook/` (http вместо https)
+- ✅ Правильно: `https://api.example.com/api/whatsapp/meta/webhook/`
+- ❌ Неправильно: `https://api.example.com/api/whatsapp/meta/webhook` (без слеша в конце)
+- ❌ Неправильно: `http://api.example.com/api/whatsapp/meta/webhook/` (http вместо https)
 
 #### 6. Тестовая верификация через curl
 
 Проверьте верификацию вручную:
 
 ```bash
-curl -X GET "https://api.nexelin.com/api/whatsapp/meta/webhook/?hub.mode=subscribe&hub.verify_token=nexelin_webhook_2024_abc123xyz&hub.challenge=test123" \
+curl -X GET "https://api.example.com/api/whatsapp/meta/webhook/?hub.mode=subscribe&hub.verify_token=your_verify_token_here&hub.challenge=test123" \
   -v
 ```
 
@@ -539,11 +539,11 @@ test123
 
 **В settings.py или .env:**
 ```python
-META_VERIFY_TOKEN = "nexelin_webhook_2024_abc123xyz"
+META_VERIFY_TOKEN = "your_verify_token_here"
 ```
 
 **В Meta Business Manager:**
-- Verify Token: `nexelin_webhook_2024_abc123xyz` (тот же, что в settings)
+- Verify Token: `your_verify_token_here` (тот же, что в settings)
 
 #### 8. Частые проблемы и решения
 
@@ -559,14 +559,14 @@ META_VERIFY_TOKEN = "nexelin_webhook_2024_abc123xyz"
 
 1. **Откройте Django Admin:**
    ```
-   https://api.nexelin.com/admin/clients/client/
+   https://api.example.com/admin/clients/client/
    ```
 
 2. **Найдите клиента** и откройте его
 
 3. **В разделе "WhatsApp (Meta)":**
    - ✅ Включите **"Whatsapp meta enabled"**
-   - Введите токен в поле **"Meta verify token"**: `nexelin_webhook_2024_abc123xyz`
+   - Введите токен в поле **"Meta verify token"**: `your_verify_token_here`
    - Сохраните
 
 4. **Проверьте в базе данных:**

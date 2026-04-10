@@ -295,7 +295,7 @@ class Client(models.Model):
     whatsapp_bridge_matrix_user_id = models.CharField(
         max_length=255,
         blank=True,
-        help_text="Matrix user ID for this client's bridge bot (e.g., @concierge_client_42:crm.local)"
+        help_text="Matrix user ID for this client's bridge bot (e.g., @concierge_client_42:jeeves.local)"
     )
     whatsapp_bridge_matrix_access_token = models.TextField(
         blank=True,
@@ -2145,7 +2145,7 @@ class WhatsAppBridgeConfig(models.Model):
     def load(cls):
         obj, _ = cls.objects.get_or_create(pk=1, defaults={
             'homeserver_url': 'http://synapse:8008',
-            'homeserver_domain': 'crm.local',
+            'homeserver_domain': 'jeeves.local',
             'provisioning_url': 'http://mautrix-whatsapp:29318',
             'provisioning_secret': '',
             'registration_shared_secret': '',

@@ -303,14 +303,14 @@ CLIENT_PORTAL_BASE_URL = env("CLIENT_PORTAL_BASE_URL", default="http://localhost
 OLLAMA_ENABLED = os.getenv('OLLAMA_ENABLED', 'false').lower() == 'true'
 
 # Main server (large models)
-OLLAMA_MAIN_ENDPOINT = os.getenv('OLLAMA_MAIN_ENDPOINT', 'http://192.168.0.51:11434')
-OLLAMA_MAIN_LLM_MODEL = 'qwen2.5:7b'
-OLLAMA_MAIN_EMBED_MODEL = 'bge-m3'
+OLLAMA_MAIN_ENDPOINT = os.getenv('OLLAMA_MAIN_ENDPOINT', 'http://ollama:11434')
+OLLAMA_MAIN_LLM_MODEL = os.getenv('OLLAMA_MAIN_LLM_MODEL', 'qwen2.5:7b')
+OLLAMA_MAIN_EMBED_MODEL = os.getenv('OLLAMA_MAIN_EMBED_MODEL', 'bge-m3')
 
 # Light server (small models, fast CPU)
-OLLAMA_LIGHT_ENDPOINT = os.getenv('OLLAMA_LIGHT_ENDPOINT', 'http://192.168.0.52:11434')
-OLLAMA_LIGHT_LLM_MODEL = 'qwen2.5:1.5b'
-OLLAMA_LIGHT_EMBED_MODEL = 'nomic-embed-text'
+OLLAMA_LIGHT_ENDPOINT = os.getenv('OLLAMA_LIGHT_ENDPOINT', 'http://ollama:11434')
+OLLAMA_LIGHT_LLM_MODEL = os.getenv('OLLAMA_LIGHT_LLM_MODEL', 'qwen2.5:1.5b')
+OLLAMA_LIGHT_EMBED_MODEL = os.getenv('OLLAMA_LIGHT_EMBED_MODEL', 'nomic-embed-text')
 
 # Backwards compatibility
 OLLAMA_ENDPOINT = OLLAMA_MAIN_ENDPOINT

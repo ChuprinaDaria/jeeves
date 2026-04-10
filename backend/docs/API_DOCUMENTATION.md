@@ -6,7 +6,7 @@
 
 ```
 http://localhost:8000  (для локальної розробки)
-https://api.nexelin.com (для production)
+https://api.example.com (для production)
 ```
 
 ## Аутентифікація

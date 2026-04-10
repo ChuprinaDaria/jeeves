@@ -29,8 +29,8 @@ class EmbeddingModel(models.Model):
         default='',
         choices=[
             ('', 'Cloud/API'),
-            ('main', 'Main Server (192.168.0.51)'),
-            ('light', 'Light Server (192.168.0.52)'),
+            ('main', 'Ollama Main Server'),
+            ('light', 'Ollama Light Server'),
         ],
         blank=True
     )
@@ -99,7 +99,7 @@ class LLMProvider(models.Model):
     api_endpoint = models.URLField(
         blank=True,
         null=True,
-        help_text='API endpoint for Ollama/custom providers (e.g., http://192.168.0.51:11434)'
+        help_text='API endpoint for Ollama/custom providers (e.g., http://ollama:11434)'
     )
     api_key = models.CharField(
         max_length=255,
