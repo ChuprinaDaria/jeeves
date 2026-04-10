@@ -456,3 +456,15 @@ MCP_TOOL_SCOPES = {
     'canvas_list_connections': ['assistant'],
 }
 
+# --- Gumroad license validation ---------------------------------------------
+# The Jeeves platform is sold on Gumroad. Every installation validates the
+# purchaser's license key against this product id. Must be baked into the
+# shipped image via environment variable.
+GUMROAD_PRODUCT_ID = os.environ.get("GUMROAD_PRODUCT_ID", "")
+
+if not DEBUG and not GUMROAD_PRODUCT_ID:
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured(
+        "GUMROAD_PRODUCT_ID environment variable is required in production"
+    )
+
