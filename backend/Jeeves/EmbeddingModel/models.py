@@ -1,6 +1,8 @@
 from django.db import models
 from django.utils.text import slugify
 
+from Jeeves.concierge_platform.fields import EncryptedTextField
+
 
 class EmbeddingModel(models.Model):
     PROVIDERS = [
@@ -34,11 +36,10 @@ class EmbeddingModel(models.Model):
         ],
         blank=True
     )
-    api_key = models.CharField(
-        max_length=255,
+    api_key = EncryptedTextField(
         blank=True,
         null=True,
-        help_text='API key for third-party services (Kimi, etc.)'
+        help_text='API key (encrypted at rest)',
     )
     cost_per_1k_tokens = models.DecimalField(max_digits=10, decimal_places=6, default=0)
     external_guid = models.CharField(
@@ -101,11 +102,10 @@ class LLMProvider(models.Model):
         null=True,
         help_text='API endpoint for Ollama/custom providers (e.g., http://ollama:11434)'
     )
-    api_key = models.CharField(
-        max_length=255,
+    api_key = EncryptedTextField(
         blank=True,
         null=True,
-        help_text='API key (для OpenAI, Anthropic, Kimi)'
+        help_text='API key (encrypted at rest)',
     )
     
     # Ціноутворення
