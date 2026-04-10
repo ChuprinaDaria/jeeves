@@ -64,10 +64,25 @@ class EmbeddingModel(models.Model):
         return f"{self.provider} - {self.name} ({self.dimensions}d)"
     
     def save(self, *args, **kwargs):
-        # Генеруємо slug з name, якщо він не встановлений
         if not self.slug:
             self.slug = slugify(self.name)
+        if self.is_default:
+            type(self).objects.exclude(pk=self.pk).filter(is_default=True).update(
+                is_default=False,
+            )
         super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        was_default = self.is_default
+        result = super().delete(*args, **kwargs)
+        if was_default:
+            next_active = type(self).objects.filter(
+                is_active=True,
+            ).order_by('created_at').first()
+            if next_active:
+                next_active.is_default = True
+                next_active.save(update_fields=['is_default'])
+        return result
 
 
 class LLMProvider(models.Model):
@@ -161,10 +176,25 @@ class LLMProvider(models.Model):
         return f"{self.get_provider_type_display()} - {self.name}"
     
     def save(self, *args, **kwargs):
-        # Генеруємо slug з name, якщо він не встановлений
         if not self.slug:
             self.slug = slugify(self.name)
+        if self.is_default:
+            type(self).objects.exclude(pk=self.pk).filter(is_default=True).update(
+                is_default=False,
+            )
         super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        was_default = self.is_default
+        result = super().delete(*args, **kwargs)
+        if was_default:
+            next_active = type(self).objects.filter(
+                is_active=True,
+            ).order_by('created_at').first()
+            if next_active:
+                next_active.is_default = True
+                next_active.save(update_fields=['is_default'])
+        return result
 
 
 class ModelPair(models.Model):
