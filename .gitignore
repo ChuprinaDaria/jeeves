@@ -28,6 +28,11 @@ media/
 # Database dumps
 *.sql
 *.dump
+!backend/init__db.sql
+
+# Celery runtime
+celerybeat-schedule
+celerybeat-schedule.*
 
 # Logs
 *.log
