@@ -470,7 +470,7 @@
   "extensionData": {
     "loading": "Chargement des données d'extension...",
     "disabledTitle": "L'extension Chrome est désactivée pour ce client",
-    "disabledText": "Demandez au support Nexelin d'activer l'extension de navigateur pour votre compte dans le panneau d'administration.",
+    "disabledText": "Demandez au support Concierge d'activer l'extension de navigateur pour votre compte dans le panneau d'administration.",
     "title": "Données d'extension par sites web",
     "subtitle": "E-mails, téléphones et adresses collectés à partir de pages extraites via l'extension Chrome.",
     "refresh": "Actualiser",

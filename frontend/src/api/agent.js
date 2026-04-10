@@ -38,7 +38,7 @@ export const ragAPI = {
   // Отримати список embedding моделей
   getEmbeddingModels: () => api.get('/rag/embedding-models/'),
 
-  // Отримати список AI моделей з mg.nexelin.com
+  // Отримати список доступних AI моделей
   getAIModels: () => api.get('/rag/ai-models/'),
 
   // Отримати список LLM провайдерів

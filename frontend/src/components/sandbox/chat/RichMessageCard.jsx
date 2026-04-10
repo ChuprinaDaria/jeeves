@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { Loader2, CheckCircle2, XCircle, Wifi } from 'lucide-react';
 
-const EXTENSION_ID = import.meta.env.VITE_NEXELIN_EXTENSION_ID || '';
+const EXTENSION_ID = import.meta.env.VITE_CONCIERGE_EXTENSION_ID || '';
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
 const BRIDGE_ICONS = {
@@ -34,7 +34,7 @@ function AuthPopupCard({ data, onComplete }) {
     setError('');
 
     if (!EXTENSION_ID) {
-      setError('Extension ID not configured. Set VITE_NEXELIN_EXTENSION_ID.');
+      setError('Extension ID not configured. Set VITE_CONCIERGE_EXTENSION_ID.');
       setStatus('error');
       return;
     }
@@ -44,14 +44,14 @@ function AuthPopupCard({ data, onComplete }) {
         chrome.runtime.sendMessage(
           EXTENSION_ID,
           {
-            action: 'nexelin_bridge_auth',
+            action: 'concierge_bridge_auth',
             bridgeType: data.bridge_type,
             apiBaseUrl: API_BASE,
             authToken: localStorage.getItem('access_token') || '',
           },
           (resp) => {
             if (chrome.runtime.lastError) {
-              reject(new Error('Extension not found. Install the Nexelin extension.'));
+              reject(new Error('Extension not found. Install the Concierge extension.'));
             } else if (resp?.error) {
               reject(new Error(resp.error));
             } else {

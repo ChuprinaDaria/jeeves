@@ -488,7 +488,7 @@
   "extensionData": {
     "loading": "Indlæser udvidelsesdata...",
     "disabledTitle": "Chrome-udvidelse er deaktiveret for denne klient",
-    "disabledText": "Bed Nexelin-support om at aktivere browserudvidelsen for din konto i admin-panelet.",
+    "disabledText": "Bed Concierge-support om at aktivere browserudvidelsen for din konto i admin-panelet.",
     "title": "Udvidelsesdata efter websites",
     "subtitle": "Indsamlede e-mails, telefoner og adresser fra sider scrapet via Chrome-udvidelsen.",
     "refresh": "Opdater",

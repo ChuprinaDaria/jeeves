@@ -29,7 +29,7 @@ const ClientLayout = () => {
   const [error, setError] = useState(null);
   const [loginAttempted, setLoginAttempted] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [clientName, setClientName] = useState('NEXELIN');
+  const [clientName, setClientName] = useState('CONCIERGE');
   const [clientLogo, setClientLogo] = useState(null);
 
   useEffect(() => {
@@ -56,7 +56,7 @@ const ClientLayout = () => {
       if (data?.client_type === 'white_label' && data?.company_name) {
         setClientName(data.company_name);
       } else {
-        setClientName('NEXELIN');
+        setClientName('CONCIERGE');
       }
 
       const logoUrl = data?.logo_url || data?.logo;
@@ -74,7 +74,7 @@ const ClientLayout = () => {
       ensureSupportWidgetForClientType(data?.client_type);
     } catch (err) {
       console.error('Failed to load client data:', err);
-      setClientName('NEXELIN');
+      setClientName('CONCIERGE');
     }
   };
 

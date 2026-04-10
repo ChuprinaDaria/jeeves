@@ -488,7 +488,7 @@
   "extensionData": {
     "loading": "Extensiegegevens laden...",
     "disabledTitle": "Chrome-extensie is uitgeschakeld voor deze client",
-    "disabledText": "Vraag Nexelin-ondersteuning om de browserextensie voor uw account in te schakelen in het beheerpaneel.",
+    "disabledText": "Vraag Concierge-ondersteuning om de browserextensie voor uw account in te schakelen in het beheerpaneel.",
     "title": "Extensiegegevens per websites",
     "subtitle": "Verzamelde e-mails, telefoons en adressen van pagina's die zijn gescraped via de Chrome-extensie.",
     "refresh": "Vernieuwen",

@@ -154,7 +154,7 @@ const PromptBook = ({ onSelectPrompt, embedded = false, showHeader = true }) => 
       title: prompt.title,
       template: prompt.prompt_template,
     };
-    localStorage.setItem('nexelin_pending_prompt', JSON.stringify(pendingPrompt));
+    localStorage.setItem('concierge_pending_prompt', JSON.stringify(pendingPrompt));
 
     // Також відправляємо подію (для випадку коли вже на сторінці Train AI)
     const event = new CustomEvent('promptbook:add', {
@@ -177,7 +177,7 @@ const PromptBook = ({ onSelectPrompt, embedded = false, showHeader = true }) => 
       } else {
         const isOldClientMode = window.location.pathname === '/l' && window.location.search.includes('tag=');
         if (isOldClientMode) {
-          window.dispatchEvent(new CustomEvent('nexelin:navigate', { detail: { view: 'training' } }));
+          window.dispatchEvent(new CustomEvent('concierge:navigate', { detail: { view: 'training' } }));
         } else {
           navigate('/training');
         }

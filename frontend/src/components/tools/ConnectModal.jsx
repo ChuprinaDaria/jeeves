@@ -93,9 +93,9 @@ const ConnectModal = ({ tool, onClose, onConnected }) => {
   };
 
   const startCookieFlow = async (slug) => {
-    const extensionId = import.meta.env.VITE_NEXELIN_EXTENSION_ID;
+    const extensionId = import.meta.env.VITE_CONCIERGE_EXTENSION_ID;
     if (!extensionId) {
-      setError('Nexelin extension is required. Set VITE_NEXELIN_EXTENSION_ID.');
+      setError('Concierge extension is required. Set VITE_CONCIERGE_EXTENSION_ID.');
       return;
     }
     try {
@@ -103,14 +103,14 @@ const ConnectModal = ({ tool, onClose, onConnected }) => {
         chrome.runtime.sendMessage(
           extensionId,
           {
-            action: 'nexelin_bridge_auth',
+            action: 'concierge_bridge_auth',
             bridgeType: slug,
             apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '',
             authToken: localStorage.getItem('access_token') || '',
           },
           (resp) => {
             if (chrome.runtime.lastError) {
-              reject(new Error('Extension not found. Install the Nexelin extension.'));
+              reject(new Error('Extension not found. Install the Concierge extension.'));
             } else if (resp?.error) {
               reject(new Error(resp.error));
             } else {

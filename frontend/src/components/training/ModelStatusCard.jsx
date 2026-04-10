@@ -25,7 +25,7 @@ const ModelStatusCard = () => {
 
   const loadModels = async () => {
     try {
-      // Отримуємо AI моделі з mg.nexelin.com
+      // Отримуємо AI моделі з API
       const aiResponse = await ragAPI.getAIModels();
       const aiModels = aiResponse.data?.models || [];
       

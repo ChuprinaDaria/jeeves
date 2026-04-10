@@ -18,7 +18,7 @@ const PromptEditor = () => {
   
   // Система табів для промптів
   const [savedPrompts, setSavedPrompts] = useState(() => {
-    const saved = localStorage.getItem('nexelin_saved_prompts');
+    const saved = localStorage.getItem('concierge_saved_prompts');
     return saved ? JSON.parse(saved) : [];
   });
   const [activeTab, setActiveTab] = useState('current');
@@ -38,15 +38,15 @@ const PromptEditor = () => {
     loadPrompt();
     
     // Перевіряємо чи є pending prompt з Prompt Book
-    const pendingPrompt = localStorage.getItem('nexelin_pending_prompt');
+    const pendingPrompt = localStorage.getItem('concierge_pending_prompt');
     if (pendingPrompt) {
       try {
         const data = JSON.parse(pendingPrompt);
-        localStorage.removeItem('nexelin_pending_prompt');
+        localStorage.removeItem('concierge_pending_prompt');
         setPendingPromptData(data);
       } catch (e) {
         console.error('Error parsing pending prompt:', e);
-        localStorage.removeItem('nexelin_pending_prompt');
+        localStorage.removeItem('concierge_pending_prompt');
       }
     }
   }, []);
@@ -62,7 +62,7 @@ const PromptEditor = () => {
 
   // Зберігаємо промпти в localStorage
   useEffect(() => {
-    localStorage.setItem('nexelin_saved_prompts', JSON.stringify(savedPrompts));
+    localStorage.setItem('concierge_saved_prompts', JSON.stringify(savedPrompts));
   }, [savedPrompts]);
 
   // Слухаємо подію додавання промпту з Prompt Book

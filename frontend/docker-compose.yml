@@ -8,12 +8,12 @@ services:
     ports:
       - "80:80"
     environment:
-      - VITE_API_URL=${VITE_API_URL:-https://api.nexelin.com/api}
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8000/api}
     restart: unless-stopped
     networks:
-      - nexelin-network
+      - concierge-network
 
 networks:
-  nexelin-network:
+  concierge-network:
     external: true
 

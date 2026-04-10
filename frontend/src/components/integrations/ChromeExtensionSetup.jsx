@@ -14,7 +14,7 @@ const ChromeExtensionSetup = ({ onClose }) => {
 
   const extensionDownloadUrl =
     import.meta.env.VITE_EXTENSION_DOWNLOAD_URL ||
-    'https://app.nexelin.com/static/extensions/nexelin-chrome-extension.zip';
+    '/static/extensions/concierge-chrome-extension.zip';
 
   useEffect(() => {
     loadClientInfo();
@@ -125,7 +125,7 @@ const ChromeExtensionSetup = ({ onClose }) => {
                     <AlertCircle className="text-yellow-600 dark:text-yellow-400 mt-0.5 shrink-0" size={16} />
                     <div className="text-sm text-yellow-700 dark:text-yellow-200">
                       <p className="font-medium mb-1">Extension is disabled</p>
-                      <p>Ask Nexelin support to enable it for your account.</p>
+                      <p>Ask Concierge support to enable it for your account.</p>
                     </div>
                   </div>
                 </div>

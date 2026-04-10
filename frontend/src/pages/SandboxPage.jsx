@@ -29,7 +29,7 @@ const SandboxPage = () => {
     // Старий формат: /l?tag=xxx
     const isOldClientMode = window.location.pathname === '/l' && window.location.search.includes('tag=');
     if (isOldClientMode) {
-      window.dispatchEvent(new CustomEvent('nexelin:navigate', { detail: { view: 'training' } }));
+      window.dispatchEvent(new CustomEvent('concierge:navigate', { detail: { view: 'training' } }));
     } else {
       window.location.href = '/training';
     }

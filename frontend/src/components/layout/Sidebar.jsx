@@ -37,14 +37,14 @@ const Sidebar = () => {
       company_name: clientData?.company_name,
       isWhiteLabel,
       hasCompanyName,
-      willReturn: isWhiteLabel && hasCompanyName ? clientData.company_name : 'NEXELIN'
+      willReturn: isWhiteLabel && hasCompanyName ? clientData.company_name : 'CONCIERGE'
     });
     
     if (isWhiteLabel && hasCompanyName) {
       return clientData.company_name;
     }
-    // Для всіх інших клієнтів (включаючи тих, хто має company_name, але не white_label) - NEXELIN
-    return 'NEXELIN';
+    // Для всіх інших клієнтів (включаючи тих, хто має company_name, але не white_label) - CONCIERGE
+    return 'CONCIERGE';
   };
   
   // Ініціалізуємо назву з user контексту, якщо він вже є і містить всі потрібні дані
@@ -53,8 +53,8 @@ const Sidebar = () => {
     if (user?.client_type === 'white_label' && user?.company_name) {
       return user.company_name;
     }
-    // Для клієнтів з тегом буде завантажено через API, поки що показуємо NEXELIN
-    return 'NEXELIN';
+    // Для клієнтів з тегом буде завантажено через API, поки що показуємо CONCIERGE
+    return 'CONCIERGE';
   });
   
   const [clientLogo, setClientLogo] = useState(() => {
@@ -91,8 +91,8 @@ const Sidebar = () => {
   // Завантажуємо дані клієнта завжди для клієнтів з тегом, або якщо user контекст порожній/неповний
   useEffect(() => {
     if (!isAuthenticated) {
-      // Якщо не авторизовано, показуємо NEXELIN і не прив'язуємо віджет до конкретного клієнта
-      setClientName('NEXELIN');
+      // Якщо не авторизовано, показуємо CONCIERGE і не прив'язуємо віджет до конкретного клієнта
+      setClientName('CONCIERGE');
       setClientLogo(null);
       return;
     }
@@ -137,7 +137,7 @@ const Sidebar = () => {
           hasTag: !!tag
         });
 
-        // Встановлюємо назву: для white label — назва компанії, для інших — NEXELIN
+        // Встановлюємо назву: для white label — назва компанії, для інших — CONCIERGE
         const name = getClientName(data);
         console.log('Sidebar - Setting client name to:', name, 'because client_type is:', data?.client_type);
         setClientName(name);
@@ -159,8 +159,8 @@ const Sidebar = () => {
         ensureSupportWidgetForClientType(data?.client_type);
       } catch (err) {
         console.error('Failed to load client data:', err);
-        // При помилці завантаження показуємо NEXELIN
-        setClientName('NEXELIN');
+        // При помилці завантаження показуємо CONCIERGE
+        setClientName('CONCIERGE');
         setClientLogo(null);
       }
     };

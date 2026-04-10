@@ -228,7 +228,7 @@ const IntegrationsPage = () => {
   const extensionEnabled = clientInfo?.extension_enabled || false;
   const extensionDownloadUrl =
     import.meta.env.VITE_EXTENSION_DOWNLOAD_URL ||
-    'https://app.nexelin.com/static/extensions/nexelin-chrome-extension.zip';
+    '/static/extensions/concierge-chrome-extension.zip';
 
   return (
     <div className="p-6">
@@ -686,7 +686,7 @@ const IntegrationsPage = () => {
                   Make.com
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  No‑code automation scenarios with Nexelin
+                  No‑code automation scenarios with Concierge
                 </p>
               </div>
             </div>
@@ -709,7 +709,7 @@ const IntegrationsPage = () => {
                   n8n
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Self‑hosted workflow automation with Nexelin
+                  Self‑hosted workflow automation with Concierge
                 </p>
               </div>
             </div>
@@ -771,7 +771,7 @@ const IntegrationsPage = () => {
                   iOS / Android App
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 max-w-xl">
-                  Native mobile apps with full Nexelin chat, notifications and on‑device AI assistant for your team.
+                  Native mobile apps with full Concierge chat, notifications and on‑device AI assistant for your team.
                 </p>
               </div>
             </div>

@@ -97,7 +97,7 @@ export const updateBrandingFromClient = (client, options = {}) => {
   const name =
     client?.company_name ||
     client?.user ||
-    'NEXELIN';
+    'CONCIERGE';
 
   if (context === 'webchat') {
     document.title = `${name} – AI Chat`;

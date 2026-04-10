@@ -45,15 +45,15 @@ const LLMProviderCard = () => {
       //    пробуємо відновити вибір з localStorage як fallback
       if (!currentPair) {
         // Спочатку пробуємо знайти за ID
-        const savedId = localStorage.getItem('nexelin_selected_model_pair_id');
+        const savedId = localStorage.getItem('concierge_selected_model_pair_id');
         if (savedId) {
           currentPair = pairsData.find(p => String(p.id) === savedId) || null;
         }
         
         // Якщо не знайшли за ID, пробуємо знайти за llm_id + embedding_id
         if (!currentPair) {
-          const savedLLMId = localStorage.getItem('nexelin_selected_llm_id');
-          const savedEmbeddingId = localStorage.getItem('nexelin_selected_embedding_id');
+          const savedLLMId = localStorage.getItem('concierge_selected_llm_id');
+          const savedEmbeddingId = localStorage.getItem('concierge_selected_embedding_id');
           if (savedLLMId && savedEmbeddingId) {
             currentPair = pairsData.find(
               p => String(p.llm_id) === savedLLMId && String(p.embedding_id) === savedEmbeddingId
@@ -67,9 +67,9 @@ const LLMProviderCard = () => {
       // Кешуємо вибір в localStorage тільки для fallback (якщо бекенд не повернув is_selected)
       // Але основним джерелом завжди є бекенд
       if (currentPair) {
-        localStorage.setItem('nexelin_selected_model_pair_id', String(currentPair.id));
-        localStorage.setItem('nexelin_selected_llm_id', String(currentPair.llm_id));
-        localStorage.setItem('nexelin_selected_embedding_id', String(currentPair.embedding_id));
+        localStorage.setItem('concierge_selected_model_pair_id', String(currentPair.id));
+        localStorage.setItem('concierge_selected_llm_id', String(currentPair.llm_id));
+        localStorage.setItem('concierge_selected_embedding_id', String(currentPair.embedding_id));
       }
       
       console.log('✅ Selected pair:', currentPair);
@@ -149,9 +149,9 @@ const LLMProviderCard = () => {
       
       // Зберігаємо вибір в localStorage тільки як fallback
       if (currentPair) {
-        localStorage.setItem('nexelin_selected_model_pair_id', String(currentPair.id));
-        localStorage.setItem('nexelin_selected_llm_id', String(currentPair.llm_id));
-        localStorage.setItem('nexelin_selected_embedding_id', String(currentPair.embedding_id));
+        localStorage.setItem('concierge_selected_model_pair_id', String(currentPair.id));
+        localStorage.setItem('concierge_selected_llm_id', String(currentPair.llm_id));
+        localStorage.setItem('concierge_selected_embedding_id', String(currentPair.embedding_id));
       }
       
       // Перевіряємо статус нових моделей

@@ -357,7 +357,7 @@
     "whatsappIntro": "Follow these steps to connect your WhatsApp Business account with Nexy Assistant.",
     "telegramSetup": "Telegram Bot Integration Setup",
     "telegramIntro": "Follow these steps to connect your Telegram bot with Nexy Assistant.",
-    "telegramDone": "Done! Your Telegram bot is now connected and can receive messages through Nexelin.",
+    "telegramDone": "Done! Your Telegram bot is now connected and can receive messages through Concierge.",
     "emailSetup": "Email SMTP Integration Setup",
     "emailIntro": "Follow these steps to configure email SMTP for your AI assistant to send and receive emails.",
     "emailDone": "Done! Your email SMTP is now configured. Your AI can now read and send emails from the Sandbox chat.",
@@ -369,7 +369,7 @@
     "step2Desc": "Collect all necessary credentials from your Meta Business Manager:",
     "step3Title": "Configure Webhook",
     "step3Desc": "Set up the webhook in your Meta App to receive messages:",
-    "step4Title": "Enter Credentials in Nexelin",
+    "step4Title": "Enter Credentials in Concierge",
     "step4Desc": "Go to Integrations page and configure WhatsApp:",
     "step5Title": "Generate QR Code",
     "step5Desc": "Create a QR code for customers to start conversations:"
@@ -761,7 +761,7 @@
   "extensionData": {
     "loading": "Loading extension data...",
     "disabledTitle": "Chrome extension is disabled for this client",
-    "disabledText": "Ask Nexelin support to enable the browser extension for your account in the admin panel.",
+    "disabledText": "Ask Concierge support to enable the browser extension for your account in the admin panel.",
     "title": "Extension data by websites",
     "subtitle": "Collected emails, phones and addresses from pages scraped via Chrome extension.",
     "refresh": "Refresh",
@@ -843,7 +843,7 @@
       "custom": "Custom"
     },
     "flow": {
-      "title": "Nexelin",
+      "title": "Concierge",
       "titleAccent": "Flow",
       "aiAssistant": "Nexy Assistant",
       "centralEngine": "Central AI engine",

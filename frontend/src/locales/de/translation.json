@@ -274,7 +274,7 @@
     "step2Desc": "Sammeln Sie alle notwendigen Zugangsdaten aus Ihrem Meta Business Manager:",
     "step3Title": "Webhook konfigurieren",
     "step3Desc": "Richten Sie den Webhook in Ihrer Meta-App ein, um Nachrichten zu empfangen:",
-    "step4Title": "Zugangsdaten in Nexelin eingeben",
+    "step4Title": "Zugangsdaten in Concierge eingeben",
     "step4Desc": "Gehen Sie zur Integrationsseite und konfigurieren Sie WhatsApp:",
     "step5Title": "QR-Code generieren",
     "step5Desc": "Erstellen Sie einen QR-Code, damit Kunden Gespräche starten können:"
@@ -538,7 +538,7 @@
   "extensionData": {
     "loading": "Erweiterungsdaten werden geladen...",
     "disabledTitle": "Chrome-Erweiterung ist für diesen Client deaktiviert",
-    "disabledText": "Bitten Sie den Nexelin-Support, die Browser-Erweiterung für Ihr Konto im Admin-Bereich zu aktivieren.",
+    "disabledText": "Bitten Sie den Concierge-Support, die Browser-Erweiterung für Ihr Konto im Admin-Bereich zu aktivieren.",
     "title": "Erweiterungsdaten nach Websites",
     "subtitle": "Gesammelte E-Mails, Telefonnummern und Adressen von Seiten, die über die Chrome-Erweiterung gescrapt wurden.",
     "refresh": "Aktualisieren",

@@ -488,7 +488,7 @@
   "extensionData": {
     "loading": "Caricamento dati estensione...",
     "disabledTitle": "L'estensione Chrome è disabilitata per questo cliente",
-    "disabledText": "Chiedi al supporto Nexelin di abilitare l'estensione del browser per il tuo account nel pannello di amministrazione.",
+    "disabledText": "Chiedi al supporto Concierge di abilitare l'estensione del browser per il tuo account nel pannello di amministrazione.",
     "title": "Dati estensione per siti web",
     "subtitle": "Email, telefoni e indirizzi raccolti da pagine estratte tramite l'estensione Chrome.",
     "refresh": "Aggiorna",

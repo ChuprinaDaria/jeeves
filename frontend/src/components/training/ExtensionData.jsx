@@ -158,7 +158,7 @@ const ExtensionData = () => {
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400">
               {t('extensionData.disabledText') ||
-                'Ask Nexelin support to enable the browser extension for your account in the admin panel.'}
+                'Ask Concierge support to enable the browser extension for your account in the admin panel.'}
             </p>
           </div>
         </div>

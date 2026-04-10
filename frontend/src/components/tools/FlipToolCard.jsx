@@ -141,9 +141,9 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
   };
 
   const startCookieFlow = async (slug) => {
-    const extensionId = import.meta.env.VITE_NEXELIN_EXTENSION_ID;
+    const extensionId = import.meta.env.VITE_CONCIERGE_EXTENSION_ID;
     if (!extensionId) {
-      setError('Nexelin Chrome extension is required for this integration.');
+      setError('Concierge Chrome extension is required for this integration.');
       return;
     }
     try {
@@ -151,14 +151,14 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
         chrome.runtime.sendMessage(
           extensionId,
           {
-            action: 'nexelin_bridge_auth',
+            action: 'concierge_bridge_auth',
             bridgeType: slug,
             apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '',
             authToken: localStorage.getItem('access_token') || '',
           },
           (resp) => {
             if (chrome.runtime.lastError) {
-              reject(new Error('Extension not found. Install the Nexelin Chrome extension.'));
+              reject(new Error('Extension not found. Install the Concierge Chrome extension.'));
             } else if (resp?.error) {
               reject(new Error(resp.error));
             } else {

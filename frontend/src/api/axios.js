@@ -12,7 +12,7 @@ const getApiUrl = () => {
   // В production режимі не використовуємо localhost fallback
   if (import.meta.env.PROD) {
     console.error('VITE_API_URL не встановлений в production!');
-    return 'https://api.nexelin.com/api'; // Production fallback
+    return 'http://localhost:8000/api'; // Fallback — має бути перевизначений env
   }
   // Тільки в development використовуємо localhost
   return 'http://localhost:8000/api';
@@ -91,7 +91,7 @@ api.interceptors.response.use(
         return api(originalRequest);
       }
 
-      // Перевіряємо чи це iframe (для mg.nexelin.com)
+      // Перевіряємо чи це iframe (для embed сценаріїв)
       const isInIframe = window.self !== window.top;
 
       const isAuthRequest = originalRequest.url?.includes('/auth/') ||

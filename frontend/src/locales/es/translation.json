@@ -488,7 +488,7 @@
   "extensionData": {
     "loading": "Cargando datos de extensión...",
     "disabledTitle": "La extensión de Chrome está deshabilitada para este cliente",
-    "disabledText": "Solicite al soporte de Nexelin que habilite la extensión del navegador para su cuenta en el panel de administración.",
+    "disabledText": "Solicite al soporte de Concierge que habilite la extensión del navegador para su cuenta en el panel de administración.",
     "title": "Datos de extensión por sitios web",
     "subtitle": "Correos electrónicos, teléfonos y direcciones recopilados de páginas extraídas mediante la extensión de Chrome.",
     "refresh": "Actualizar",
