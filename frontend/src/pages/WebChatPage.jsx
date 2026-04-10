@@ -765,7 +765,7 @@ const WebChatPage = () => {
                 ? 'text-xl'
                 : 'text-lg'
           }`}>
-            {clientName || t('webChat.title') || 'Chat with Consultant'}
+            {clientName || t('webChat.title') || 'Chat with Concierge'}
           </h1>
         </div>
         <div className="relative z-10 flex items-center gap-2">

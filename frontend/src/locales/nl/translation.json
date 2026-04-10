@@ -23,7 +23,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "training": "Concierge Knowledge",
-    "sandbox": "Jeevs",
+    "sandbox": "Jeeves",
     "sandboxBadge": "Ook in AI trainen",
     "integrations": "Integraties",
     "history": "Activiteit",
@@ -155,7 +155,7 @@
     "newLocationTitle": "Sandbox is nu ook beschikbaar in AI trainen!",
     "newLocationDescription": "Voor uw gemak kunt u nu uw AI-assistent direct op de AI trainen-pagina testen, direct na het configureren van het AI-gedrag.",
     "goToTraining": "Ga naar AI trainen",
-    "chatTest": "Jeevs Chat",
+    "chatTest": "Jeeves Chat",
     "typeMessage": "Typ je bericht…",
     "photoUpload": "Test afbeelding uploaden",
     "photoSubtitle": "Test hoe de AI op afbeeldingen reageert",
@@ -461,7 +461,7 @@
     }
   },
   "webChat": {
-    "title": "Chat met Consultant",
+    "title": "Chat met Concierge",
     "placeholder": "Typ bericht...",
     "clearHistory": "Geschiedenis wissen",
     "clearHistoryConfirm": "Weet u zeker dat u de chatgeschiedenis wilt wissen? Deze actie kan niet ongedaan worden gemaakt.",

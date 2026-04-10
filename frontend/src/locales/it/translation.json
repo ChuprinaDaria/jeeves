@@ -23,7 +23,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "training": "Concierge Knowledge",
-    "sandbox": "Jeevs",
+    "sandbox": "Jeeves",
     "sandboxBadge": "Anche in Addestra IA",
     "integrations": "Integrazioni",
     "history": "Attività",
@@ -155,7 +155,7 @@
     "newLocationTitle": "Sandbox è ora disponibile anche in Addestra IA!",
     "newLocationDescription": "Per comodità, ora puoi testare il tuo assistente IA direttamente nella pagina Addestra IA, subito dopo aver configurato il comportamento dell'IA.",
     "goToTraining": "Vai a Addestra IA",
-    "chatTest": "Jeevs Chat",
+    "chatTest": "Jeeves Chat",
     "typeMessage": "Scrivi il tuo messaggio…",
     "photoUpload": "Test caricamento immagine",
     "photoSubtitle": "Prova come l'IA risponde alle immagini",

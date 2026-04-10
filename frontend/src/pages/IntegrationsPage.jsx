@@ -235,7 +235,7 @@ const IntegrationsPage = () => {
     },
     {
       key: 'voice',     icon: Phone,          accent: 'sage',
-      name: 'Voice AI — Phone RAG', desc: 'Telephony with Jeevs',
+      name: 'Voice AI — Phone RAG', desc: 'Telephony with Jeeves',
       state: 'soon',
     },
     {

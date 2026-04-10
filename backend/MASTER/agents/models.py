@@ -22,16 +22,16 @@ class AgentConfig(models.Model):
     # Dual-agent prompts (MCP pipeline only)
     assistant_prompt = models.TextField(
         blank=True,
-        help_text='System prompt for Jeevs (assistant, Sandbox). Empty = platform default.')
+        help_text='System prompt for Jeeves (assistant, Sandbox). Empty = platform default.')
     consultant_prompt = models.TextField(
         blank=True,
-        help_text='System prompt for Consultant (consultant, messengers). Empty = platform default.')
+        help_text='System prompt for Concierge (concierge, messengers). Empty = platform default.')
     assistant_description = models.TextField(
         blank=True,
         help_text='Description of assistant capabilities (shown in UI + added to prompt)')
     consultant_description = models.TextField(
         blank=True,
-        help_text='Description of consultant capabilities (shown in UI + added to prompt)')
+        help_text='Description of concierge capabilities (shown in UI + added to prompt)')
 
     # Generation — null = platform default
     temperature = models.FloatField(null=True, blank=True)

@@ -682,7 +682,7 @@ class TelegramWebhookView(View):
                 if updated_fields:
                     conversation.save(update_fields=updated_fields)
 
-            # Check if Consultant should auto-respond on this channel for this contact
+            # Check if Concierge should auto-respond on this channel for this contact
             from MASTER.clients.auto_reply import should_consultant_respond
             if not should_consultant_respond(client, 'telegram', str(chat_id)):
                 return HttpResponse("OK")  # Message saved but no auto-reply

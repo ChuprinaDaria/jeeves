@@ -1,9 +1,9 @@
 /**
- * Jeevs signature — a proper butler top hat.
+ * Jeeves signature — a proper butler top hat.
  * Hairline stroke in currentColor so it composes with text-iris, text-sage etc.
  * Accepts `size`, `weight` (ignored, kept for Phosphor API compatibility), `className`.
  */
-const JeevsHat = ({ size = 24, className = '', ...rest }) => (
+const JeevesHat = ({ size = 24, className = '', ...rest }) => (
   <svg
     width={size}
     height={size}
@@ -26,4 +26,4 @@ const JeevsHat = ({ size = 24, className = '', ...rest }) => (
   </svg>
 );
 
-export default JeevsHat;
+export default JeevesHat;

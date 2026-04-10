@@ -23,7 +23,7 @@
   "nav": {
     "dashboard": "Kontrolpanel",
     "training": "Concierge Knowledge",
-    "sandbox": "Jeevs",
+    "sandbox": "Jeeves",
     "sandboxBadge": "Også i Træn AI",
     "integrations": "Integrationer",
     "history": "Aktivitet",
@@ -155,7 +155,7 @@
     "newLocationTitle": "Sandbox er nu også tilgængelig i Træn AI!",
     "newLocationDescription": "For din bekvemmelighed kan du nu teste din AI-assistent direkte på Træn AI-siden, lige efter at have konfigureret AI-adfærden.",
     "goToTraining": "Gå til Træn AI",
-    "chatTest": "Jeevs Chat",
+    "chatTest": "Jeeves Chat",
     "typeMessage": "Skriv din besked…",
     "photoUpload": "Test billedeupload",
     "photoSubtitle": "Test hvordan AI reagerer på billeder",

@@ -179,10 +179,10 @@ const TrainingPage = () => {
       <div className="flex justify-between items-start mb-8 animate-fade-up">
         <div>
           <h1 className="text-[28px] font-bold tracking-tightest">
-            {t('training.title') || 'Jeevs'}
+            {t('training.title') || 'Concierge Knowledge'}
           </h1>
           <div className="font-mono text-[13px] text-fog mt-1">
-            knowledge · persona · training room
+            {t('training.subtitle') || 'knowledge base · system prompt · vector index'}
           </div>
         </div>
         <div className="hidden md:flex gap-2.5">
@@ -244,7 +244,7 @@ const TrainingPage = () => {
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Describe how Jeevs should behave: tone, persona, boundaries, escalation rules…"
+              placeholder="Describe how Jeeves should behave: tone, persona, boundaries, escalation rules…"
               className="w-full h-64 p-3.5 bg-cream border-[1.5px] border-rule rounded-sm
                          text-[13px] text-ink font-sans resize-y leading-relaxed
                          focus:outline-none focus:border-iris transition-colors"
@@ -273,7 +273,7 @@ const TrainingPage = () => {
               </li>
               <li className="flex gap-2.5">
                 <span className="text-sage font-mono shrink-0">02</span>
-                Keep the system prompt short and declarative. Jeevs reads it before every reply.
+                Keep the system prompt short and declarative. Jeeves reads it before every reply.
               </li>
               <li className="flex gap-2.5">
                 <span className="text-sage font-mono shrink-0">03</span>
@@ -451,7 +451,7 @@ const TextAddModal = ({ onClose, onSaved }) => {
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Paste any text Jeevs should know…"
+              placeholder="Paste any text Jeeves should know…"
               className="w-full h-56 p-3 bg-cream border-[1.5px] border-rule rounded-sm
                          text-[13px] text-ink resize-y focus:outline-none focus:border-iris transition-colors"
             />

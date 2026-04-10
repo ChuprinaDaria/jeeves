@@ -23,7 +23,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "training": "Concierge Knowledge",
-    "sandbox": "Jeevs",
+    "sandbox": "Jeeves",
     "sandboxBadge": "Also in Train AI",
     "integrations": "Integrations",
     "history": "Activity",
@@ -186,7 +186,7 @@
   "sandbox": {
     "title": "Sandbox",
     "subtitle": "Test your AI assistant before going live",
-    "chatTest": "Jeevs Chat",
+    "chatTest": "Jeeves Chat",
     "typeMessage": "Type your message...",
     "photoUpload": "Photo Upload Test",
     "photoSubtitle": "Test how AI responds to image uploads",
@@ -232,8 +232,8 @@
     "newLocationTitle": "Sandbox is now also available in Train AI!",
     "newLocationDescription": "For your convenience, you can now test your AI assistant directly on the Train AI page, right after configuring the AI behavior prompt.",
     "goToTraining": "Go to Train AI",
-    "assistantTitle": "Jeevs",
-    "assistantSubtitle": "Chat with Jeevs, your AI assistant",
+    "assistantTitle": "Jeeves",
+    "assistantSubtitle": "Chat with Jeeves, your AI assistant",
     "inputPlaceholder": "Type your message...",
     "sendMessage": "Send message"
   },
@@ -354,9 +354,9 @@
     "promptBook": "Prompt Book",
     "extensionData": "Extension data",
     "whatsappSetup": "WhatsApp Integration Setup",
-    "whatsappIntro": "Follow these steps to connect your WhatsApp Business account with Jeevs.",
+    "whatsappIntro": "Follow these steps to connect your WhatsApp Business account with Jeeves.",
     "telegramSetup": "Telegram Bot Integration Setup",
-    "telegramIntro": "Follow these steps to connect your Telegram bot with Jeevs.",
+    "telegramIntro": "Follow these steps to connect your Telegram bot with Jeeves.",
     "telegramDone": "Done! Your Telegram bot is now connected and can receive messages through Concierge.",
     "emailSetup": "Email SMTP Integration Setup",
     "emailIntro": "Follow these steps to configure email SMTP for your AI assistant to send and receive emails.",
@@ -543,7 +543,7 @@
     "cancel": "Cancel",
     "add": "Add",
     "saved": "Settings saved",
-    "noDaysActive": "No active days — Consultant will not respond.",
+    "noDaysActive": "No active days — Concierge will not respond.",
     "connected": "Connected"
   },
   "pricing": {
@@ -734,7 +734,7 @@
     }
   },
   "webChat": {
-    "title": "Chat with Consultant",
+    "title": "Chat with Concierge",
     "placeholder": "Type message...",
     "clearHistory": "Clear History",
     "clearHistoryConfirm": "Are you sure you want to clear the chat history? This action cannot be undone.",
@@ -843,9 +843,9 @@
       "custom": "Custom"
     },
     "flow": {
-      "title": "Jeevs",
+      "title": "Jeeves",
       "titleAccent": "Flow",
-      "aiAssistant": "Jeevs",
+      "aiAssistant": "Jeeves",
       "centralEngine": "Your AI butler",
       "clientManager": "Concierge",
       "hitlEscalation": "Live handoff",
@@ -856,7 +856,7 @@
       "onboarding": "Click a tool to get started",
       "qrExpired": "QR code expired. Try again.",
       "startQr": "Start QR scan",
-      "connectedToAssistant": "connected to Jeevs",
+      "connectedToAssistant": "connected to Jeeves",
       "connectedToManager": "handed off to Concierge",
       "disconnected": "disconnected",
       "loadError": "Failed to load tools.",

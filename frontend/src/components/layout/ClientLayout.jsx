@@ -128,7 +128,7 @@ const ClientLayout = () => {
 
   const navItems = [
     { to: `${basePath}/dashboard`,    icon: LayoutDashboard, label: t('nav.dashboard') },
-    { to: `${basePath}/sandbox`,      icon: Bot,             label: t('nav.sandbox') || 'Jeevs' },
+    { to: `${basePath}/sandbox`,      icon: Bot,             label: t('nav.sandbox') || 'Jeeves' },
     { to: `${basePath}/history`,      icon: MessageSquare,   label: t('nav.history') },
     { to: `${basePath}/training`,     icon: GraduationCap,   label: t('nav.training') || 'Concierge Knowledge' },
     ...(user?.leads_enabled ? [{ to: `${basePath}/leads`, icon: Users, label: t('nav.leads') || 'Leads' }] : []),

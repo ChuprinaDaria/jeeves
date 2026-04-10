@@ -1,13 +1,13 @@
 import { forwardRef } from 'react';
 import { BellSimple, Target } from '@phosphor-icons/react';
 import { useTranslation } from 'react-i18next';
-import JeevsHat from '../ui/icons/JeevsHat';
+import JeevesHat from '../ui/icons/JeevesHat';
 
 // Each variant binds to ONE semantic accent from the Concierge palette.
 const VARIANTS = {
   assistant: {
-    Icon: JeevsHat,
-    label: 'tools.flow.aiAssistant',      // "Jeevs"
+    Icon: JeevesHat,
+    label: 'tools.flow.aiAssistant',      // "Jeeves"
     subtitle: 'tools.flow.centralEngine', // "Your AI butler"
     tooltip: 'tools.flow.assistantTooltip',
     border: 'border-iris',

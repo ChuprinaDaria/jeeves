@@ -1,4 +1,4 @@
-"""MCP Coaching server — Jeevs trains Consultant via knowledge base and prompt updates."""
+"""MCP Coaching server — Jeeves trains Concierge via knowledge base and prompt updates."""
 import json
 import logging
 import uuid
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 mcp = FastMCP(
     "mcp-coaching",
-    description="AI Coaching: review consultant conversations, find gaps, "
+    description="AI Coaching: review concierge conversations, find gaps, "
     "update knowledge base and consultant instructions.",
 )
 
@@ -57,10 +57,10 @@ async def review_vasya_conversations(
     days_back: int = 7,
     min_messages: int = 3,
 ) -> str:
-    """Review Consultant's (consultant AI) recent conversations and identify knowledge gaps.
-    Finds conversations where Consultant couldn't answer, gave generic responses,
+    """Review Concierge's (concierge AI) recent conversations and identify knowledge gaps.
+    Finds conversations where Concierge couldn't answer, gave generic responses,
     or escalated unnecessarily.
-    Use this to find areas where the consultant needs training."""
+    Use this to find areas where the concierge needs training."""
 
     def _review():
         from MASTER.agents.models import AgentSession, AgentLog
@@ -260,7 +260,7 @@ async def apply_coaching_suggestion(
                 current = agent_config.consultant_prompt or ''
                 agent_config.consultant_prompt = current.rstrip() + f"\n\n{content}"
                 agent_config.save(update_fields=['consultant_prompt'])
-                results.append("Consultant instructions updated")
+                results.append("Concierge instructions updated")
             except AgentConfig.DoesNotExist:
                 results.append("AgentConfig not found — cannot update instructions")
             except Exception as e:
@@ -285,7 +285,7 @@ async def get_consultant_prompt(
     client_id: int,
     session_id: str,
 ) -> str:
-    """Read Consultant's current consultant_prompt from AgentConfig.
+    """Read Concierge's current consultant_prompt from AgentConfig.
     Use before suggesting changes to understand the current state."""
 
     def _get():

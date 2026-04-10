@@ -24,7 +24,7 @@ class AgentConfigAdmin(admin.ModelAdmin):
         ('Prompts (MCP Dual Agent)', {
             'fields': ('assistant_prompt', 'assistant_description',
                        'consultant_prompt', 'consultant_description'),
-            'description': 'Assistant = Jeevs (Sandbox). Consultant (messengers).',
+            'description': 'Assistant = Jeeves (Sandbox). Concierge (messengers).',
         }),
         ('RAG', {
             'fields': ('similarity_threshold', 'max_context_chunks', 'top_k'),

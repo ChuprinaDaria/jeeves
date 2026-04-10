@@ -6,8 +6,8 @@ from .models_auto_reply import ChannelAutoReply
 
 def should_consultant_respond(client, channel: str, contact_id: str) -> bool:
     """
-    Check if Consultant should auto-respond to this message.
-    Returns True if Consultant should respond, False to skip.
+    Check if Concierge should auto-respond to this message.
+    Returns True if Concierge should respond, False to skip.
     """
     if channel in ('web', 'sandbox'):
         return True

@@ -89,7 +89,7 @@ const Sidebar = () => {
   // Nav sections — grouped for the stationery vibe
   const mainNav = [
     { to: '/dashboard', icon: SquaresFour,   label: t('nav.dashboard') },
-    { to: '/sandbox',   icon: Robot,         label: t('nav.sandbox') || 'Jeevs' },
+    { to: '/sandbox',   icon: Robot,         label: t('nav.sandbox') || 'Jeeves' },
     { to: '/history',   icon: ChatDots,      label: t('nav.history') },
     { to: '/training',  icon: GraduationCap, label: t('nav.training') || 'Concierge Knowledge' },
     ...(user?.leads_enabled ? [{ to: '/leads', icon: UsersThree, label: t('nav.leads') || 'Leads' }] : []),
