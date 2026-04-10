@@ -8,6 +8,10 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RemoveIndex(
+            model_name='clientwhatsappconversation',
+            name='clients_cli_table_i_1dce13_idx',
+        ),
         migrations.RemoveField(
             model_name='clientwhatsappconversation',
             name='table',

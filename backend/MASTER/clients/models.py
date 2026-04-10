@@ -1646,7 +1646,6 @@ class ClientWhatsAppConversation(models.Model):
         indexes = [
             models.Index(fields=['client', 'customer_phone']),
             models.Index(fields=['qr_code']),
-            models.Index(fields=['table']),
             models.Index(fields=['started_at']),
             models.Index(fields=['is_active']),
             models.Index(fields=['session_id', 'created_at']),
