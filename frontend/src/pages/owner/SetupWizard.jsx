@@ -3,12 +3,110 @@ import { useNavigate } from 'react-router-dom';
 
 import { setupAPI } from '../../api/owner';
 import { useAuth } from '../../context/AuthContext';
+import { useBootstrap } from '../../context/BootstrapContext';
 
 const inputClass =
   'w-full px-3 py-2 border border-ink/20 rounded-sm bg-paper focus:outline-none focus:border-iris';
 
 const buttonClass =
   'px-4 py-2 bg-ink text-cream rounded-sm hover:bg-ink/90 disabled:opacity-50';
+
+const LicenseStep = ({ onDone }) => {
+  const [key, setKey] = useState('');
+  const [status, setStatus] = useState(null); // 'valid' | 'grace' | null
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { refresh: refreshBootstrap } = useBootstrap();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setStatus(null);
+    setLoading(true);
+    try {
+      const { data } = await setupAPI.saveLicense(key);
+      setStatus(data.status);
+    } catch (err) {
+      const body = err?.response?.data;
+      if (body?.error === 'invalid_key') {
+        setError(`Gumroad rejected the key: ${body.message || 'not found'}.`);
+      } else {
+        setError('Something went wrong. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleContinue = async () => {
+    setLoading(true);
+    try {
+      await setupAPI.complete();
+      await refreshBootstrap();
+      onDone();
+    } catch (err) {
+      setError('Could not complete setup. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="bg-paper border border-ink/10 rounded-sm p-6 space-y-4"
+    >
+      <h2 className="text-lg font-medium text-ink">Enter your Gumroad license key</h2>
+      <p className="text-sm text-ink/70">
+        You'll find this in the Gumroad email you received after purchase.
+      </p>
+
+      <div>
+        <label className="block text-sm mb-1">License key</label>
+        <input
+          className={inputClass}
+          type="text"
+          required
+          value={key}
+          onChange={(e) => setKey(e.target.value)}
+          disabled={status === 'valid' || status === 'grace'}
+        />
+      </div>
+
+      {error && <p className="text-red-600 text-sm">{error}</p>}
+
+      {status === 'valid' && (
+        <p className="text-green-700 text-sm">
+          ✓ License verified. Click Continue to finish setup.
+        </p>
+      )}
+
+      {status === 'grace' && (
+        <p className="text-yellow-700 text-sm">
+          ⚠ We couldn't reach Gumroad right now. Your key was saved and we'll
+          retry automatically. You have a 7-day grace period.
+        </p>
+      )}
+
+      {!status && (
+        <button type="submit" className={buttonClass} disabled={loading}>
+          {loading ? 'Verifying…' : 'Verify key'}
+        </button>
+      )}
+
+      {(status === 'valid' || status === 'grace') && (
+        <button
+          type="button"
+          className={buttonClass}
+          onClick={handleContinue}
+          disabled={loading}
+        >
+          {loading ? 'Finishing…' : 'Continue →'}
+        </button>
+      )}
+    </form>
+  );
+};
 
 const SetupWizard = () => {
   const navigate = useNavigate();
@@ -128,12 +226,7 @@ const SetupWizard = () => {
         )}
 
         {step === 2 && (
-          <div className="bg-paper border border-ink/10 rounded-sm p-6">
-            <p className="text-ink/70 mb-2">Step 2 will be added in the next task.</p>
-            <button className="underline text-sm" onClick={() => setStep(1)}>
-              ← Back
-            </button>
-          </div>
+          <LicenseStep onDone={() => navigate('/owner/dashboard')} />
         )}
       </div>
     </div>
