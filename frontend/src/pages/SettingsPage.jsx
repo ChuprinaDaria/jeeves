@@ -1,252 +1,195 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import {
+  Upload,
+  X,
+  Image as ImageIcon,
+  ChatText,
+  EnvelopeSimple,
+  Bell,
+  Translate,
+  FloppyDisk,
+  PaperPlaneTilt,
+  Plus,
+  Trash,
+  User,
+  PlugsConnected,
+} from '@phosphor-icons/react';
+
 import { useAuth } from '../context/AuthContext';
-import { Upload, X, Loader2 } from 'lucide-react';
 import { clientAPI } from '../api/client';
 import api from '../api/axios';
+
+import Card, { CardHeader, CardAction } from '../components/ui/Card';
+import Button from '../components/ui/Button';
 import ChannelsTab from '../components/settings/ChannelsTab';
+
+const ACCENT_BORDER = {
+  rose:  'border-rose text-rose',
+  sage:  'border-sage text-sage',
+  iris:  'border-iris text-iris',
+  amber: 'border-amber text-amber',
+};
+
+const LANGS = [
+  { value: 'en', label: 'English'    },
+  { value: 'de', label: 'Deutsch'    },
+  { value: 'fr', label: 'Français'   },
+  { value: 'es', label: 'Español'    },
+  { value: 'it', label: 'Italiano'   },
+  { value: 'nl', label: 'Nederlands' },
+  { value: 'da', label: 'Dansk'      },
+  { value: 'uk', label: 'Українська' },
+];
+
+/* ─────────────── Page ─────────────── */
 
 const SettingsPage = () => {
   const { t } = useTranslation();
   const { isAuthenticated, loading: authLoading } = useAuth();
-  const [logo, setLogo] = useState(null);
+
+  const [activeTab, setActiveTab] = useState('profile');
   const [logoUrl, setLogoUrl] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
-  const [dataLoaded, setDataLoaded] = useState(false);
+  const [status, setStatus] = useState({ type: null, text: '' });
+
+  const [greetingMessage, setGreetingMessage] = useState('');
+  const [notificationLanguage, setNotificationLanguage] = useState('en');
+
   const [reportEnabled, setReportEnabled] = useState(false);
   const [reportRecipients, setReportRecipients] = useState([]);
   const [reportEmail, setReportEmail] = useState('');
   const [reportSaving, setReportSaving] = useState(false);
   const [reportSending, setReportSending] = useState(false);
-  const [reportMessage, setReportMessage] = useState('');
-  const [notificationLanguage, setNotificationLanguage] = useState('en');
-  const [greetingMessage, setGreetingMessage] = useState('');
-  const [activeTab, setActiveTab] = useState('general');
 
-  // Notification language options
-  const notificationLanguageOptions = [
-    { value: 'en', label: 'English', flag: '🇬🇧' },
-    { value: 'de', label: 'Deutsch', flag: '🇩🇪' },
-    { value: 'fr', label: 'Français', flag: '🇫🇷' },
-    { value: 'es', label: 'Español', flag: '🇪🇸' },
-    { value: 'it', label: 'Italiano', flag: '🇮🇹' },
-    { value: 'nl', label: 'Nederlands', flag: '🇳🇱' },
-    { value: 'da', label: 'Dansk', flag: '🇩🇰' },
-    { value: 'uk', label: 'Українська', flag: '🇺🇦' },
-  ];
+  const flash = (type, text) => {
+    setStatus({ type, text });
+    setTimeout(() => setStatus({ type: null, text: '' }), 3500);
+  };
 
+  /* ── Load ── */
   useEffect(() => {
-    if (authLoading) {
-      return;
-    }
+    if (authLoading || !isAuthenticated) return;
+    loadClient();
+    loadReportSettings();
+  }, [authLoading, isAuthenticated]);
 
-    if (!isAuthenticated) {
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      if (!dataLoaded) {
-        loadClientLogo();
-        loadReportSettings();
-        setDataLoaded(true);
-      }
-    }, 200);
-
-    return () => clearTimeout(timer);
-  }, [authLoading, isAuthenticated, dataLoaded]);
-
-  const loadClientLogo = async () => {
+  const loadClient = async () => {
     try {
-      const response = await clientAPI.getMe();
-      const logoUrlFromAPI = response.data?.logo_url || response.data?.logo;
-      if (logoUrlFromAPI) {
-        if (logoUrlFromAPI.startsWith('/')) {
-          const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-          setLogoUrl(`${baseURL}${logoUrlFromAPI}`);
-        } else {
-          setLogoUrl(logoUrlFromAPI);
-        }
+      const { data } = await clientAPI.getMe();
+      const raw = data?.logo_url || data?.logo;
+      if (raw) {
+        const base = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+        setLogoUrl(raw.startsWith('/') ? `${base}${raw}` : raw);
       }
-    } catch (err) {
-      console.error('Failed to load client logo:', err);
+    } catch (e) {
+      console.error('Failed to load client:', e);
     }
   };
 
   const loadReportSettings = async () => {
     try {
-      const res = await api.get('/clients/email-smtp/config/');
-      setReportEnabled(!!res.data?.email_report_enabled);
-      const recipients = res.data?.email_report_recipients;
-      setReportRecipients(Array.isArray(recipients) ? recipients : []);
-      setNotificationLanguage(res.data?.notification_language || 'en');
-      setGreetingMessage(res.data?.greeting_message || '');
-    } catch (err) {
-      // Silent: report settings are optional
-      console.error('Failed to load report settings:', err);
+      const { data } = await api.get('/clients/email-smtp/config/');
+      setReportEnabled(!!data?.email_report_enabled);
+      setReportRecipients(Array.isArray(data?.email_report_recipients) ? data.email_report_recipients : []);
+      setNotificationLanguage(data?.notification_language || 'en');
+      setGreetingMessage(data?.greeting_message || '');
+    } catch (e) {
+      console.error('Failed to load report settings:', e);
     }
   };
 
+  /* ── Logo ── */
   const handleLogoSelect = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        setError(t('settings.logoInvalidType') || 'File must be an image');
-        return;
-      }
-
-      if (file.size > 5 * 1024 * 1024) {
-        setError(t('settings.logoTooLarge') || 'File size must be less than 5MB');
-        return;
-      }
-
-      setError(null);
-      setLogo(file);
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLogoUrl(reader.result);
-      };
-      reader.readAsDataURL(file);
-
-      // Автоматично завантажуємо фото одразу без додаткової кнопки
-      await handleLogoUpload(file);
-    }
-  };
-
-  const handleLogoUpload = async (fileToUpload = null) => {
-    const file = fileToUpload || logo;
     if (!file) return;
-
+    if (!file.type.startsWith('image/')) {
+      flash('error', 'File must be an image');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      flash('error', 'File must be under 5 MB');
+      return;
+    }
     setUploading(true);
-    setError(null);
-    setSuccess(false);
-
     try {
-      const response = await clientAPI.uploadLogo(file);
-      const uploadedLogoUrl = response.data?.logo_url;
-      
-      if (uploadedLogoUrl) {
-        if (uploadedLogoUrl.startsWith('/')) {
-          const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-          setLogoUrl(`${baseURL}${uploadedLogoUrl}`);
-        } else {
-          setLogoUrl(uploadedLogoUrl);
-        }
+      const { data } = await clientAPI.uploadLogo(file);
+      const raw = data?.logo_url;
+      if (raw) {
+        const base = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+        setLogoUrl(raw.startsWith('/') ? `${base}${raw}` : raw);
       }
-      
-      setSuccess(true);
-      setLogo(null);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (err) {
-      console.error('Failed to upload logo:', err);
-      setError(t('settings.logoUploadError') || 'Failed to upload logo');
-      // Якщо помилка, залишаємо файл для повторної спроби
-      if (!fileToUpload) {
-        setLogo(file);
-      }
+      flash('success', 'Logo uploaded');
+    } catch {
+      flash('error', 'Failed to upload logo');
     } finally {
       setUploading(false);
     }
   };
 
   const handleLogoDelete = async () => {
-    if (!confirm(t('settings.deleteLogoConfirm') || 'Are you sure you want to delete the logo?')) {
-      return;
-    }
-
+    if (!confirm('Delete logo?')) return;
     setUploading(true);
-    setError(null);
-
     try {
       await clientAPI.deleteLogo();
       setLogoUrl(null);
-      setLogo(null);
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (err) {
-      console.error('Failed to delete logo:', err);
-      setError(t('settings.logoDeleteError') || 'Failed to delete logo');
+      flash('success', 'Logo deleted');
+    } catch {
+      flash('error', 'Failed to delete logo');
     } finally {
       setUploading(false);
     }
   };
 
-  const handleCancel = () => {
-    setLogo(null);
-    setError(null);
-    loadClientLogo();
-  };
-
-  const isValidEmail = (value) => {
-    const v = (value || '').trim();
-    if (!v) return false;
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
-  };
-
-  const addReportRecipient = () => {
-    setReportMessage('');
-    const email = reportEmail.trim();
-
-    if (!isValidEmail(email)) {
-      setReportMessage(t('settings.reportInvalidEmail') || 'Invalid email address');
-      return;
-    }
-
-    const exists = reportRecipients.some((r) => String(r).toLowerCase() === email.toLowerCase());
-    if (exists) {
-      setReportEmail('');
-      return;
-    }
-
-    if (reportRecipients.length >= 5) {
-      setReportMessage(t('settings.reportMaxRecipients') || 'You can add up to 5 recipients');
-      return;
-    }
-
-    setReportRecipients((prev) => [...prev, email]);
-    setReportEmail('');
-  };
-
-  const removeReportRecipient = (email) => {
-    setReportRecipients((prev) => prev.filter((r) => r !== email));
-  };
-
-  const saveReportSettings = async () => {
+  /* ── Greeting + settings save ── */
+  const saveGeneralSettings = async () => {
+    setReportSaving(true);
     try {
-      setReportSaving(true);
-      setReportMessage('');
-
       await api.patch('/clients/email-smtp/config/', {
         email_report_enabled: reportEnabled,
         email_report_recipients: reportRecipients,
         notification_language: notificationLanguage,
         greeting_message: greetingMessage,
       });
-
-      setReportMessage(t('settings.reportSaved') || t('common.success') || 'Saved');
-    } catch (err) {
-      console.error('Failed to save report settings:', err);
-      setReportMessage(t('settings.reportSaveError') || t('common.error') || 'Error');
+      flash('success', 'Settings saved');
+    } catch {
+      flash('error', 'Failed to save settings');
     } finally {
       setReportSaving(false);
     }
   };
 
+  /* ── Report recipients ── */
+  const addRecipient = () => {
+    const email = reportEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      flash('error', 'Invalid email');
+      return;
+    }
+    if (reportRecipients.some((r) => r.toLowerCase() === email.toLowerCase())) {
+      setReportEmail('');
+      return;
+    }
+    if (reportRecipients.length >= 5) {
+      flash('error', 'Max 5 recipients');
+      return;
+    }
+    setReportRecipients((prev) => [...prev, email]);
+    setReportEmail('');
+  };
+
+  const removeRecipient = (email) => {
+    setReportRecipients((prev) => prev.filter((r) => r !== email));
+  };
+
   const sendDailyReportNow = async () => {
+    setReportSending(true);
     try {
-      setReportSending(true);
-      setReportMessage('');
-      const res = await api.post('/clients/reports/daily-digest/send/', {});
-      if (res.data?.success) {
-        setReportMessage(t('settings.reportScheduled') || 'Daily report scheduled');
-      } else {
-        setReportMessage(res.data?.error || t('common.error') || 'Error');
-      }
-    } catch (err) {
-      console.error('Failed to send daily report:', err);
-      setReportMessage(t('settings.reportSendError') || t('common.error') || 'Error');
+      const { data } = await api.post('/clients/reports/daily-digest/send/', {});
+      if (data?.success) flash('success', 'Report scheduled');
+      else flash('error', data?.error || 'Failed');
+    } catch {
+      flash('error', 'Failed to send report');
     } finally {
       setReportSending(false);
     }
@@ -254,314 +197,235 @@ const SettingsPage = () => {
 
   if (authLoading || !isAuthenticated) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-primary-500 dark:text-primary-400 mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">{t('common.loading') || 'Loading...'}</p>
-        </div>
+      <div className="flex items-center justify-center h-full py-20">
+        <p className="label-mono">loading…</p>
       </div>
     );
   }
 
+  const tabs = [
+    { key: 'profile',  label: 'Profile',    icon: User },
+    { key: 'channels', label: 'Channels',   icon: PlugsConnected },
+  ];
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('settings.title') || 'Settings'}</h1>
-        <p className="text-gray-600 dark:text-gray-400">{t('settings.subtitle') || 'Manage your account settings'}</p>
+    <div className="max-w-[1200px] mx-auto">
+      {/* ── Header ── */}
+      <div className="flex justify-between items-start mb-8 animate-fade-up">
+        <div>
+          <h1 className="text-[28px] font-bold tracking-tightest">
+            {t('settings.title') || 'Settings'}
+          </h1>
+          <div className="font-mono text-[13px] text-fog mt-1">
+            workspace · reports · channels
+          </div>
+        </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="flex gap-2">
-        {['general', 'channels'].map(tab => (
+      {/* ── Tabs ── */}
+      <div className="flex flex-wrap gap-2.5 mb-6">
+        {tabs.map((tab) => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === tab
-                ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-700'
-                : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-            }`}
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-sm border-[1.5px]
+                        font-sans text-[13px] font-medium cursor-pointer transition-colors
+                        ${activeTab === tab.key
+                          ? 'border-iris text-ink bg-mist'
+                          : 'border-rule text-slate hover:border-iris hover:text-ink'}`}
           >
-            {t(`settings.tab${tab === 'general' ? 'General' : 'Channels'}`)}
+            <tab.icon size={16} weight="light" />
+            {tab.label}
           </button>
         ))}
       </div>
 
-      {activeTab === 'channels' && <ChannelsTab />}
+      {/* ── Status toast ── */}
+      {status.type && (
+        <div className={`mb-5 border-[1.5px] rounded-sm px-4 py-2.5 font-mono text-[12px] animate-fade-up
+                        ${status.type === 'success' ? 'border-sage text-sage bg-sage-soft/30'
+                                                    : 'border-rose text-rose bg-rose-soft/30'}`}>
+          {status.text}
+        </div>
+      )}
 
-      {activeTab === 'general' && <>
-      {/* Logo Upload Section */}
-      <div className="max-w-2xl">
-        <div className="card">
-          <div className="mb-6">
-            <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">{t('settings.uploadLogo') || 'Upload Logo'}</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-              {t('settings.logoDescription') || 'Upload your company logo. It will be used in QR code generation.'}
-            </p>
-          </div>
+      {/* ── Channels tab ── */}
+      {activeTab === 'channels' && (
+        <Card>
+          <CardHeader title="Channel Control" />
+          <ChannelsTab />
+        </Card>
+      )}
 
-        <div className="space-y-4">
-          {/* Current Logo Preview */}
-          {logoUrl && (
-            <div className="relative inline-block">
-              <img
-                src={logoUrl}
-                alt="Company Logo"
-                className="max-w-xs max-h-32 object-contain border border-gray-200 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-700"
-              />
-              {logo && (
-                <button
-                  onClick={handleCancel}
-                  className="absolute -top-2 -right-2 bg-red-500 dark:bg-red-600 text-white rounded-full p-1 hover:bg-red-600 dark:hover:bg-red-700 transition"
-                  title={t('common.cancel') || 'Cancel'}
-                >
-                  <X size={16} />
-                </button>
-              )}
+      {/* ── Profile tab ── */}
+      {activeTab === 'profile' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          {/* Logo */}
+          <Card accent="iris" className="lg:col-span-1">
+            <CardHeader title="Workspace Logo" />
+            <div className="flex flex-col items-center gap-4 py-2">
+              <div className={`w-28 h-28 rounded-md border-2 ${ACCENT_BORDER.iris}
+                              flex items-center justify-center overflow-hidden bg-cream`}>
+                {logoUrl ? (
+                  <img src={logoUrl} alt="Workspace logo" className="w-full h-full object-contain p-2" />
+                ) : (
+                  <ImageIcon size={36} weight="light" />
+                )}
+              </div>
+              <p className="font-mono text-[11px] text-fog text-center">
+                PNG / SVG · ≤ 5 MB · used in QR, chat header, reports
+              </p>
+              <div className="flex gap-2.5 w-full">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoSelect}
+                  className="hidden"
+                  id="logo-input"
+                  disabled={uploading}
+                />
+                <label htmlFor="logo-input" className="flex-1">
+                  <Button variant="violet" icon={Upload} className="w-full justify-center">
+                    {uploading ? 'Uploading…' : logoUrl ? 'Replace' : 'Upload'}
+                  </Button>
+                </label>
+                {logoUrl && !uploading && (
+                  <Button variant="pink" icon={X} onClick={handleLogoDelete}>
+                    Remove
+                  </Button>
+                )}
+              </div>
             </div>
-          )}
+          </Card>
 
-          {/* Error/Success Messages */}
-          {error && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded text-red-700 dark:text-red-400 text-sm">
-              {error}
-            </div>
-          )}
-
-          {success && (
-            <div className="p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded text-green-700 dark:text-green-400 text-sm">
-              {t('settings.logoUploadSuccess') || 'Logo uploaded successfully! QR codes will be regenerated with the new logo.'}
-            </div>
-          )}
-
-          {/* Upload Controls */}
-          <div className="flex items-center gap-3">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleLogoSelect}
-              className="hidden"
-              id="logo-input"
-              disabled={uploading}
+          {/* Greeting */}
+          <Card accent="sage" className="lg:col-span-2">
+            <CardHeader
+              title="Greeting Message"
+              action={<span className="label-mono">{greetingMessage.length}/500</span>}
             />
-            <label
-              htmlFor="logo-input"
-              className={`btn-secondary flex items-center gap-2 cursor-pointer ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              {uploading ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  {t('settings.uploading') || 'Uploading...'}
-                </>
-              ) : (
-                <>
-                  <Upload size={16} />
-                  {logoUrl ? t('settings.changeLogo') : t('settings.selectLogo')}
-                </>
-              )}
-            </label>
-
-            {logoUrl && !uploading && (
-              <button
-                onClick={handleLogoDelete}
-                disabled={uploading}
-                className="btn-danger flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <X size={16} />
-                {t('settings.deleteLogo') || 'Delete Logo'}
-              </button>
-            )}
-          </div>
-
-          {/* Info about QR codes */}
-          {logoUrl && (
-            <div className="text-xs text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded p-2">
-              {t('settings.logoQRInfo') || 'Your logo will be used in all QR code generations. Existing QR codes will be regenerated automatically.'}
-            </div>
-          )}
-        </div>
-        </div>
-      </div>
-
-      {/* Greeting Message Section */}
-      <div className="max-w-2xl">
-        <div className="card">
-          <div className="mb-6">
-            <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">
-              {t('settings.greetingTitle') || 'Greeting Message'}
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-              {t('settings.greetingDescription') || 'This message is shown to customers when they first open the chat or contact you via Telegram/WhatsApp. It will be displayed exactly as written.'}
+            <p className="text-[12px] text-fog mb-3">
+              Shown to customers when they first open a chat. Keep it warm and short.
             </p>
-          </div>
-          <div className="space-y-4">
             <textarea
               value={greetingMessage}
               onChange={(e) => setGreetingMessage(e.target.value)}
-              placeholder={t('settings.greetingPlaceholder') || 'Hello! How can I help you today?'}
-              className="input w-full h-24 resize-y"
+              placeholder="Hello! How can I help you today?"
               maxLength={500}
+              className="w-full h-32 p-3 bg-cream border-[1.5px] border-rule rounded-sm
+                         text-[13px] text-ink resize-y focus:outline-none focus:border-sage transition-colors"
             />
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {greetingMessage.length}/500
-              </span>
-              <button
-                onClick={saveReportSettings}
-                disabled={reportSaving}
-                className="btn-primary flex items-center justify-center gap-2"
-              >
-                {reportSaving ? (
-                  <>
-                    <Loader2 className="animate-spin" size={18} />
-                    {t('common.loading') || 'Saving...'}
-                  </>
-                ) : (
-                  t('common.save') || 'Save'
-                )}
-              </button>
+            <div className="flex justify-end mt-4">
+              <Button variant="green" icon={FloppyDisk} onClick={saveGeneralSettings}>
+                {reportSaving ? 'Saving…' : 'Save'}
+              </Button>
             </div>
-          </div>
-        </div>
-      </div>
+          </Card>
 
-      {/* Report Settings Section */}
-      <div className="max-w-2xl">
-        <div className="card">
-          <div className="mb-6">
-            <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">
-              {t('settings.reportSettingsTitle') || 'Report settings'}
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-              {t('settings.reportSettingsSubtitle') || 'Configure recipients and send the daily report manually.'}
+          {/* Notification language */}
+          <Card accent="amber" className="lg:col-span-1">
+            <CardHeader title="Notification Language" />
+            <p className="text-[12px] text-fog mb-3 leading-relaxed">
+              Reports, manager alerts and email notifications. Customer replies still use each visitor's language.
             </p>
-          </div>
+            <div className="relative">
+              <Translate size={16} weight="light" className="absolute left-3 top-1/2 -translate-y-1/2 text-amber pointer-events-none" />
+              <select
+                value={notificationLanguage}
+                onChange={(e) => setNotificationLanguage(e.target.value)}
+                className="w-full pl-9 pr-3 py-2.5 bg-cream border-[1.5px] border-rule rounded-sm
+                           font-sans text-[13px] text-ink cursor-pointer
+                           focus:outline-none focus:border-amber transition-colors appearance-none"
+              >
+                {LANGS.map((l) => (
+                  <option key={l.value} value={l.value}>{l.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex justify-end mt-4">
+              <Button variant="green" icon={FloppyDisk} onClick={saveGeneralSettings}>
+                Save
+              </Button>
+            </div>
+          </Card>
 
-          <div className="space-y-4">
-            <label className="flex items-center gap-3">
+          {/* Daily reports */}
+          <Card accent="rose" className="lg:col-span-2">
+            <CardHeader
+              title="Daily Reports"
+              action={
+                <CardAction onClick={sendDailyReportNow}>
+                  {reportSending ? 'sending…' : 'send now'}
+                </CardAction>
+              }
+            />
+
+            <label className="flex items-center gap-3 mb-4 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={reportEnabled}
                 onChange={(e) => setReportEnabled(e.target.checked)}
-                className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                className="w-4 h-4 accent-rose cursor-pointer"
               />
-              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                {t('settings.reportEnabledLabel') || 'Enable daily reports'}
+              <Bell size={16} weight="light" className="text-rose" />
+              <span className="text-[13px] font-medium text-ink">
+                Enable daily digest email
               </span>
             </label>
 
-            {/* Notification Language Selector */}
-            <div>
-              <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-gray-100">
-                {t('settings.notificationLanguageLabel') || 'Notification Language'}
-              </label>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                {t('settings.notificationLanguageDescription') || 'Language for daily reports, email notifications, and manager messages. Customer chat responses use the customer\'s language.'}
-              </p>
-              <select
-                value={notificationLanguage}
-                onChange={(e) => setNotificationLanguage(e.target.value)}
-                className="input w-full max-w-xs"
-              >
-                {notificationLanguageOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.flag} {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-gray-100">
-                {t('settings.reportRecipientsLabel') || 'Recipients (up to 5 emails)'}
-              </label>
-              <div className="flex gap-3">
+            <div className="mb-4">
+              <div className="label-mono mb-1.5">Recipients (up to 5)</div>
+              <div className="flex gap-2">
                 <input
                   type="email"
                   value={reportEmail}
                   onChange={(e) => setReportEmail(e.target.value)}
-                  placeholder={t('settings.reportEmailPlaceholder') || 'email@example.com'}
-                  className="input flex-1"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      addReportRecipient();
-                    }
-                  }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addRecipient(); } }}
+                  placeholder="team@company.com"
+                  className="flex-1 px-3 py-2 bg-cream border-[1.5px] border-rule rounded-sm
+                             font-mono text-[12px] text-ink focus:outline-none focus:border-rose transition-colors"
                 />
-                <button onClick={addReportRecipient} className="btn-secondary">
-                  {t('settings.reportAdd') || t('common.create') || 'Add'}
-                </button>
+                <Button variant="violet" icon={Plus} onClick={addRecipient}>
+                  Add
+                </Button>
               </div>
             </div>
 
-            {reportRecipients?.length ? (
-              <div className="space-y-2">
+            {reportRecipients.length > 0 ? (
+              <div className="divide-y divide-rule border-[1.5px] border-rule rounded-sm">
                 {reportRecipients.map((email) => (
-                  <div
-                    key={email}
-                    className="flex items-center justify-between gap-3 bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2"
-                  >
-                    <div className="text-sm font-mono text-gray-900 dark:text-gray-100">{email}</div>
+                  <div key={email} className="flex items-center justify-between gap-3 px-3 py-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <EnvelopeSimple size={14} weight="light" className="text-fog shrink-0" />
+                      <span className="font-mono text-[12px] text-ink truncate">{email}</span>
+                    </div>
                     <button
-                      onClick={() => removeReportRecipient(email)}
-                      className="btn-danger"
+                      onClick={() => removeRecipient(email)}
+                      className="text-fog hover:text-rose transition-colors cursor-pointer p-1"
+                      aria-label="Remove recipient"
                     >
-                      {t('settings.reportRemove') || t('common.delete') || 'Remove'}
+                      <Trash size={14} weight="light" />
                     </button>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                {t('settings.reportNoRecipients') || 'No recipients added yet.'}
-              </div>
+              <p className="label-mono text-center py-4">no recipients yet</p>
             )}
 
-            {reportMessage && (
-              <div className="p-3 bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 rounded text-gray-800 dark:text-gray-200 text-sm">
-                {reportMessage}
-              </div>
-            )}
-
-            <div className="flex flex-wrap gap-3 pt-2">
-              <button
-                onClick={saveReportSettings}
-                disabled={reportSaving}
-                className="btn-primary flex items-center justify-center gap-2"
-              >
-                {reportSaving ? (
-                  <>
-                    <Loader2 className="animate-spin" size={18} />
-                    {t('settings.reportSaving') || t('common.loading') || 'Saving...'}
-                  </>
-                ) : (
-                  t('settings.reportSave') || t('common.save') || 'Save'
-                )}
-              </button>
-
-              <button
-                onClick={sendDailyReportNow}
-                disabled={reportSending}
-                className="btn-secondary flex items-center justify-center gap-2"
-              >
-                {reportSending ? (
-                  <>
-                    <Loader2 className="animate-spin" size={18} />
-                    {t('settings.reportSending') || t('common.loading') || 'Sending...'}
-                  </>
-                ) : (
-                  t('settings.reportSendNow') || 'Send daily report now'
-                )}
-              </button>
+            <div className="flex justify-end gap-2.5 mt-4 pt-4 border-t border-rule">
+              <Button variant="pink" icon={PaperPlaneTilt} onClick={sendDailyReportNow}>
+                {reportSending ? 'Sending…' : 'Send Now'}
+              </Button>
+              <Button variant="green" icon={FloppyDisk} onClick={saveGeneralSettings}>
+                {reportSaving ? 'Saving…' : 'Save'}
+              </Button>
             </div>
-          </div>
+          </Card>
         </div>
-      </div>
-      </>}
+      )}
     </div>
   );
 };
 
 export default SettingsPage;
-

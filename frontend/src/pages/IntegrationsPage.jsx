@@ -331,15 +331,16 @@ const IntegrationsPage = () => {
 
 /* ─────────────── Integration card ─────────────── */
 
-const IntegrationCard = ({ icon: Icon, accent, name, desc, state, meta, onClick }) => {
+const IntegrationCard = ({ icon, accent, name, desc, state, meta, onClick }) => {
   const isSoon = state === 'soon';
+  const IconCmp = icon;
   return (
     <Card accent={accent} hover={!isSoon} className={isSoon ? 'opacity-75' : 'cursor-pointer'}>
       <div className="flex items-start gap-3.5 mb-4" onClick={!isSoon ? onClick : undefined}>
         <div className={`shrink-0 w-[44px] h-[44px] rounded-md border-2
                         ${ACCENT_BORDER[accent]}
                         flex items-center justify-center`}>
-          <Icon size={22} weight="light" />
+          <IconCmp size={22} weight="light" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-[15px] font-semibold text-ink leading-tight">{name}</div>
