@@ -8,4 +8,5 @@ urlpatterns = [
     path('setup/license/', views_setup.SetupLicenseView.as_view(), name='setup-license'),
     path('setup/complete/', views_setup.SetupCompleteView.as_view(), name='setup-complete'),
     path('owner/dashboard/stats/', views_owner.DashboardStatsView.as_view(), name='owner-dashboard-stats'),
+    path('owner/license/reverify/', views_owner.ReverifyLicenseView.as_view(), name='owner-license-reverify'),
 ]
