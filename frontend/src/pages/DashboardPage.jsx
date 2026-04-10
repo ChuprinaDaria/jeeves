@@ -1,146 +1,283 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../context/AuthContext';
-import StatsCard from '../components/dashboard/StatsCard';
-import ActivityFeed from '../components/dashboard/ActivityFeed';
-import { MessageSquare, Users, TrendingUp, Percent, Loader2 } from 'lucide-react';
-import { clientAPI } from '../api/client';
-import DashboardToolsStrip from '../components/tools/DashboardToolsStrip';
+import {
+  ChatCircle,
+  CheckCircle,
+  UserFocus,
+  ArrowBendUpRight,
+  FilePlus,
+  Export,
+  Plus,
+  TelegramLogo,
+  WhatsappLogo,
+  Browser,
+  EnvelopeSimple,
+  DeviceMobile,
+  MagnifyingGlass,
+  FileText,
+  Headset,
+  Translate,
+} from '@phosphor-icons/react';
 
-const PixelDashboard = lazy(() => import('../modules/pixelDashboard/PixelDashboard'));
+import { useAuth } from '../context/AuthContext';
+import { clientAPI } from '../api/client';
+
+import StatCard from '../components/ui/StatCard';
+import Card, { CardHeader, CardAction } from '../components/ui/Card';
+import Button from '../components/ui/Button';
+
+/* ─────────────── Helpers ─────────────── */
+
+const DEFAULT_STATS = [
+  { accent: 'rose',  icon: ChatCircle,       label: 'Conversations',   value: '1,284', delta: '+12% this week', trend: 'up' },
+  { accent: 'sage',  icon: CheckCircle,      label: 'Resolution Rate', value: '94.2%', delta: '+2.1%',          trend: 'up' },
+  { accent: 'iris',  icon: UserFocus,        label: 'Active Leads',    value: '47',    delta: '+8 new',         trend: 'up' },
+  { accent: 'amber', icon: ArrowBendUpRight, label: 'Escalations',     value: '23',    delta: '−5% fewer',      trend: 'down' },
+];
+
+const DEFAULT_CHANNELS = [
+  { icon: TelegramLogo,    accent: 'sage',  name: 'Telegram Bot', desc: '@concierge_demo_bot',    status: 'connected' },
+  { icon: WhatsappLogo,    accent: 'sage',  name: 'WhatsApp',     desc: '+49 xxx xxx xx',          status: 'connected' },
+  { icon: Browser,         accent: 'iris',  name: 'Web Widget',   desc: 'widget.example.com',      status: 'connected' },
+  { icon: EnvelopeSimple,  accent: 'rose',  name: 'Email',        desc: 'ai@client-domain.com',    status: 'connected' },
+  { icon: DeviceMobile,    accent: 'amber', name: 'iOS App',      desc: 'Jeeves Chat',             status: 'draft' },
+];
+
+const DEFAULT_AGENTS = [
+  { icon: MagnifyingGlass, accent: 'iris',  name: 'SearchAgent',      type: 'RAG · vector search', calls: '2.4k calls' },
+  { icon: FileText,        accent: 'sage',  name: 'DocumentAgent',    type: 'PDF · parsing',       calls: '891 calls' },
+  { icon: Headset,         accent: 'rose',  name: 'EscalationAgent',  type: 'HITL · manager',      calls: '156 calls' },
+  { icon: Translate,       accent: 'amber', name: 'TranslationAgent', type: 'multilingual · auto', calls: '1.1k calls' },
+];
+
+const DEFAULT_CONVERSATIONS = [
+  { user: 'Maria K.',   channel: 'tg',  icon: TelegramLogo, preview: 'Can I book a consultation for Friday?', status: 'active',    time: '2 min' },
+  { user: 'Hans M.',    channel: 'web', icon: Browser,      preview: 'What are your office hours?',            status: 'active',    time: '8 min' },
+  { user: 'Sophie L.',  channel: 'ios', icon: DeviceMobile, preview: 'I need to speak with a manager',         status: 'escalated', time: '14 min' },
+  { user: 'Oleksiy P.', channel: 'tg',  icon: TelegramLogo, preview: 'Thank you for the info!',                status: 'closed',    time: '1 hr' },
+];
+
+const ACCENT_BORDER = {
+  rose:  'border-rose text-rose',
+  sage:  'border-sage text-sage',
+  iris:  'border-iris text-iris',
+  amber: 'border-amber text-amber',
+};
+
+/* ─────────────── Greeting ─────────────── */
+
+const greeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 5)  return 'Good night';
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+};
+
+const formatDelta = (num, suffix = '%') => {
+  if (num == null) return null;
+  const sign = num >= 0 ? '+' : '−';
+  return `${sign}${Math.abs(num)}${suffix}`;
+};
+
+/* ─────────────── Page ─────────────── */
 
 const DashboardPage = () => {
   const { t } = useTranslation();
   const { isAuthenticated, loading: authLoading, user } = useAuth();
-  const [stats, setStats] = useState([
-    { label: t('dashboard.totalChats'), value: '0', icon: MessageSquare, change: '+0%', color: 'primary' },
-    { label: t('dashboard.activeUsers'), value: '0', icon: Users, change: '+0%', color: 'accent' },
-    { label: t('dashboard.messages'), value: '0', icon: TrendingUp, change: '+0%', color: 'green' },
-    { label: t('dashboard.conversion'), value: '0%', icon: Percent, change: '+0%', color: 'blue' },
-  ]);
-  const [loadingStats, setLoadingStats] = useState(false);
-  const [dataLoaded, setDataLoaded] = useState(false);
 
-  // Завантажити статистику
-  // Тільки після того як автентифікація завершена
+  const [stats, setStats] = useState(DEFAULT_STATS);
+  const [syncedLabel, setSyncedLabel] = useState('just now');
+
   useEffect(() => {
-    // Чекаємо поки AuthContext завантажиться
-    if (authLoading) {
-      return;
-    }
+    if (authLoading || !isAuthenticated) return;
 
-    // Якщо не авторизований, не робимо запити
-    if (!isAuthenticated) {
-      return;
-    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await clientAPI.getStats();
+        if (cancelled || !data) return;
 
-    // Невелика затримка для гарантії що токен встановлений
-    const timer = setTimeout(() => {
-      if (!dataLoaded) {
-        loadStats();
-        setDataLoaded(true);
+        setStats([
+          {
+            accent: 'rose',
+            icon: ChatCircle,
+            label: t('dashboard.totalChats') || 'Conversations',
+            value: (data.total_chats ?? 0).toLocaleString(),
+            delta: formatDelta(data.chats_change),
+            trend: (data.chats_change ?? 0) >= 0 ? 'up' : 'down',
+          },
+          {
+            accent: 'sage',
+            icon: CheckCircle,
+            label: t('dashboard.resolutionRate') || 'Resolution Rate',
+            value: `${data.conversion_rate ?? 0}%`,
+            delta: formatDelta(data.conversion_change),
+            trend: (data.conversion_change ?? 0) >= 0 ? 'up' : 'down',
+          },
+          {
+            accent: 'iris',
+            icon: UserFocus,
+            label: t('dashboard.activeUsers') || 'Active Leads',
+            value: (data.active_users ?? 0).toLocaleString(),
+            delta: formatDelta(data.users_change),
+            trend: (data.users_change ?? 0) >= 0 ? 'up' : 'down',
+          },
+          {
+            accent: 'amber',
+            icon: ArrowBendUpRight,
+            label: t('dashboard.messages') || 'Messages',
+            value: (data.total_messages ?? 0).toLocaleString(),
+            delta: formatDelta(data.messages_change),
+            trend: (data.messages_change ?? 0) >= 0 ? 'up' : 'down',
+          },
+        ]);
+        setSyncedLabel('just now');
+      } catch {
+        // keep defaults — demo mode
       }
-    }, 200);
+    })();
+    return () => { cancelled = true; };
+  }, [authLoading, isAuthenticated, t]);
 
-    return () => clearTimeout(timer);
-  }, [authLoading, isAuthenticated, dataLoaded]);
-
-  const loadStats = async () => {
-    setLoadingStats(true);
-    try {
-      const response = await clientAPI.getStats();
-      const data = response.data;
-      
-      setStats([
-        {
-          label: t('dashboard.totalChats'),
-          value: String(data.total_chats || 0),
-          icon: MessageSquare,
-          change: `${data.chats_change >= 0 ? '+' : ''}${data.chats_change || 0}%`,
-          color: 'primary'
-        },
-        {
-          label: t('dashboard.activeUsers'),
-          value: String(data.active_users || 0),
-          icon: Users,
-          change: `${data.users_change >= 0 ? '+' : ''}${data.users_change || 0}%`,
-          color: 'accent'
-        },
-        {
-          label: t('dashboard.messages'),
-          value: String(data.total_messages || 0),
-          icon: TrendingUp,
-          change: `${data.messages_change >= 0 ? '+' : ''}${data.messages_change || 0}%`,
-          color: 'green'
-        },
-        {
-          label: t('dashboard.conversion'),
-          value: `${data.conversion_rate || 0}%`,
-          icon: Percent,
-          change: `${data.conversion_change >= 0 ? '+' : ''}${data.conversion_change || 0}%`,
-          color: 'blue'
-        },
-      ]);
-    } catch (err) {
-      console.error('Failed to load stats:', err);
-      // Fallback на дефолтні значення
-      setStats([
-        { label: t('dashboard.totalChats'), value: '0', icon: MessageSquare, change: '+0%', color: 'primary' },
-        { label: t('dashboard.activeUsers'), value: '0', icon: Users, change: '+0%', color: 'accent' },
-        { label: t('dashboard.messages'), value: '0', icon: TrendingUp, change: '+0%', color: 'green' },
-        { label: t('dashboard.conversion'), value: '0%', icon: Percent, change: '+0%', color: 'blue' },
-      ]);
-    } finally {
-      setLoadingStats(false);
-    }
-  };
-
-  // Показуємо loading поки автентифікація не завершена
   if (authLoading || !isAuthenticated) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-primary-500 dark:text-primary-400 mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">{t('common.loading') || 'Loading...'}</p>
-        </div>
+      <div className="flex items-center justify-center h-full py-20">
+        <p className="label-mono">{t('common.loading') || 'Loading…'}</p>
       </div>
     );
   }
 
+  const userFirstName =
+    (user?.first_name && user.first_name.trim()) ||
+    (user?.username && user.username.split(/[@._\s]/)[0]) ||
+    '';
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('dashboard.title')}</h1>
-        <p className="text-gray-600 dark:text-gray-400">{t('dashboard.subtitle')}</p>
-      </div>
-
-      {user?.pixel_dashboard_enabled && (
-        <Suspense fallback={null}>
-          <PixelDashboard enabled={user.pixel_dashboard_enabled} />
-        </Suspense>
-      )}
-
-      {user?.feature_flags?.mcp_tools_dashboard && <DashboardToolsStrip />}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {loadingStats ? (
-          <div className="col-span-4 flex items-center justify-center py-8">
-            <Loader2 className="animate-spin text-primary-500 dark:text-primary-400" size={24} />
+    <div className="max-w-[1200px] mx-auto">
+      {/* ── Greeting header ── */}
+      <div className="flex justify-between items-start mb-8 animate-fade-up">
+        <div>
+          <h1 className="text-[28px] font-bold tracking-tightest">
+            {greeting()}
+            {userFirstName ? `, ${userFirstName}` : ''}
+          </h1>
+          <div className="font-mono text-[13px] text-fog mt-1">
+            jeeves v2.1 · synced {syncedLabel}
           </div>
-        ) : (
-          stats.map((stat, index) => (
-          <StatsCard key={index} {...stat} />
-          ))
-        )}
+        </div>
+        <div className="hidden md:flex gap-2.5">
+          <Button variant="violet" icon={FilePlus}>Add Document</Button>
+          <Button variant="pink"   icon={Export}>Export</Button>
+          <Button variant="green"  icon={Plus}>New Lead</Button>
+        </div>
       </div>
 
-      {/* Recent Activity */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-          {t('dashboard.recentActivity') || 'Recent Activity'}
-        </h2>
-        <ActivityFeed />
+      {/* ── Stats grid ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {stats.map((stat) => (
+          <StatCard key={stat.label} {...stat} />
+        ))}
       </div>
+
+      {/* ── Channels + Agents ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
+        <Card>
+          <CardHeader
+            title={t('dashboard.channels') || 'Channels'}
+            action={<CardAction>manage</CardAction>}
+          />
+          <div className="divide-y divide-rule">
+            {DEFAULT_CHANNELS.map((ch) => (
+              <div key={ch.name} className="flex items-center gap-3.5 py-3">
+                <div className={`w-[38px] h-[38px] rounded-md border-2 ${ACCENT_BORDER[ch.accent]}
+                                flex items-center justify-center`}>
+                  <ch.icon size={20} weight="light" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[14px] font-medium text-ink truncate">{ch.name}</div>
+                  <div className="text-[12px] text-fog truncate">{ch.desc}</div>
+                </div>
+                <span className={`pill ${ch.status === 'connected' ? 'pill-on' : 'pill-off'}`}>
+                  {ch.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader
+            title={t('dashboard.microAgents') || 'Micro-Agents'}
+            action={<CardAction>configure</CardAction>}
+          />
+          <div className="divide-y divide-rule">
+            {DEFAULT_AGENTS.map((a) => (
+              <div key={a.name} className="flex items-center gap-3.5 py-3">
+                <div className={`w-[38px] h-[38px] rounded-md border-2 ${ACCENT_BORDER[a.accent]}
+                                flex items-center justify-center`}>
+                  <a.icon size={20} weight="light" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[14px] font-medium text-ink truncate">{a.name}</div>
+                  <div className="font-mono text-[11px] text-fog truncate">{a.type}</div>
+                </div>
+                <div className="font-mono text-[12px] text-slate">{a.calls}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      {/* ── Recent Conversations ── */}
+      <Card>
+        <CardHeader
+          title={t('dashboard.recentConversations') || 'Recent Conversations'}
+          action={<CardAction>view all</CardAction>}
+        />
+        <div className="overflow-x-auto -mx-2">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr>
+                {['User', 'Channel', 'Last Message', 'Status', 'Time'].map((h) => (
+                  <th key={h}
+                      className="label-mono text-left px-3 pb-3 pt-2 border-b-[1.5px] border-rule">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {DEFAULT_CONVERSATIONS.map((c, i) => (
+                <tr key={i} className="border-b border-rule last:border-0">
+                  <td className="px-3 py-3 text-[13px] font-medium text-ink">{c.user}</td>
+                  <td className="px-3 py-3">
+                    <span className={`inline-flex items-center gap-1.5 font-mono text-[12px] px-2 py-0.5 rounded-sm border ${
+                      c.channel === 'tg'  ? 'border-sage text-sage' :
+                      c.channel === 'web' ? 'border-iris text-iris' :
+                                            'border-amber text-amber'
+                    }`}>
+                      <c.icon size={14} weight="light" />
+                      {c.channel === 'tg' ? 'Telegram' : c.channel === 'web' ? 'Web' : 'iOS'}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3 text-[12px] text-fog">{c.preview}</td>
+                  <td className="px-3 py-3">
+                    <span className={`pill ${
+                      c.status === 'active'    ? 'pill-on'    :
+                      c.status === 'escalated' ? 'pill-alert' :
+                                                 'pill-off'
+                    }`}>
+                      {c.status}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3 font-mono text-[12px] text-fog">{c.time}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
     </div>
   );
 };

@@ -1,390 +1,116 @@
+@import url('https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&family=Ubuntu+Mono:wght@400;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  /* Mobile-optimized base styles */
   html {
     -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none;
     touch-action: manipulation;
   }
 
   body {
-    @apply bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100;
-    /* Better text rendering on mobile */
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    @apply bg-cream text-ink font-sans antialiased;
+    font-feature-settings: "kern", "ss01";
   }
 
-  /* Improve touch target sizes for mobile (minimum 44x44px recommended) */
-  button, a, input[type="button"], input[type="submit"] {
-    min-height: 44px;
-    min-width: 44px;
+  /* Thin, warm selection — no blue default */
+  ::selection {
+    background: #F5DABC;
+    color: #2D2A26;
+  }
+
+  /* Scrollbar — cream-themed, not system gray */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: #E8E0D4;
+    border-radius: 10px;
+    border: 2px solid #FDF8F0;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: #D4C9B5; }
+
+  /* Headings — Ubuntu with tight tracking */
+  h1, h2, h3, h4, h5, h6 {
+    letter-spacing: -0.3px;
+    font-weight: 700;
   }
 }
 
 @layer components {
-  .btn-primary {
-    @apply bg-primary-500 hover:bg-primary-600 active:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-colors;
-    /* Better touch feedback */
-    @apply touch-manipulation select-none;
+  /* ──────── Outline buttons (the signature) ──────── */
+  .btn {
+    @apply inline-flex items-center gap-2 px-5 py-[9px] rounded-sm
+           font-sans text-[13px] font-medium
+           bg-transparent transition-all duration-200
+           cursor-pointer select-none;
+    border-width: 2px;
+    border-style: solid;
   }
 
-  .btn-secondary {
-    @apply bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 active:bg-gray-400 dark:active:bg-gray-500 text-gray-800 dark:text-gray-200 font-medium py-2 px-4 rounded-lg transition-colors;
-    @apply touch-manipulation select-none;
+  .btn i { font-size: 16px; }
+
+  .btn-pink   { @apply border-rose text-rose;  }
+  .btn-pink:hover   { box-shadow: 0 0 0 3px theme('colors.rose-soft'); }
+
+  .btn-green  { @apply border-sage text-sage;  }
+  .btn-green:hover  { box-shadow: 0 0 0 3px theme('colors.sage-soft'); }
+
+  .btn-violet { @apply border-iris text-iris;  }
+  .btn-violet:hover { box-shadow: 0 0 0 3px theme('colors.iris-soft'); }
+
+  .btn-amber  { @apply border-amber text-amber; }
+  .btn-amber:hover  { box-shadow: 0 0 0 3px theme('colors.amber-soft'); }
+
+  /* ──────── Surfaces ──────── */
+  .surface {
+    @apply bg-paper rounded-lg border border-rule;
+    border-width: 1.5px;
   }
 
-  .card {
-    @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6;
-    /* Smaller padding on mobile */
-    @apply sm:p-6 p-4;
+  .surface-hover {
+    @apply transition-all duration-200;
+  }
+  .surface-hover:hover {
+    @apply shadow-ink;
+    transform: translateY(-2px);
   }
 
-  .input {
-    @apply w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-transparent outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500;
-    /* Prevent iOS zoom on focus */
-    font-size: max(16px, 1rem);
+  /* ──────── Labels (monospace metadata) ──────── */
+  .label-mono {
+    @apply font-mono text-[11px] uppercase text-fog;
+    letter-spacing: 1px;
   }
+
+  .label-mono-sm {
+    @apply font-mono text-[10px] uppercase text-fog;
+    letter-spacing: 2px;
+  }
+
+  /* ──────── Status pills ──────── */
+  .pill {
+    @apply inline-flex items-center gap-1.5 font-mono text-[11px] px-2 py-0.5 rounded-sm;
+    border-width: 1.5px;
+    border-style: solid;
+  }
+
+  .pill-on       { @apply border-sage text-sage; }
+  .pill-off      { @apply border-fog text-fog; }
+  .pill-alert    { @apply border-rose text-rose; }
+  .pill-warning  { @apply border-amber text-amber; }
+  .pill-info     { @apply border-iris text-iris; }
 }
 
-/* Mobile-specific utilities */
 @layer utilities {
-  /* Prevent text selection on UI elements */
-  .no-select {
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    user-select: none;
-  }
+  /* Safe area insets for notched devices */
+  .safe-top    { padding-top: env(safe-area-inset-top); }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 
-  /* Safe area padding for notched devices */
-  .safe-top {
-    padding-top: env(safe-area-inset-top);
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-up {
+      animation: none !important;
+      opacity: 1 !important;
+    }
   }
-
-  .safe-bottom {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .safe-left {
-    padding-left: env(safe-area-inset-left);
-  }
-
-  .safe-right {
-    padding-right: env(safe-area-inset-right);
-  }
-
-  /* Touch-friendly scrolling */
-  .smooth-scroll {
-    -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
-  }
-
-  /* Custom scrollbar for light theme */
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 8px;
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 4px;
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 4px;
-  }
-  
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
-  }
-  
-  /* Dark theme scrollbar */
-  .dark .custom-scrollbar::-webkit-scrollbar-track {
-    background: #1e293b;
-  }
-  
-  .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #475569;
-  }
-  
-  .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #64748b;
-  }
-  
-  /* Fix for mobile viewport height with keyboard */
-  .mobile-vh-fix {
-    height: 100dvh;
-    max-height: 100dvh;
-    overflow: hidden;
-  }
-  
-  /* Prevent zoom on input focus (iOS) */
-  input[type="text"],
-  input[type="email"],
-  input[type="password"],
-  textarea {
-    font-size: max(16px, 1rem);
-  }
-
-  /* Flow Builder — flip card */
-  .perspective-1000 {
-    perspective: 1000px;
-  }
-  .backface-hidden {
-    backface-visibility: hidden;
-  }
-  .rotate-y-180 {
-    transform: rotateY(180deg);
-  }
-
-  /* Flow Builder — dot grid (both modes) */
-  .dot-grid {
-    background-image: radial-gradient(circle, rgba(0,0,0,0.06) 1px, transparent 1px);
-    background-size: 30px 30px;
-  }
-  .dark .dot-grid {
-    background-image: radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px);
-  }
-
-  /* Flow Builder — connection line dash animation */
-  @keyframes flow-dash {
-    to { stroke-dashoffset: -20; }
-  }
-  .flow-line-animated {
-    stroke-dasharray: 8 4;
-    animation: flow-dash 1s linear infinite;
-  }
-
-  /* Flow Builder — particle along path (CSS offset-path) */
-  @keyframes flow-particle {
-    0%   { offset-distance: 0%;   opacity: 0; }
-    10%  { opacity: 1; }
-    90%  { opacity: 1; }
-    100% { offset-distance: 100%; opacity: 0; }
-  }
-  .flow-particle {
-    offset-rotate: 0deg;
-    animation: flow-particle var(--particle-duration, 2.5s) linear infinite;
-    animation-delay: var(--particle-delay, 0s);
-  }
-
-  /* Flow Builder — line grow-in */
-  @keyframes flow-line-grow {
-    from { stroke-dashoffset: var(--path-length); }
-    to   { stroke-dashoffset: 0; }
-  }
-
-  /* Flow Builder — node entrance */
-  @keyframes flow-node-enter {
-    from { opacity: 0; transform: scale(0.85); }
-    to   { opacity: 1; transform: scale(1); }
-  }
-  .flow-node-enter {
-    animation: flow-node-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-
-  /* Flow Builder — toast slide */
-  @keyframes flow-toast-in {
-    from { transform: translateY(80px); opacity: 0; }
-    to   { transform: translateY(0); opacity: 1; }
-  }
-  @keyframes flow-toast-out {
-    from { transform: translateY(0); opacity: 1; }
-    to   { transform: translateY(80px); opacity: 0; }
-  }
-
-  /* Flow Builder — card flip bounce */
-  @keyframes flow-flip-bounce {
-    0%   { transform: rotateY(180deg); }
-    60%  { transform: rotateY(-10deg); }
-    80%  { transform: rotateY(5deg); }
-    100% { transform: rotateY(0deg); }
-  }
-
-  /* Flow Builder — pulse for onboarding */
-  @keyframes flow-pulse-arrow {
-    0%, 100% { opacity: 0.4; transform: translateY(0); }
-    50%      { opacity: 1;   transform: translateY(8px); }
-  }
-
-  /* Flow Builder — interactive canvas */
-  .flow-canvas {
-    touch-action: none;
-    user-select: none;
-    -webkit-user-select: none;
-  }
-  .flow-canvas.panning {
-    cursor: grabbing;
-  }
-
-  .flow-draggable {
-    cursor: grab;
-    touch-action: none;
-    user-select: none;
-    -webkit-user-select: none;
-    transition: box-shadow 0.2s, transform 0.15s;
-  }
-  .flow-draggable:hover {
-    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-  }
-  .flow-draggable.dragging {
-    cursor: grabbing;
-    z-index: 50 !important;
-    box-shadow: 0 12px 32px rgba(0,0,0,0.18);
-    transition: box-shadow 0.15s;
-  }
-
-  /* Flow Builder — connector ports */
-  .flow-port {
-    cursor: crosshair;
-    transition: transform 0.15s, box-shadow 0.15s;
-  }
-  .flow-port:hover {
-    transform: translate(-50%, -50%) scale(1.5);
-    box-shadow: 0 0 8px rgba(34,197,94,0.5);
-  }
-
-  /* Flow Builder — skill badge pop animation */
-  @keyframes skill-badge-pop {
-    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0); }
-    60%  { transform: translate(-50%, -50%) scale(1.15); }
-    100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-  }
-
-  /* Flow Builder — zoom controls */
-  .flow-zoom-controls {
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-  }
-
-  /* Chat — tool color tokens */
-  :root {
-    --tool-green: #00d9a3;
-    --tool-purple: #a29bfe;
-    --tool-amber: #fbbf24;
-    --tool-gray: #6b7280;
-  }
-}
-
-/* Chat — message & tool animations */
-@keyframes chat-msg-user {
-  from { opacity: 0; transform: translateX(20px) scale(0.97); }
-  to   { opacity: 1; transform: translateX(0) scale(1); }
-}
-.chat-msg-user {
-  animation: chat-msg-user 0.3s ease-out both;
-}
-
-@keyframes chat-msg-bot {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.chat-msg-bot {
-  animation: chat-msg-bot 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.chat-tool-node {
-  animation: flow-node-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-@keyframes chat-chip-pop {
-  0%   { opacity: 0; transform: scale(0); }
-  60%  { transform: scale(1.1); }
-  100% { opacity: 1; transform: scale(1); }
-}
-.chat-chip-pop {
-  animation: chat-chip-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-@keyframes chat-shimmer {
-  from { background-position: -200% 0; }
-  to   { background-position: 200% 0; }
-}
-.chat-shimmer {
-  background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.08) 50%, transparent 75%);
-  background-size: 200% 100%;
-  animation: chat-shimmer 1.5s infinite;
-}
-
-/* Chat — dark scrollbar */
-.dark .overflow-y-auto::-webkit-scrollbar {
-  width: 6px;
-}
-.dark .overflow-y-auto::-webkit-scrollbar-track {
-  background: transparent;
-}
-.dark .overflow-y-auto::-webkit-scrollbar-thumb {
-  background: rgb(75 85 99); /* gray-600 */
-  border-radius: 3px;
-}
-.dark .overflow-y-auto::-webkit-scrollbar-thumb:hover {
-  background: rgb(107 114 128); /* gray-500 */
-}
-
-/* Backward compat */
-.animate-in {
-  animation: chat-msg-bot 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .chat-msg-user, .chat-msg-bot, .chat-tool-node, .chat-chip-pop {
-    animation: none !important;
-    opacity: 1 !important;
-  }
-}
-
-/* Markdown prose overrides for chat */
-.prose pre code {
-  background: transparent !important;
-  padding: 0 !important;
-  font-size: 0.8rem !important;
-}
-
-.prose :where(code):not(:where([class~="not-prose"] *))::before,
-.prose :where(code):not(:where([class~="not-prose"] *))::after {
-  content: '' !important;
-}
-
-/* Custom scrollbar for chat */
-.overflow-y-auto::-webkit-scrollbar {
-  width: 4px;
-}
-.overflow-y-auto::-webkit-scrollbar-track {
-  background: transparent;
-}
-.overflow-y-auto::-webkit-scrollbar-thumb {
-  background: rgba(156, 163, 175, 0.3);
-  border-radius: 2px;
-}
-.overflow-y-auto::-webkit-scrollbar-thumb:hover {
-  background: rgba(156, 163, 175, 0.5);
-}
-
-/* Firefox scrollbar */
-.overflow-y-auto {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
-}
-
-@keyframes word-cloud-fade-in {
-  from { opacity: 0; filter: blur(4px); }
-  to { opacity: 1; filter: blur(0); }
-}
-.word-cloud-fade-in {
-  animation: word-cloud-fade-in 0.6s ease-out both;
-}
-
-@keyframes context-panel-enter {
-  from { opacity: 0; transform: translateX(20px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-.context-panel-enter {
-  animation: context-panel-enter 0.3s ease-out both;
-}
-
-@keyframes slideInRight {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
 }
