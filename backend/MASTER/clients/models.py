@@ -2161,7 +2161,7 @@ class WhatsAppBridgeConfig(models.Model):
     )
     homeserver_domain = models.CharField(
         max_length=255,
-        help_text="Matrix server domain (e.g., crm.local or grot.de)"
+        help_text="Matrix server domain (e.g., matrix.example.com)"
     )
     provisioning_url = models.URLField(
         help_text="mautrix-whatsapp provisioning API URL (e.g., http://mautrix-whatsapp:29318)"

@@ -29,7 +29,7 @@ class BridgeConfig(models.Model):
     provisioning_secret = models.CharField(max_length=255)
     bot_username = models.CharField(
         max_length=255,
-        help_text='Matrix bot user e.g. @facebookbot:grot.de',
+        help_text='Matrix bot user e.g. @facebookbot:matrix.example.com',
     )
     auth_flow = models.CharField(
         max_length=20, choices=AUTH_FLOW_CHOICES

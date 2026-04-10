@@ -91,7 +91,7 @@ const IntegrationsPage = () => {
       if (clientInfo?.webchat_domain) {
         const customDomain = clientInfo.webchat_domain.trim();
         try {
-          // Дозволяємо як повний URL (https://ai.bytekraft.net/...) так і просто домен (ai.bytekraft.net)
+          // Accept either a full URL (https://chat.example.com/...) or just the domain (chat.example.com)
           const url = customDomain.startsWith('http://') || customDomain.startsWith('https://')
             ? new URL(customDomain)
             : new URL(`https://${customDomain}`);
