@@ -269,7 +269,13 @@ LLM_CONFIG = {
     'max_retries': 3,
     'retry_delay_seconds': 2
 }
-SYSTEM_PROMPTS = { 'default': "..." }
+SYSTEM_PROMPTS = {
+    'default': (
+        "My name is Jeeves. I am your AI assistant powered by Concierge. "
+        "I'm here to help you with any questions or tasks. "
+        "If I don't know something, I'll tell you honestly rather than guess."
+    )
+}
 
 # === OTHER ===
 EMBEDDINGS_FALLBACK_LOCAL = env.bool("EMBEDDINGS_FALLBACK_LOCAL", default=True)
