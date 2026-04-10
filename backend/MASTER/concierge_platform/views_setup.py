@@ -117,3 +117,29 @@ class SetupLicenseView(APIView):
                 "automatically. Grace period: 7 days."
             ),
         })
+
+
+class SetupCompleteView(APIView):
+    """Finalize the setup wizard. Idempotent on re-calls."""
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsOwner]
+
+    def post(self, request):
+        lic = PlatformLicense.get()
+        if lic.is_setup_complete:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        ok_statuses = (
+            PlatformLicense.LicenseStatus.VALID,
+            PlatformLicense.LicenseStatus.GRACE,
+        )
+        if not lic.license_key or lic.status not in ok_statuses:
+            return Response(
+                {"error": "license_not_ready"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        lic.setup_completed_at = timezone.now()
+        lic.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)

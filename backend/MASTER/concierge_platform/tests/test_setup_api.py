@@ -155,3 +155,54 @@ class TestSetupLicense:
         assert lic.last_error == "timeout"
         assert lic.last_attempt_at is not None
         assert lic.last_verified_at is None
+
+
+@pytest.mark.django_db
+class TestSetupComplete:
+    url = "/api/setup/complete/"
+
+    def test_requires_auth(self):
+        c = APIClient()
+        resp = c.post(self.url)
+        assert resp.status_code in (401, 403)
+
+    def test_rejects_when_license_missing(self):
+        c, _ = _owner_client()
+        resp = c.post(self.url)
+        assert resp.status_code == 400
+        assert resp.json()["error"] == "license_not_ready"
+
+    def test_completes_with_valid_license(self):
+        c, _ = _owner_client()
+        lic = PlatformLicense.get()
+        lic.license_key = "k"
+        lic.status = PlatformLicense.LicenseStatus.VALID
+        lic.last_verified_at = timezone.now()
+        lic.save()
+        resp = c.post(self.url)
+        assert resp.status_code == 204
+        assert PlatformLicense.get().setup_completed_at is not None
+
+    def test_completes_with_grace_license(self):
+        c, _ = _owner_client()
+        lic = PlatformLicense.get()
+        lic.license_key = "k"
+        lic.status = PlatformLicense.LicenseStatus.GRACE
+        lic.last_attempt_at = timezone.now()
+        lic.save()
+        resp = c.post(self.url)
+        assert resp.status_code == 204
+
+    def test_idempotent_second_call(self):
+        c, _ = _owner_client()
+        lic = PlatformLicense.get()
+        lic.license_key = "k"
+        lic.status = PlatformLicense.LicenseStatus.VALID
+        lic.last_verified_at = timezone.now()
+        lic.setup_completed_at = timezone.now()
+        lic.save()
+        first_ts = lic.setup_completed_at
+        resp = c.post(self.url)
+        assert resp.status_code == 204
+        # timestamp is NOT overwritten
+        assert PlatformLicense.get().setup_completed_at == first_ts
