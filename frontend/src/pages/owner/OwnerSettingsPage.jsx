@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { ownerAPI } from '../../api/owner';
 import { useAuth } from '../../context/AuthContext';
@@ -91,6 +92,19 @@ const OwnerSettingsPage = () => {
           Password change and additional account settings will be added in a
           future step.
         </p>
+      </Section>
+
+      <Section title="AI behaviour defaults">
+        <p className="text-sm text-ink/70 mb-2">
+          Edit temperature, max tokens, context chunks, supported languages
+          and the default greeting.
+        </p>
+        <Link
+          to="/owner/settings/defaults"
+          className="text-ink underline text-sm"
+        >
+          Open defaults editor →
+        </Link>
       </Section>
     </div>
   );

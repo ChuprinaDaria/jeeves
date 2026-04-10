@@ -27,6 +27,13 @@ import OwnerLoginPage from './pages/owner/OwnerLoginPage';
 import OwnerDashboardPage from './pages/owner/OwnerDashboardPage';
 import OwnerSettingsPage from './pages/owner/OwnerSettingsPage';
 import StubPage from './pages/owner/StubPage';
+import LLMProvidersPage from './pages/owner/LLMProvidersPage';
+import LLMProviderEditPage from './pages/owner/LLMProviderEditPage';
+import EmbeddingModelsPage from './pages/owner/EmbeddingModelsPage';
+import EmbeddingModelEditPage from './pages/owner/EmbeddingModelEditPage';
+import ModelPairsPage from './pages/owner/ModelPairsPage';
+import ModelPairEditPage from './pages/owner/ModelPairEditPage';
+import PlatformDefaultsPage from './pages/owner/PlatformDefaultsPage';
 
 function App() {
   return (
@@ -53,7 +60,17 @@ function App() {
                 <Route path="branches" element={<StubPage title="Branches" />} />
                 <Route path="specializations" element={<StubPage title="Specializations" />} />
                 <Route path="clients" element={<StubPage title="Clients" />} />
-                <Route path="ai-providers" element={<StubPage title="AI Providers" />} />
+                <Route path="ai-providers" element={<Navigate to="llm" replace />} />
+                <Route path="ai-providers/llm" element={<LLMProvidersPage />} />
+                <Route path="ai-providers/llm/new" element={<LLMProviderEditPage />} />
+                <Route path="ai-providers/llm/:id" element={<LLMProviderEditPage />} />
+                <Route path="ai-providers/embeddings" element={<EmbeddingModelsPage />} />
+                <Route path="ai-providers/embeddings/new" element={<EmbeddingModelEditPage />} />
+                <Route path="ai-providers/embeddings/:id" element={<EmbeddingModelEditPage />} />
+                <Route path="ai-providers/pairs" element={<ModelPairsPage />} />
+                <Route path="ai-providers/pairs/new" element={<ModelPairEditPage />} />
+                <Route path="ai-providers/pairs/:id" element={<ModelPairEditPage />} />
+                <Route path="settings/defaults" element={<PlatformDefaultsPage />} />
                 <Route path="settings" element={<OwnerSettingsPage />} />
               </Route>
 
