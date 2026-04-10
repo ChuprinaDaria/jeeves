@@ -92,10 +92,10 @@ class AgentConfig(models.Model):
         return PlatformDefaults.get().default_language or 'en'
 
     def get_llm_provider(self):
-        return self.llm_provider or PlatformDefaults.get().default_llm_provider
+        return self.llm_provider or PlatformDefaults.get_default_llm_provider()
 
     def get_embedding_model(self):
-        return self.embedding_model or PlatformDefaults.get().default_embedding_model
+        return self.embedding_model or PlatformDefaults.get_default_embedding_model()
 
     def get_connected_tools(self):
         """Available tools — derived from ToolConnection, not M2M."""

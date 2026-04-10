@@ -33,15 +33,18 @@ def _search_sync(client, query, agent_config, defaults):
     try:
         from Jeeves.rag.vector_search import VectorSearchService, SearchResult
         from Jeeves.rag.context_builder import ContextBuilder
+        from Jeeves.concierge_platform.models import PlatformDefaults
 
         # Get embedding model
         embedding_model = None
         if agent_config and agent_config.embedding_model:
             embedding_model = agent_config.embedding_model
-        elif defaults.default_embedding_model:
-            embedding_model = defaults.default_embedding_model
-        elif client.embedding_model:
-            embedding_model = client.embedding_model
+        else:
+            default_embedding = PlatformDefaults.get_default_embedding_model()
+            if default_embedding:
+                embedding_model = default_embedding
+            elif client.embedding_model:
+                embedding_model = client.embedding_model
 
         if not embedding_model:
             return {'chunks': [], 'error': 'No embedding model configured'}
