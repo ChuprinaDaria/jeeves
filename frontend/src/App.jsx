@@ -1,11 +1,14 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { BootstrapProvider } from './context/BootstrapContext';
 import { ThemeProvider } from './context/ThemeContext';
 import Layout from './components/layout/Layout';
 import ClientLayout from './components/layout/ClientLayout';
+import BootstrapGate from './components/owner/BootstrapGate';
+import OwnerLayout from './components/owner/OwnerLayout';
+import RootRedirect from './components/owner/RootRedirect';
 
-// Pages
-// import RegisterPage from './pages/RegisterPage';
+// Pages — legacy + client portal
 import DashboardPage from './pages/DashboardPage';
 import TrainingPage from './pages/TrainingPage';
 import SandboxPage from './pages/SandboxPage';
@@ -17,51 +20,78 @@ import LeadsPage from './pages/LeadsPage';
 import ClientLoginPage from './pages/ClientLoginPage';
 import LoginPage from './pages/LoginPage';
 import WebChatPage from './pages/WebChatPage';
-// import PricingPage from './pages/PricingPage';
+
+// Pages — owner admin
+import SetupWizard from './pages/owner/SetupWizard';
+import OwnerLoginPage from './pages/owner/OwnerLoginPage';
+import OwnerDashboardPage from './pages/owner/OwnerDashboardPage';
+import OwnerSettingsPage from './pages/owner/OwnerSettingsPage';
+import StubPage from './pages/owner/StubPage';
 
 function App() {
   return (
     <AuthProvider>
       <ThemeProvider>
         <BrowserRouter>
-        <Routes>
-          {/* Client login page (enter tag) */}
-          <Route path="/l" element={<ClientLoginPage />} />
+          <BootstrapProvider>
+            <Routes>
+              {/* === OWNER ADMIN — public === */}
+              <Route path="/setup" element={<SetupWizard />} />
+              <Route path="/owner/login" element={<OwnerLoginPage />} />
 
-          {/* New client portal with proper URLs: /l/:tag/dashboard etc. */}
-          <Route path="/l/:tag" element={<ClientLayout />}>
-            <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="training" element={<TrainingPage />} />
-            <Route path="sandbox" element={<SandboxPage />} />
-            <Route path="integrations" element={<IntegrationsPage />} />
-            <Route path="tools" element={<ToolsPage />} />
-            <Route path="history" element={<HistoryPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="leads" element={<LeadsPage />} />
-          </Route>
+              {/* === OWNER ADMIN — protected === */}
+              <Route
+                path="/owner"
+                element={
+                  <BootstrapGate>
+                    <OwnerLayout />
+                  </BootstrapGate>
+                }
+              >
+                <Route index element={<Navigate to="dashboard" replace />} />
+                <Route path="dashboard" element={<OwnerDashboardPage />} />
+                <Route path="branches" element={<StubPage title="Branches" />} />
+                <Route path="specializations" element={<StubPage title="Specializations" />} />
+                <Route path="clients" element={<StubPage title="Clients" />} />
+                <Route path="ai-providers" element={<StubPage title="AI Providers" />} />
+                <Route path="settings" element={<OwnerSettingsPage />} />
+              </Route>
 
-          {/* Web Chat for B2C clients */}
-          <Route path="/client" element={<WebChatPage />} />
+              {/* === CLIENT PORTAL (existing, untouched) === */}
+              <Route path="/l" element={<ClientLoginPage />} />
+              <Route path="/l/:tag" element={<ClientLayout />}>
+                <Route index element={<Navigate to="dashboard" replace />} />
+                <Route path="dashboard" element={<DashboardPage />} />
+                <Route path="training" element={<TrainingPage />} />
+                <Route path="sandbox" element={<SandboxPage />} />
+                <Route path="integrations" element={<IntegrationsPage />} />
+                <Route path="tools" element={<ToolsPage />} />
+                <Route path="history" element={<HistoryPage />} />
+                <Route path="settings" element={<SettingsPage />} />
+                <Route path="leads" element={<LeadsPage />} />
+              </Route>
 
-          {/* Login page */}
-          <Route path="/login" element={<LoginPage />} />
+              {/* Web Chat for B2C clients */}
+              <Route path="/client" element={<WebChatPage />} />
 
-            <Route element={<Layout />}>
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/training" element={<TrainingPage />} />
-              <Route path="/sandbox" element={<SandboxPage />} />
-              <Route path="/integrations" element={<IntegrationsPage />} />
-              <Route path="/tools" element={<ToolsPage />} />
-              <Route path="/history" element={<HistoryPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/leads" element={<LeadsPage />} />
-            </Route>
+              {/* Legacy login + Layout block, kept untouched */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route element={<Layout />}>
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/training" element={<TrainingPage />} />
+                <Route path="/sandbox" element={<SandboxPage />} />
+                <Route path="/integrations" element={<IntegrationsPage />} />
+                <Route path="/tools" element={<ToolsPage />} />
+                <Route path="/history" element={<HistoryPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/leads" element={<LeadsPage />} />
+              </Route>
 
-          {/* Redirect */}
-          <Route path="/" element={<Navigate to="/l" replace />} />
-        </Routes>
-      </BrowserRouter>
+              {/* Root redirect — bootstrap-aware */}
+              <Route path="/" element={<RootRedirect />} />
+            </Routes>
+          </BootstrapProvider>
+        </BrowserRouter>
       </ThemeProvider>
     </AuthProvider>
   );
