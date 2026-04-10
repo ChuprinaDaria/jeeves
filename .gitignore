@@ -1,6 +1,53 @@
-backend/chrome_extension/nexelin-chrome-extension.zip
-.env-backup-production/
+# Secrets and environment
 .env
-matrix-stack/.env
-matrix-stack/data/
+.env.*
+!.env.example
+.env-backup-production/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+build/
+.vite/
+
+# Django
+staticfiles/
+media/
+*.sqlite3
+
+# Database dumps
+*.sql
+*.dump
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*~
+
+# Aider
 .aider*
+
+# Playwright
+.playwright-mcp/
+
+# Extension zip (built artifact)
+backend/chrome_extension/*.zip
