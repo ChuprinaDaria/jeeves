@@ -67,3 +67,91 @@ class TestSetupOwner:
         owner_payload["email"] = "not-an-email"
         resp = client.post(self.url, owner_payload, format="json")
         assert resp.status_code == 400
+
+
+from unittest.mock import patch
+
+from django.utils import timezone
+from rest_framework_simplejwt.tokens import RefreshToken
+
+from MASTER.concierge_platform.gumroad_client import GumroadResult
+from MASTER.concierge_platform.models import PlatformLicense
+
+
+def _owner_client():
+    user = User.objects.create_user(
+        username="o@test.com", email="o@test.com", password="x",
+        first_name="o", last_name="w", role=Roles.OWNER,
+        is_staff=True, is_superuser=True,
+    )
+    c = APIClient()
+    token = str(RefreshToken.for_user(user).access_token)
+    c.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    return c, user
+
+
+@pytest.mark.django_db
+class TestSetupLicense:
+    url = "/api/setup/license/"
+
+    def test_requires_auth(self):
+        c = APIClient()
+        resp = c.post(self.url, {"license_key": "x"}, format="json")
+        assert resp.status_code in (401, 403)
+
+    def test_valid_key_saves_and_returns_valid(self):
+        c, _ = _owner_client()
+        result = GumroadResult(
+            outcome="valid",
+            data={
+                "uses": 1,
+                "purchase": {
+                    "email": "buyer@example.com",
+                    "product_id": "abc",
+                },
+            },
+        )
+        with patch(
+            "MASTER.concierge_platform.views_setup.gumroad_client.verify_license",
+            return_value=result,
+        ):
+            resp = c.post(self.url, {"license_key": "good-key"}, format="json")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "valid"
+        lic = PlatformLicense.get()
+        assert lic.license_key == "good-key"
+        assert lic.status == "valid"
+        assert lic.last_verified_at is not None
+        assert lic.gumroad_purchase_email == "buyer@example.com"
+        assert lic.gumroad_uses == 1
+
+    def test_invalid_key_does_not_save(self):
+        c, _ = _owner_client()
+        result = GumroadResult(outcome="invalid", error="Not found")
+        with patch(
+            "MASTER.concierge_platform.views_setup.gumroad_client.verify_license",
+            return_value=result,
+        ):
+            resp = c.post(self.url, {"license_key": "bad"}, format="json")
+        assert resp.status_code == 400
+        assert resp.json()["error"] == "invalid_key"
+        lic = PlatformLicense.get()
+        assert lic.license_key == ""
+        assert lic.status == "missing"
+
+    def test_network_error_saves_as_grace(self):
+        c, _ = _owner_client()
+        result = GumroadResult(outcome="network_error", error="timeout")
+        with patch(
+            "MASTER.concierge_platform.views_setup.gumroad_client.verify_license",
+            return_value=result,
+        ):
+            resp = c.post(self.url, {"license_key": "key"}, format="json")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "grace"
+        lic = PlatformLicense.get()
+        assert lic.license_key == "key"
+        assert lic.status == "grace"
+        assert lic.last_error == "timeout"
+        assert lic.last_attempt_at is not None
+        assert lic.last_verified_at is None
