@@ -1,6 +1,6 @@
 'use strict';
 
-// Background service worker for Nexelin Chrome extension (Manifest V3).
+// Background service worker for Concierge Chrome extension (Manifest V3).
 // Responsibilities (current & future):
 // - Central hub for messages between popup and content scripts
 // - API calls & memory sync (can offload work from content scripts)
@@ -11,7 +11,7 @@ import { extractCookies, openLoginPopup, pollForCookies } from '../content/cooki
 // Simple debug logger (can be disabled later)
 function log(...args) {
   // eslint-disable-next-line no-console
-  console.log('[Nexelin SW]', ...args);
+  console.log('[Concierge SW]', ...args);
 }
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -57,7 +57,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 chrome.runtime.onMessageExternal.addListener(
   (message, sender, sendResponse) => {
-    if (message.action === 'nexelin_bridge_auth') {
+    if (message.action === 'concierge_bridge_auth') {
       const { bridgeType, apiBaseUrl, authToken } = message;
 
       (async () => {
@@ -93,7 +93,7 @@ chrome.runtime.onMessageExternal.addListener(
       return true; // async sendResponse
     }
 
-    if (message.action === 'nexelin_check_extension') {
+    if (message.action === 'concierge_check_extension') {
       sendResponse({ installed: true, version: chrome.runtime.getManifest().version });
       return;
     }

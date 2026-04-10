@@ -5,8 +5,8 @@
 // - Persistent, cross-device history lives in backend (via web-conversations endpoint)
 // - Fast local cache lives in chrome.storage.local
 
-const SESSIONS_KEY = 'nexelin_chat_sessions';
-const SESSION_ID_KEY = 'nexelin_current_session_id';
+const SESSIONS_KEY = 'concierge_chat_sessions';
+const SESSION_ID_KEY = 'concierge_current_session_id';
 
 function readLocal(keys) {
   return new Promise((resolve) => {
@@ -19,7 +19,7 @@ function readLocal(keys) {
       storage.get(keys, (result) => {
         if (chrome.runtime && chrome.runtime.lastError) {
           // eslint-disable-next-line no-console
-          console.warn('Nexelin extension: local storage get error:', chrome.runtime.lastError.message);
+          console.warn('Concierge extension: local storage get error:', chrome.runtime.lastError.message);
           resolve({});
           return;
         }
@@ -27,7 +27,7 @@ function readLocal(keys) {
       });
     } catch (e) {
       // eslint-disable-next-line no-console
-      console.warn('Nexelin extension: local storage get exception:', e);
+      console.warn('Concierge extension: local storage get exception:', e);
       resolve({});
     }
   });
@@ -44,7 +44,7 @@ function writeLocal(obj) {
       storage.set(obj, () => {
         if (chrome.runtime && chrome.runtime.lastError) {
           // eslint-disable-next-line no-console
-          console.warn('Nexelin extension: local storage set error:', chrome.runtime.lastError.message);
+          console.warn('Concierge extension: local storage set error:', chrome.runtime.lastError.message);
           resolve(false);
           return;
         }
@@ -52,7 +52,7 @@ function writeLocal(obj) {
       });
     } catch (e) {
       // eslint-disable-next-line no-console
-      console.warn('Nexelin extension: local storage set exception:', e);
+      console.warn('Concierge extension: local storage set exception:', e);
       resolve(false);
     }
   });

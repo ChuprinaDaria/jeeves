@@ -149,7 +149,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setStatus('');
     const token = (tokenInput && tokenInput.value ? tokenInput.value : '').trim();
     if (!token) {
-      setStatus('Client token is required. Paste it from Nexelin portal.', 'error');
+      setStatus('Client token is required. Paste it from Concierge portal.', 'error');
       return;
     }
 
@@ -178,7 +178,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
       if (response.success) {
-        setStatus(response.message || 'Data sent to Nexelin backend.', 'ok');
+        setStatus(response.message || 'Data sent to Concierge backend.', 'ok');
       } else {
         setStatus(response.error || 'Failed to process page.', 'error');
       }
@@ -212,7 +212,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const token = (tokenInput && tokenInput.value ? tokenInput.value : '').trim();
     if (!token) {
-      setStatus('Client token is required for chat. Paste it from Nexelin portal.', 'error');
+      setStatus('Client token is required for chat. Paste it from Concierge portal.', 'error');
       return;
     }
 
@@ -267,7 +267,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     } catch (e) {
       // eslint-disable-next-line no-console
-      console.error('Nexelin extension chat error:', e);
+      console.error('Concierge extension chat error:', e);
       setStatus(e && e.message ? e.message : 'Failed to send chat message.', 'error');
     } finally {
       isSending = false;

@@ -1,10 +1,10 @@
 'use strict';
 
-// Lightweight behaviour tracker for Nexelin Chrome extension.
+// Lightweight behaviour tracker for Concierge Chrome extension.
 // Goal: capture generic patterns (time on page, scroll depth, form focus, price clicks)
 // and send them to background for future proactive suggestions.
 
-const NEXELIN_BT_NAMESPACE = '__nexelin_bt__';
+const CONCIERGE_BT_NAMESPACE = '__concierge_bt__';
 
 function postBehaviourEvent(event, payload) {
   try {
@@ -13,7 +13,7 @@ function postBehaviourEvent(event, payload) {
         type: 'BEHAVIOUR_EVENT',
         event,
         payload,
-        namespace: NEXELIN_BT_NAMESPACE,
+        namespace: CONCIERGE_BT_NAMESPACE,
       },
       () => {
         // Ignore errors from closed background, etc.
@@ -21,7 +21,7 @@ function postBehaviourEvent(event, payload) {
     );
   } catch (e) {
     // eslint-disable-next-line no-console
-    console.warn('Nexelin behaviour tracker: failed to send event', e);
+    console.warn('Concierge behaviour tracker: failed to send event', e);
   }
 }
 
@@ -141,7 +141,7 @@ try {
   trackFormFocus();
 } catch (e) {
   // eslint-disable-next-line no-console
-  console.warn('Nexelin behaviour tracker init failed:', e);
+  console.warn('Concierge behaviour tracker init failed:', e);
 }
 
 

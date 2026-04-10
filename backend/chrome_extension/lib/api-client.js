@@ -1,12 +1,12 @@
 'use strict';
 
-// Simple API client for Nexelin backend, used by the Chrome extension popup/background.
+// Simple API client for Concierge backend, used by the Chrome extension popup/background.
 // Responsibilities:
 // - Resolve base API URL (with optional override from chrome.storage)
 // - Attach X-Client-Token header
 // - Provide helpers for chat + conversation logging
 
-const DEFAULT_API_BASE_URL = 'https://api.nexelin.com';
+const DEFAULT_API_BASE_URL = 'http://localhost:8000';
 
 function normalizeBaseUrl(url) {
   if (!url || typeof url !== 'string') return DEFAULT_API_BASE_URL;
@@ -24,7 +24,7 @@ function readFromStorage(area, keys) {
       storage.get(keys, (result) => {
         if (chrome.runtime && chrome.runtime.lastError) {
           // eslint-disable-next-line no-console
-          console.warn('Nexelin extension: storage get error:', chrome.runtime.lastError.message);
+          console.warn('Concierge extension: storage get error:', chrome.runtime.lastError.message);
           resolve({});
           return;
         }
@@ -32,7 +32,7 @@ function readFromStorage(area, keys) {
       });
     } catch (e) {
       // eslint-disable-next-line no-console
-      console.warn('Nexelin extension: storage get exception:', e);
+      console.warn('Concierge extension: storage get exception:', e);
       resolve({});
     }
   });
@@ -105,7 +105,7 @@ async function doJsonRequest(path, options) {
 }
 
 /**
- * Send chat message to Nexelin PublicRAGChatView.
+ * Send chat message to Concierge PublicRAGChatView.
  *
  * @param {Object} params
  * @param {string} params.message - User message text
@@ -206,7 +206,7 @@ export async function logWebConversation({ sessionId, message, response, platfor
     await doJsonRequest('/api/clients/web-conversations/', { headers, body });
   } catch (e) {
     // eslint-disable-next-line no-console
-    console.warn('Nexelin extension: failed to log web conversation:', e);
+    console.warn('Concierge extension: failed to log web conversation:', e);
   }
 }
 

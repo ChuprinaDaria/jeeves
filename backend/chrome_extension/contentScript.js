@@ -1,6 +1,6 @@
-// Default backend URL for Nexelin clients.
+// Default backend URL for Concierge clients.
 // You can change this via extension source if you use a different host.
-const DEFAULT_BACKEND_URL = 'https://api.nexelin.com/api/clients/extension/page/';
+const DEFAULT_BACKEND_URL = 'http://localhost:8000/api/clients/extension/page/';
 
 function getBackendUrl() {
   // For now we keep a single constant; can be extended to read from storage later.
@@ -14,10 +14,10 @@ async function maybeAutoRun() {
     if (!autoMode || !clientToken) {
       return;
     }
-    console.log('Nexelin extension: Auto mode active, sending both scrap & collect');
+    console.log('Concierge extension: Auto mode active, sending both scrap & collect');
     await sendToBackend('both', clientToken.trim());
   } catch (e) {
-    console.error('Nexelin extension: Auto mode failed:', e);
+    console.error('Concierge extension: Auto mode failed:', e);
   }
 }
 
@@ -91,9 +91,9 @@ async function sendToBackend(mode, clientToken) {
   const payload = collectStructuredContent();
   payload.mode = mode || 'both';
 
-  console.log('Nexelin extension: Sending POST to:', backendUrl);
-  console.log('Nexelin extension: Payload keys:', Object.keys(payload));
-  console.log('Nexelin extension: Client token:', clientToken ? clientToken.substring(0, 10) + '...' : 'MISSING');
+  console.log('Concierge extension: Sending POST to:', backendUrl);
+  console.log('Concierge extension: Payload keys:', Object.keys(payload));
+  console.log('Concierge extension: Client token:', clientToken ? clientToken.substring(0, 10) + '...' : 'MISSING');
 
   let res;
   try {
@@ -106,17 +106,17 @@ async function sendToBackend(mode, clientToken) {
       },
       body: JSON.stringify(payload),
     });
-    console.log('Nexelin extension: Response status:', res.status, res.statusText);
-    console.log('Nexelin extension: Response headers:', Object.fromEntries(res.headers.entries()));
+    console.log('Concierge extension: Response status:', res.status, res.statusText);
+    console.log('Concierge extension: Response headers:', Object.fromEntries(res.headers.entries()));
   } catch (networkError) {
-    console.error('Nexelin extension: Network error:', networkError);
+    console.error('Concierge extension: Network error:', networkError);
     throw new Error(`Network error: ${networkError.message}. Check if ${backendUrl} is accessible.`);
   }
 
   // Check Content-Type before parsing
   const contentType = res.headers.get('content-type') || '';
   const isJson = contentType.includes('application/json');
-  console.log('Nexelin extension: Content-Type:', contentType, 'isJson:', isJson);
+  console.log('Concierge extension: Content-Type:', contentType, 'isJson:', isJson);
 
   if (!res.ok) {
     let msg = `HTTP ${res.status}: ${res.statusText}`;
@@ -154,7 +154,7 @@ async function sendToBackend(mode, clientToken) {
     let responseText = '';
     try {
       responseText = await res.clone().text();
-      console.error('Nexelin extension: Non-JSON response received:', responseText.substring(0, 500));
+      console.error('Concierge extension: Non-JSON response received:', responseText.substring(0, 500));
       
       if (responseText.includes('<!doctype') || responseText.includes('<html')) {
         // Extract title or error message from HTML if possible
@@ -173,7 +173,7 @@ async function sendToBackend(mode, clientToken) {
         errorText = `Server returned non-JSON response.\nContent-Type: ${contentType}\nStatus: ${res.status} ${res.statusText}\nResponse preview: ${responseText.substring(0, 300)}`;
       }
     } catch (e) {
-      console.error('Nexelin extension: Failed to read response text:', e);
+      console.error('Concierge extension: Failed to read response text:', e);
       errorText = `Server did not return JSON response. Content-Type: ${contentType}. Status: ${res.status} ${res.statusText}`;
     }
     throw new Error(errorText);
@@ -221,9 +221,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   (async () => {
     try {
-      console.log('Nexelin extension: Sending request with mode:', mode, 'token:', clientToken ? clientToken.substring(0, 10) + '...' : 'missing');
+      console.log('Concierge extension: Sending request with mode:', mode, 'token:', clientToken ? clientToken.substring(0, 10) + '...' : 'missing');
       const result = await sendToBackend(mode, clientToken);
-      console.log('Nexelin extension: Response received:', result);
+      console.log('Concierge extension: Response received:', result);
       
       const collected =
         result && result.entities
@@ -235,14 +235,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           : [0, 0, 0];
       const [emailsCount, phonesCount, addressesCount] = collected;
 
-      let messageText = 'Page content sent to Nexelin backend.';
+      let messageText = 'Page content sent to Concierge backend.';
       if (mode === 'collect' || mode === 'both') {
         messageText += ` Found emails: ${emailsCount}, phones: ${phonesCount}, addresses: ${addressesCount}.`;
       }
 
       sendResponse({ success: true, message: messageText });
     } catch (e) {
-      console.error('Nexelin extension error:', e);
+      console.error('Concierge extension error:', e);
       const errorMsg = e.message || 'Failed to send data to backend.';
       console.error('Error details:', errorMsg);
       sendResponse({ success: false, error: errorMsg });
