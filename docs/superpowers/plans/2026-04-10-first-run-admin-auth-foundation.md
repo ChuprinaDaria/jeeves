@@ -164,7 +164,7 @@ class TestPlatformLicense:
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `docker compose exec backend pytest MASTER/concierge_platform/tests/test_license_model.py -v`
+Run: `docker compose exec -T web pytest MASTER/concierge_platform/tests/test_license_model.py -v`
 Expected: all tests fail with `ImportError` or `AttributeError` (PlatformLicense not defined).
 
 - [ ] **Step 3: Add the PlatformLicense model**
@@ -299,12 +299,12 @@ class Migration(migrations.Migration):
 
 - [ ] **Step 5: Apply migration**
 
-Run: `docker compose exec backend python manage.py migrate concierge_platform`
+Run: `docker compose exec -T web python manage.py migrate concierge_platform`
 Expected: `Applying concierge_platform.0007_platformlicense... OK`
 
 - [ ] **Step 6: Run tests to verify they pass**
 
-Run: `docker compose exec backend pytest MASTER/concierge_platform/tests/test_license_model.py -v`
+Run: `docker compose exec -T web pytest MASTER/concierge_platform/tests/test_license_model.py -v`
 Expected: all 12 tests pass.
 
 - [ ] **Step 7: Commit**
@@ -432,7 +432,7 @@ class TestVerifyLicense:
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `docker compose exec backend pytest MASTER/concierge_platform/tests/test_gumroad_client.py -v`
+Run: `docker compose exec -T web pytest MASTER/concierge_platform/tests/test_gumroad_client.py -v`
 Expected: `ModuleNotFoundError: No module named 'MASTER.concierge_platform.gumroad_client'`
 
 - [ ] **Step 3: Write the Gumroad client**
@@ -514,7 +514,7 @@ def verify_license(license_key: str) -> GumroadResult:
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `docker compose exec backend pytest MASTER/concierge_platform/tests/test_gumroad_client.py -v`
+Run: `docker compose exec -T web pytest MASTER/concierge_platform/tests/test_gumroad_client.py -v`
 Expected: all 8 tests pass.
 
 - [ ] **Step 5: Commit**
@@ -597,7 +597,7 @@ class TestIsOwner:
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `docker compose exec backend pytest MASTER/concierge_platform/tests/test_permissions.py -v`
+Run: `docker compose exec -T web pytest MASTER/concierge_platform/tests/test_permissions.py -v`
 Expected: `ModuleNotFoundError: No module named 'MASTER.concierge_platform.permissions'`
 
 - [ ] **Step 3: Write the permission class**
@@ -626,7 +626,7 @@ class IsOwner(BasePermission):
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `docker compose exec backend pytest MASTER/concierge_platform/tests/test_permissions.py -v`
+Run: `docker compose exec -T web pytest MASTER/concierge_platform/tests/test_permissions.py -v`
 Expected: all 5 tests pass.
 
 - [ ] **Step 5: Commit**
@@ -676,7 +676,7 @@ if not DEBUG and not GUMROAD_PRODUCT_ID:
 
 - [ ] **Step 3: Verify Django still boots**
 
-Run: `docker compose exec backend python manage.py check`
+Run: `docker compose exec -T web python manage.py check`
 Expected: `System check identified no issues (0 silenced).`
 
 - [ ] **Step 4: Commit**
@@ -730,7 +730,7 @@ class LicenseKeySerializer(serializers.Serializer):
 
 - [ ] **Step 2: Quick import check**
 
-Run: `docker compose exec backend python -c "from MASTER.concierge_platform import serializers; print(serializers.OwnerCreateSerializer)"`
+Run: `docker compose exec -T web python -c "from MASTER.concierge_platform import serializers; print(serializers.OwnerCreateSerializer)"`
 Expected: prints the serializer class, no ImportError.
 
 - [ ] **Step 3: Commit**
@@ -831,7 +831,7 @@ class TestBootstrapEndpoint:
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `docker compose exec backend pytest MASTER/concierge_platform/tests/test_bootstrap_api.py -v`
+Run: `docker compose exec -T web pytest MASTER/concierge_platform/tests/test_bootstrap_api.py -v`
 Expected: 404 or NoReverseMatch — the route does not exist yet.
 
 - [ ] **Step 3: Write the view**
@@ -890,7 +890,7 @@ Place this line right after the existing `path('api/clients/', include(...))` en
 
 - [ ] **Step 6: Run test to verify it passes**
 
-Run: `docker compose exec backend pytest MASTER/concierge_platform/tests/test_bootstrap_api.py -v`
+Run: `docker compose exec -T web pytest MASTER/concierge_platform/tests/test_bootstrap_api.py -v`
 Expected: all 4 tests pass.
 
 - [ ] **Step 7: Commit**
@@ -989,7 +989,7 @@ class TestSetupOwner:
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `docker compose exec backend pytest MASTER/concierge_platform/tests/test_setup_api.py::TestSetupOwner -v`
+Run: `docker compose exec -T web pytest MASTER/concierge_platform/tests/test_setup_api.py::TestSetupOwner -v`
 Expected: 404 — endpoint not defined.
 
 - [ ] **Step 3: Write the view**
@@ -1070,7 +1070,7 @@ urlpatterns += [
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `docker compose exec backend pytest MASTER/concierge_platform/tests/test_setup_api.py::TestSetupOwner -v`
+Run: `docker compose exec -T web pytest MASTER/concierge_platform/tests/test_setup_api.py::TestSetupOwner -v`
 Expected: all 5 tests pass.
 
 - [ ] **Step 6: Commit**
@@ -1188,7 +1188,7 @@ class TestSetupLicense:
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `docker compose exec backend pytest MASTER/concierge_platform/tests/test_setup_api.py::TestSetupLicense -v`
+Run: `docker compose exec -T web pytest MASTER/concierge_platform/tests/test_setup_api.py::TestSetupLicense -v`
 Expected: 404 / route-not-found errors.
 
 - [ ] **Step 3: Add the view**
@@ -1267,7 +1267,7 @@ Edit `MASTER/concierge_platform/urls.py` — add to urlpatterns:
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `docker compose exec backend pytest MASTER/concierge_platform/tests/test_setup_api.py::TestSetupLicense -v`
+Run: `docker compose exec -T web pytest MASTER/concierge_platform/tests/test_setup_api.py::TestSetupLicense -v`
 Expected: all 4 tests pass.
 
 - [ ] **Step 6: Commit**
@@ -1349,7 +1349,7 @@ class TestSetupComplete:
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `docker compose exec backend pytest MASTER/concierge_platform/tests/test_setup_api.py::TestSetupComplete -v`
+Run: `docker compose exec -T web pytest MASTER/concierge_platform/tests/test_setup_api.py::TestSetupComplete -v`
 Expected: 404 or similar.
 
 - [ ] **Step 3: Add the view**
@@ -1392,12 +1392,12 @@ Edit `MASTER/concierge_platform/urls.py` — add:
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `docker compose exec backend pytest MASTER/concierge_platform/tests/test_setup_api.py::TestSetupComplete -v`
+Run: `docker compose exec -T web pytest MASTER/concierge_platform/tests/test_setup_api.py::TestSetupComplete -v`
 Expected: all 5 tests pass.
 
 - [ ] **Step 6: Run the full setup_api test module**
 
-Run: `docker compose exec backend pytest MASTER/concierge_platform/tests/test_setup_api.py -v`
+Run: `docker compose exec -T web pytest MASTER/concierge_platform/tests/test_setup_api.py -v`
 Expected: all 14 tests (5 owner + 4 license + 5 complete) pass.
 
 - [ ] **Step 7: Commit**
@@ -1500,7 +1500,7 @@ class TestDashboardStats:
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `docker compose exec backend pytest MASTER/concierge_platform/tests/test_dashboard_api.py -v`
+Run: `docker compose exec -T web pytest MASTER/concierge_platform/tests/test_dashboard_api.py -v`
 Expected: 404.
 
 - [ ] **Step 3: Write the view**
@@ -1571,7 +1571,7 @@ urlpatterns += [
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `docker compose exec backend pytest MASTER/concierge_platform/tests/test_dashboard_api.py -v`
+Run: `docker compose exec -T web pytest MASTER/concierge_platform/tests/test_dashboard_api.py -v`
 Expected: all 4 tests pass.
 
 - [ ] **Step 6: Commit**
@@ -1681,7 +1681,7 @@ class TestReverify:
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `docker compose exec backend pytest MASTER/concierge_platform/tests/test_reverify_api.py -v`
+Run: `docker compose exec -T web pytest MASTER/concierge_platform/tests/test_reverify_api.py -v`
 Expected: 404.
 
 - [ ] **Step 3: Add the view**
@@ -1747,12 +1747,12 @@ Edit `MASTER/concierge_platform/urls.py` — add:
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `docker compose exec backend pytest MASTER/concierge_platform/tests/test_reverify_api.py -v`
+Run: `docker compose exec -T web pytest MASTER/concierge_platform/tests/test_reverify_api.py -v`
 Expected: all 4 tests pass.
 
 - [ ] **Step 6: Run full backend test suite for this module**
 
-Run: `docker compose exec backend pytest MASTER/concierge_platform/tests/ -v`
+Run: `docker compose exec -T web pytest MASTER/concierge_platform/tests/ -v`
 Expected: all tests from all 6 new test files pass (plus pre-existing concierge_platform tests).
 
 - [ ] **Step 7: Commit**
@@ -3002,7 +3002,7 @@ Expected: fresh DB with only default migrations applied.
 
 - [ ] **Step 2: Apply migrations**
 
-Run: `docker compose exec backend python manage.py migrate`
+Run: `docker compose exec -T web python manage.py migrate`
 Expected: includes `concierge_platform.0007_platformlicense`.
 
 - [ ] **Step 3: Open the frontend**
@@ -3028,7 +3028,7 @@ Reset DB again. On Step 2, enter an obviously wrong key. Expected: red inline er
 
 - [ ] **Step 6: Walk the grace path**
 
-Reset DB again. On Step 2, disable your network (`docker compose exec backend sh -c "echo 'blocked' > /dev/null"` — or stop the backend's internet). Enter any key → expect yellow warning "Grace period: 7 days" → click Continue Anyway → land on `/owner/dashboard` with yellow grace banner at the top.
+Reset DB again. On Step 2, disable your network (`docker compose exec -T web sh -c "echo 'blocked' > /dev/null"` — or stop the backend's internet). Enter any key → expect yellow warning "Grace period: 7 days" → click Continue Anyway → land on `/owner/dashboard` with yellow grace banner at the top.
 
 - [ ] **Step 7: Walk the aborted-wizard path**
 
