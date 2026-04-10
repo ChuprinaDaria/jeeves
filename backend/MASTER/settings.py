@@ -18,28 +18,20 @@ SECRET_KEY = env("SECRET_KEY", default="dev-secret")
 FIELD_ENCRYPTION_KEY = env('FIELD_ENCRYPTION_KEY', default='ZF864sWF1B0QvMRbkRgDD_NzEP4GUqPogPbdqzuwjhU=')
 DEBUG = env.bool("DEBUG", default=False)
 
-ALLOWED_HOSTS = [
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[
     "localhost",
     "127.0.0.1",
     "0.0.0.0",
     "web",       # Docker service name
     "nginx",     # Docker service name
     "frontend",  # Docker service name
-    "192.168.0.40",
-    "motional-sadie-unproportionally.ngrok-free.dev",
-    "api.nexelin.com",
-    "app.nexelin.com",  # Production фронтенд
-    "nexelin.com",
-    "www.nexelin.com",
-    "mg.nexelin.com",
-    "w020c360.kasserver.com",  # FTP хостинг для фронтенду
     ".ngrok-free.app",
-]
+])
 
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-CSRF_TRUSTED_ORIGINS = [
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[
     "http://localhost",
     "https://localhost",
     "http://127.0.0.1",
@@ -50,29 +42,10 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:8000",
     "http://web:8000",
     "http://nginx:80",
-    "http://192.168.0.40",
-    "https://192.168.0.40",
-    "http://192.168.0.40:8000",
     "http://frontend",
     "http://frontend:80",
-    "http://nexelin.com",
-    "http://www.nexelin.com",
-    "https://nexelin.com",
-    "https://www.nexelin.com",
-    "http://api.nexelin.com",
-    "https://api.nexelin.com",
-    "https://app.nexelin.com",
-    "https://app.nexelin.com",  # Production фронтенд
-    "https://mg.nexelin.com",
-    "http://mg.nexelin.com",
-    # White-label domains
-    "https://ai.bytekraft.net",
-    "https://ai.bytekraft.net",
-    # FTP хостинг для фронтенду (backup)
-    "http://w020c360.kasserver.com",
-    "https://w020c360.kasserver.com",
     "https://*.ngrok-free.app",
-]
+])
 
 # Додатково дозволяємо домени через змінну середовища
 CSRF_EXTRA_ORIGINS = env.list("CSRF_EXTRA_ORIGINS", default=[])
@@ -310,15 +283,15 @@ COHERE_RERANK_MODEL = env("COHERE_RERANK_MODEL", default="rerank-multilingual-v3
 
 # Qdrant vector search
 USE_QDRANT = env.bool("USE_QDRANT", default=True)
-QDRANT_HOST = env("QDRANT_HOST", default="ai_nexelin_qdrant")
+QDRANT_HOST = env("QDRANT_HOST", default="concierge_qdrant")
 QDRANT_PORT = env.int("QDRANT_PORT", default=6333)
-QDRANT_COLLECTION = env("QDRANT_COLLECTION", default="nexelin_embeddings")
+QDRANT_COLLECTION = env("QDRANT_COLLECTION", default="concierge_embeddings")
 WHATSAPP_QR_SECRET = env("WHATSAPP_QR_SECRET", default="")
 BOOTSTRAP_SECRET = env("BOOTSTRAP_SECRET", default="")
 TWILIO_ACCOUNT_SID = env("TWILIO_ACCOUNT_SID", default="")
 TWILIO_AUTH_TOKEN = env("TWILIO_AUTH_TOKEN", default="")
 TWILIO_WHATSAPP_NUMBER = env("TWILIO_WHATSAPP_NUMBER", default="whatsapp:+14155238886")
-CLIENT_PORTAL_BASE_URL = env("CLIENT_PORTAL_BASE_URL", default="https://app.nexelin.com")
+CLIENT_PORTAL_BASE_URL = env("CLIENT_PORTAL_BASE_URL", default="http://localhost:3000")
 
 # Ollama Local LLM Configuration
 OLLAMA_ENABLED = os.getenv('OLLAMA_ENABLED', 'false').lower() == 'true'
@@ -343,9 +316,9 @@ KIMI_API_KEY = os.getenv('KIMI_API_KEY', '')
 
 # === MG (Main Front) Integration ===
 # Endpoint to send AI token usage events (hardcoded per request)
-MG_AI_USAGE_URL = 'https://mg.nexelin.com/api/ai-token-usage'
+MG_AI_USAGE_URL = env("MG_AI_USAGE_URL", default="http://localhost:8000/api/ai-token-usage")
 # Endpoint to create/update packages on MG
-MG_PACKAGE_URL = os.getenv('MG_PACKAGE_URL', 'https://mg.nexelin.com/api/package')
+MG_PACKAGE_URL = env("MG_PACKAGE_URL", default="http://localhost:8000/api/package")
 # Base package GUID for cloning (optional, used when creating packages with parent)
 MG_BASE_PACKAGE_GUID = os.getenv('MG_BASE_PACKAGE_GUID', '')
 # Access token to authenticate our requests to MG (used in Authorization: Bearer header)
@@ -369,7 +342,7 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 # Дозволені домени для CORS (додатково до тих, що в DEBUG режимі)
-CORS_ALLOWED_ORIGINS = [
+CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[
     'http://localhost:3000',
     'http://localhost:5173',
     'http://localhost:8080',
@@ -378,21 +351,10 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://127.0.0.1:80",
     "http://frontend:80",
-    "https://app.nexelin.com",
-    "https://app.nexelin.com",  # Production фронтенд
-    "https://api.nexelin.com",
-    "https://mg.nexelin.com",
-    "http://mg.nexelin.com",
-    # FTP хостинг для фронтенду (backup)
-    "http://w020c360.kasserver.com",
-    "https://w020c360.kasserver.com",
-]
+])
 
-# Allow any Nexelin subdomain (useful for white-label + app/api)
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^https:\/\/.*\.nexelin\.com$",
-    r"^https:\/\/app\.nexelin\.com$",
-]
+# Allow custom domain patterns (useful for white-label + app/api)
+CORS_ALLOWED_ORIGIN_REGEXES = env.list("CORS_ALLOWED_ORIGIN_REGEXES", default=[])
 
 # Додатково дозволяємо домени через змінну середовища (для динамічного додавання)
 CORS_EXTRA_ORIGINS = env.list("CORS_EXTRA_ORIGINS", default=[])

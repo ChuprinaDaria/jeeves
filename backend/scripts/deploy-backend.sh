@@ -11,8 +11,8 @@ echo "🚀 Starting backend deployment..."
 VPS_HOST="${VPS_HOST:-}"
 VPS_USER="${VPS_USER:-deploy}"
 SSH_KEY="${SSH_KEY:-~/.ssh/id_rsa}"
-DOCKER_COMPOSE_PATH="${DOCKER_COMPOSE_PATH:-/opt/ai-nexelin/docker-compose.yml}"
-BACKUP_DIR="${BACKUP_DIR:-/opt/ai-nexelin/backups}"
+DOCKER_COMPOSE_PATH="${DOCKER_COMPOSE_PATH:-/opt/concierge/docker-compose.yml}"
+BACKUP_DIR="${BACKUP_DIR:-/opt/concierge/backups}"
 
 # Colors for output
 RED='\033[0;31m'

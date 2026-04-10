@@ -4,7 +4,7 @@ services:
   # ======================== DATABASE =========================
   postgres:
     image: pgvector/pgvector:pg16
-    container_name: ai_nexelin_db
+    container_name: concierge_db
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB_NAME:-admin_db}
@@ -20,12 +20,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-    networks: [nexelin_network]
+    networks: [concierge_network]
 
   # ========================= REDIS ===========================
   redis:
     image: redis:7-alpine
-    container_name: ai_nexelin_redis
+    container_name: concierge_redis
     restart: unless-stopped
     ports:
       - "6380:6379"
@@ -34,14 +34,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-    networks: [nexelin_network]
+    networks: [concierge_network]
 
   # ========================= BACKEND =========================
   web:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: ai_nexelin_web
+    container_name: concierge_web
     restart: unless-stopped
     command: >
       sh -c "gunicorn MASTER.wsgi:application --bind 0.0.0.0:8000 --workers 3 --threads 2 --timeout 120"
@@ -59,7 +59,7 @@ services:
       DB_PORT: "5432"
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
-      CLIENT_PORTAL_BASE_URL: "https://app.nexelin.com"
+      CLIENT_PORTAL_BASE_URL: "${CLIENT_PORTAL_BASE_URL:-http://localhost:3000}"
       WHATSAPP_QR_SECRET: "super_secret_key_9283jd0923jd"
     depends_on:
       postgres:
@@ -77,13 +77,13 @@ services:
       retries: 10
     extra_hosts:
       - "ollama:host-gateway"
-    networks: [nexelin_network]
+    networks: [concierge_network]
 
   # ==================== CELERY WORKER ========================
   celery_worker:
     build:
       context: .
-    container_name: ai_nexelin_celery_worker
+    container_name: concierge_celery_worker
     restart: unless-stopped
     command: sh -c "celery -A MASTER worker -l info"
     env_file: ../.env
@@ -111,13 +111,13 @@ services:
       - .:/app
     extra_hosts:
       - "ollama:host-gateway"
-    networks: [nexelin_network]
+    networks: [concierge_network]
 
   # ==================== CELERY BEAT ==========================
   celery_beat:
     build:
       context: .
-    container_name: ai_nexelin_celery_beat
+    container_name: concierge_celery_beat
     restart: unless-stopped
     command: sh -c "celery -A MASTER beat -l info"
     env_file: ../.env
@@ -145,14 +145,14 @@ services:
       - .:/app
     extra_hosts:
       - "ollama:host-gateway"
-    networks: [nexelin_network]
+    networks: [concierge_network]
 
   # ========================= FRONTEND =========================
 
   # ========================= NGINX ===========================
   nginx:
     image: nginx:alpine
-    container_name: ai_nexelin_nginx
+    container_name: concierge_nginx
     restart: unless-stopped
     ports:
       - "80:80"
@@ -161,12 +161,12 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
     depends_on:
       - web
-    networks: [nexelin_network]
+    networks: [concierge_network]
 
 
 # ===================== NETWORKS & VOLUMES ====================
 networks:
-  nexelin_network:
+  concierge_network:
     driver: bridge
 
 volumes:

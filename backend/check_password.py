@@ -7,7 +7,7 @@ import sys
 import django
 
 # Setup Django
-sys.path.insert(0, '/home/dchuprina/nexelin_web/backend')
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'MASTER.settings')
 django.setup()
 

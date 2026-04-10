@@ -13,7 +13,7 @@ class EmbeddingModelAdmin(admin.ModelAdmin):
     ordering = ['provider', 'name']
     list_editable = ['is_active', 'is_default']
     actions = [
-        'trigger_reindex', 'sync_from_nexelin', 'deactivate_invalid_models',
+        'trigger_reindex', 'sync_from_platform', 'deactivate_invalid_models',
         'add_text_embedding_3_small', 'add_text_embedding_3_large', 'add_text_embedding_ada_002',
         'add_anthropic_embedding_placeholder'
     ]
@@ -63,26 +63,29 @@ class EmbeddingModelAdmin(admin.ModelAdmin):
             self.message_user(request, "Невалідних моделей не знайдено")
     deactivate_invalid_models.short_description = "Деактивувати моделі з dimensions > 2000"
     
-    def sync_from_nexelin(self, request, queryset):
-        """Синхронізувати моделі з mg.nexelin.com"""
+    def sync_from_platform(self, request, queryset):
+        """Синхронізувати моделі з MG platform"""
         try:
-            external_url = 'https://mg.nexelin.com/api/ai-models'
+            mg_base = getattr(settings, 'MG_AI_USAGE_URL', '').rsplit('/api/', 1)[0]
+            if not mg_base:
+                mg_base = 'http://localhost:8000'
+            external_url = f'{mg_base}/api/ai-models'
             response = requests.get(external_url, timeout=10)
             response.raise_for_status()
             data = response.json()
-            
+
             if data.get('status') != 'ok':
-                self.message_user(request, 'Failed to fetch models from mg.nexelin.com', level=messages.ERROR)
+                self.message_user(request, f'Failed to fetch models from {external_url}', level=messages.ERROR)
                 return
-            
+
             ai_models = data.get('models', [])
             created_count = 0
             updated_count = 0
-            
+
             for ai_model in ai_models:
                 model_name = ai_model.get('name', '')
                 description = ai_model.get('description', '')
-                
+
                 # Перевіряємо чи модель вже існує
                 embedding_model, created = EmbeddingModel.objects.get_or_create(
                     name=model_name,
@@ -94,7 +97,7 @@ class EmbeddingModelAdmin(admin.ModelAdmin):
                         'is_active': ai_model.get('active', True),
                     }
                 )
-                
+
                 if created:
                     created_count += 1
                 else:
@@ -103,7 +106,7 @@ class EmbeddingModelAdmin(admin.ModelAdmin):
                         embedding_model.is_active = ai_model.get('active', True)
                         embedding_model.save()
                         updated_count += 1
-            
+
             self.message_user(
                 request,
                 f"Синхронізовано: {created_count} нових моделей, {updated_count} оновлено",
@@ -112,10 +115,10 @@ class EmbeddingModelAdmin(admin.ModelAdmin):
         except requests.RequestException as e:
             self.message_user(
                 request,
-                f'Error syncing from mg.nexelin.com: {str(e)}',
+                f'Error syncing from MG platform: {str(e)}',
                 level=messages.ERROR
             )
-    sync_from_nexelin.short_description = "Синхронізувати моделі з mg.nexelin.com"
+    sync_from_platform.short_description = "Синхронізувати моделі з MG platform"
     
     @admin.action(description='➕ Додати text-embedding-3-small')
     def add_text_embedding_3_small(self, request, queryset):
@@ -253,7 +256,7 @@ class LLMProviderAdmin(admin.ModelAdmin):
         ('GUID Configuration', {
             'fields': ('external_guid',),
             'classes': ('collapse',),
-            'description': 'GUID from mg.nexelin.com for LLM model identification in usage stats API'
+            'description': 'GUID from MG platform for LLM model identification in usage stats API'
         }),
         ('Metadata', {
             'fields': ('created_at', 'updated_at'),
@@ -649,7 +652,7 @@ class ModelPairAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Model Pair', {
             'fields': ('llm_provider', 'embedding_model', 'external_guid', 'is_active'),
-            'description': 'GUID identifies this pair (LLM + Embedding) in mg.nexelin.com API. Statistics are sent with combined tokens and cost for the pair.'
+            'description': 'GUID identifies this pair (LLM + Embedding) in MG platform API. Statistics are sent with combined tokens and cost for the pair.'
         }),
         ('Metadata', {
             'fields': ('created_at', 'updated_at'),

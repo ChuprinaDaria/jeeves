@@ -1,5 +1,5 @@
 """
-mcp-rag — FastMCP server exposing the Nexelin RAG pipeline as MCP tools.
+mcp-rag — FastMCP server exposing the Concierge RAG pipeline as MCP tools.
 
 Provides:
 - search(query, client_id, top_k) tool for semantic search over client knowledge base
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 mcp = FastMCP(
     "mcp-rag",
-    description="Nexelin RAG knowledge-base search. "
+    description="Concierge RAG knowledge-base search. "
     "Use the `search` tool to find relevant documents for a client.",
 )
 
@@ -164,7 +164,7 @@ async def search(query: str, client_id: int, top_k: int = 10, requesting_agent: 
 
     Args:
         query: Natural-language search query describing what information is needed.
-        client_id: Numeric ID of the Nexelin client whose knowledge base to search.
+        client_id: Numeric ID of the Concierge client whose knowledge base to search.
         top_k: Maximum number of result chunks to return (default 10).
         requesting_agent: Role of the agent making the request ('assistant' or 'manager').
             Manager only sees 'all' and 'manager' scoped knowledge blocks.

@@ -64,7 +64,7 @@ def regenerate_web_qrs_on_domain_change(sender, instance: Client, created, **kwa
 @receiver(post_save, sender=Client)
 def sync_package_to_mg(sender, instance: Client, created, **kwargs):
     """
-    Sync package to mg.nexelin when client is created or updated.
+    Sync package to MG platform when client is created or updated.
     Creates package on create, updates package on update.
     """
     try:

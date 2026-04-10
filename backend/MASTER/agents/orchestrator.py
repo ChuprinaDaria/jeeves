@@ -440,8 +440,8 @@ class AgentOrchestrator:
                     "If you need to CREATE a file — call the tool first, then use the URL it returns. "
                     "If a user asks for a link you already shared earlier in this conversation, "
                     "repeat the SAME link — do not claim the file doesn't exist. "
-                    "When sharing download links, prepend https://api.nexelin.com to the path from the tool "
-                    "(e.g. https://api.nexelin.com/media/xlsx/...). "
+                    "When sharing download links, prepend the API base URL to the path from the tool "
+                    "(e.g. /media/xlsx/...). "
                     "If a tool fails or is unavailable, say so honestly — never invent data."
                 )
 

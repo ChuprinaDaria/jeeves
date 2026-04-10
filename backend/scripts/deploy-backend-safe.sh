@@ -34,8 +34,8 @@ log_error() {
 # Parse arguments
 VPS_HOST=""
 VPS_USER="deploy"
-DOCKER_COMPOSE_PATH="/opt/ai-nexelin/docker-compose.yml"
-BACKUP_DIR="/opt/ai-nexelin/backups"
+DOCKER_COMPOSE_PATH="/opt/concierge/docker-compose.yml"
+BACKUP_DIR="/opt/concierge/backups"
 COMMIT_SHA=""
 BRANCH=""
 
@@ -93,8 +93,8 @@ deploy() {
         set -euo pipefail
         
         # Configuration
-        DOCKER_COMPOSE_PATH="${DOCKER_COMPOSE_PATH:-/opt/ai-nexelin/docker-compose.yml}"
-        BACKUP_DIR="${BACKUP_DIR:-/opt/ai-nexelin/backups}"
+        DOCKER_COMPOSE_PATH="${DOCKER_COMPOSE_PATH:-/opt/concierge/docker-compose.yml}"
+        BACKUP_DIR="${BACKUP_DIR:-/opt/concierge/backups}"
         COMMIT_SHA="${COMMIT_SHA:-unknown}"
         BRANCH="${BRANCH:-unknown}"
         
@@ -147,9 +147,9 @@ deploy() {
         docker-compose -f "$DOCKER_COMPOSE_PATH" stop web celery_worker celery_beat nginx 2>/dev/null || log_info "Some containers already stopped"
         
         # Pull latest code (if using git)
-        if [ -d "/opt/ai-nexelin" ] && [ -d "/opt/ai-nexelin/.git" ]; then
+        if [ -d "/opt/concierge" ] && [ -d "/opt/concierge/.git" ]; then
             log_info "Pulling latest code..."
-            cd /opt/ai-nexelin
+            cd /opt/concierge
             git fetch origin || log_warning "Git fetch failed"
             git checkout "$BRANCH" || log_warning "Git checkout failed"
             git pull origin "$BRANCH" || log_warning "Git pull failed"

@@ -1,4 +1,4 @@
-"""MCP Leads server — lead management tools for Nexelin agents."""
+"""MCP Leads server — lead management tools for Concierge agents."""
 import json
 import logging
 from datetime import timedelta

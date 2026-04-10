@@ -93,7 +93,7 @@ class ZeroDockerManager:
                 detach=True,
                 restart_policy={"Name": "unless-stopped"},  # type: ignore[arg-type]
                 labels={
-                    "managed_by": "ai_nexelin",
+                    "managed_by": "concierge",
                     "service": "zero",
                 }
             )

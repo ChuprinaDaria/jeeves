@@ -1,4 +1,4 @@
-"""MCP Email server — email tools for Nexelin agents."""
+"""MCP Email server — email tools for Concierge agents."""
 import json
 import logging
 import os
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 mcp = FastMCP(
     "mcp-email",
-    description="Nexelin email server. Send, read, search and analyze emails.",
+    description="Concierge email server. Send, read, search and analyze emails.",
 )
 
 

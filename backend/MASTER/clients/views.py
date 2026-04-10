@@ -216,7 +216,7 @@ class ClientViewSet(viewsets.ModelViewSet):
     
     def create(self, request, *args, **kwargs):
         """
-        Перевизначений create для підтримки Package API формату від mg.nexelin.
+        Перевизначений create для підтримки Package API формату від MG platform.
         Якщо payload містить поле 'action' - це Package API, інакше - стандартний формат.
         """
         data = request.data or {}

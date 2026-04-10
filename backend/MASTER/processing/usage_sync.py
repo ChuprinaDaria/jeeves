@@ -79,7 +79,7 @@ def _resolve_access_token(usage: UsageStats) -> Optional[str]:
 
 def _resolve_ai_model(usage: UsageStats) -> str:
     """
-    Resolve AI model GUID identifier for mg.nexelin API.
+    Resolve AI model GUID identifier for MG platform API.
     
     Now uses separate GUIDs for embedding and LLM models:
     - For embedding operations: uses EmbeddingModel.external_guid
@@ -90,7 +90,7 @@ def _resolve_ai_model(usage: UsageStats) -> str:
     2. EmbeddingModel.external_guid (for embedding operations)
     3. Model ID as fallback (if GUID not available)
     
-    Each model (embedding and LLM) has its own GUID from mg.nexelin.
+    Each model (embedding and LLM) has its own GUID from MG platform.
     Statistics are sent separately for each model type.
     """
     # For LLM operations - use LLMProvider GUID

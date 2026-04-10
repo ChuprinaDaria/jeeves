@@ -38,8 +38,8 @@ class WebWidgetConfigView(APIView):
             return Response({'error': 'Web widget is only available for white label clients'}, status=403)
         
         # Формуємо URL для віджета та iframe
-        # Скрипт віджета завжди з app.nexelin.com
-        default_frontend = getattr(settings, 'CLIENT_PORTAL_BASE_URL', 'https://app.nexelin.com')
+        # Скрипт віджета завжди з frontend
+        default_frontend = getattr(settings, 'CLIENT_PORTAL_BASE_URL', 'http://localhost:3000')
         widget_url = f"{default_frontend}/static/widget/chat.js"
         
         # Для white label з власним доменом - використовуємо їхній домен для чату
@@ -88,8 +88,8 @@ class WebWidgetConfigView(APIView):
             # Новіни про інтеграції створюються тільки через адмін-панель, не автоматично
         
         # Повертаємо оновлені дані
-        # Скрипт віджета завжди з app.nexelin.com
-        default_frontend = getattr(settings, 'CLIENT_PORTAL_BASE_URL', 'https://app.nexelin.com')
+        # Скрипт віджета завжди з frontend
+        default_frontend = getattr(settings, 'CLIENT_PORTAL_BASE_URL', 'http://localhost:3000')
         widget_url = f"{default_frontend}/static/widget/chat.js"
         
         # Для white label з власним доменом - використовуємо їхній домен для чату
@@ -258,14 +258,14 @@ class WebWidgetScriptView(View):
   // Створюємо стилі
   const style = document.createElement('style');
   style.textContent = `
-    .nexelin-widget-container {{
+    .concierge-widget-container {{
       position: fixed;
       bottom: 20px;
       right: 20px;
       z-index: 9999;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }}
-    .nexelin-widget-button {{
+    .concierge-widget-button {{
       width: ${{config.buttonSize}};
       height: ${{config.buttonSize}};
       border-radius: 50%;
@@ -280,11 +280,11 @@ class WebWidgetScriptView(View):
       font-size: 24px;
       transition: transform 0.2s, box-shadow 0.2s;
     }}
-    .nexelin-widget-button:hover {{
+    .concierge-widget-button:hover {{
       transform: scale(1.1);
       box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
     }}
-    .nexelin-widget-chat {{
+    .concierge-widget-chat {{
       position: fixed;
       bottom: 90px;
       right: 20px;
@@ -299,16 +299,16 @@ class WebWidgetScriptView(View):
       overflow: hidden;
       z-index: 10000;
     }}
-    .nexelin-widget-chat.active {{
+    .concierge-widget-chat.active {{
       display: block;
     }}
-    .nexelin-widget-chat iframe {{
+    .concierge-widget-chat iframe {{
       width: 100%;
       height: 100%;
       border: none;
     }}
     @media (max-width: 480px) {{
-      .nexelin-widget-chat {{
+      .concierge-widget-chat {{
         width: 100%;
         height: 100%;
         bottom: 0;
@@ -321,17 +321,17 @@ class WebWidgetScriptView(View):
   
   // Створюємо контейнер
   const container = document.createElement('div');
-  container.className = 'nexelin-widget-container';
+  container.className = 'concierge-widget-container';
   
   // Створюємо кнопку
   const button = document.createElement('button');
-  button.className = 'nexelin-widget-button';
+  button.className = 'concierge-widget-button';
   button.innerHTML = config.buttonText;
   button.setAttribute('aria-label', 'Open chat');
   
   // Створюємо чат iframe
   const chatContainer = document.createElement('div');
-  chatContainer.className = 'nexelin-widget-chat';
+  chatContainer.className = 'concierge-widget-chat';
   const iframe = document.createElement('iframe');
   iframe.src = config.chatUrl;
   iframe.setAttribute('allow', 'microphone; camera');
@@ -365,7 +365,7 @@ class WebWidgetScriptView(View):
   document.body.appendChild(container);
   
   // Повідомляємо про завантаження
-  console.log('Nexelin AI Chat Widget loaded');
+  console.log('Concierge AI Chat Widget loaded');
 }})();'''
         
         return HttpResponse(js_code, content_type='application/javascript')

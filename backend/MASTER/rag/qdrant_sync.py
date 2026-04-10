@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 def _get_qdrant_client():
     try:
         from qdrant_client import QdrantClient
-        host = getattr(settings, 'QDRANT_HOST', 'ai_nexelin_qdrant')
+        host = getattr(settings, 'QDRANT_HOST', 'concierge_qdrant')
         port = getattr(settings, 'QDRANT_PORT', 6333)
         return QdrantClient(host=host, port=port, timeout=5.0)
     except Exception as e:
@@ -34,7 +34,7 @@ def upsert_embedding_to_qdrant(embedding):
 
     try:
         from qdrant_client.models import PointStruct
-        collection = getattr(settings, 'QDRANT_COLLECTION', 'nexelin_embeddings')
+        collection = getattr(settings, 'QDRANT_COLLECTION', 'concierge_embeddings')
 
         vec = embedding.vector
         if vec is None:
@@ -71,7 +71,7 @@ def delete_embedding_from_qdrant(embedding_id):
         return
 
     try:
-        collection = getattr(settings, 'QDRANT_COLLECTION', 'nexelin_embeddings')
+        collection = getattr(settings, 'QDRANT_COLLECTION', 'concierge_embeddings')
         client.delete(collection_name=collection, points_selector=[embedding_id])
         logger.debug(f"Qdrant delete: embedding {embedding_id}")
     except Exception as e:

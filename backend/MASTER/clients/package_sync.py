@@ -23,7 +23,7 @@ except ImportError:
 
 def _get_client_type_from_package_type(package_type: str) -> str:
     """
-    Map package_type ID from mg.nexelin to client_type.
+    Map package_type ID from MG platform to client_type.
     Returns client type based on package type identifier.
     
     Can be overridden via settings.MG_PACKAGE_TYPE_MAP if needed.
@@ -37,7 +37,7 @@ def _get_client_type_from_package_type(package_type: str) -> str:
                 return client_type
         return custom_map.get('default', 'generic')
     
-    # Default reverse mapping - should match package types from mg.nexelin
+    # Default reverse mapping - should match package types from MG platform
     package_type_to_client_type = {
         'AI_TYPE_GENERIC': 'generic',
         'AI_TYPE_RESTAURANT': 'restaurant',
@@ -51,7 +51,7 @@ def _get_client_type_from_package_type(package_type: str) -> str:
 
 def _get_package_type_id(client_type: str) -> str:
     """
-    Map client_type to package_type ID for mg.nexelin.
+    Map client_type to package_type ID for MG platform.
     Returns package type identifier based on client type.
     
     Can be overridden via settings.MG_PACKAGE_TYPE_MAP if needed.
@@ -75,7 +75,7 @@ def _get_package_type_id(client_type: str) -> str:
 
 def create_package_on_mg(client) -> Optional[dict]:
     """
-    Create a new package on mg.nexelin when client is created.
+    Create a new package on MG platform when client is created.
     
     Args:
         client: Client instance
@@ -138,7 +138,7 @@ def create_package_on_mg(client) -> Optional[dict]:
 
 def update_package_on_mg(client) -> Optional[dict]:
     """
-    Update an existing package on mg.nexelin when client is updated.
+    Update an existing package on MG platform when client is updated.
     
     Args:
         client: Client instance

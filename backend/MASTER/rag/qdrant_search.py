@@ -24,9 +24,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-QDRANT_HOST = getattr(settings, 'QDRANT_HOST', 'ai_nexelin_qdrant')
+QDRANT_HOST = getattr(settings, 'QDRANT_HOST', 'concierge_qdrant')
 QDRANT_PORT = getattr(settings, 'QDRANT_PORT', 6333)
-QDRANT_COLLECTION = getattr(settings, 'QDRANT_COLLECTION', 'nexelin_embeddings')
+QDRANT_COLLECTION = getattr(settings, 'QDRANT_COLLECTION', 'concierge_embeddings')
 COHERE_API_KEY = getattr(settings, 'COHERE_API_KEY', '')
 COHERE_RERANK_MODEL = getattr(settings, 'COHERE_RERANK_MODEL', 'rerank-multilingual-v3.0')
 

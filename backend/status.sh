@@ -7,7 +7,7 @@ YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-echo -e "${BLUE}===== Статус стеку AI Nexelin =====${NC}"
+echo -e "${BLUE}===== Статус стеку Concierge =====${NC}"
 
 # Перевірка статусу контейнерів
 echo -e "${YELLOW}Статус контейнерів:${NC}"

@@ -33,7 +33,7 @@ log_error() {
 VPS_HOST=""
 VPS_USER="deploy"
 HEALTH_URL=""
-DOCKER_COMPOSE_PATH="/opt/ai-nexelin/docker-compose.yml"
+DOCKER_COMPOSE_PATH="/opt/concierge/docker-compose.yml"
 MAX_RETRIES=5
 RETRY_DELAY=10
 
@@ -83,7 +83,7 @@ check_health() {
     ssh -o StrictHostKeyChecking=no "$VPS_USER@$VPS_HOST" << HEALTH_EOF
         set -euo pipefail
         
-        DOCKER_COMPOSE_PATH="${DOCKER_COMPOSE_PATH:-/opt/ai-nexelin/docker-compose.yml}"
+        DOCKER_COMPOSE_PATH="${DOCKER_COMPOSE_PATH:-/opt/concierge/docker-compose.yml}"
         MAX_RETRIES=${MAX_RETRIES:-5}
         RETRY_DELAY=${RETRY_DELAY:-10}
         

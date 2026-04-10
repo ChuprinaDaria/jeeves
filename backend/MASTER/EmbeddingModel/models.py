@@ -45,7 +45,7 @@ class EmbeddingModel(models.Model):
         max_length=255,
         blank=True,
         null=True,
-        help_text='GUID from mg.nexelin.com for AI model identification in usage stats API'
+        help_text='GUID from MG platform for AI model identification in usage stats API'
     )
     is_active = models.BooleanField(default=True)
     is_default = models.BooleanField(default=False)
@@ -148,7 +148,7 @@ class LLMProvider(models.Model):
         max_length=255,
         blank=True,
         null=True,
-        help_text='GUID from mg.nexelin.com for LLM model identification in usage stats API'
+        help_text='GUID from MG platform for LLM model identification in usage stats API'
     )
     
     class Meta:
@@ -193,7 +193,7 @@ class ModelPair(models.Model):
     external_guid = models.CharField(
         max_length=255,
         unique=True,
-        help_text='GUID from mg.nexelin.com for this model pair (LLM + Embedding) identification in usage stats API'
+        help_text='GUID from MG platform for this model pair (LLM + Embedding) identification in usage stats API'
     )
     is_active = models.BooleanField(
         default=True,

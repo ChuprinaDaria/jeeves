@@ -1,3 +1,6 @@
+import os
+
+
 class FixDomainMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
@@ -6,7 +9,7 @@ class FixDomainMiddleware:
         # Виправляємо HTTP_HOST
         if 'HTTP_HOST' in request.META:
             if 'frontend' in request.META['HTTP_HOST']:
-                request.META['HTTP_HOST'] = 'api.nexelin.com'
+                request.META['HTTP_HOST'] = os.environ.get('API_HOST', 'localhost:8000')
         
         response = self.get_response(request)
         return response

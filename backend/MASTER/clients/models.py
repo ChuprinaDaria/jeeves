@@ -104,7 +104,7 @@ class Client(models.Model):
     webchat_domain = models.CharField(
         max_length=255,
         blank=True,
-        help_text="Custom base domain for web chat and client portal (e.g. ai.bytekraft.net)"
+        help_text="Custom base domain for web chat and client portal (e.g. chat.example.com)"
     )
     
     description = models.TextField()
@@ -312,7 +312,7 @@ class Client(models.Model):
     whatsapp_bridge_matrix_user_id = models.CharField(
         max_length=255,
         blank=True,
-        help_text="Matrix user ID for this client's bridge bot (e.g., @nexelin_client_42:crm.local)"
+        help_text="Matrix user ID for this client's bridge bot (e.g., @concierge_client_42:crm.local)"
     )
     whatsapp_bridge_matrix_access_token = models.TextField(
         blank=True,
@@ -1136,7 +1136,7 @@ class ClientQRCode(models.Model):
         logger.info(f"Client {self.client.id} webchat_domain: '{custom_domain}'")
         
         if custom_domain:
-            # Allow both plain host (ai.bytekraft.net) and full URL (https://ai.bytekraft.net/anything?x=1)
+            # Allow both plain host (chat.example.com) and full URL (https://chat.example.com/anything?x=1)
             try:
                 if custom_domain.startswith("http://") or custom_domain.startswith("https://"):
                     parsed = urlparse(custom_domain)
@@ -1160,8 +1160,8 @@ class ClientQRCode(models.Model):
             logger.info(f"Using custom domain base_url: {base_url}")
         else:
             # 2) Fallback to global frontend URL
-            frontend_url = getattr(settings, 'FRONTEND_URL', 'https://app.nexelin.com')
-            base_url = frontend_url.rstrip("/") if isinstance(frontend_url, str) else 'https://app.nexelin.com'
+            frontend_url = getattr(settings, 'FRONTEND_URL', None) or getattr(settings, 'CLIENT_PORTAL_BASE_URL', 'http://localhost:3000')
+            base_url = frontend_url.rstrip("/") if isinstance(frontend_url, str) else 'http://localhost:3000'
             logger.info(f"Using default FRONTEND_URL: {base_url}")
         
         web_chat_url = f"{base_url}/client?tag={client_tag}"
@@ -2182,7 +2182,7 @@ class WhatsAppBridgeConfig(models.Model):
     )
     bot_username_template = models.CharField(
         max_length=100,
-        default='nexelin_client_{client_id}',
+        default='concierge_client_{client_id}',
         help_text="Template for Matrix bot usernames per client"
     )
     appservice_as_token = models.CharField(

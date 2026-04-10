@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 mcp = FastMCP(
     "mcp-xlsx",
-    description="Nexelin XLSX processor. "
+    description="Concierge XLSX processor. "
     "Use the `create_spreadsheet` tool to generate professional Excel files "
     "with formulas, formatting, and automatic recalculation.",
 )
@@ -200,7 +200,7 @@ async def create_spreadsheet(
     Cross-sheet references use standard Excel syntax (e.g. "=Sheet1!B2*0.1").
 
     Args:
-        client_id: Numeric ID of the Nexelin client (used for file isolation).
+        client_id: Numeric ID of the Concierge client (used for file isolation).
         filename: Output filename (default "report.xlsx").
         sheets: List of sheet specifications, each a dict with:
             - name: sheet tab name

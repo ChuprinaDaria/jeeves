@@ -326,7 +326,7 @@ class ResponseGenerator:
             embedding_model = self._get_embedding_model(client, specialization, branch)
         
         # Get LLMProvider for cost calculation and statistics
-        # Each model (embedding and LLM) has its own GUID from mg.nexelin
+        # Each model (embedding and LLM) has its own GUID from MG platform
         llm_provider_obj = None
         if client:
             try:
@@ -348,7 +348,7 @@ class ResponseGenerator:
                 logger.debug(f"Failed to find LLMProvider: {e}")
         
         # Create SEPARATE UsageStats records for embedding and LLM tokens
-        # Each model (embedding and LLM) has its own GUID from mg.nexelin
+        # Each model (embedding and LLM) has its own GUID from MG platform
         if client:
             try:
                 from MASTER.processing.models import UsageStats

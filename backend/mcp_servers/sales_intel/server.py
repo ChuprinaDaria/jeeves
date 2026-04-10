@@ -1,5 +1,5 @@
 """
-MCP Sales Intel server — wraps Open Sales Stack tools for Nexelin orchestrator.
+MCP Sales Intel server — wraps Open Sales Stack tools for Concierge orchestrator.
 
 Provides techstack detection and website data extraction for lead research.
 """

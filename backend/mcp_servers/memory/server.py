@@ -1,4 +1,4 @@
-"""MCP Memory server — persistent conversational memory for Nexelin agents."""
+"""MCP Memory server — persistent conversational memory for Concierge agents."""
 import json
 import logging
 from uuid import uuid5, NAMESPACE_URL
@@ -15,7 +15,7 @@ from mcp.server.fastmcp import FastMCP  # noqa: E402
 
 mcp = FastMCP("mcp-memory")
 
-COLLECTION = "nexelin_agent_memory"
+COLLECTION = "concierge_agent_memory"
 VECTOR_SIZE = 1024  # Cohere embed-multilingual-v3.0
 
 

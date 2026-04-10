@@ -14,7 +14,7 @@ from MASTER.quick_admin import urlpatterns as quick_admin_urlpatterns
 def health_view(_request):
     return JsonResponse({
         "status": "ok",
-        "app": "ai_nexelin",
+        "app": "concierge",
         "version": "dev",
     })
 

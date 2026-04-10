@@ -12,7 +12,7 @@ urlpatterns = [
     path('bootstrap/<slug:branch_slug>/<slug:specialization_slug>/<slug:client_token>/', views_bootstrap.BootstrapProvisionView.as_view(), name='bootstrap-provision'),
     path('provision-link/', views.ProvisionLinkView.as_view(), name='provision-link'),
     path('client/features/overview/', views.ClientFeaturesOverviewView.as_view(), name='client-features-overview'),
-    # AI Models endpoint (from mg.nexelin.com)
+    # AI Models endpoint (from MG platform)
     path('ai-models/', views.AIModelsListView.as_view(), name='ai-models-list'),
     # Sync our embedding models to MG
     path('embedding-models/sync-to-mg/', views.EmbeddingModelsSyncToMGView.as_view(), name='embedding-models-sync-to-mg'),
@@ -41,7 +41,7 @@ urlpatterns = [
     path('email/analyze/', views.EmailAnalyzeView.as_view(), name='email-analyze'),
     # Dynamic manifest for webchat PWA
     path('webchat/manifest.json', views.WebChatManifestView.as_view(), name='webchat-manifest'),
-    # Package API endpoint (from mg.nexelin)
+    # Package API endpoint (from MG platform)
     path('package/', views.PackageReceiveView.as_view(), name='package-receive'),
     # Integration Service endpoints (for Matrix HITL)
     path('v1/integration/update-room', views.integration_update_room, name='integration-update-room'),

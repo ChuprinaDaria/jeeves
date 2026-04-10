@@ -6,7 +6,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}===== Запуск повного стеку AI Nexelin =====${NC}"
+echo -e "${GREEN}===== Запуск повного стеку Concierge =====${NC}"
 
 # Перевірка наявності Docker
 if ! command -v docker &> /dev/null; then

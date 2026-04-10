@@ -1740,8 +1740,8 @@ class ProvisionLinkView(APIView):
             client_tag = slugify(client_token)
         
         # Get base URL from settings or use default
-        base_url = getattr(settings, 'CLIENT_PORTAL_BASE_URL', 'https://app.nexelin.com').rstrip('/')
-        # Новий формат: https://app.nexelin.com/l?tag={client_tag}
+        base_url = getattr(settings, 'CLIENT_PORTAL_BASE_URL', 'http://localhost:3000').rstrip('/')
+        # Новий формат: http://localhost:3000/l?tag={client_tag}
         url = f"{base_url}/l?tag={client_tag}"
         payload_out = dict(payload)
         payload_out['url'] = url
@@ -1800,7 +1800,7 @@ class ClientFeaturesOverviewView(APIView):
 
 
 class AIModelsListView(APIView):
-    """Proxy endpoint for AI models from mg.nexelin.com.
+    """Proxy endpoint for AI models from MG platform.
     
     GET /api/ai-models/
     Response: List of AI models with pricing (pl, pc, ph)
@@ -1822,7 +1822,7 @@ class EmbeddingModelsListView(APIView):
     
     Auth: JWT (client user) or X-API-Key (sets request.client).
     Response: List of active embedding models with their details.
-    Now also includes AI models from mg.nexelin.com
+    Now also includes AI models from MG platform
     
     NOTE: pgvector has a maximum of 2000 dimensions, so we filter models accordingly.
     """
@@ -2903,7 +2903,7 @@ class SaveSandboxPhotoView(APIView):
 
 class PackageReceiveView(APIView):
     """
-    API endpoint для прийняття пакетів з mg.nexelin.
+    API endpoint для прийняття пакетів з MG platform.
     Підтримує дії: create, clone, update
     
     Відповідно до документації Package API:
@@ -2915,7 +2915,7 @@ class PackageReceiveView(APIView):
     
     def post(self, request):
         """
-        Обробка POST запитів з mg.nexelin для створення/клонування/оновлення пакетів.
+        Обробка POST запитів з MG platform для створення/клонування/оновлення пакетів.
         
         Expected JSON payload:
         {
@@ -2998,7 +2998,7 @@ class PackageReceiveView(APIView):
         package_type = data.get('package_type')
         client_type = get_client_type_func(package_type)
         
-        # Використовуємо name як user (як очікує mg.nexelin API)
+        # Використовуємо name як user (як очікує MG platform API)
         user_name = data.get('name', '').strip()
         if not user_name:
             user_name = f"Client {guid[:8]}"
@@ -3015,7 +3015,7 @@ class PackageReceiveView(APIView):
             # Створюємо нового користувача
             user = User.objects.create(
                 username=username,
-                email=f"{username[:40]}@mg.nexelin.local",
+                email=f"{username[:40]}@concierge.local",
                 first_name=user_name[:30] or 'Client',
                 last_name='',
             )
@@ -3029,7 +3029,7 @@ class PackageReceiveView(APIView):
         # company_name автоматично скопіюється з user в методі save() моделі
         # Для нових клієнтів завжди встановлюємо is_active=True, щоб вони могли автентифікуватися
         client = Client.objects.create(
-            user=user_name,  # Використовуємо name як user (як очікує mg.nexelin)
+            user=user_name,  # Використовуємо name як user (як очікує MG platform)
             tag=guid,
             # company_name не встановлюємо явно - воно автоматично скопіюється з user в save()
             description=data.get('description', ''),
@@ -3044,7 +3044,7 @@ class PackageReceiveView(APIView):
             'message': 'Package created successfully',
             'client': {
                 'id': client.id,
-                'user': client.user,  # Додаємо user для mg.nexelin API
+                'user': client.user,  # Додаємо user для MG platform API
                 'guid': client.tag,
                 'name': client.company_name,
                 'company_name': client.company_name,
@@ -3093,7 +3093,7 @@ class PackageReceiveView(APIView):
         package_type = data.get('package_type')
         client_type = get_client_type_func(package_type)
         
-        # Використовуємо name як user (як очікує mg.nexelin API)
+        # Використовуємо name як user (як очікує MG platform API)
         user_name = data.get('name', '').strip()
         if not user_name:
             user_name = f"Client {guid[:8]}"
@@ -3107,7 +3107,7 @@ class PackageReceiveView(APIView):
         else:
             user = User.objects.create(
                 username=username,
-                email=f"{username[:40]}@mg.nexelin.local",
+                email=f"{username[:40]}@concierge.local",
                 first_name=user_name[:30] or 'Client',
                 last_name='',
             )
@@ -3121,7 +3121,7 @@ class PackageReceiveView(APIView):
         # company_name автоматично скопіюється з user в методі save() моделі
         # Для нових клієнтів завжди встановлюємо is_active=True, щоб вони могли автентифікуватися
         client = Client.objects.create(
-            user=user_name,  # Використовуємо name як user (як очікує mg.nexelin)
+            user=user_name,  # Використовуємо name як user (як очікує MG platform)
             tag=guid,
             # company_name не встановлюємо явно - воно автоматично скопіюється з user в save()
             description=data.get('description', ''),
@@ -3146,7 +3146,7 @@ class PackageReceiveView(APIView):
             'message': 'Package cloned successfully',
             'client': {
                 'id': client.id,
-                'user': client.user,  # Додаємо user для mg.nexelin API
+                'user': client.user,  # Додаємо user для MG platform API
                 'guid': client.tag,
                 'name': client.company_name,
                 'company_name': client.company_name,
@@ -3191,7 +3191,7 @@ class PackageReceiveView(APIView):
             'message': 'Package updated successfully',
             'client': {
                 'id': client.id,
-                'user': client.user,  # Додаємо user для mg.nexelin API
+                'user': client.user,  # Додаємо user для MG platform API
                 'guid': client.tag,
                 'name': client.company_name,
                 'company_name': client.company_name,
