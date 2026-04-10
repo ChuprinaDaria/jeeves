@@ -150,7 +150,8 @@
     "sandboxBadge": "Modalità test"
   },
   "sandbox": {
-    "title": "Sandbox",
+    "title": "Jeeves",
+    "tagline": "cameriere personale ingegnoso ed erudito",
     "subtitle": "Prova il tuo assistente IA prima del go‑live",
     "newLocationTitle": "Sandbox è ora disponibile anche in Addestra IA!",
     "newLocationDescription": "Per comodità, ora puoi testare il tuo assistente IA direttamente nella pagina Addestra IA, subito dopo aver configurato il comportamento dell'IA.",

@@ -150,7 +150,8 @@
     "sandboxBadge": "Testtilstand"
   },
   "sandbox": {
-    "title": "Sandbox",
+    "title": "Jeeves",
+    "tagline": "opfindsom og belæst kammertjener",
     "subtitle": "Test din AI‑assistent før go‑live",
     "newLocationTitle": "Sandbox er nu også tilgængelig i Træn AI!",
     "newLocationDescription": "For din bekvemmelighed kan du nu teste din AI-assistent direkte på Træn AI-siden, lige efter at have konfigureret AI-adfærden.",

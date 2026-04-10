@@ -157,7 +157,8 @@
     "sandboxBadge": "Testmodus"
   },
   "sandbox": {
-    "title": "Testen",
+    "title": "Jeeves",
+    "tagline": "findiger und belesener Kammerdiener",
     "newLocationTitle": "Sandbox ist jetzt auch in AI Trainieren verfügbar!",
     "newLocationDescription": "Für Ihre Bequemlichkeit können Sie Ihren AI-Assistenten jetzt direkt auf der AI Trainieren-Seite testen, direkt nach der Konfiguration des AI-Verhaltens.",
     "goToTraining": "Zu AI Trainieren",

@@ -28,11 +28,11 @@ import Button from '../components/ui/Button';
 
 /* ─────────────── Helpers ─────────────── */
 
-const DEFAULT_STATS = [
-  { accent: 'rose',  icon: ChatCircle,       label: 'Conversations',   value: '1,284', delta: '+12% this week', trend: 'up' },
-  { accent: 'sage',  icon: CheckCircle,      label: 'Resolution Rate', value: '94.2%', delta: '+2.1%',          trend: 'up' },
-  { accent: 'iris',  icon: UserFocus,        label: 'Active Leads',    value: '47',    delta: '+8 new',         trend: 'up' },
-  { accent: 'amber', icon: ArrowBendUpRight, label: 'Escalations',     value: '23',    delta: '−5% fewer',      trend: 'down' },
+const buildDefaultStats = (t) => [
+  { accent: 'rose',  icon: ChatCircle,       label: t('dashboard.totalChats')     || 'Conversations',   value: '1,284', delta: t('dashboard.deltaThisWeek', { value: '+12%' }) || '+12% this week', trend: 'up' },
+  { accent: 'sage',  icon: CheckCircle,      label: t('dashboard.resolutionRate') || 'Resolution Rate', value: '94.2%', delta: '+2.1%', trend: 'up' },
+  { accent: 'iris',  icon: UserFocus,        label: t('dashboard.activeUsers')    || 'Active Leads',    value: '47',    delta: t('dashboard.deltaNew', { value: '+8' }) || '+8 new', trend: 'up' },
+  { accent: 'amber', icon: ArrowBendUpRight, label: t('dashboard.escalations')    || 'Escalations',     value: '23',    delta: t('dashboard.deltaFewer', { value: '−5%' }) || '−5% fewer', trend: 'down' },
 ];
 
 const DEFAULT_CHANNELS = [
@@ -66,12 +66,12 @@ const ACCENT_BORDER = {
 
 /* ─────────────── Greeting ─────────────── */
 
-const greeting = () => {
+const greeting = (t) => {
   const hour = new Date().getHours();
-  if (hour < 5)  return 'Good night';
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
+  if (hour < 5)  return t('dashboard.greetNight')   || 'Good night';
+  if (hour < 12) return t('dashboard.greetMorning') || 'Good morning';
+  if (hour < 18) return t('dashboard.greetAfternoon') || 'Good afternoon';
+  return t('dashboard.greetEvening') || 'Good evening';
 };
 
 const formatDelta = (num, suffix = '%') => {
@@ -86,8 +86,8 @@ const DashboardPage = () => {
   const { t } = useTranslation();
   const { isAuthenticated, loading: authLoading, user } = useAuth();
 
-  const [stats, setStats] = useState(DEFAULT_STATS);
-  const [syncedLabel, setSyncedLabel] = useState('just now');
+  const [stats, setStats] = useState(() => buildDefaultStats(t));
+  const [syncedLabel, setSyncedLabel] = useState(t('dashboard.justNow') || 'just now');
 
   useEffect(() => {
     if (authLoading || !isAuthenticated) return;
@@ -132,7 +132,7 @@ const DashboardPage = () => {
             trend: (data.messages_change ?? 0) >= 0 ? 'up' : 'down',
           },
         ]);
-        setSyncedLabel('just now');
+        setSyncedLabel(t('dashboard.justNow') || 'just now');
       } catch {
         // keep defaults — demo mode
       }
@@ -159,17 +159,17 @@ const DashboardPage = () => {
       <div className="flex justify-between items-start mb-8 animate-fade-up">
         <div>
           <h1 className="text-[28px] font-bold tracking-tightest">
-            {greeting()}
+            {greeting(t)}
             {userFirstName ? `, ${userFirstName}` : ''}
           </h1>
           <div className="font-mono text-[13px] text-fog mt-1">
-            jeeves v2.1 · synced {syncedLabel}
+            jeeves v2.1 · {t('dashboard.synced') || 'synced'} {syncedLabel}
           </div>
         </div>
         <div className="hidden md:flex gap-2.5">
-          <Button variant="violet" icon={FilePlus}>Add Document</Button>
-          <Button variant="pink"   icon={Export}>Export</Button>
-          <Button variant="green"  icon={Plus}>New Lead</Button>
+          <Button variant="violet" icon={FilePlus}>{t('dashboard.addDocument') || 'Add Document'}</Button>
+          <Button variant="pink"   icon={Export}>{t('dashboard.export') || 'Export'}</Button>
+          <Button variant="green"  icon={Plus}>{t('dashboard.newLead') || 'New Lead'}</Button>
         </div>
       </div>
 
@@ -185,7 +185,7 @@ const DashboardPage = () => {
         <Card>
           <CardHeader
             title={t('dashboard.channels') || 'Channels'}
-            action={<CardAction>manage</CardAction>}
+            action={<CardAction>{t('dashboard.manage') || 'manage'}</CardAction>}
           />
           <div className="divide-y divide-rule">
             {DEFAULT_CHANNELS.map((ch) => (
@@ -199,7 +199,9 @@ const DashboardPage = () => {
                   <div className="text-[12px] text-fog truncate">{ch.desc}</div>
                 </div>
                 <span className={`pill ${ch.status === 'connected' ? 'pill-on' : 'pill-off'}`}>
-                  {ch.status}
+                  {ch.status === 'connected'
+                    ? (t('dashboard.statusConnected') || 'connected')
+                    : (t('dashboard.statusDraft') || 'draft')}
                 </span>
               </div>
             ))}
@@ -209,7 +211,7 @@ const DashboardPage = () => {
         <Card>
           <CardHeader
             title={t('dashboard.microAgents') || 'Micro-Agents'}
-            action={<CardAction>configure</CardAction>}
+            action={<CardAction>{t('dashboard.configure') || 'configure'}</CardAction>}
           />
           <div className="divide-y divide-rule">
             {DEFAULT_AGENTS.map((a) => (
@@ -233,13 +235,19 @@ const DashboardPage = () => {
       <Card>
         <CardHeader
           title={t('dashboard.recentConversations') || 'Recent Conversations'}
-          action={<CardAction>view all</CardAction>}
+          action={<CardAction>{t('dashboard.viewAll') || 'view all'}</CardAction>}
         />
         <div className="overflow-x-auto -mx-2">
           <table className="w-full border-collapse">
             <thead>
               <tr>
-                {['User', 'Channel', 'Last Message', 'Status', 'Time'].map((h) => (
+                {[
+                  t('dashboard.colUser')    || 'User',
+                  t('dashboard.colChannel') || 'Channel',
+                  t('dashboard.colLastMsg') || 'Last Message',
+                  t('dashboard.colStatus')  || 'Status',
+                  t('dashboard.colTime')    || 'Time',
+                ].map((h) => (
                   <th key={h}
                       className="label-mono text-left px-3 pb-3 pt-2 border-b-[1.5px] border-rule">
                     {h}
@@ -268,7 +276,9 @@ const DashboardPage = () => {
                       c.status === 'escalated' ? 'pill-alert' :
                                                  'pill-off'
                     }`}>
-                      {c.status}
+                      {c.status === 'active'    ? (t('dashboard.statusActive')    || 'active')    :
+                       c.status === 'escalated' ? (t('dashboard.statusEscalated') || 'escalated') :
+                                                  (t('dashboard.statusClosed')    || 'closed')}
                     </span>
                   </td>
                   <td className="px-3 py-3 font-mono text-[12px] text-fog">{c.time}</td>

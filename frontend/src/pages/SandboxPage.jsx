@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -25,11 +26,11 @@ import { ragAPI } from '../api/agent';
 const STORAGE_KEY = 'jeevs-chat-session';
 const MAX_CONTEXT = 30;
 
-const QUICK_PROMPTS = [
-  { icon: Question,      accent: 'iris',  title: 'Most asked',       prompt: "What's the most common question you get from customers?" },
-  { icon: CalendarBlank, accent: 'sage',  title: 'Opening hours',    prompt: 'When are we open? Include weekends and holidays.' },
-  { icon: Lightning,     accent: 'amber', title: 'Edge case',        prompt: "I don't speak your language. Can you help me in broken English?" },
-  { icon: Translate,     accent: 'rose',  title: 'Escalate',         prompt: 'I need to speak with a human manager right now.' },
+const buildQuickPrompts = (t) => [
+  { icon: Question,      accent: 'iris',  title: t('sandbox.qpMostAskedTitle')     || 'Most asked',    prompt: t('sandbox.qpMostAskedPrompt')     || "What's the most common question you get from customers?" },
+  { icon: CalendarBlank, accent: 'sage',  title: t('sandbox.qpOpeningHoursTitle')  || 'Opening hours', prompt: t('sandbox.qpOpeningHoursPrompt')  || 'When are we open? Include weekends and holidays.' },
+  { icon: Lightning,     accent: 'amber', title: t('sandbox.qpEdgeCaseTitle')      || 'Edge case',     prompt: t('sandbox.qpEdgeCasePrompt')      || "I don't speak your language. Can you help me in broken English?" },
+  { icon: Translate,     accent: 'rose',  title: t('sandbox.qpEscalateTitle')      || 'Escalate',      prompt: t('sandbox.qpEscalatePrompt')      || 'I need to speak with a human manager right now.' },
 ];
 
 const ACCENT_BORDER = {
@@ -71,6 +72,7 @@ const saveSession = (messages) => {
 /* ─────────────── Page ─────────────── */
 
 const SandboxPage = () => {
+  const { t } = useTranslation();
   const [messages, setMessages] = useState(() => loadSession());
   const [input, setInput] = useState('');
   const [image, setImage] = useState(null);
@@ -113,11 +115,11 @@ const SandboxPage = () => {
   const handleImage = (file) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      setError('Only image files are allowed');
+      setError(t('sandbox.errImageType') || 'Only image files are allowed');
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      setError('Image must be under 5 MB');
+      setError(t('sandbox.errImageSize') || 'Image must be under 5 MB');
       return;
     }
     setError('');
@@ -161,7 +163,8 @@ const SandboxPage = () => {
         content: m.text,
       }));
       const { data } = await ragAPI.chat(text, sentImage, context);
-      const answer = data?.response || data?.answer || data?.text || "I'm not sure how to respond to that.";
+      const answer = data?.response || data?.answer || data?.text
+        || t('sandbox.fallbackAnswer') || "I'm not sure how to respond to that.";
 
       setMessages((prev) => [...prev, {
         id: Date.now() + 1,
@@ -171,10 +174,10 @@ const SandboxPage = () => {
       }]);
     } catch (e) {
       console.error(e);
-      setError(e?.response?.data?.error || 'Jeeves stumbled — please try again.');
+      setError(e?.response?.data?.error || t('sandbox.errStumbled') || 'Jeeves stumbled — please try again.');
       setMessages((prev) => [...prev, {
         id: Date.now() + 1,
-        text: '⚠ Could not reach the model. Check your connection and try again.',
+        text: t('sandbox.errNetwork') || '⚠ Could not reach the model. Check your connection and try again.',
         sender: 'ai',
         timestamp: new Date().toISOString(),
         error: true,
@@ -195,7 +198,7 @@ const SandboxPage = () => {
   /* ── Session actions ── */
 
   const resetSession = () => {
-    if (messages.length && !confirm('Start a fresh conversation? Current session will be cleared.')) return;
+    if (messages.length && !confirm(t('sandbox.resetConfirm') || 'Start a fresh conversation? Current session will be cleared.')) return;
     setMessages([]);
     setSavedIds(new Set());
     setError('');
@@ -206,7 +209,7 @@ const SandboxPage = () => {
     const idx = messages.findIndex((m) => m.id === aiMsg.id);
     const userMsg = idx > 0 ? messages[idx - 1] : null;
     if (!userMsg || userMsg.sender !== 'user') {
-      setError('Could not locate the question for this answer');
+      setError(t('sandbox.errNoQuestion') || 'Could not locate the question for this answer');
       return;
     }
     setSavingId(aiMsg.id);
@@ -214,7 +217,7 @@ const SandboxPage = () => {
       await ragAPI.saveSandboxQA(userMsg.text, aiMsg.text);
       setSavedIds((s) => new Set([...s, aiMsg.id]));
     } catch (e) {
-      setError(e?.response?.data?.error || 'Failed to save Q&A');
+      setError(e?.response?.data?.error || t('sandbox.errSaveQA') || 'Failed to save Q&A');
     } finally {
       setSavingId(null);
     }
@@ -237,17 +240,22 @@ const SandboxPage = () => {
                              border-2 border-paper bg-sage" />
           </div>
 
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2.5">
               <h1 className="text-[28px] font-bold tracking-tightest leading-none">Jeeves</h1>
               <span className="pill pill-info">beta</span>
             </div>
-            <div className="font-mono text-[12px] text-fog mt-1.5 flex items-center gap-2">
+            <div className="text-[13px] text-slate italic mt-1 leading-snug">
+              {t('sandbox.tagline') || 'resourceful and erudite valet'}
+            </div>
+            <div className="font-mono text-[11px] text-fog mt-1 flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-sage" />
               {sending ? (
-                <span className="shimmer-text">thinking…</span>
+                <span className="shimmer-text">{t('sandbox.thinking') || 'thinking…'}</span>
               ) : (
-                <>online · rehearsal channel · {messages.length} msgs</>
+                <>
+                  {t('sandbox.online') || 'online'} · {messages.length} {t('sandbox.msgs') || 'msgs'} · {t('sandbox.sessionSaved') || 'session saved'}
+                </>
               )}
             </div>
           </div>
@@ -258,10 +266,10 @@ const SandboxPage = () => {
             onClick={resetSession}
             disabled={!messages.length}
             className="btn btn-amber disabled:opacity-40 disabled:cursor-not-allowed"
-            title="Reset conversation (new session)"
+            title={t('sandbox.resetTitle') || 'Reset conversation (new session)'}
           >
             <ArrowsClockwise size={16} weight="light" />
-            Reset
+            {t('sandbox.reset') || 'Reset'}
           </button>
         </div>
       </header>
@@ -277,13 +285,14 @@ const SandboxPage = () => {
           className="relative flex-1 min-h-0 overflow-y-auto px-5 md:px-8 py-6 space-y-5"
         >
           {empty ? (
-            <EmptyState onPrompt={(p) => send(p)} />
+            <EmptyState t={t} onPrompt={(p) => send(p)} />
           ) : (
             messages.map((m, i) => (
               <MessageRow
                 key={m.id}
                 msg={m}
                 idx={i}
+                t={t}
                 onSaveQA={saveQA}
                 saving={savingId === m.id}
                 saved={savedIds.has(m.id)}
@@ -317,7 +326,7 @@ const SandboxPage = () => {
               <button
                 onClick={clearImage}
                 className="text-fog hover:text-rose cursor-pointer"
-                aria-label="Remove image"
+                aria-label={t('sandbox.removeImage') || 'Remove image'}
               >
                 <X size={14} weight="light" />
               </button>
@@ -333,8 +342,8 @@ const SandboxPage = () => {
                          text-fog hover:border-iris hover:text-iris
                          transition-colors cursor-pointer flex items-center justify-center
                          disabled:opacity-40 disabled:cursor-not-allowed"
-              title="Attach image"
-              aria-label="Attach image"
+              title={t('sandbox.attachImage') || 'Attach image'}
+              aria-label={t('sandbox.attachImage') || 'Attach image'}
             >
               <ImageIcon size={18} weight="light" />
             </button>
@@ -354,7 +363,7 @@ const SandboxPage = () => {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={onKeyDown}
                 rows={1}
-                placeholder="Ask Jeeves anything…  ( Enter to send · Shift+Enter for newline )"
+                placeholder={t('sandbox.inputPlaceholder') || 'Ask Jeeves anything…  ( Enter to send · Shift+Enter for newline )'}
                 className="w-full resize-none px-4 py-2.5 bg-cream border-[1.5px] border-rule
                            rounded-sm text-[14px] text-ink font-sans leading-relaxed
                            focus:outline-none focus:border-iris transition-colors
@@ -369,17 +378,17 @@ const SandboxPage = () => {
               disabled={sending || (!input.trim() && !image)}
               className="shrink-0 btn btn-violet h-[42px] px-4
                          disabled:opacity-40 disabled:cursor-not-allowed"
-              aria-label="Send message"
+              aria-label={t('sandbox.sendMessage') || 'Send message'}
             >
               <PaperPlaneTilt size={16} weight="light" />
-              <span className="hidden md:inline">Send</span>
+              <span className="hidden md:inline">{t('sandbox.send') || 'Send'}</span>
             </button>
           </div>
 
           {/* Footer hints */}
           <div className="mt-2.5 flex items-center justify-between">
             <span className="font-mono text-[10px] text-fog tracking-wider uppercase">
-              enter to send · shift+enter newline · session saved locally
+              {t('sandbox.footerHints') || 'enter to send · shift+enter newline · session saved locally'}
             </span>
             <span className="font-mono text-[10px] text-fog">{input.length}/2000</span>
           </div>
@@ -391,7 +400,8 @@ const SandboxPage = () => {
 
 /* ─────────────── Empty state ─────────────── */
 
-const EmptyState = ({ onPrompt }) => {
+const EmptyState = ({ t, onPrompt }) => {
+  const prompts = buildQuickPrompts(t);
   return (
     <div className="h-full flex flex-col items-center justify-center text-center pt-6 pb-10">
       <div className="w-16 h-16 rounded-xl border-2 border-iris text-iris
@@ -400,15 +410,15 @@ const EmptyState = ({ onPrompt }) => {
       </div>
 
       <h2 className="text-[24px] font-bold text-ink tracking-tightest mb-1.5">
-        Good to see you.
+        {t('sandbox.emptyHello') || 'Good to see you.'}
       </h2>
       <p className="text-[14px] text-slate max-w-md leading-relaxed mb-8">
-        I'm Jeeves — your rehearsal-room concierge. Ask me anything you'd ask a customer-facing
-        assistant. Use the quick-starts below or type your own.
+        {t('sandbox.emptyIntro') ||
+          "I'm Jeeves — your rehearsal-room concierge. Ask me anything you'd ask a customer-facing assistant. Use the quick-starts below or type your own."}
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
-        {QUICK_PROMPTS.map((q, i) => (
+        {prompts.map((q, i) => (
           <button
             key={q.title}
             onClick={() => onPrompt(q.prompt)}
@@ -438,7 +448,7 @@ const EmptyState = ({ onPrompt }) => {
 
 /* ─────────────── Message row ─────────────── */
 
-const MessageRow = ({ msg, idx, onSaveQA, saving, saved }) => {
+const MessageRow = ({ msg, idx, t, onSaveQA, saving, saved }) => {
   const mine = msg.sender === 'user';
 
   return (
@@ -491,10 +501,16 @@ const MessageRow = ({ msg, idx, onSaveQA, saving, saved }) => {
                 disabled={saving || saved}
                 className={`inline-flex items-center gap-1 cursor-pointer transition-colors
                            ${saved ? 'text-sage' : 'hover:text-iris'}`}
-                title={saved ? 'Saved to knowledge base' : 'Save Q&A to knowledge base'}
+                title={saved
+                  ? (t('sandbox.savedToKBTitle') || 'Saved to knowledge base')
+                  : (t('sandbox.saveQATitle')    || 'Save Q&A to knowledge base')}
               >
                 {saved ? <Check size={12} weight="bold" /> : <BookmarkSimple size={12} weight="light" />}
-                {saving ? 'saving…' : saved ? 'saved to KB' : 'save Q&A'}
+                {saving
+                  ? (t('sandbox.saving')   || 'saving…')
+                  : saved
+                    ? (t('sandbox.savedToKB') || 'saved to KB')
+                    : (t('sandbox.saveQA')  || 'save Q&A')}
               </button>
             </>
           )}

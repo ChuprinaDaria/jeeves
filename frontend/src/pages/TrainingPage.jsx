@@ -166,11 +166,14 @@ const TrainingPage = () => {
     }
   };
 
+  const processedCount = files.filter((f) => f.is_processed).length;
+  const pendingCount   = files.filter((f) => !f.is_processed).length;
+
   const stats = [
-    { accent: 'iris',  icon: FileText,  label: 'Knowledge Docs', value: files.length.toString(),                         delta: files.filter((f) => f.is_processed).length + ' processed', trend: 'up' },
-    { accent: 'sage',  icon: Sparkle,   label: 'Indexed',        value: files.filter((f) => f.is_processed).length.toString(), delta: files.filter((f) => !f.is_processed).length + ' pending',  trend: 'up' },
-    { accent: 'amber', icon: Brain,     label: 'Prompt Length',  value: prompt.length.toLocaleString(),                  delta: originalPrompt !== prompt ? 'unsaved changes' : 'saved',   trend: originalPrompt !== prompt ? 'down' : 'up' },
-    { accent: 'rose',  icon: UploadSimple, label: 'Upload Errors', value: uploadErrors.length.toString(),                delta: uploadErrors.length ? 'review below' : 'clean run',         trend: uploadErrors.length ? 'down' : 'up' },
+    { accent: 'iris',  icon: FileText,     label: t('training.statDocs')          || 'Knowledge Docs', value: files.length.toString(),               delta: t('training.deltaProcessed', { count: processedCount }) || `${processedCount} processed`, trend: 'up' },
+    { accent: 'sage',  icon: Sparkle,      label: t('training.statIndexed')       || 'Indexed',        value: processedCount.toString(),              delta: t('training.deltaPending',   { count: pendingCount })   || `${pendingCount} pending`,    trend: 'up' },
+    { accent: 'amber', icon: Brain,        label: t('training.statPromptLength')  || 'Prompt Length',  value: prompt.length.toLocaleString(),         delta: originalPrompt !== prompt ? (t('training.unsaved') || 'unsaved changes') : (t('training.saved') || 'saved'), trend: originalPrompt !== prompt ? 'down' : 'up' },
+    { accent: 'rose',  icon: UploadSimple, label: t('training.statUploadErrors')  || 'Upload Errors',  value: uploadErrors.length.toString(),          delta: uploadErrors.length ? (t('training.reviewBelow') || 'review below') : (t('training.cleanRun') || 'clean run'), trend: uploadErrors.length ? 'down' : 'up' },
   ];
 
   return (
@@ -187,13 +190,13 @@ const TrainingPage = () => {
         </div>
         <div className="hidden md:flex gap-2.5">
           <Button variant="amber" icon={Globe} onClick={() => setWebModal(true)}>
-            Crawl URL
+            {t('training.crawlURL') || 'Crawl URL'}
           </Button>
           <Button variant="pink" icon={Plus} onClick={() => setTextModal(true)}>
-            Add Text
+            {t('training.addText') || 'Add Text'}
           </Button>
           <Button variant="green" icon={ArrowClockwise} onClick={handleSync}>
-            {syncing ? 'Syncing…' : 'Sync'}
+            {syncing ? (t('training.syncing') || 'Syncing…') : (t('training.sync') || 'Sync')}
           </Button>
         </div>
       </div>
@@ -207,13 +210,13 @@ const TrainingPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-8">
         {/* Left column — upload + files */}
         <div className="lg:col-span-2 space-y-5">
-          <DropZone onFiles={handleFiles} uploading={uploading} />
+          <DropZone t={t} onFiles={handleFiles} uploading={uploading} />
 
           {uploadErrors.length > 0 && (
             <Card accent="rose">
               <CardHeader
-                title="Upload Errors"
-                action={<CardAction onClick={() => setUploadErrors([])}>dismiss</CardAction>}
+                title={t('training.uploadErrorsTitle') || 'Upload Errors'}
+                action={<CardAction onClick={() => setUploadErrors([])}>{t('training.dismiss') || 'dismiss'}</CardAction>}
               />
               <div className="space-y-2">
                 {uploadErrors.map((e) => (
@@ -229,22 +232,22 @@ const TrainingPage = () => {
             </Card>
           )}
 
-          <FileListCard files={files} loading={loading} onDelete={handleDelete} />
+          <FileListCard t={t} files={files} loading={loading} onDelete={handleDelete} />
 
           {/* Prompt editor */}
           <Card accent="iris">
             <CardHeader
-              title="System Prompt"
+              title={t('training.systemPrompt') || 'System Prompt'}
               action={
                 <span className="font-mono text-[11px] text-fog">
-                  {prompt.length} chars
+                  {prompt.length} {t('training.chars') || 'chars'}
                 </span>
               }
             />
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Describe how Jeeves should behave: tone, persona, boundaries, escalation rules…"
+              placeholder={t('training.promptPlaceholder') || 'Describe how Jeeves should behave: tone, persona, boundaries, escalation rules…'}
               className="w-full h-64 p-3.5 bg-cream border-[1.5px] border-rule rounded-sm
                          text-[13px] text-ink font-sans resize-y leading-relaxed
                          focus:outline-none focus:border-iris transition-colors"
@@ -253,10 +256,12 @@ const TrainingPage = () => {
               <span className={`font-mono text-[11px] ${
                 originalPrompt !== prompt ? 'text-rose' : 'text-sage'
               }`}>
-                {originalPrompt !== prompt ? '● unsaved changes' : '● in sync'}
+                {originalPrompt !== prompt
+                  ? '● ' + (t('training.unsavedChanges') || 'unsaved changes')
+                  : '● ' + (t('training.inSync') || 'in sync')}
               </span>
               <Button variant="green" icon={FloppyDisk} onClick={savePrompt}>
-                {promptSaving ? 'Saving…' : 'Save Prompt'}
+                {promptSaving ? (t('common.saving') || 'Saving…') : (t('training.savePrompt') || 'Save Prompt')}
               </Button>
             </div>
           </Card>
@@ -265,29 +270,29 @@ const TrainingPage = () => {
         {/* Right column — coach tips */}
         <div className="space-y-5">
           <Card accent="sage">
-            <CardHeader title="Training Tips" />
+            <CardHeader title={t('training.tipsTitle') || 'Training Tips'} />
             <ul className="space-y-3 text-[13px] text-slate leading-relaxed">
               <li className="flex gap-2.5">
                 <span className="text-sage font-mono shrink-0">01</span>
-                Upload authoritative sources — menus, price lists, FAQs, T&Cs.
+                {t('training.tip1') || 'Upload authoritative sources — menus, price lists, FAQs, T&Cs.'}
               </li>
               <li className="flex gap-2.5">
                 <span className="text-sage font-mono shrink-0">02</span>
-                Keep the system prompt short and declarative. Jeeves reads it before every reply.
+                {t('training.tip2') || 'Keep the system prompt short and declarative. Jeeves reads it before every reply.'}
               </li>
               <li className="flex gap-2.5">
                 <span className="text-sage font-mono shrink-0">03</span>
-                Run Sync after every batch of uploads to rebuild the vector index.
+                {t('training.tip3') || 'Run Sync after every batch of uploads to rebuild the vector index.'}
               </li>
               <li className="flex gap-2.5">
                 <span className="text-sage font-mono shrink-0">04</span>
-                Use the Sandbox tab to rehearse before going live on channels.
+                {t('training.tip4') || 'Use the Sandbox tab to rehearse before going live on channels.'}
               </li>
             </ul>
           </Card>
 
           <Card accent="amber">
-            <CardHeader title="Supported Formats" />
+            <CardHeader title={t('training.formatsTitle') || 'Supported Formats'} />
             <div className="grid grid-cols-2 gap-2">
               {['PDF', 'DOCX', 'TXT', 'XLSX', 'JSON', 'CSV', 'HTML', 'MD'].map((f) => (
                 <div key={f} className="label-mono px-2.5 py-2 border-[1.5px] border-rule rounded-sm text-center">
@@ -302,12 +307,14 @@ const TrainingPage = () => {
       {/* ── Modals ── */}
       {textModal && (
         <TextAddModal
+          t={t}
           onClose={() => setTextModal(false)}
           onSaved={() => { setTextModal(false); loadDocuments(true); }}
         />
       )}
       {webModal && (
         <WebCrawlModal
+          t={t}
           onClose={() => setWebModal(false)}
           onSaved={() => { setWebModal(false); loadDocuments(true); }}
         />
@@ -318,13 +325,13 @@ const TrainingPage = () => {
 
 /* ─────────────── Drop zone ─────────────── */
 
-const DropZone = ({ onFiles, uploading }) => {
+const DropZone = ({ t, onFiles, uploading }) => {
   const [drag, setDrag] = useState(false);
   const inputRef = useRef(null);
 
   return (
     <Card>
-      <CardHeader title="Upload Knowledge" />
+      <CardHeader title={t('training.uploadKnowledge') || 'Upload Knowledge'} />
       <div
         onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
         onDragLeave={() => setDrag(false)}
@@ -337,10 +344,12 @@ const DropZone = ({ onFiles, uploading }) => {
       >
         <UploadSimple size={40} weight="light" className="text-iris mx-auto mb-3" />
         <p className="text-[14px] text-ink font-medium mb-1">
-          {uploading ? 'Uploading…' : 'Drag & drop or click to select files'}
+          {uploading
+            ? (t('training.uploading') || 'Uploading…')
+            : (t('training.dropHint')  || 'Drag & drop or click to select files')}
         </p>
         <p className="font-mono text-[11px] text-fog">
-          PDF · DOCX · TXT · XLSX · JSON · up to 25 MB
+          {t('training.supportedFormats') || 'PDF · DOCX · TXT · XLSX · JSON · up to 25 MB'}
         </p>
         <input
           ref={inputRef}
@@ -358,17 +367,17 @@ const DropZone = ({ onFiles, uploading }) => {
 
 /* ─────────────── File list card ─────────────── */
 
-const FileListCard = ({ files, loading, onDelete }) => {
+const FileListCard = ({ t, files, loading, onDelete }) => {
   return (
     <Card>
       <CardHeader
-        title="Knowledge Library"
-        action={<span className="label-mono">{files.length} files</span>}
+        title={t('training.libraryTitle') || 'Knowledge Library'}
+        action={<span className="label-mono">{files.length} {t('training.filesLabel') || 'files'}</span>}
       />
       {loading ? (
-        <p className="label-mono py-8 text-center">loading…</p>
+        <p className="label-mono py-8 text-center">{t('common.loading') || 'loading…'}</p>
       ) : files.length === 0 ? (
-        <p className="label-mono py-8 text-center">no documents yet</p>
+        <p className="label-mono py-8 text-center">{t('training.noDocs') || 'no documents yet'}</p>
       ) : (
         <div className="divide-y divide-rule">
           {files.map((f) => {
@@ -388,12 +397,14 @@ const FileListCard = ({ files, loading, onDelete }) => {
                   </div>
                 </div>
                 <span className={`pill ${f.is_processed ? 'pill-on' : 'pill-warning'}`}>
-                  {f.is_processed ? 'indexed' : 'processing'}
+                  {f.is_processed
+                    ? (t('training.indexed')    || 'indexed')
+                    : (t('training.processing') || 'processing')}
                 </span>
                 <button
                   onClick={() => onDelete(f.id)}
                   className="text-fog hover:text-rose transition-colors cursor-pointer p-1.5"
-                  aria-label="Delete document"
+                  aria-label={t('training.deleteDocument') || 'Delete document'}
                 >
                   <Trash size={16} weight="light" />
                 </button>
@@ -408,7 +419,7 @@ const FileListCard = ({ files, loading, onDelete }) => {
 
 /* ─────────────── Text add modal ─────────────── */
 
-const TextAddModal = ({ onClose, onSaved }) => {
+const TextAddModal = ({ t, onClose, onSaved }) => {
   const [title, setTitle] = useState('');
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
@@ -420,7 +431,7 @@ const TextAddModal = ({ onClose, onSaved }) => {
       await clientAPI.uploadTextDocument(title.trim(), text.trim());
       onSaved();
     } catch (e) {
-      alert(e?.response?.data?.error || 'Failed');
+      alert(e?.response?.data?.error || (t('common.error') || 'Failed'));
     } finally {
       setSaving(false);
     }
@@ -430,37 +441,37 @@ const TextAddModal = ({ onClose, onSaved }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 backdrop-blur-[2px] p-4">
       <div className="surface p-6 w-full max-w-2xl animate-fade-up">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-[16px] font-semibold text-ink">Add Text Knowledge</h3>
+          <h3 className="text-[16px] font-semibold text-ink">{t('training.addTextModalTitle') || 'Add Text Knowledge'}</h3>
           <button onClick={onClose} className="text-fog hover:text-ink cursor-pointer">
             <X size={20} weight="light" />
           </button>
         </div>
         <div className="space-y-4">
           <div>
-            <div className="label-mono mb-1.5">Title</div>
+            <div className="label-mono mb-1.5">{t('training.titleLabel') || 'Title'}</div>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Pricing Policy 2026"
+              placeholder={t('training.titlePlaceholder') || 'e.g. Pricing Policy 2026'}
               className="w-full px-3 py-2 bg-cream border-[1.5px] border-rule rounded-sm
                          text-[13px] text-ink focus:outline-none focus:border-iris transition-colors"
             />
           </div>
           <div>
-            <div className="label-mono mb-1.5">Content</div>
+            <div className="label-mono mb-1.5">{t('training.contentLabel') || 'Content'}</div>
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Paste any text Jeeves should know…"
+              placeholder={t('training.contentPlaceholder') || 'Paste any text Jeeves should know…'}
               className="w-full h-56 p-3 bg-cream border-[1.5px] border-rule rounded-sm
                          text-[13px] text-ink resize-y focus:outline-none focus:border-iris transition-colors"
             />
           </div>
         </div>
         <div className="flex justify-end gap-2.5 mt-5">
-          <Button variant="amber" onClick={onClose}>Cancel</Button>
+          <Button variant="amber" onClick={onClose}>{t('common.cancel') || 'Cancel'}</Button>
           <Button variant="green" icon={FloppyDisk} onClick={save}>
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? (t('common.saving') || 'Saving…') : (t('common.save') || 'Save')}
           </Button>
         </div>
       </div>
@@ -470,7 +481,7 @@ const TextAddModal = ({ onClose, onSaved }) => {
 
 /* ─────────────── Web crawl modal ─────────────── */
 
-const WebCrawlModal = ({ onClose, onSaved }) => {
+const WebCrawlModal = ({ t, onClose, onSaved }) => {
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
   const [saving, setSaving] = useState(false);
@@ -479,14 +490,13 @@ const WebCrawlModal = ({ onClose, onSaved }) => {
     if (!url.trim()) return;
     setSaving(true);
     try {
-      // Reuse text upload if web crawl API is unavailable — pass URL as reference
       await clientAPI.uploadTextDocument(
         title.trim() || url.trim(),
         `[Web source] ${url.trim()}\n\nAdd crawled content manually or via backend crawler.`
       );
       onSaved();
     } catch (e) {
-      alert(e?.response?.data?.error || 'Failed');
+      alert(e?.response?.data?.error || (t('common.error') || 'Failed'));
     } finally {
       setSaving(false);
     }
@@ -496,7 +506,7 @@ const WebCrawlModal = ({ onClose, onSaved }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 backdrop-blur-[2px] p-4">
       <div className="surface p-6 w-full max-w-xl animate-fade-up">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-[16px] font-semibold text-ink">Crawl Web Page</h3>
+          <h3 className="text-[16px] font-semibold text-ink">{t('training.crawlModalTitle') || 'Crawl Web Page'}</h3>
           <button onClick={onClose} className="text-fog hover:text-ink cursor-pointer">
             <X size={20} weight="light" />
           </button>
@@ -513,20 +523,20 @@ const WebCrawlModal = ({ onClose, onSaved }) => {
             />
           </div>
           <div>
-            <div className="label-mono mb-1.5">Title (optional)</div>
+            <div className="label-mono mb-1.5">{t('training.titleOptional') || 'Title (optional)'}</div>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Pricing page"
+              placeholder={t('training.pricingPage') || 'Pricing page'}
               className="w-full px-3 py-2 bg-cream border-[1.5px] border-rule rounded-sm
                          text-[13px] text-ink focus:outline-none focus:border-iris transition-colors"
             />
           </div>
         </div>
         <div className="flex justify-end gap-2.5 mt-5">
-          <Button variant="amber" onClick={onClose}>Cancel</Button>
+          <Button variant="amber" onClick={onClose}>{t('common.cancel') || 'Cancel'}</Button>
           <Button variant="green" icon={FloppyDisk} onClick={save}>
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? (t('common.saving') || 'Saving…') : (t('common.save') || 'Save')}
           </Button>
         </div>
       </div>

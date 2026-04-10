@@ -157,100 +157,118 @@ const IntegrationsPage = () => {
   }, [modal, clientInfo, loadOrCreateWebQR]);
 
   /* ── Integration catalog ── */
+  const viaExt = t('integrations.viaExtension') || 'via Extension';
   const catalog = [
     {
       key: 'web',       icon: Browser,        accent: 'iris',
-      name: 'Web Chat', desc: 'B2C client chat interface',
+      name: t('integrations.webChatName')     || 'Web Chat',
+      desc: t('integrations.webChatDesc')     || 'B2C client chat interface',
       state: 'connected', onClick: () => setModal('web'),
     },
     {
       key: 'webwidget', icon: Code,           accent: 'iris',
-      name: 'Web Widget', desc: 'Embed chat on your website',
+      name: t('integrations.webWidgetName')   || 'Web Widget',
+      desc: t('integrations.webWidgetDesc')   || 'Embed chat on your website',
       state: clientInfo?.client_type === 'white_label' ? 'notConnected' : 'hidden',
       onClick: () => setModal('webwidget'),
     },
     {
       key: 'whatsapp',  icon: WhatsappLogo,   accent: 'sage',
-      name: 'WhatsApp', desc: 'WhatsApp Business bridge',
+      name: t('integrations.whatsappName')    || 'WhatsApp',
+      desc: t('integrations.whatsappDesc2')   || 'WhatsApp Business bridge',
       state: status.whatsapp ? 'connected' : 'notConnected',
       meta: status.whatsapp && whatsappPhone ? whatsappPhone : null,
       onClick: () => setModal('whatsapp'),
     },
     {
       key: 'telegram',  icon: TelegramLogo,   accent: 'iris',
-      name: 'Telegram', desc: 'Connect a Telegram bot',
+      name: t('integrations.telegramName')    || 'Telegram',
+      desc: t('integrations.telegramDesc')    || 'Connect a Telegram bot',
       state: status.telegram ? 'connected' : 'notConnected',
       onClick: () => setModal('telegram'),
     },
     {
       key: 'email',     icon: EnvelopeSimple, accent: 'rose',
-      name: 'Email',    desc: 'SMTP — transactional & reports',
+      name: t('integrations.emailName')       || 'Email',
+      desc: t('integrations.emailDesc')       || 'SMTP — transactional & reports',
       state: status.email ? 'connected' : 'notConnected',
       onClick: () => setModal('email'),
     },
     {
       key: 'hitl',      icon: Headset,        accent: 'amber',
-      name: 'HITL (Manager)', desc: 'Escalate to humans via Telegram',
+      name: t('integrations.hitlName')        || 'HITL (Manager)',
+      desc: t('integrations.hitlDesc')        || 'Escalate to humans via Telegram',
       state: status.hitl ? 'connected' : 'notConnected',
       onClick: () => setModal('hitl'),
     },
     {
       key: 'extension', icon: PuzzlePiece,    accent: 'iris',
-      name: 'Chrome Extension', desc: 'Web AI agent for scraping & automation',
+      name: t('integrations.extensionName')   || 'Chrome Extension',
+      desc: t('integrations.extensionDesc')   || 'Web AI agent for scraping & automation',
       state: status.extension ? 'connected' : 'notConnected',
       onClick: () => setModal('extension'),
     },
     {
       key: 'messenger', icon: FacebookLogo,   accent: 'iris',
-      name: 'Facebook Messenger', desc: 'Bridge conversations via extension',
-      state: 'notConnected', meta: 'via Extension',
+      name: t('integrations.messengerName')   || 'Facebook Messenger',
+      desc: t('integrations.messengerDesc')   || 'Bridge conversations via extension',
+      state: 'notConnected', meta: viaExt,
       onClick: () => setModal('extension'),
     },
     {
       key: 'instagram', icon: InstagramLogo,  accent: 'rose',
-      name: 'Instagram DM', desc: 'Direct messages via extension',
-      state: 'notConnected', meta: 'via Extension',
+      name: t('integrations.instagramName')   || 'Instagram DM',
+      desc: t('integrations.instagramDesc')   || 'Direct messages via extension',
+      state: 'notConnected', meta: viaExt,
       onClick: () => setModal('extension'),
     },
     {
       key: 'linkedin',  icon: LinkedinLogo,   accent: 'iris',
-      name: 'LinkedIn Messages', desc: 'Lead-gen bridge via extension',
-      state: 'notConnected', meta: 'via Extension',
+      name: t('integrations.linkedinName')    || 'LinkedIn Messages',
+      desc: t('integrations.linkedinDesc')    || 'Lead-gen bridge via extension',
+      state: 'notConnected', meta: viaExt,
       onClick: () => setModal('extension'),
     },
     {
       key: 'gcal',      icon: CalendarBlank,  accent: 'rose',
-      name: 'Google Calendar', desc: 'Sync appointments & bookings',
+      name: t('integrations.gcalName')        || 'Google Calendar',
+      desc: t('integrations.gcalDesc')        || 'Sync appointments & bookings',
       state: 'soon',
     },
     {
       key: 'greview',   icon: GoogleLogo,     accent: 'amber',
-      name: 'Google Reviews', desc: 'Monitor & respond to reviews',
+      name: t('integrations.greviewName')     || 'Google Reviews',
+      desc: t('integrations.greviewDesc')     || 'Monitor & respond to reviews',
       state: 'soon',
     },
     {
       key: 'avatar',    icon: VideoCamera,    accent: 'iris',
-      name: 'AI Video Avatar', desc: 'Personalised video avatar & cloning',
+      name: t('integrations.avatarName')      || 'AI Video Avatar',
+      desc: t('integrations.avatarDesc')      || 'Personalised video avatar & cloning',
       state: 'soon',
     },
     {
       key: 'voice',     icon: Phone,          accent: 'sage',
-      name: 'Voice AI — Phone RAG', desc: 'Telephony with Jeeves',
+      name: t('integrations.voiceName')       || 'Voice AI — Phone RAG',
+      desc: t('integrations.voiceDesc')       || 'Telephony with Jeeves',
       state: 'soon',
     },
     {
       key: 'make',      icon: ShareNetwork,   accent: 'iris',
-      name: 'Make.com', desc: 'No-code automation scenarios',
+      name: t('integrations.makeName')        || 'Make.com',
+      desc: t('integrations.makeDesc')        || 'No-code automation scenarios',
       state: 'soon',
     },
     {
       key: 'n8n',       icon: ShareNetwork,   accent: 'amber',
-      name: 'n8n', desc: 'Self-hosted workflow automation',
+      name: 'n8n',
+      desc: t('integrations.n8nDesc')         || 'Self-hosted workflow automation',
       state: 'soon',
     },
     {
       key: 'api',       icon: Code,           accent: 'iris',
-      name: 'Custom API', desc: 'Direct API integration',
+      name: t('integrations.apiName')         || 'Custom API',
+      desc: t('integrations.apiDesc')         || 'Direct API integration',
       state: 'soon',
     },
   ].filter((c) => c.state !== 'hidden');
@@ -260,10 +278,10 @@ const IntegrationsPage = () => {
   const comingSoon = catalog.filter((c) => c.state === 'soon').length;
 
   const stats = [
-    { accent: 'sage',  icon: WhatsappLogo, label: 'Connected',   value: connectedCount.toString(), delta: `${available} available`, trend: 'up' },
-    { accent: 'iris',  icon: Browser,      label: 'Available',   value: available.toString(),       delta: 'ready to deploy',        trend: 'up' },
-    { accent: 'amber', icon: CalendarBlank,label: 'Coming Soon', value: comingSoon.toString(),      delta: 'roadmap items',          trend: 'up' },
-    { accent: 'rose',  icon: Headset,      label: 'Escalation',  value: status.hitl ? 'ON' : 'OFF',  delta: status.hitl ? 'HITL live' : 'manager off-duty', trend: status.hitl ? 'up' : 'down' },
+    { accent: 'sage',  icon: WhatsappLogo,  label: t('integrations.statConnected')  || 'Connected',   value: connectedCount.toString(), delta: t('integrations.availableCount', { count: available }) || `${available} available`, trend: 'up' },
+    { accent: 'iris',  icon: Browser,       label: t('integrations.statAvailable')  || 'Available',   value: available.toString(),       delta: t('integrations.readyToDeploy') || 'ready to deploy',                                 trend: 'up' },
+    { accent: 'amber', icon: CalendarBlank, label: t('integrations.statComingSoon') || 'Coming Soon', value: comingSoon.toString(),      delta: t('integrations.roadmapItems')  || 'roadmap items',                                   trend: 'up' },
+    { accent: 'rose',  icon: Headset,       label: t('integrations.statEscalation') || 'Escalation',  value: status.hitl ? 'ON' : 'OFF',  delta: status.hitl ? (t('integrations.hitlLive') || 'HITL live') : (t('integrations.hitlOff') || 'manager off-duty'), trend: status.hitl ? 'up' : 'down' },
   ];
 
   return (
@@ -275,7 +293,7 @@ const IntegrationsPage = () => {
             {t('integrations.title') || 'Integrations'}
           </h1>
           <div className="font-mono text-[13px] text-fog mt-1">
-            channels · bridges · automations
+            {t('integrations.headerSubtitle') || 'channels · bridges · automations'}
           </div>
         </div>
       </div>
@@ -287,11 +305,15 @@ const IntegrationsPage = () => {
 
       {/* ── Catalog grid ── */}
       {loading ? (
-        <Card><p className="label-mono py-10 text-center">loading integrations…</p></Card>
+        <Card>
+          <p className="label-mono py-10 text-center">
+            {t('integrations.loadingList') || 'loading integrations…'}
+          </p>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
           {catalog.map((item) => (
-            <IntegrationCard key={item.key} {...item} />
+            <IntegrationCard key={item.key} t={t} {...item} />
           ))}
         </div>
       )}
@@ -318,10 +340,11 @@ const IntegrationsPage = () => {
 
       {modal === 'web' && (
         <WebChatModal
+          t={t}
           loading={loadingWebQR}
           qr={webQR}
           onRegenerate={loadOrCreateWebQR}
-          onCopy={() => { if (webQR?.url) { navigator.clipboard.writeText(webQR.url); flashToast('Link copied'); } }}
+          onCopy={() => { if (webQR?.url) { navigator.clipboard.writeText(webQR.url); flashToast(t('integrations.linkCopied') || 'Link copied'); } }}
           onClose={() => setModal(null)}
         />
       )}
@@ -331,7 +354,7 @@ const IntegrationsPage = () => {
 
 /* ─────────────── Integration card ─────────────── */
 
-const IntegrationCard = ({ icon, accent, name, desc, state, meta, onClick }) => {
+const IntegrationCard = ({ t, icon, accent, name, desc, state, meta, onClick }) => {
   const isSoon = state === 'soon';
   const IconCmp = icon;
   return (
@@ -349,9 +372,9 @@ const IntegrationCard = ({ icon, accent, name, desc, state, meta, onClick }) => 
       </div>
 
       <div className="flex items-center justify-between">
-        {state === 'connected' && <span className="pill pill-on">connected</span>}
-        {state === 'notConnected' && <span className="pill pill-off">not connected</span>}
-        {state === 'soon' && <span className="pill pill-warning">coming soon</span>}
+        {state === 'connected'    && <span className="pill pill-on">{t('integrations.connected') || 'connected'}</span>}
+        {state === 'notConnected' && <span className="pill pill-off">{t('integrations.notConnected') || 'not connected'}</span>}
+        {state === 'soon'         && <span className="pill pill-warning">{t('integrations.comingSoon') || 'coming soon'}</span>}
         {meta && <span className="font-mono text-[11px] text-fog truncate ml-2">{meta}</span>}
       </div>
 
@@ -362,7 +385,9 @@ const IntegrationCard = ({ icon, accent, name, desc, state, meta, onClick }) => 
             className="w-full justify-center"
             onClick={onClick}
           >
-            {state === 'connected' ? 'Manage' : 'Configure'}
+            {state === 'connected'
+              ? (t('integrations.manage')    || 'Manage')
+              : (t('integrations.configure') || 'Configure')}
           </Button>
         </div>
       )}
@@ -372,14 +397,14 @@ const IntegrationCard = ({ icon, accent, name, desc, state, meta, onClick }) => 
 
 /* ─────────────── Web chat modal ─────────────── */
 
-const WebChatModal = ({ loading, qr, onRegenerate, onCopy, onClose }) => {
+const WebChatModal = ({ t, loading, qr, onRegenerate, onCopy, onClose }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 backdrop-blur-[2px] p-4">
       <div className="surface p-6 w-full max-w-xl animate-fade-up">
         <div className="flex items-start justify-between mb-5">
           <div>
-            <h3 className="text-[16px] font-semibold text-ink">Web Chat</h3>
-            <div className="font-mono text-[12px] text-fog mt-0.5">share link or QR with customers</div>
+            <h3 className="text-[16px] font-semibold text-ink">{t('integrations.webChatName') || 'Web Chat'}</h3>
+            <div className="font-mono text-[12px] text-fog mt-0.5">{t('integrations.webShareHint') || 'share link or QR with customers'}</div>
           </div>
           <button onClick={onClose} className="text-fog hover:text-ink cursor-pointer">
             <X size={20} weight="light" />
@@ -388,20 +413,21 @@ const WebChatModal = ({ loading, qr, onRegenerate, onCopy, onClose }) => {
 
         <div className="p-4 bg-linen border-[1.5px] border-rule rounded-md mb-4">
           {loading ? (
-            <p className="label-mono py-8 text-center">generating…</p>
+            <p className="label-mono py-8 text-center">{t('integrations.generating') || 'generating…'}</p>
           ) : qr?.img ? (
             <div className="flex flex-col items-center gap-3">
-              <img src={qr.img} alt="Web chat QR" className="w-48 h-48 object-contain border-[1.5px] border-rule rounded-sm bg-paper" />
-              <p className="font-mono text-[11px] text-fog">scan to open chat</p>
+              <img src={qr.img} alt={t('integrations.webChatQRAlt') || 'Web chat QR'}
+                   className="w-48 h-48 object-contain border-[1.5px] border-rule rounded-sm bg-paper" />
+              <p className="font-mono text-[11px] text-fog">{t('integrations.scanToOpen') || 'scan to open chat'}</p>
             </div>
           ) : (
-            <p className="label-mono py-6 text-center">no QR yet</p>
+            <p className="label-mono py-6 text-center">{t('integrations.noQR') || 'no QR yet'}</p>
           )}
         </div>
 
         {qr?.url && (
           <div className="mb-4">
-            <div className="label-mono mb-1.5">Link</div>
+            <div className="label-mono mb-1.5">{t('integrations.linkLabel') || 'Link'}</div>
             <div className="flex gap-2">
               <input
                 readOnly
@@ -410,14 +436,16 @@ const WebChatModal = ({ loading, qr, onRegenerate, onCopy, onClose }) => {
                            font-mono text-[12px] text-ink focus:outline-none focus:border-iris"
                 onClick={(e) => e.target.select()}
               />
-              <Button variant="violet" icon={Copy} onClick={onCopy}>Copy</Button>
+              <Button variant="violet" icon={Copy} onClick={onCopy}>{t('integrations.copy') || 'Copy'}</Button>
             </div>
           </div>
         )}
 
         <div className="flex justify-end gap-2.5 pt-4 border-t border-rule">
-          <Button variant="amber" onClick={onClose}>Close</Button>
-          <Button variant="green" icon={ArrowClockwise} onClick={onRegenerate}>Regenerate</Button>
+          <Button variant="amber" onClick={onClose}>{t('common.close') || 'Close'}</Button>
+          <Button variant="green" icon={ArrowClockwise} onClick={onRegenerate}>
+            {t('integrations.regenerate') || 'Regenerate'}
+          </Button>
         </div>
       </div>
     </div>

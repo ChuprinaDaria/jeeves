@@ -150,7 +150,8 @@
     "sandboxBadge": "Modo de prueba"
   },
   "sandbox": {
-    "title": "Sandbox",
+    "title": "Jeeves",
+    "tagline": "ayuda de cámara ingenioso y erudito",
     "subtitle": "Prueba tu asistente de IA antes de salir a producción",
     "newLocationTitle": "¡Sandbox ahora también está disponible en Entrenar IA!",
     "newLocationDescription": "Para tu comodidad, ahora puedes probar tu asistente de IA directamente en la página Entrenar IA, justo después de configurar el comportamiento de la IA.",

@@ -4,6 +4,7 @@ import { Globe } from '@phosphor-icons/react';
 
 const LANGUAGES = [
   { code: 'en', name: 'English',    flagUrl: 'https://flagcdn.com/24x18/gb.png' },
+  { code: 'uk', name: 'Українська', flagUrl: 'https://flagcdn.com/24x18/ua.png' },
   { code: 'de', name: 'Deutsch',    flagUrl: 'https://flagcdn.com/24x18/de.png' },
   { code: 'fr', name: 'Français',   flagUrl: 'https://flagcdn.com/24x18/fr.png' },
   { code: 'es', name: 'Español',    flagUrl: 'https://flagcdn.com/24x18/es.png' },

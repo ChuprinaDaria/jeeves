@@ -9,6 +9,7 @@ import esTranslation from './locales/es/translation.json';
 import itTranslation from './locales/it/translation.json';
 import nlTranslation from './locales/nl/translation.json';
 import daTranslation from './locales/da/translation.json';
+import ukTranslation from './locales/uk/translation.json';
 
 const resources = {
   en: { translation: enTranslation },
@@ -18,6 +19,7 @@ const resources = {
   it: { translation: itTranslation },
   nl: { translation: nlTranslation },
   da: { translation: daTranslation },
+  uk: { translation: ukTranslation },
 };
 
 // Get saved language or use browser language

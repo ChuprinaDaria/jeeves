@@ -104,11 +104,11 @@ const SettingsPage = () => {
     const file = e.target.files[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      flash('error', 'File must be an image');
+      flash('error', t('settings.logoInvalidType') || 'File must be an image');
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      flash('error', 'File must be under 5 MB');
+      flash('error', t('settings.logoTooLarge') || 'File must be under 5 MB');
       return;
     }
     setUploading(true);
@@ -119,23 +119,23 @@ const SettingsPage = () => {
         const base = import.meta.env.VITE_API_URL || 'http://localhost:8000';
         setLogoUrl(raw.startsWith('/') ? `${base}${raw}` : raw);
       }
-      flash('success', 'Logo uploaded');
+      flash('success', t('settings.logoUploaded') || 'Logo uploaded');
     } catch {
-      flash('error', 'Failed to upload logo');
+      flash('error', t('settings.logoUploadError') || 'Failed to upload logo');
     } finally {
       setUploading(false);
     }
   };
 
   const handleLogoDelete = async () => {
-    if (!confirm('Delete logo?')) return;
+    if (!confirm(t('settings.deleteLogoConfirm') || 'Delete logo?')) return;
     setUploading(true);
     try {
       await clientAPI.deleteLogo();
       setLogoUrl(null);
-      flash('success', 'Logo deleted');
+      flash('success', t('settings.logoDeleted') || 'Logo deleted');
     } catch {
-      flash('error', 'Failed to delete logo');
+      flash('error', t('settings.logoDeleteError') || 'Failed to delete logo');
     } finally {
       setUploading(false);
     }
@@ -151,9 +151,9 @@ const SettingsPage = () => {
         notification_language: notificationLanguage,
         greeting_message: greetingMessage,
       });
-      flash('success', 'Settings saved');
+      flash('success', t('settings.settingsSaved') || 'Settings saved');
     } catch {
-      flash('error', 'Failed to save settings');
+      flash('error', t('settings.settingsSaveError') || 'Failed to save settings');
     } finally {
       setReportSaving(false);
     }
@@ -163,7 +163,7 @@ const SettingsPage = () => {
   const addRecipient = () => {
     const email = reportEmail.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      flash('error', 'Invalid email');
+      flash('error', t('settings.reportInvalidEmail') || 'Invalid email');
       return;
     }
     if (reportRecipients.some((r) => r.toLowerCase() === email.toLowerCase())) {
@@ -171,7 +171,7 @@ const SettingsPage = () => {
       return;
     }
     if (reportRecipients.length >= 5) {
-      flash('error', 'Max 5 recipients');
+      flash('error', t('settings.reportMaxRecipients') || 'Max 5 recipients');
       return;
     }
     setReportRecipients((prev) => [...prev, email]);
@@ -186,10 +186,10 @@ const SettingsPage = () => {
     setReportSending(true);
     try {
       const { data } = await api.post('/clients/reports/daily-digest/send/', {});
-      if (data?.success) flash('success', 'Report scheduled');
-      else flash('error', data?.error || 'Failed');
+      if (data?.success) flash('success', t('settings.reportScheduled') || 'Report scheduled');
+      else flash('error', data?.error || t('common.error') || 'Failed');
     } catch {
-      flash('error', 'Failed to send report');
+      flash('error', t('settings.reportSendError') || 'Failed to send report');
     } finally {
       setReportSending(false);
     }
@@ -198,14 +198,14 @@ const SettingsPage = () => {
   if (authLoading || !isAuthenticated) {
     return (
       <div className="flex items-center justify-center h-full py-20">
-        <p className="label-mono">loading…</p>
+        <p className="label-mono">{t('common.loading') || 'loading…'}</p>
       </div>
     );
   }
 
   const tabs = [
-    { key: 'profile',  label: 'Profile',    icon: User },
-    { key: 'channels', label: 'Channels',   icon: PlugsConnected },
+    { key: 'profile',  label: t('settings.tabProfile')  || 'Profile',  icon: User },
+    { key: 'channels', label: t('settings.tabChannels') || 'Channels', icon: PlugsConnected },
   ];
 
   return (
@@ -217,7 +217,7 @@ const SettingsPage = () => {
             {t('settings.title') || 'Settings'}
           </h1>
           <div className="font-mono text-[13px] text-fog mt-1">
-            workspace · reports · channels
+            {t('settings.headerSubtitle') || 'workspace · reports · channels'}
           </div>
         </div>
       </div>
@@ -252,7 +252,7 @@ const SettingsPage = () => {
       {/* ── Channels tab ── */}
       {activeTab === 'channels' && (
         <Card>
-          <CardHeader title="Channel Control" />
+          <CardHeader title={t('settings.channelControl') || 'Channel Control'} />
           <ChannelsTab />
         </Card>
       )}
@@ -262,18 +262,18 @@ const SettingsPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Logo */}
           <Card accent="iris" className="lg:col-span-1">
-            <CardHeader title="Workspace Logo" />
+            <CardHeader title={t('settings.workspaceLogo') || 'Workspace Logo'} />
             <div className="flex flex-col items-center gap-4 py-2">
               <div className={`w-28 h-28 rounded-md border-2 ${ACCENT_BORDER.iris}
                               flex items-center justify-center overflow-hidden bg-cream`}>
                 {logoUrl ? (
-                  <img src={logoUrl} alt="Workspace logo" className="w-full h-full object-contain p-2" />
+                  <img src={logoUrl} alt={t('settings.workspaceLogo') || 'Workspace logo'} className="w-full h-full object-contain p-2" />
                 ) : (
                   <ImageIcon size={36} weight="light" />
                 )}
               </div>
               <p className="font-mono text-[11px] text-fog text-center">
-                PNG / SVG · ≤ 5 MB · used in QR, chat header, reports
+                {t('settings.logoHint') || 'PNG / SVG · ≤ 5 MB · used in QR, chat header, reports'}
               </p>
               <div className="flex gap-2.5 w-full">
                 <input
@@ -286,12 +286,16 @@ const SettingsPage = () => {
                 />
                 <label htmlFor="logo-input" className="flex-1">
                   <Button variant="violet" icon={Upload} className="w-full justify-center">
-                    {uploading ? 'Uploading…' : logoUrl ? 'Replace' : 'Upload'}
+                    {uploading
+                      ? (t('settings.uploading') || 'Uploading…')
+                      : logoUrl
+                        ? (t('settings.replace') || 'Replace')
+                        : (t('settings.upload')  || 'Upload')}
                   </Button>
                 </label>
                 {logoUrl && !uploading && (
                   <Button variant="pink" icon={X} onClick={handleLogoDelete}>
-                    Remove
+                    {t('settings.remove') || 'Remove'}
                   </Button>
                 )}
               </div>
@@ -301,32 +305,32 @@ const SettingsPage = () => {
           {/* Greeting */}
           <Card accent="sage" className="lg:col-span-2">
             <CardHeader
-              title="Greeting Message"
+              title={t('settings.greetingTitle') || 'Greeting Message'}
               action={<span className="label-mono">{greetingMessage.length}/500</span>}
             />
             <p className="text-[12px] text-fog mb-3">
-              Shown to customers when they first open a chat. Keep it warm and short.
+              {t('settings.greetingHint') || 'Shown to customers when they first open a chat. Keep it warm and short.'}
             </p>
             <textarea
               value={greetingMessage}
               onChange={(e) => setGreetingMessage(e.target.value)}
-              placeholder="Hello! How can I help you today?"
+              placeholder={t('settings.greetingPlaceholder') || 'Hello! How can I help you today?'}
               maxLength={500}
               className="w-full h-32 p-3 bg-cream border-[1.5px] border-rule rounded-sm
                          text-[13px] text-ink resize-y focus:outline-none focus:border-sage transition-colors"
             />
             <div className="flex justify-end mt-4">
               <Button variant="green" icon={FloppyDisk} onClick={saveGeneralSettings}>
-                {reportSaving ? 'Saving…' : 'Save'}
+                {reportSaving ? (t('common.saving') || 'Saving…') : (t('common.save') || 'Save')}
               </Button>
             </div>
           </Card>
 
           {/* Notification language */}
           <Card accent="amber" className="lg:col-span-1">
-            <CardHeader title="Notification Language" />
+            <CardHeader title={t('settings.notificationLanguageLabel') || 'Notification Language'} />
             <p className="text-[12px] text-fog mb-3 leading-relaxed">
-              Reports, manager alerts and email notifications. Customer replies still use each visitor's language.
+              {t('settings.notificationLanguageDescription') || "Reports, manager alerts and email notifications. Customer replies still use each visitor's language."}
             </p>
             <div className="relative">
               <Translate size={16} weight="light" className="absolute left-3 top-1/2 -translate-y-1/2 text-amber pointer-events-none" />
@@ -352,10 +356,12 @@ const SettingsPage = () => {
           {/* Daily reports */}
           <Card accent="rose" className="lg:col-span-2">
             <CardHeader
-              title="Daily Reports"
+              title={t('settings.reportSettingsTitle') || 'Daily Reports'}
               action={
                 <CardAction onClick={sendDailyReportNow}>
-                  {reportSending ? 'sending…' : 'send now'}
+                  {reportSending
+                    ? (t('settings.sendingShort') || 'sending…')
+                    : (t('settings.sendNowShort') || 'send now')}
                 </CardAction>
               }
             />
@@ -369,24 +375,26 @@ const SettingsPage = () => {
               />
               <Bell size={16} weight="light" className="text-rose" />
               <span className="text-[13px] font-medium text-ink">
-                Enable daily digest email
+                {t('settings.reportEnabledLabel') || 'Enable daily digest email'}
               </span>
             </label>
 
             <div className="mb-4">
-              <div className="label-mono mb-1.5">Recipients (up to 5)</div>
+              <div className="label-mono mb-1.5">
+                {t('settings.reportRecipientsLabel') || 'Recipients (up to 5)'}
+              </div>
               <div className="flex gap-2">
                 <input
                   type="email"
                   value={reportEmail}
                   onChange={(e) => setReportEmail(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addRecipient(); } }}
-                  placeholder="team@company.com"
+                  placeholder={t('settings.reportEmailPlaceholder') || 'team@company.com'}
                   className="flex-1 px-3 py-2 bg-cream border-[1.5px] border-rule rounded-sm
                              font-mono text-[12px] text-ink focus:outline-none focus:border-rose transition-colors"
                 />
                 <Button variant="violet" icon={Plus} onClick={addRecipient}>
-                  Add
+                  {t('settings.reportAdd') || 'Add'}
                 </Button>
               </div>
             </div>
@@ -402,7 +410,7 @@ const SettingsPage = () => {
                     <button
                       onClick={() => removeRecipient(email)}
                       className="text-fog hover:text-rose transition-colors cursor-pointer p-1"
-                      aria-label="Remove recipient"
+                      aria-label={t('settings.reportRemove') || 'Remove recipient'}
                     >
                       <Trash size={14} weight="light" />
                     </button>
@@ -410,15 +418,21 @@ const SettingsPage = () => {
                 ))}
               </div>
             ) : (
-              <p className="label-mono text-center py-4">no recipients yet</p>
+              <p className="label-mono text-center py-4">
+                {t('settings.reportNoRecipients') || 'no recipients yet'}
+              </p>
             )}
 
             <div className="flex justify-end gap-2.5 mt-4 pt-4 border-t border-rule">
               <Button variant="pink" icon={PaperPlaneTilt} onClick={sendDailyReportNow}>
-                {reportSending ? 'Sending…' : 'Send Now'}
+                {reportSending
+                  ? (t('settings.reportSending') || 'Sending…')
+                  : (t('settings.reportSendNow') || 'Send Now')}
               </Button>
               <Button variant="green" icon={FloppyDisk} onClick={saveGeneralSettings}>
-                {reportSaving ? 'Saving…' : 'Save'}
+                {reportSaving
+                  ? (t('common.saving') || 'Saving…')
+                  : (t('common.save')   || 'Save')}
               </Button>
             </div>
           </Card>

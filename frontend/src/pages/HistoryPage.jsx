@@ -99,12 +99,12 @@ const HistoryPage = () => {
     }, {});
     const primaryChannel = Object.entries(byChannel).sort((a, b) => b[1] - a[1])[0]?.[0] || '—';
     return [
-      { accent: 'rose',  icon: ChatCircle,       label: 'Conversations', value: total.toLocaleString(), delta: `${Object.keys(byChannel).length} channel(s)`, trend: 'up' },
-      { accent: 'sage',  icon: CheckCircle,      label: 'Resolved',      value: (total - unread).toLocaleString(),                delta: unread ? `${unread} unread` : 'all clear', trend: unread ? 'down' : 'up' },
-      { accent: 'iris',  icon: BellSimple,       label: 'Unread',        value: unread.toLocaleString(),                          delta: unread ? 'needs review' : 'inbox zero',    trend: unread ? 'down' : 'up' },
-      { accent: 'amber', icon: ArrowBendUpRight, label: 'Top Channel',   value: channelMeta(primaryChannel).label,                delta: primaryChannel,                            trend: 'up' },
+      { accent: 'rose',  icon: ChatCircle,       label: t('history.statConversations') || 'Conversations', value: total.toLocaleString(),            delta: t('history.channelsCount', { count: Object.keys(byChannel).length }) || `${Object.keys(byChannel).length} channel(s)`, trend: 'up' },
+      { accent: 'sage',  icon: CheckCircle,      label: t('history.statResolved')      || 'Resolved',      value: (total - unread).toLocaleString(), delta: unread ? (t('history.unreadCount', { count: unread }) || `${unread} unread`) : (t('history.allClear') || 'all clear'), trend: unread ? 'down' : 'up' },
+      { accent: 'iris',  icon: BellSimple,       label: t('history.statUnread')        || 'Unread',        value: unread.toLocaleString(),            delta: unread ? (t('history.needsReview') || 'needs review') : (t('history.inboxZero') || 'inbox zero'),             trend: unread ? 'down' : 'up' },
+      { accent: 'amber', icon: ArrowBendUpRight, label: t('history.statTopChannel')    || 'Top Channel',   value: channelMeta(primaryChannel).label, delta: primaryChannel,                                                                                                       trend: 'up' },
     ];
-  }, [chats]);
+  }, [chats, t]);
 
   return (
     <div className="max-w-[1200px] mx-auto">
@@ -115,7 +115,7 @@ const HistoryPage = () => {
             {t('history.title') || 'Activity'}
           </h1>
           <div className="font-mono text-[13px] text-fog mt-1">
-            conversation log · {chats.length} total
+            {t('history.headerSubtitle', { count: chats.length }) || `conversation log · ${chats.length} total`}
           </div>
         </div>
         <div className="hidden md:flex gap-2.5">
@@ -158,12 +158,12 @@ const HistoryPage = () => {
       <Card>
         <CardHeader
           title={t('dashboard.topQuestions') || 'Top Questions'}
-          action={<CardAction onClick={loadTopQuestions}>refresh</CardAction>}
+          action={<CardAction onClick={loadTopQuestions}>{t('history.refreshShort') || 'refresh'}</CardAction>}
         />
         {loadingQuestions ? (
-          <p className="label-mono py-6 text-center">loading…</p>
+          <p className="label-mono py-6 text-center">{t('common.loading') || 'loading…'}</p>
         ) : topQuestions.filter(q => q.question).length === 0 ? (
-          <p className="label-mono py-6 text-center">no questions yet</p>
+          <p className="label-mono py-6 text-center">{t('dashboard.noQuestions') || 'no questions yet'}</p>
         ) : (
           <div className="divide-y divide-rule">
             {topQuestions.filter(q => q.question).map((item, i) => (
@@ -175,7 +175,9 @@ const HistoryPage = () => {
                 <div className="flex-1 min-w-0">
                   <div className="text-[14px] text-ink truncate">{item.question}</div>
                 </div>
-                <span className="pill pill-info">{item.count} asks</span>
+                <span className="pill pill-info">
+                  {item.count} {t('history.asks') || 'asks'}
+                </span>
               </div>
             ))}
           </div>
@@ -201,9 +203,9 @@ const ChatListPanel = ({ chats, loading, selectedId, onSelect }) => {
 
       <div className="max-h-[560px] overflow-y-auto">
         {loading ? (
-          <p className="label-mono py-8 text-center">loading…</p>
+          <p className="label-mono py-8 text-center">{t('common.loading') || 'loading…'}</p>
         ) : chats.length === 0 ? (
-          <p className="label-mono py-8 text-center">no conversations yet</p>
+          <p className="label-mono py-8 text-center">{t('history.noChats') || 'no conversations yet'}</p>
         ) : (
           chats.map((c) => {
             const meta = channelMeta(c.source);
@@ -225,7 +227,7 @@ const ChatListPanel = ({ chats, loading, selectedId, onSelect }) => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[14px] font-medium text-ink truncate">
-                        {c.customerName || 'Anonymous'}
+                        {c.customerName || (t('history.anonymous') || 'Anonymous')}
                       </span>
                       {c.unread > 0 && (
                         <span className="pill pill-alert">{c.unread}</span>
@@ -359,7 +361,7 @@ const ChatDetailPanel = ({ chat }) => {
           </div>
           <div className="min-w-0">
             <div className="text-[16px] font-semibold text-ink truncate">
-              {chat.customerName || 'Anonymous'}
+              {chat.customerName || (t('history.anonymous') || 'Anonymous')}
             </div>
             <div className="font-mono text-[12px] text-fog">
               {meta.label} · {t('history.lastActive') || 'last active'} {chat.timestamp}
@@ -398,7 +400,7 @@ const ChatDetailPanel = ({ chat }) => {
       {/* Messages */}
       <div className="px-6 py-5 max-h-[440px] overflow-y-auto space-y-4">
         {loading ? (
-          <p className="label-mono py-6 text-center">loading…</p>
+          <p className="label-mono py-6 text-center">{t('common.loading') || 'loading…'}</p>
         ) : messages.length === 0 ? (
           <p className="label-mono py-6 text-center">
             {t('history.noMessages') || 'No messages in this conversation'}

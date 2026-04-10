@@ -156,7 +156,8 @@
     "sandboxBadge": "Mode test"
   },
   "sandbox": {
-    "title": "Sandbox",
+    "title": "Jeeves",
+    "tagline": "valet ingénieux et érudit",
     "subtitle": "Testez votre assistant IA avant la mise en production",
     "newLocationTitle": "Sandbox est maintenant aussi disponible dans Former l'IA !",
     "newLocationDescription": "Pour votre commodité, vous pouvez maintenant tester votre assistant IA directement sur la page Former l'IA, juste après avoir configuré le comportement de l'IA.",
