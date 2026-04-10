@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { X, Eye, EyeSlash, ArrowClockwise } from '@phosphor-icons/react';
 import { toolsAPI } from '../../api/tools';
 import api from '../../api/axios';
 
@@ -180,32 +180,35 @@ const ConnectModal = ({ tool, onClose, onConnected }) => {
   // QR code view
   if (qrData) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-        <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-md p-6">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 backdrop-blur-[2px] p-4">
+        <div className="bg-paper border-[1.5px] border-rule rounded-xl shadow-ink-lg w-full max-w-md p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <h2 className="text-lg font-semibold text-ink">
               {tool.name}
             </h2>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-              <X size={20} />
+            <button
+              onClick={onClose}
+              className="text-fog hover:text-ink transition-colors cursor-pointer"
+            >
+              <X weight="light" size={20} />
             </button>
           </div>
           <div className="flex flex-col items-center gap-4">
             {qrData === 'loading' ? (
               <>
-                <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
+                <p className="text-sm text-slate text-center">
                   {t('tools.waitingQr') || 'Requesting QR code...'}
                 </p>
                 <div className="w-64 h-64 flex items-center justify-center">
-                  <Loader2 className="w-12 h-12 animate-spin text-gray-400" />
+                  <ArrowClockwise weight="light" size={48} className="animate-spin text-fog" />
                 </div>
               </>
             ) : (
               <>
-                <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
+                <p className="text-sm text-slate text-center">
                   {t('tools.scanQr') || 'Scan this QR code with your app'}
                 </p>
-                <div className="bg-white p-4 rounded-lg">
+                <div className="bg-paper p-4 rounded-lg border-[1.5px] border-rule">
                   <img
                     src={`data:image/png;base64,${qrData}`}
                     alt="QR Code"
@@ -214,8 +217,8 @@ const ConnectModal = ({ tool, onClose, onConnected }) => {
                 </div>
               </>
             )}
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Loader2 className="w-4 h-4 animate-spin" />
+            <div className="flex items-center gap-2 label-mono text-slate">
+              <ArrowClockwise weight="light" size={14} className="animate-spin" />
               {t('tools.connecting')}
             </div>
           </div>
@@ -227,45 +230,48 @@ const ConnectModal = ({ tool, onClose, onConnected }) => {
   // auth_type === 'none' shows loading
   if (tool.auth_type === 'none') {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-8">
-          <Loader2 className="w-8 h-8 animate-spin text-primary-600 mx-auto" />
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 backdrop-blur-[2px]">
+        <div className="bg-paper border-[1.5px] border-rule rounded-xl shadow-ink-lg p-8">
+          <ArrowClockwise weight="light" size={32} className="animate-spin text-iris mx-auto" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 backdrop-blur-[2px] p-4">
+      <div className="bg-paper border-[1.5px] border-rule rounded-xl shadow-ink-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b-[1.5px] border-rule">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <h2 className="text-lg font-semibold text-ink">
               {t('tools.connect')} {tool.name}
             </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            <p className="text-sm text-slate mt-1">
               {tool.tagline}
             </p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-            <X size={20} />
+          <button
+            onClick={onClose}
+            className="text-fog hover:text-ink transition-colors cursor-pointer"
+          >
+            <X weight="light" size={20} />
           </button>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-700 dark:text-red-400">
+            <div className="p-3 bg-linen border-[1.5px] border-rose rounded text-sm text-rose">
               {error}
             </div>
           )}
 
           {fields.map((field) => (
             <div key={field.name}>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block label-mono text-slate mb-1">
                 {field.label || field.name}
-                {field.required && <span className="text-red-500 ml-1">*</span>}
+                {field.required && <span className="text-rose ml-1">*</span>}
               </label>
 
               {field.type === 'password' ? (
@@ -276,16 +282,18 @@ const ConnectModal = ({ tool, onClose, onConnected }) => {
                     onChange={(e) => handleChange(field.name, e.target.value)}
                     required={field.required}
                     placeholder={field.placeholder || ''}
-                    className="input w-full pr-10"
+                    className="w-full pr-10 px-3 py-2 rounded border-[1.5px] border-rule bg-paper text-ink text-sm outline-none focus:border-iris transition-colors"
                   />
                   <button
                     type="button"
                     onClick={() =>
                       setShowPasswords((p) => ({ ...p, [field.name]: !p[field.name] }))
                     }
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-fog hover:text-ink transition-colors cursor-pointer"
                   >
-                    {showPasswords[field.name] ? <EyeOff size={16} /> : <Eye size={16} />}
+                    {showPasswords[field.name]
+                      ? <EyeSlash weight="light" size={16} />
+                      : <Eye weight="light" size={16} />}
                   </button>
                 </div>
               ) : field.type === 'checkbox' ? (
@@ -294,9 +302,9 @@ const ConnectModal = ({ tool, onClose, onConnected }) => {
                     type="checkbox"
                     checked={credentials[field.name] || false}
                     onChange={(e) => handleChange(field.name, e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    className="w-4 h-4 rounded-sm border-[1.5px] border-rule text-iris focus:ring-iris accent-iris"
                   />
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                  <span className="text-sm text-slate">
                     {field.description || ''}
                   </span>
                 </label>
@@ -311,7 +319,7 @@ const ConnectModal = ({ tool, onClose, onConnected }) => {
                     )
                   }
                   placeholder={field.placeholder || 'value1, value2, value3'}
-                  className="input w-full"
+                  className="w-full px-3 py-2 rounded border-[1.5px] border-rule bg-paper text-ink text-sm outline-none focus:border-iris transition-colors"
                 />
               ) : (
                 <input
@@ -320,12 +328,12 @@ const ConnectModal = ({ tool, onClose, onConnected }) => {
                   onChange={(e) => handleChange(field.name, e.target.value)}
                   required={field.required}
                   placeholder={field.placeholder || ''}
-                  className="input w-full"
+                  className="w-full px-3 py-2 rounded border-[1.5px] border-rule bg-paper text-ink text-sm outline-none focus:border-iris transition-colors"
                 />
               )}
 
               {field.hint && (
-                <p className="text-xs text-gray-400 mt-1">{field.hint}</p>
+                <p className="text-xs text-fog mt-1">{field.hint}</p>
               )}
             </div>
           ))}
@@ -335,16 +343,16 @@ const ConnectModal = ({ tool, onClose, onConnected }) => {
             <button
               type="button"
               onClick={onClose}
-              className="btn-secondary flex-1"
+              className="btn btn-pink flex-1 justify-center"
             >
               {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary flex-1 flex items-center justify-center gap-2"
+              className="btn btn-violet flex-1 justify-center disabled:opacity-50"
             >
-              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+              {loading && <ArrowClockwise weight="light" size={14} className="animate-spin" />}
               {t('tools.connect')}
             </button>
           </div>

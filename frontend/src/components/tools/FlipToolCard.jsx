@@ -1,18 +1,26 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
+import { X, Eye, EyeSlash, ArrowClockwise, Warning } from '@phosphor-icons/react';
 import { toolsAPI } from '../../api/tools';
 import api from '../../api/axios';
 import ToolStatusBadge from './ToolStatusBadge';
 import ToolIcon from './ToolIcon';
 
-const CAT_COLORS = {
-  communication: { stripe: 'border-l-green-500',   iconBg: 'bg-green-500/10',   iconText: 'text-green-500' },
-  ai:            { stripe: 'border-l-primary-500',  iconBg: 'bg-primary-500/10',  iconText: 'text-primary-500' },
-  productivity:  { stripe: 'border-l-orange-500',   iconBg: 'bg-orange-500/10',   iconText: 'text-orange-500' },
-  analytics:     { stripe: 'border-l-blue-500',     iconBg: 'bg-blue-500/10',     iconText: 'text-blue-500' },
-  crm:           { stripe: 'border-l-pink-500',     iconBg: 'bg-pink-500/10',     iconText: 'text-pink-500' },
-  custom:        { stripe: 'border-l-gray-500',     iconBg: 'bg-gray-500/10',     iconText: 'text-gray-500' },
+// Semantic accent mapping per category — only 4 accents allowed
+const CAT_ACCENT = {
+  communication: 'sage',
+  ai:            'iris',
+  productivity:  'amber',
+  analytics:     'iris',
+  crm:           'rose',
+  custom:        'iris',
+};
+
+const ACCENT_CLASSES = {
+  iris:  { stripe: 'border-l-iris',  iconBg: 'bg-iris/10',  iconText: 'text-iris'  },
+  sage:  { stripe: 'border-l-sage',  iconBg: 'bg-sage/10',  iconText: 'text-sage'  },
+  rose:  { stripe: 'border-l-rose',  iconBg: 'bg-rose/10',  iconText: 'text-rose'  },
+  amber: { stripe: 'border-l-amber', iconBg: 'bg-amber/10', iconText: 'text-amber' },
 };
 
 const resolveTagline = (tool, lang) => {
@@ -48,7 +56,8 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
   }, [flipped, qrData, error, measureBack]);
 
   const isConnected = tool.connection?.status === 'connected' && tool.connection?.enabled;
-  const cat = CAT_COLORS[tool.category] || CAT_COLORS.custom;
+  const accentKey = CAT_ACCENT[tool.category] || 'iris';
+  const cat = ACCENT_CLASSES[accentKey];
   const fields = tool.auth_config?.fields || [];
 
   // Initialize credentials with defaults
@@ -245,12 +254,11 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
       >
         {/* FRONT — relative to give parent natural height */}
         <div
-          className={`backface-hidden relative rounded-xl border p-3 cursor-pointer transition-all
+          className={`backface-hidden relative rounded-lg p-3 cursor-pointer transition-all bg-paper border-[1.5px]
             ${isConnected
-              ? `border-l-4 ${cat.stripe} border-gray-200 dark:border-gray-700 opacity-100`
-              : 'border-dashed border-gray-300 dark:border-gray-600 opacity-60 hover:opacity-80'
-            }
-            bg-white dark:bg-gray-800`}
+              ? `border-l-4 ${cat.stripe} border-rule opacity-100`
+              : 'border-dashed border-rule opacity-60 hover:opacity-90'
+            }`}
           draggable={true}
           onDragStart={(e) => {
             e.dataTransfer.setData('tool-slug', tool.slug);
@@ -267,19 +275,19 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
           title={isConnected ? t('tools.connected') : resolveTagline(tool, i18n.language) + ' — ' + t('tools.flow.clickToConnect')}
         >
           {loading && tool.auth_type === 'none' && (
-            <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 rounded-xl flex items-center justify-center z-10">
-              <Loader2 className="w-5 h-5 animate-spin text-primary-500" />
+            <div className="absolute inset-0 bg-paper/80 rounded-lg flex items-center justify-center z-10">
+              <ArrowClockwise weight="light" size={20} className="animate-spin text-iris" />
             </div>
           )}
           <div className="flex items-center gap-2 mb-1.5">
-            <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${cat.iconBg} ${cat.iconText}`}>
+            <div className={`w-7 h-7 rounded-sm flex items-center justify-center shrink-0 ${cat.iconBg} ${cat.iconText}`}>
               <ToolIcon name={tool.icon} className="w-4 h-4" />
             </div>
-            <div className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate leading-tight" title={tool.name}>
+            <div className="text-xs font-medium text-ink truncate leading-tight" title={tool.name}>
               {tool.name}
             </div>
           </div>
-          <div className="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-2 leading-snug mb-1">
+          <div className="text-[10px] text-slate line-clamp-2 leading-snug mb-1">
             {resolveTagline(tool, i18n.language)}
           </div>
           <ToolStatusBadge status={tool.connection?.status || 'disconnected'} />
@@ -288,19 +296,26 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
         {/* BACK — absolute, full size */}
         <div
           ref={backRef}
-          className="backface-hidden rotate-y-180 absolute top-0 left-0 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 overflow-y-auto shadow-lg"
+          className="backface-hidden rotate-y-180 absolute top-0 left-0 w-full rounded-lg border-[1.5px] border-rule bg-paper p-3 overflow-y-auto shadow-ink"
           style={{ transformStyle: 'preserve-3d', minHeight: '100%' }}
         >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-gray-900 dark:text-gray-100 truncate">{tool.name}</span>
-            <button onClick={handleCancel} aria-label={t('common.close')} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1.5 -m-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-              <X size={14} />
+            <span className="text-xs font-semibold text-ink truncate">{tool.name}</span>
+            <button
+              onClick={handleCancel}
+              aria-label={t('common.close')}
+              className="text-fog hover:text-ink p-1.5 -m-1 rounded-sm hover:bg-mist transition-colors cursor-pointer"
+            >
+              <X weight="light" size={14} />
             </button>
           </div>
 
           {error && (
-            <div className="flex items-start gap-1 text-[11px] text-red-600 dark:text-red-400 mb-2 leading-snug bg-red-50 dark:bg-red-900/20 rounded p-1.5" role="alert">
-              <AlertCircle className="w-3 h-3 shrink-0 mt-0.5" />
+            <div
+              className="flex items-start gap-1 text-[11px] text-rose mb-2 leading-snug bg-linen border-[1.5px] border-rose rounded-sm p-1.5"
+              role="alert"
+            >
+              <Warning weight="light" size={12} className="shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
@@ -308,16 +323,16 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
           {qrData !== null ? (
             <div className="flex flex-col items-center gap-1">
               {qrData ? (
-                <div className="bg-white p-1 rounded">
+                <div className="bg-paper p-1 rounded-sm border-[1.5px] border-rule">
                   <img src={`data:image/png;base64,${qrData}`} alt="QR" className="w-24 h-24" />
                 </div>
               ) : (
                 <div className="w-24 h-24 flex items-center justify-center">
-                  <Loader2 className="w-6 h-6 animate-spin text-primary-500" />
+                  <ArrowClockwise weight="light" size={24} className="animate-spin text-iris" />
                 </div>
               )}
-              <div className="flex items-center gap-1 text-[10px] text-gray-500">
-                <Loader2 className="w-3 h-3 animate-spin" />
+              <div className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-fog">
+                <ArrowClockwise weight="light" size={12} className="animate-spin" />
                 {qrData ? t('tools.connecting') : t('tools.flow.startQr')}
               </div>
             </div>
@@ -334,21 +349,26 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
                         required={field.required}
                         placeholder={field.label || field.name}
                         aria-label={field.label || field.name}
-                        className="w-full px-2 py-1.5 pr-7 text-[11px] border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-1 focus:ring-primary-500"
+                        className="w-full px-2 py-1.5 pr-7 text-[11px] border-[1.5px] border-rule rounded-sm bg-paper text-ink outline-none focus:border-iris transition-colors"
                       />
-                      <button type="button"
+                      <button
+                        type="button"
                         onClick={() => setShowPasswords(p => ({ ...p, [field.name]: !p[field.name] }))}
                         aria-label={showPasswords[field.name] ? t('tools.flow.hidePassword') || 'Hide password' : t('tools.flow.showPassword') || 'Show password'}
-                        className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 text-fog p-1 rounded-sm hover:bg-mist transition-colors cursor-pointer"
                       >
-                        {showPasswords[field.name] ? <EyeOff size={12} /> : <Eye size={12} />}
+                        {showPasswords[field.name]
+                          ? <EyeSlash weight="light" size={12} />
+                          : <Eye weight="light" size={12} />}
                       </button>
                     </div>
                   ) : field.type === 'checkbox' ? (
-                    <label className="flex items-center gap-1.5 text-[11px] text-gray-600 dark:text-gray-400 cursor-pointer">
-                      <input type="checkbox" checked={credentials[field.name] || false}
+                    <label className="flex items-center gap-1.5 text-[11px] text-slate cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={credentials[field.name] || false}
                         onChange={(e) => handleChange(field.name, e.target.checked)}
-                        className="w-3.5 h-3.5 rounded border-gray-300 text-primary-600"
+                        className="w-3.5 h-3.5 rounded-sm border-[1.5px] border-rule accent-iris"
                       />
                       {field.label || field.name}
                     </label>
@@ -360,15 +380,17 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
                       required={field.required}
                       placeholder={field.label || field.name}
                       aria-label={field.label || field.name}
-                      className="w-full px-2 py-1.5 text-[11px] border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-1 focus:ring-primary-500"
+                      className="w-full px-2 py-1.5 text-[11px] border-[1.5px] border-rule rounded-sm bg-paper text-ink outline-none focus:border-iris transition-colors"
                     />
                   )}
                 </div>
               ))}
-              <button type="submit" disabled={loading}
-                className="w-full py-1.5 text-[11px] font-medium rounded bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 flex items-center justify-center gap-1"
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-1.5 font-mono text-[11px] uppercase tracking-wider rounded-sm border-[1.5px] border-iris text-iris hover:bg-iris-soft/40 disabled:opacity-50 flex items-center justify-center gap-1 transition-all cursor-pointer"
               >
-                {loading && <Loader2 className="w-3 h-3 animate-spin" />}
+                {loading && <ArrowClockwise weight="light" size={12} className="animate-spin" />}
                 {tool.auth_type === 'qr_code' ? t('tools.flow.startQr') : t('tools.connect')}
               </button>
             </form>

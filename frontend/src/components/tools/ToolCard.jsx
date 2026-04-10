@@ -11,30 +11,26 @@ const ToolCard = ({ tool, onConnect, onConfigure }) => {
 
   return (
     <div
-      className={`relative bg-white dark:bg-gray-800 rounded-xl border p-5 transition-all hover:shadow-md ${
+      className={`relative bg-paper rounded-lg p-5 transition-all hover:shadow-ink-sm border-[1.5px] ${
         isConnected
-          ? 'border-l-4'
+          ? 'border-sage'
           : isError
-          ? 'border-red-300 dark:border-red-700'
+          ? 'border-rose'
           : isPending
-          ? 'border-yellow-300 dark:border-yellow-700 animate-pulse'
-          : 'border-gray-200 dark:border-gray-700 opacity-80 hover:opacity-100'
+          ? 'border-amber animate-pulse'
+          : 'border-rule opacity-80 hover:opacity-100'
       }`}
-      style={isConnected ? { borderLeftColor: tool.color || '#6366f1' } : undefined}
     >
       {/* Icon + Name */}
       <div className="flex items-start gap-3 mb-3">
-        <div
-          className="w-10 h-10 rounded-lg flex items-center justify-center text-lg shrink-0"
-          style={{ backgroundColor: `${tool.color || '#6366f1'}20` }}
-        >
+        <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-linen border-[1.5px] border-rule text-iris">
           <ToolIcon name={tool.icon} className="w-5 h-5" />
         </div>
         <div className="min-w-0">
-          <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate">
+          <h3 className="font-semibold text-ink truncate">
             {tool.name}
           </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mt-0.5">
+          <p className="text-sm text-slate line-clamp-2 mt-0.5">
             {tool.tagline}
           </p>
         </div>
@@ -49,7 +45,7 @@ const ToolCard = ({ tool, onConnect, onConfigure }) => {
       {isConnected ? (
         <button
           onClick={() => onConfigure(tool)}
-          className="w-full py-2 px-4 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+          className="btn btn-violet w-full justify-center"
         >
           {t('tools.configure')}
         </button>
@@ -57,7 +53,7 @@ const ToolCard = ({ tool, onConnect, onConfigure }) => {
         <button
           onClick={() => onConnect(tool)}
           disabled={isPending}
-          className="w-full py-2 px-4 rounded-lg text-sm font-medium bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 transition-colors"
+          className="btn btn-violet w-full justify-center disabled:opacity-50"
         >
           {isPending ? t('tools.connecting') : isError ? t('tools.retry') : t('tools.connect')}
         </button>
