@@ -1,7 +1,7 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from Jeeves.concierge_platform import views_owner, views_platform, views_setup
+from Jeeves.concierge_platform import views_owner, views_platform, views_setup, views_ff_sm
 from Jeeves.EmbeddingModel import views_owner as embedding_owner_views
 from Jeeves.tools import views_owner as tools_owner_views
 from Jeeves.clients import views_owner as clients_owner_views
@@ -43,6 +43,16 @@ router.register(
     r'owner/specializations',
     specializations_owner_views.SpecializationOwnerViewSet,
     basename='owner-specialization',
+)
+router.register(
+    r'owner/feature-flags',
+    views_ff_sm.FeatureFlagViewSet,
+    basename='owner-feature-flag',
+)
+router.register(
+    r'owner/system-messages',
+    views_ff_sm.SystemMessageViewSet,
+    basename='owner-system-message',
 )
 
 urlpatterns = [
