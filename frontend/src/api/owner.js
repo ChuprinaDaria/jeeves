@@ -65,6 +65,16 @@ export const platformDefaultsAPI = {
   update: (data) => api.put('/owner/settings/defaults/', data),
 };
 
+// Clients
+export const clientsAPI = {
+  list: () => api.get('/owner/clients/'),
+  detail: (id) => api.get(`/owner/clients/${id}/`),
+  choices: () => api.get('/owner/clients/choices/'),
+  create: (data) => api.post('/owner/clients/', data),
+  update: (id, data) => api.put(`/owner/clients/${id}/`, data),
+  delete: (id) => api.delete(`/owner/clients/${id}/`),
+};
+
 // MCP Servers (ToolCards)
 export const mcpServersAPI = {
   list: () => api.get('/owner/tools/'),
