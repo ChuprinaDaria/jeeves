@@ -34,6 +34,8 @@ import EmbeddingModelEditPage from './pages/owner/EmbeddingModelEditPage';
 import ModelPairsPage from './pages/owner/ModelPairsPage';
 import ModelPairEditPage from './pages/owner/ModelPairEditPage';
 import PlatformDefaultsPage from './pages/owner/PlatformDefaultsPage';
+import MCPServersPage from './pages/owner/MCPServersPage';
+import MCPServerEditPage from './pages/owner/MCPServerEditPage';
 
 function App() {
   return (
@@ -60,6 +62,9 @@ function App() {
                 <Route path="branches" element={<StubPage title="Branches" />} />
                 <Route path="specializations" element={<StubPage title="Specializations" />} />
                 <Route path="clients" element={<StubPage title="Clients" />} />
+                <Route path="mcp-servers" element={<MCPServersPage />} />
+                <Route path="mcp-servers/new" element={<MCPServerEditPage />} />
+                <Route path="mcp-servers/:id" element={<MCPServerEditPage />} />
                 <Route path="ai-providers" element={<Navigate to="llm" replace />} />
                 <Route path="ai-providers/llm" element={<LLMProvidersPage />} />
                 <Route path="ai-providers/llm/new" element={<LLMProviderEditPage />} />

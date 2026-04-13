@@ -6,6 +6,7 @@ const NAV = [
   { to: '/owner/branches', label: 'Branches' },
   { to: '/owner/specializations', label: 'Specializations' },
   { to: '/owner/clients', label: 'Clients' },
+  { to: '/owner/mcp-servers', label: 'MCP Servers' },
   {
     label: 'AI Providers',
     children: [
