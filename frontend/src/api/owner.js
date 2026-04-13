@@ -86,3 +86,13 @@ export const mcpServersAPI = {
   createFromUrl: (data) => api.post('/owner/tools/from-url/', data),
   refresh: (id) => api.post(`/owner/tools/${id}/refresh/`),
 };
+
+// Branches
+export const branchesAPI = {
+  list: () => api.get('/owner/branches/'),
+  detail: (id) => api.get(`/owner/branches/${id}/`),
+  create: (data) => api.post('/owner/branches/', data),
+  update: (id, data) => api.put(`/owner/branches/${id}/`, data),
+  delete: (id) => api.delete(`/owner/branches/${id}/`),
+  choices: () => api.get('/owner/branches/choices/'),
+};

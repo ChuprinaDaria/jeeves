@@ -38,6 +38,8 @@ import MCPServersPage from './pages/owner/MCPServersPage';
 import MCPServerEditPage from './pages/owner/MCPServerEditPage';
 import ClientsPage from './pages/owner/ClientsPage';
 import ClientEditPage from './pages/owner/ClientEditPage';
+import BranchesPage from './pages/owner/BranchesPage';
+import BranchEditPage from './pages/owner/BranchEditPage';
 
 function App() {
   return (
@@ -61,7 +63,9 @@ function App() {
               >
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<OwnerDashboardPage />} />
-                <Route path="branches" element={<StubPage title="Branches" />} />
+                <Route path="branches" element={<BranchesPage />} />
+                <Route path="branches/new" element={<BranchEditPage />} />
+                <Route path="branches/:id" element={<BranchEditPage />} />
                 <Route path="specializations" element={<StubPage title="Specializations" />} />
                 <Route path="clients" element={<ClientsPage />} />
                 <Route path="clients/new" element={<ClientEditPage />} />
