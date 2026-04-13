@@ -41,6 +41,10 @@ import BranchesPage from './pages/owner/BranchesPage';
 import BranchEditPage from './pages/owner/BranchEditPage';
 import SpecializationsPage from './pages/owner/SpecializationsPage';
 import SpecializationEditPage from './pages/owner/SpecializationEditPage';
+import FeatureFlagsPage from './pages/owner/FeatureFlagsPage';
+import FeatureFlagEditPage from './pages/owner/FeatureFlagEditPage';
+import SystemMessagesPage from './pages/owner/SystemMessagesPage';
+import SystemMessageEditPage from './pages/owner/SystemMessageEditPage';
 
 function App() {
   return (
@@ -87,6 +91,12 @@ function App() {
                 <Route path="ai-providers/pairs/new" element={<ModelPairEditPage />} />
                 <Route path="ai-providers/pairs/:id" element={<ModelPairEditPage />} />
                 <Route path="settings/defaults" element={<PlatformDefaultsPage />} />
+                <Route path="feature-flags" element={<FeatureFlagsPage />} />
+                <Route path="feature-flags/new" element={<FeatureFlagEditPage />} />
+                <Route path="feature-flags/:id" element={<FeatureFlagEditPage />} />
+                <Route path="system-messages" element={<SystemMessagesPage />} />
+                <Route path="system-messages/new" element={<SystemMessageEditPage />} />
+                <Route path="system-messages/:id" element={<SystemMessageEditPage />} />
                 <Route path="settings" element={<OwnerSettingsPage />} />
               </Route>
 

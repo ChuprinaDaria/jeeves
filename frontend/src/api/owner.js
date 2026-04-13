@@ -106,3 +106,22 @@ export const specializationsAPI = {
   delete: (id) => api.delete(`/owner/specializations/${id}/`),
   choices: () => api.get('/owner/specializations/choices/'),
 };
+
+// Feature Flags
+export const featureFlagsAPI = {
+  list: () => api.get('/owner/feature-flags/'),
+  detail: (id) => api.get(`/owner/feature-flags/${id}/`),
+  create: (data) => api.post('/owner/feature-flags/', data),
+  update: (id, data) => api.put(`/owner/feature-flags/${id}/`, data),
+  delete: (id) => api.delete(`/owner/feature-flags/${id}/`),
+  choices: () => api.get('/owner/feature-flags/choices/'),
+};
+
+// System Messages
+export const systemMessagesAPI = {
+  list: () => api.get('/owner/system-messages/'),
+  detail: (id) => api.get(`/owner/system-messages/${id}/`),
+  create: (data) => api.post('/owner/system-messages/', data),
+  update: (id, data) => api.put(`/owner/system-messages/${id}/`, data),
+  delete: (id) => api.delete(`/owner/system-messages/${id}/`),
+};
