@@ -26,7 +26,6 @@ import SetupWizard from './pages/owner/SetupWizard';
 import OwnerLoginPage from './pages/owner/OwnerLoginPage';
 import OwnerDashboardPage from './pages/owner/OwnerDashboardPage';
 import OwnerSettingsPage from './pages/owner/OwnerSettingsPage';
-import StubPage from './pages/owner/StubPage';
 import LLMProvidersPage from './pages/owner/LLMProvidersPage';
 import LLMProviderEditPage from './pages/owner/LLMProviderEditPage';
 import EmbeddingModelsPage from './pages/owner/EmbeddingModelsPage';
