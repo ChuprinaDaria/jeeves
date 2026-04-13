@@ -96,3 +96,13 @@ export const branchesAPI = {
   delete: (id) => api.delete(`/owner/branches/${id}/`),
   choices: () => api.get('/owner/branches/choices/'),
 };
+
+// Specializations
+export const specializationsAPI = {
+  list: () => api.get('/owner/specializations/'),
+  detail: (id) => api.get(`/owner/specializations/${id}/`),
+  create: (data) => api.post('/owner/specializations/', data),
+  update: (id, data) => api.put(`/owner/specializations/${id}/`, data),
+  delete: (id) => api.delete(`/owner/specializations/${id}/`),
+  choices: () => api.get('/owner/specializations/choices/'),
+};

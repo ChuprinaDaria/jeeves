@@ -40,6 +40,8 @@ import ClientsPage from './pages/owner/ClientsPage';
 import ClientEditPage from './pages/owner/ClientEditPage';
 import BranchesPage from './pages/owner/BranchesPage';
 import BranchEditPage from './pages/owner/BranchEditPage';
+import SpecializationsPage from './pages/owner/SpecializationsPage';
+import SpecializationEditPage from './pages/owner/SpecializationEditPage';
 
 function App() {
   return (
@@ -66,7 +68,9 @@ function App() {
                 <Route path="branches" element={<BranchesPage />} />
                 <Route path="branches/new" element={<BranchEditPage />} />
                 <Route path="branches/:id" element={<BranchEditPage />} />
-                <Route path="specializations" element={<StubPage title="Specializations" />} />
+                <Route path="specializations" element={<SpecializationsPage />} />
+                <Route path="specializations/new" element={<SpecializationEditPage />} />
+                <Route path="specializations/:id" element={<SpecializationEditPage />} />
                 <Route path="clients" element={<ClientsPage />} />
                 <Route path="clients/new" element={<ClientEditPage />} />
                 <Route path="clients/:id" element={<ClientEditPage />} />
