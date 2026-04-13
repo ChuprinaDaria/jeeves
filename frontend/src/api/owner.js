@@ -64,3 +64,15 @@ export const platformDefaultsAPI = {
   get: () => api.get('/owner/settings/defaults/'),
   update: (data) => api.put('/owner/settings/defaults/', data),
 };
+
+// MCP Servers (ToolCards)
+export const mcpServersAPI = {
+  list: () => api.get('/owner/tools/'),
+  detail: (id) => api.get(`/owner/tools/${id}/`),
+  create: (data) => api.post('/owner/tools/', data),
+  update: (id, data) => api.put(`/owner/tools/${id}/`, data),
+  delete: (id) => api.delete(`/owner/tools/${id}/`),
+  discover: (url) => api.post('/owner/tools/discover/', { url }),
+  createFromUrl: (data) => api.post('/owner/tools/from-url/', data),
+  refresh: (id) => api.post(`/owner/tools/${id}/refresh/`),
+};
