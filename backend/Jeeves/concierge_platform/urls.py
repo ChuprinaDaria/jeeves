@@ -5,6 +5,7 @@ from Jeeves.concierge_platform import views_owner, views_platform, views_setup
 from Jeeves.EmbeddingModel import views_owner as embedding_owner_views
 from Jeeves.tools import views_owner as tools_owner_views
 from Jeeves.clients import views_owner as clients_owner_views
+from Jeeves.branches import views_owner as branches_owner_views
 
 router = DefaultRouter()
 router.register(
@@ -31,6 +32,11 @@ router.register(
     r'owner/clients',
     clients_owner_views.ClientOwnerViewSet,
     basename='owner-client',
+)
+router.register(
+    r'owner/branches',
+    branches_owner_views.BranchOwnerViewSet,
+    basename='owner-branch',
 )
 
 urlpatterns = [
