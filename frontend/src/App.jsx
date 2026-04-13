@@ -36,6 +36,8 @@ import ModelPairEditPage from './pages/owner/ModelPairEditPage';
 import PlatformDefaultsPage from './pages/owner/PlatformDefaultsPage';
 import MCPServersPage from './pages/owner/MCPServersPage';
 import MCPServerEditPage from './pages/owner/MCPServerEditPage';
+import ClientsPage from './pages/owner/ClientsPage';
+import ClientEditPage from './pages/owner/ClientEditPage';
 
 function App() {
   return (
@@ -61,7 +63,9 @@ function App() {
                 <Route path="dashboard" element={<OwnerDashboardPage />} />
                 <Route path="branches" element={<StubPage title="Branches" />} />
                 <Route path="specializations" element={<StubPage title="Specializations" />} />
-                <Route path="clients" element={<StubPage title="Clients" />} />
+                <Route path="clients" element={<ClientsPage />} />
+                <Route path="clients/new" element={<ClientEditPage />} />
+                <Route path="clients/:id" element={<ClientEditPage />} />
                 <Route path="mcp-servers" element={<MCPServersPage />} />
                 <Route path="mcp-servers/new" element={<MCPServerEditPage />} />
                 <Route path="mcp-servers/:id" element={<MCPServerEditPage />} />
