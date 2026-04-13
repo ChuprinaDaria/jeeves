@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 
 from Jeeves.concierge_platform import views_owner, views_platform, views_setup
 from Jeeves.EmbeddingModel import views_owner as embedding_owner_views
+from Jeeves.tools import views_owner as tools_owner_views
 
 router = DefaultRouter()
 router.register(
@@ -19,6 +20,11 @@ router.register(
     r'owner/ai-providers/pairs',
     embedding_owner_views.ModelPairViewSet,
     basename='model-pair',
+)
+router.register(
+    r'owner/tools',
+    tools_owner_views.ToolCardOwnerViewSet,
+    basename='owner-tool',
 )
 
 urlpatterns = [
