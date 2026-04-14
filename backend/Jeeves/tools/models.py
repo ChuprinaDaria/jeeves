@@ -18,6 +18,7 @@ class ToolCard(models.Model):
         ('builtin', 'Built-in Django handler'),
         ('sse', 'SSE (Server-Sent Events)'),
         ('streamable_http', 'Streamable HTTP'),
+        ('stdio', 'Stdio (local subprocess)'),
     ]
 
     AUTH_TYPE_CHOICES = [
@@ -154,6 +155,43 @@ class EdgeMiddleware(models.Model):
 
     def __str__(self):
         return f'{self.skill_card.name} on {self.connection}'
+
+
+class InstalledMCPServer(models.Model):
+    """Tracks an npm/pypi MCP server package installed by the owner."""
+
+    PACKAGE_TYPE_CHOICES = [
+        ('npm', 'npm'),
+        ('pypi', 'PyPI'),
+    ]
+
+    STATUS_CHOICES = [
+        ('installed', 'Installed'),
+        ('failed', 'Failed'),
+        ('removed', 'Removed'),
+    ]
+
+    tool_card = models.OneToOneField(
+        ToolCard, on_delete=models.CASCADE, related_name='installed_server',
+    )
+    package_name = models.CharField(max_length=255, unique=True)
+    package_type = models.CharField(max_length=10, choices=PACKAGE_TYPE_CHOICES)
+    version = models.CharField(max_length=50, blank=True)
+    run_command = models.CharField(max_length=500)
+    run_args = models.JSONField(default=list, blank=True)
+    env_config = models.JSONField(default=dict, blank=True)
+    source_url = models.URLField(blank=True)
+    installed_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default='installed',
+    )
+    error_message = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-installed_at']
+
+    def __str__(self):
+        return f"{self.package_name} ({self.package_type})"
 
 
 from django.db.models.signals import post_save
