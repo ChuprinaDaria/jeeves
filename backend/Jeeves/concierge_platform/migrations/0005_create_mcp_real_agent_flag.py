@@ -14,7 +14,7 @@ def create_flag(apps, schema_editor):
             client = Client.objects.get(tag='srtyh')
             flag.enabled_clients.add(client)
         except Client.DoesNotExist:
-            pass
+            pass  # Client may not exist in this environment — safe to skip
 
 
 def remove_flag(apps, schema_editor):

@@ -10,14 +10,11 @@ from Jeeves.clients.models import ClientAPIKey, Client, ClientDocument
 from Jeeves.branches.models import Branch
 from Jeeves.specializations.models import Specialization
 from Jeeves.EmbeddingModel.models import EmbeddingModel
-from django.contrib.auth import get_user_model, authenticate
+from django.contrib.auth import get_user_model
 from django.utils.crypto import get_random_string
 from django.utils.text import slugify
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.conf import settings
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
-from django.http import JsonResponse
 import hashlib
 from Jeeves.accounts.models import User as AppUser
 import requests

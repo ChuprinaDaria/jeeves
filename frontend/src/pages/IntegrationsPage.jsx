@@ -24,7 +24,7 @@ import {
 
 import api from '../api/axios';
 import { clientAPI } from '../api/client';
-import Card, { CardHeader, CardAction } from '../components/ui/Card';
+import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import StatCard from '../components/ui/StatCard';
 

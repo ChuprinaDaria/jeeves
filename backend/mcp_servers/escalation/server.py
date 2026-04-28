@@ -54,7 +54,10 @@ def _escalate_sync(client_id, conversation_id, reason, customer_name, channel, s
                 telegram_chat_id=conversation_id,
             )
         except ClientWhatsAppConversation.DoesNotExist:
-            pass
+            logger.debug(
+                "Conversation %s not found by telegram_chat_id for client %s",
+                conversation_id, client_id,
+            )
 
     if not conv:
         return {

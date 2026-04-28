@@ -25,9 +25,6 @@ class Client(Model):
     created_at: DateTimeField
     updated_at: DateTimeField
     
-    def has_feature(self, feature_name: str) -> bool: ...
-    def get_feature_config(self, feature_name: str, default: Any = None) -> Any: ...
-    
     # Related managers
     api_keys: Manager["ClientAPIKey"]
 

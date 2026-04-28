@@ -81,14 +81,14 @@ async function doJsonRequest(path, options) {
           msg = data.error || data.detail;
         }
       } catch (e) {
-        // ignore JSON parse error here
+        console.debug('Failed to parse error response JSON:', e);
       }
     } else {
       try {
         const text = await res.text();
         msg = text.slice(0, 300);
       } catch (e) {
-        // ignore
+        console.debug('Failed to read error response text:', e);
       }
     }
     throw new Error(msg);

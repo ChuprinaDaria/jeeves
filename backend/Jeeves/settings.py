@@ -142,6 +142,14 @@ REST_FRAMEWORK = {
         # Views, яким потрібна автентифікація, мають явно вказувати permission_classes
         "rest_framework.permissions.AllowAny",
     ),
+    "DEFAULT_THROTTLE_CLASSES": (
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ),
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "60/minute",
+        "user": "120/minute",
+    },
 }
 
 SIMPLE_JWT = {
@@ -351,6 +359,7 @@ CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[
     'http://localhost:3000',
     'http://localhost:5173',
+    'http://localhost:5174',
     'http://localhost:8080',
     'http://localhost:80',
     'http://localhost:443',

@@ -62,7 +62,7 @@ function updateCurrentDomainLabel() {
     } catch (_e) {
       domainEl.textContent = 'Current page: unknown';
     }
-  });
+  }).catch(e => console.warn('Failed to get current tab for domain label:', e));
 }
 
 function renderMessages(container, messages) {

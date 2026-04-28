@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 from django.conf import settings
 from django.db import connection
-from django.db.models import QuerySet, F, Value, FloatField
+from django.db.models import QuerySet, F, FloatField
 from django.db.models.functions import Cast
 from pgvector.django import CosineDistance  # type: ignore[attr-defined]
 

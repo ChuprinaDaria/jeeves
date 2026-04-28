@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Loader2, CheckCircle2, XCircle, Wifi } from 'lucide-react';
 
 const EXTENSION_ID = import.meta.env.VITE_CONCIERGE_EXTENSION_ID || '';

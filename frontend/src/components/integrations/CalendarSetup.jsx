@@ -38,7 +38,7 @@ const CalendarSetup = ({ onClose }) => {
           </div>
 
           <div className="flex gap-3 pt-4">
-            <button className="btn-primary flex-1">
+            <button disabled className="btn-primary flex-1 opacity-50 cursor-not-allowed">
               Connect with Google
             </button>
             <button onClick={onClose} className="btn-secondary flex-1">

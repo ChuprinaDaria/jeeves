@@ -75,7 +75,7 @@ async function pollForCookies(bridgeType, tabId) {
       try {
         await chrome.tabs.remove(tabId);
       } catch (e) {
-        // Tab may already be closed
+        console.debug('Tab may already be closed:', e);
       }
       return result;
     }

@@ -1,8 +1,13 @@
-from django.contrib import admin
-from django.utils.html import format_html
 import json
+import logging
+
+from django.contrib import admin
 from django.db import models
+from django.utils.html import format_html
+
 from .models import Specialization, SpecializationDocument, SpecializationEmbedding
+
+logger = logging.getLogger(__name__)
 
 
 class HasMetadataFilter(admin.SimpleListFilter):
@@ -144,7 +149,7 @@ class SpecializationEmbeddingAdmin(admin.ModelAdmin):
             if isinstance(obj.metadata, dict) and 'dimensions' in obj.metadata:
                 return int(obj.metadata.get('dimensions') or 0)
         except Exception:
-            pass
+            logger.debug("Failed to read vector dimensions from metadata for %s", obj.pk)
         return len(obj.vector) if obj.vector else 0
 
     @admin.display(description='Metadata')

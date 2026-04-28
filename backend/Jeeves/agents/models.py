@@ -71,38 +71,13 @@ class AgentConfig(models.Model):
             return self.max_tokens
         return PlatformDefaults.get().default_max_tokens
 
-    def get_similarity_threshold(self):
-        if self.similarity_threshold is not None:
-            return self.similarity_threshold
-        return PlatformDefaults.get().default_similarity_threshold
-
-    def get_max_context_chunks(self):
-        if self.max_context_chunks is not None:
-            return self.max_context_chunks
-        return PlatformDefaults.get().default_max_context_chunks
-
-    def get_top_k(self):
-        if self.top_k is not None:
-            return self.top_k
-        return PlatformDefaults.get().default_top_k
-
     def get_language(self):
         if self.language:
             return self.language
         return PlatformDefaults.get().default_language or 'en'
 
-    def get_llm_provider(self):
-        return self.llm_provider or PlatformDefaults.get_default_llm_provider()
-
     def get_embedding_model(self):
         return self.embedding_model or PlatformDefaults.get_default_embedding_model()
-
-    def get_connected_tools(self):
-        """Available tools — derived from ToolConnection, not M2M."""
-        from Jeeves.tools.models import ToolConnection
-        return ToolConnection.objects.filter(
-            client=self.client, enabled=True, status='connected'
-        ).select_related('tool_card')
 
 
 class AgentSession(models.Model):

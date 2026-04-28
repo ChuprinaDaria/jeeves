@@ -79,29 +79,3 @@ def chunk_text(
 
     return chunks
 
-def split_text_into_chunks(text, chunk_size=800, overlap=100):
-    chunks = []
-    start = 0
-    text_length = len(text)
-    
-    while start < text_length:
-        end = start + chunk_size
-        
-        if end < text_length:
-            last_period = text.rfind('.', start, end)
-            last_newline = text.rfind('\n', start, end)
-            last_space = text.rfind(' ', start, end)
-            
-            break_point = max(last_period, last_newline, last_space)
-            
-            if break_point > start:
-                end = break_point + 1
-        
-        chunk = text[start:end].strip()
-        if chunk:
-            chunks.append(chunk)
-        
-        start = end - overlap
-    
-    return chunks
-

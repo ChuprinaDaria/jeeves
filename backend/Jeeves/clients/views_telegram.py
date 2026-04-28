@@ -10,9 +10,8 @@ Handles:
 import json
 import logging
 import requests
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.conf import settings

@@ -412,14 +412,6 @@ class Client(models.Model):
     def __str__(self):
         return f"{self.company_name or 'Client'} ({self.tag})"
     
-    def has_feature(self, feature_name):
-        """Check if a specific feature is enabled for this client"""
-        return self.features.get(feature_name, False) if self.features else False
-    
-    def get_feature_config(self, feature_name, default=None):
-        """Get configuration value for a specific feature"""
-        return self.features.get(feature_name, default) if self.features else default
-
     def get_report_recipients(self) -> list[str]:
         """
         Return up to 5 cleaned email recipients for chat reports/digests.
@@ -805,7 +797,6 @@ class ClientZeroConfig(models.Model):
         return env
 
 from django.db.models.signals import post_save, pre_save
-from django.db.models import F
 from django.dispatch import receiver
 from typing import Any, Protocol, cast
 
@@ -935,13 +926,6 @@ class KnowledgeBlock(models.Model):
         """Count of documents in this knowledge block."""
         return self.documents.count()
     
-    def get_documents(self):
-        """Get all documents in this knowledge block."""
-        return ClientDocument.objects.filter(
-            knowledge_block=self,
-            client=self.client
-        )
-
 
 class ClientQRCode(models.Model):
     """QR codes for WhatsApp integration - available for all clients (up to 10 per client)"""
@@ -1634,40 +1618,6 @@ class ClientWhatsAppConversation(models.Model):
         self.last_activity_at = now
         self.save(update_fields=['messages', 'total_messages', 'updated_at', 'last_activity_at'])
     
-    def end_conversation(self):
-        """Ends the conversation"""
-        self.is_active = False
-        self.ended_at = timezone.now()
-        self.save(update_fields=['is_active', 'ended_at'])
-    
-    def update_activity_status(self):
-        """Updates conversation activity status based on last message time"""
-        if not self.messages:
-            self.is_active = False
-            self.save(update_fields=['is_active'])
-            return
-        
-        # Get last message timestamp
-        last_message = self.messages[-1]
-        last_timestamp_str = last_message.get('timestamp')
-        
-        if last_timestamp_str:
-            from datetime import datetime
-            try:
-                last_timestamp = datetime.fromisoformat(last_timestamp_str.replace('Z', '+00:00'))
-                now = timezone.now()
-                
-                # Conversation is active if last message was less than 24 hours ago
-                if (now - last_timestamp).total_seconds() < 86400:
-                    self.is_active = True
-                else:
-                    self.is_active = False
-                    if not self.ended_at:
-                        self.ended_at = last_timestamp
-                
-                self.save(update_fields=['is_active', 'ended_at'])
-            except Exception:
-                pass
 
 
 class Prompt(models.Model):

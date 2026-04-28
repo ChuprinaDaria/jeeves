@@ -1,10 +1,6 @@
-import re
-import hmac
-import hashlib
-import json
 import logging
+import re
 
-import requests
 from django.db import IntegrityError, transaction
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -251,29 +247,3 @@ class TelephonyVoicesView(APIView):
 
     def get(self, request):
         return Response(VOICE_MODELS_LIST)
-
-
-def dispatch_webhook(config: ClientTelephonyConfig, event: str, data: dict) -> None:
-    """Send signed webhook event to client's webhook_url.
-
-    NOTE: Call this from a Celery task to avoid blocking the request thread.
-    Skips signature header if webhook_secret is not configured.
-    """
-    if not config.webhook_url:
-        return
-
-    payload = json.dumps({'event': event, **data}, ensure_ascii=False).encode()
-
-    headers = {'Content-Type': 'application/json'}
-    if config.webhook_secret:
-        sig = hmac.new(
-            config.webhook_secret.encode(),
-            payload,
-            hashlib.sha256,
-        ).hexdigest()
-        headers['X-Webhook-Signature'] = f'sha256={sig}'
-
-    try:
-        requests.post(config.webhook_url, data=payload, headers=headers, timeout=10)
-    except Exception as exc:
-        logger.warning(f"Telephony webhook dispatch failed for {config.client.tag}: {exc}")

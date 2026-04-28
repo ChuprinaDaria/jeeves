@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Iterable
 
 from django.db import connection
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -28,13 +31,13 @@ def _parse_plan(plan_lines: list[str]) -> QueryDiagnostics:
                 cost_part = l.split("cost=")[1].split(" ")[0]
                 total_cost = float(cost_part.split("..")[-1])
             except Exception:  # noqa: BLE001
-                pass
+                logger.debug("Failed to parse cost from EXPLAIN line: %s", l)
         if "rows=" in l and scanned_rows is None:
             try:
                 rows_part = l.split("rows=")[1].split(" ")[0]
                 scanned_rows = int(rows_part)
             except Exception:  # noqa: BLE001
-                pass
+                logger.debug("Failed to parse rows from EXPLAIN line: %s", l)
 
     if not used_index:
         recommendation = "Too few rows or high selectivity: Seq Scan is OK for small datasets."

@@ -65,7 +65,7 @@ export function startSpeechRecognition({ onResult, onError, onEnd, lang } = {}) 
       try {
         recognition.stop();
       } catch (e) {
-        // ignore
+        console.debug('Speech recognition stop failed:', e);
       }
     },
   };

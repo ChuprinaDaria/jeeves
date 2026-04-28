@@ -307,7 +307,7 @@ const ModelStatusCard = () => {
         )}
       </div>
 
-      <button className="mt-4 w-full border border-gray-300 dark:border-gray-600 rounded-lg py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800">
+      <button disabled className="mt-4 w-full border border-gray-300 dark:border-gray-600 rounded-lg py-2 transition text-gray-400 dark:text-gray-500 bg-white dark:bg-gray-800 cursor-not-allowed">
         {t("modelStatus.viewHistory")}
       </button>
     </div>
