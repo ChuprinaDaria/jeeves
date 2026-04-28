@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 import { useAuth } from '../../context/AuthContext';
 
@@ -75,6 +75,13 @@ const OwnerLoginPage = () => {
         <button type="submit" className={buttonClass} disabled={loading}>
           {loading ? 'Signing in…' : 'Sign in'}
         </button>
+
+        <p className="text-sm text-ink/50 text-center pt-2">
+          First time?{' '}
+          <Link to="/setup" className="text-iris hover:underline">
+            Run setup
+          </Link>
+        </p>
       </form>
     </div>
   );

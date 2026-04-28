@@ -108,11 +108,76 @@ const LicenseStep = ({ onDone }) => {
   );
 };
 
+const TabBar = ({ tab, onTabChange }) => {
+  const base = 'flex-1 py-2 text-sm font-medium text-center transition-colors';
+  const active = `${base} text-ink border-b-2 border-ink`;
+  const inactive = `${base} text-ink/40 hover:text-ink/60`;
+
+  return (
+    <div className="flex border-b border-ink/10 mb-6">
+      <button type="button" className={tab === 'setup' ? active : inactive} onClick={() => onTabChange('setup')}>
+        Setup
+      </button>
+      <button type="button" className={tab === 'login' ? active : inactive} onClick={() => onTabChange('login')}>
+        Login
+      </button>
+    </div>
+  );
+};
+
+const LoginTab = () => {
+  const navigate = useNavigate();
+  const { login } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const data = await login(email, password);
+      const role = data?.user?.role;
+      if (role !== 'owner') {
+        setError('Access denied: owner role required.');
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        setLoading(false);
+        return;
+      }
+      navigate('/owner/dashboard');
+    } catch {
+      setError('Invalid email or password.');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="bg-paper border border-ink/10 rounded-sm p-6 space-y-4">
+      <h2 className="text-lg font-medium text-ink">Owner login</h2>
+      <div>
+        <label className="block text-sm mb-1">Email</label>
+        <input className={inputClass} type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+      </div>
+      <div>
+        <label className="block text-sm mb-1">Password</label>
+        <input className={inputClass} type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+      </div>
+      {error && <p className="text-red-600 text-sm">{error}</p>}
+      <button type="submit" className={buttonClass} disabled={loading}>
+        {loading ? 'Signing in…' : 'Sign in'}
+      </button>
+    </form>
+  );
+};
+
 const SetupWizard = () => {
   const navigate = useNavigate();
   const auth = useAuth();
-  // setUserDirect is added in Task 22; until then this is undefined
   const setUserDirect = auth.setUserDirect;
+  const [tab, setTab] = useState('setup');
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
     email: '',
@@ -137,7 +202,7 @@ const SetupWizard = () => {
       const status = err?.response?.status;
       const body = err?.response?.data;
       if (status === 409 && body?.error === 'owner_exists') {
-        setError('Setup already started. Please log in at /owner/login.');
+        setTab('login');
       } else if (status === 409 && body?.error === 'email_taken') {
         setError('An account with this email already exists.');
       } else if (status === 400 && body?.password) {
@@ -155,78 +220,86 @@ const SetupWizard = () => {
   return (
     <div className="min-h-screen bg-cream flex items-center justify-center p-4">
       <div className="max-w-md w-full">
-        <div className="mb-6 text-center">
-          <div className="label-mono text-ink/60">Jeeves setup</div>
-          <h1 className="text-2xl font-semibold text-ink">
-            Step {step} of 2
-          </h1>
+        <div className="mb-2 text-center">
+          <div className="label-mono text-ink/60">Jeeves</div>
         </div>
 
         {step === 1 && (
-          <form
-            onSubmit={handleSubmitStep1}
-            className="bg-paper border border-ink/10 rounded-sm p-6 space-y-4"
-          >
-            <h2 className="text-lg font-medium text-ink">
-              Create your owner account
-            </h2>
+          <>
+            <TabBar tab={tab} onTabChange={setTab} />
 
-            <div>
-              <label className="block text-sm mb-1">First name</label>
-              <input
-                className={inputClass}
-                type="text"
-                required
-                value={form.first_name}
-                onChange={(e) => setForm({ ...form, first_name: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-sm mb-1">Last name</label>
-              <input
-                className={inputClass}
-                type="text"
-                required
-                value={form.last_name}
-                onChange={(e) => setForm({ ...form, last_name: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-sm mb-1">Email</label>
-              <input
-                className={inputClass}
-                type="email"
-                required
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="block text-sm mb-1">
-                Password (min 8 chars)
-              </label>
-              <input
-                className={inputClass}
-                type="password"
-                required
-                minLength={8}
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-              />
-            </div>
+            {tab === 'setup' && (
+              <form
+                onSubmit={handleSubmitStep1}
+                className="bg-paper border border-ink/10 rounded-sm p-6 space-y-4"
+              >
+                <h2 className="text-lg font-medium text-ink">
+                  Create your owner account
+                </h2>
 
-            {error && (
-              <p className="text-red-600 text-sm">{error}</p>
+                <div>
+                  <label className="block text-sm mb-1">First name</label>
+                  <input
+                    className={inputClass}
+                    type="text"
+                    required
+                    value={form.first_name}
+                    onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm mb-1">Last name</label>
+                  <input
+                    className={inputClass}
+                    type="text"
+                    required
+                    value={form.last_name}
+                    onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm mb-1">Email</label>
+                  <input
+                    className={inputClass}
+                    type="email"
+                    required
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm mb-1">
+                    Password (min 8 chars)
+                  </label>
+                  <input
+                    className={inputClass}
+                    type="password"
+                    required
+                    minLength={8}
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  />
+                </div>
+
+                {error && <p className="text-red-600 text-sm">{error}</p>}
+
+                <button type="submit" className={buttonClass} disabled={loading}>
+                  {loading ? 'Creating…' : 'Continue →'}
+                </button>
+              </form>
             )}
 
-            <button type="submit" className={buttonClass} disabled={loading}>
-              {loading ? 'Creating…' : 'Continue →'}
-            </button>
-          </form>
+            {tab === 'login' && <LoginTab />}
+          </>
         )}
 
         {step === 2 && (
-          <LicenseStep onDone={() => navigate('/owner/dashboard')} />
+          <>
+            <h1 className="text-2xl font-semibold text-ink text-center mb-6">
+              Step 2 of 2
+            </h1>
+            <LicenseStep onDone={() => navigate('/owner/dashboard')} />
+          </>
         )}
       </div>
     </div>

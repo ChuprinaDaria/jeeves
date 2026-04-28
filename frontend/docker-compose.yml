@@ -6,14 +6,15 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "80:80"
+      - "3000:80"
     environment:
       - VITE_API_URL=${VITE_API_URL:-http://localhost:8000/api}
     restart: unless-stopped
     networks:
-      - concierge-network
+      - concierge_network
 
 networks:
-  concierge-network:
+  concierge_network:
+    name: backend_concierge_network
     external: true
 

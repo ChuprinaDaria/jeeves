@@ -219,9 +219,9 @@ const ClientEditPage = () => {
               onChange={(e) => set('client_type', e.target.value)}
             >
               <option value="">— select —</option>
-              {choices?.client_types?.map(([val, label]) => (
-                <option key={val} value={val}>
-                  {label}
+              {choices?.client_types?.map((ct) => (
+                <option key={ct.value ?? ct[0]} value={ct.value ?? ct[0]}>
+                  {ct.label ?? ct[1]}
                 </option>
               ))}
             </select>
@@ -443,9 +443,9 @@ const ClientEditPage = () => {
               onChange={(e) => set('notification_language', e.target.value)}
             >
               <option value="">— select —</option>
-              {choices?.notification_languages?.map(([val, label]) => (
-                <option key={val} value={val}>
-                  {label}
+              {choices?.notification_languages?.map((nl) => (
+                <option key={nl.value ?? nl[0]} value={nl.value ?? nl[0]}>
+                  {nl.label ?? nl[1]}
                 </option>
               ))}
             </select>
