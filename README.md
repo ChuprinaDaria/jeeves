@@ -2,82 +2,74 @@
 
 Deploy your own AI assistant. Jeeves comes ready out of the box — rename him, retrain him, make him yours.
 
-Multi-tenant AI assistant SaaS with RAG knowledge base, MCP tools, messaging integrations, and a full admin dashboard. Built on Django + React. Sold on [Gumroad](https://gumroad.com) for self-hosting.
+Multi-tenant AI concierge SaaS with RAG knowledge base, MCP tools, messaging integrations, and a full admin dashboard. Built on Django 5 + React 19. Distributed via [Gumroad](https://gumroad.com) for self-hosting.
 
 ---
 
 ## What It Does
 
-Jeeves is a white-label AI concierge platform. You deploy it on your own server, connect your knowledge base, plug in messaging channels, and get an AI assistant that answers questions, captures leads, and escalates to humans when needed.
+Jeeves is a white-label AI assistant platform. Deploy it on your server, connect a knowledge base, plug in messaging channels (WhatsApp, Telegram, Email, Web Widget, Voice), and get an AI concierge that answers questions from your docs, captures leads, and escalates to humans when needed.
 
-**Target audience:** agencies, service businesses, SaaS operators who need a customizable AI assistant without building from scratch.
+**Target audience:** agencies, service businesses, SaaS operators who need a customizable AI assistant without building one from scratch.
+
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Quick Start](#quick-start)
+- [Dual-Agent Architecture](#dual-agent-architecture)
+- [MCP Tool Servers](#mcp-tool-servers)
+- [RAG Knowledge Base](#rag-knowledge-base)
+- [Messaging Channels](#messaging-channels)
+- [Admin Dashboard](#admin-dashboard)
+- [API Reference](#api-reference)
+- [Background Tasks](#background-tasks)
+- [Security](#security)
+- [Licensing & Gumroad](#licensing--gumroad)
+- [Environment Variables](#environment-variables)
+- [CI/CD](#cicd)
+- [Contributing](#contributing)
 
 ---
 
 ## Features
 
-### RAG Knowledge Base
-- Upload documents (PDF, DOCX, TXT, images)
-- Automatic chunking, embedding, and vector search
-- Three-level hierarchy: Branch > Specialization > Client — each with isolated documents
-- Qdrant (primary) or PostgreSQL pgvector (fallback) for vector storage
-- Supports OpenAI, Cohere, Huggingface, and local Ollama embeddings
+### Core
 
-### Dual-Agent Architecture
-- **Assistant** — full-power agent for business owners (Sandbox)
-- **Consultant/Concierge** — customer-facing agent optimized for lead capture (Messengers)
-- Scope-based tool filtering per agent role
-- Fallback to legacy RAG pipeline if MCP fails
+- **RAG Knowledge Base** — upload documents (PDF, DOCX, TXT, CSV, JSON, images), automatic chunking + embedding + vector search
+- **Dual-Agent System** — Assistant (full-power sandbox) + Consultant (customer-facing, lead-optimized)
+- **9 MCP Tool Servers** — RAG search, email, leads, escalation, memory, coaching, sales intel, Excel generation, sequential thinking
+- **5 Messaging Channels** — WhatsApp (Meta API + bridge), Telegram bot, Email (SMTP/IMAP), Web Widget (iframe), Voice/Telephony
+- **HITL Escalation** — route unanswered questions to live managers via Telegram, with timeout and auto-close
+- **Lead Capture** — automatic contact extraction, interest scoring (1-5), LLM-powered qualification
+- **Multi-Tenant Hierarchy** — Branch > Specialization > Client, each with isolated documents and embeddings
+- **Admin Dashboard** — full platform management with 37+ pages across owner admin and client portal
 
-### MCP Tool Integration
-8 built-in FastMCP servers (stdio transport):
+### Additional
 
-| Server | What it does |
-|--------|-------------|
-| `rag` | Semantic search over the knowledge base |
-| `escalation` | Route unanswered questions to live managers (HITL) |
-| `email` | Send, read, search emails via client SMTP/IMAP |
-| `leads` | Capture contact info + interest scoring from conversations |
-| `memory` | Persistent conversational memory (Qdrant + Cohere) |
-| `coaching` | AI coaching and gap analysis |
-| `sales_intel` | Website scraping and tech stack detection |
-| `xlsx` | Excel generation with formulas (LibreOffice) |
-
-Dynamic tool discovery at runtime. OpenAI function-calling interface.
-
-### Messaging Channels
-- **WhatsApp** — Meta official API + mautrix bridge
-- **Telegram** — bot with auto-reply and escalation
-- **Email** — SMTP/IMAP per client
-- **Web Widget** — embeddable iframe chat
-- **Web Chat** — B2C white-label portal
-
-### Human-in-the-Loop (HITL)
-- Automatic escalation to live managers for unresolved questions
-- Telegram notifications for escalated messages
-- Manager dashboard with conversation routing
-
-### Lead Capture
-- Automatic contact info extraction from conversations
-- Interest scoring (1-5) via LLM analysis
-- Lead qualification and management dashboard
-
-### Admin Dashboard
-- Full CRUD: clients, branches, specializations
-- AI provider management (LLM + embedding model pairs)
-- MCP server configuration
-- Feature flag rollout (off / selected clients / all)
-- Multi-language system messages
-- License management (Gumroad)
-
-### Multi-Language Support
-8 UI languages: English, German, French, Spanish, Italian, Dutch, Danish, Ukrainian.
-Automatic customer language detection in chat. Per-client notification language.
-
-### Chrome Extension
-- Embed assistant in any webpage
-- Semantic search over page content
-- Sales intelligence scraping
+- **Multi-Language UI** — 8 languages: English, German, French, Spanish, Italian, Dutch, Danish, Ukrainian
+- **Automatic Language Detection** — AI responds in the customer's language
+- **Chrome Extension** — embed assistant in any webpage, semantic search over page content, sales intelligence scraping
+- **Web Chat Widget** — embeddable iframe chat for client websites, configurable appearance (light/dark), custom CSS
+- **QR Code Generation** — dynamic QR codes per client for WhatsApp/Telegram linking
+- **Conversation Analytics** — top questions, sentiment detection, recent activity, statistics
+- **Conversation Ratings** — 1-5 star rating with automatic follow-up email on negative reviews
+- **Conversation Notes** — manual notes per conversation for manager reference
+- **Word Cloud** — trending terms from conversations
+- **Image Analysis** — upload images to chat for vision-powered analysis
+- **Custom Prompts** — per-client system prompt customization with prompt library and voting
+- **Knowledge Blocks** — organize documents into logical groups
+- **Web Parsing** — scrape URLs and ingest content into knowledge base
+- **Daily Digest** — automated email summary of last 24h conversations (17:00 Europe/Kyiv)
+- **Feature Flags** — per-client feature rollout (off / selected / all) with caching
+- **Auto-Reply Rules** — per-channel auto-reply configuration (WhatsApp, Telegram, Email)
+- **API Documentation** — auto-generated per client
+- **News Feed** — in-app news/updates
+- **Usage Tracking** — per-operation token + cost tracking, synced to external platform
+- **Pixel Dashboard** — pixel event tracking status
 
 ---
 
@@ -85,14 +77,19 @@ Automatic customer language detection in chat. Per-client notification language.
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Django 5, DRF, Python 3.12 |
-| Frontend | React 19, Vite, Tailwind CSS |
+| Backend | Django 5, Django REST Framework, Python 3.12 |
+| Frontend | React 19, Vite 7, Tailwind CSS 3 |
 | Database | PostgreSQL 16 + pgvector |
 | Vector Search | Qdrant (primary), pgvector (fallback) |
 | Queue | Celery + Redis |
-| AI | LangChain, OpenAI API, Cohere, Anthropic, Ollama |
+| AI / LLM | OpenAI, Anthropic (Claude), Ollama (local), Kimi (Moonshot) |
+| Embeddings | OpenAI, Cohere, Hugging Face, Ollama (local) |
 | MCP | FastMCP 2.0 (stdio transport) |
 | Infrastructure | Docker Compose, Nginx, Gunicorn |
+| Auth | JWT (SimpleJWT), API Key, Client Token |
+| Encryption | Fernet (EncryptedJSONField for credentials) |
+| i18n | i18next (frontend), per-agent language config (backend) |
+| CI/CD | GitHub Actions |
 
 ---
 
@@ -101,33 +98,47 @@ Automatic customer language detection in chat. Per-client notification language.
 ```
 .
 ├── backend/
-│   ├── Jeeves/                  # Django project
-│   │   ├── accounts/            # Users (4 roles: admin, owner, manager, client)
-│   │   ├── agents/              # Agent config, sessions, logs, MCP orchestrator
-│   │   ├── api/                 # Client-facing REST endpoints
-│   │   ├── branches/            # Org hierarchy Level 1 + documents
-│   │   ├── specializations/     # Org hierarchy Level 2 + documents
-│   │   ├── clients/             # Tenants, channels, HITL, leads, QR codes
-│   │   ├── concierge_platform/  # Platform defaults, feature flags, license
-│   │   ├── EmbeddingModel/      # AI model registry (LLM + embedding pairs)
-│   │   ├── mcp_hub/             # MCP server management + tool execution
-│   │   ├── processing/          # Document parsing, chunking, embeddings
-│   │   ├── rag/                 # RAG engine: vector search, context, LLM client
-│   │   └── tools/               # Tool catalog + per-client connections
-│   ├── mcp_servers/             # 8 standalone FastMCP servers
-│   ├── chrome_extension/        # Browser extension source
+│   ├── Jeeves/                      # Django project root
+│   │   ├── accounts/                # Users (4 roles: admin, owner, manager, client), JWT auth
+│   │   ├── agents/                  # AgentConfig, AgentSession, AgentLog, MCP orchestrator
+│   │   ├── api/                     # Client-facing REST endpoints, bootstrap provisioning
+│   │   ├── branches/                # Org hierarchy Level 1 + documents + embeddings
+│   │   ├── specializations/         # Org hierarchy Level 2 + documents + embeddings
+│   │   ├── clients/                 # Tenants, channels (WA/TG/Email/Widget), HITL, leads, QR codes
+│   │   ├── concierge_platform/      # PlatformDefaults, FeatureFlag, SystemMessage, PlatformLicense
+│   │   ├── EmbeddingModel/          # AI model registry (EmbeddingModel, LLMProvider, ModelPair)
+│   │   ├── mcp_hub/                 # MCP server management + SSE streaming + tool execution
+│   │   ├── processing/              # Document parsing, chunking, embedding, UsageStats, Celery tasks
+│   │   ├── rag/                     # RAG engine: vector search, context builder, LLM client
+│   │   └── tools/                   # ToolCard catalog, ToolConnection, EdgeMiddleware, InstalledMCPServer
+│   ├── mcp_servers/                 # 9 standalone FastMCP servers (stdio)
+│   │   ├── rag/                     # Semantic search over knowledge base
+│   │   ├── escalation/              # HITL escalation to live managers
+│   │   ├── email/                   # Send/read/search emails (SMTP/IMAP)
+│   │   ├── leads/                   # Lead capture + qualification
+│   │   ├── memory/                  # Persistent conversational memory (Qdrant + Cohere)
+│   │   ├── coaching/                # AI coaching + gap analysis
+│   │   ├── sales_intel/             # Website scraping + tech stack detection
+│   │   ├── xlsx/                    # Excel generation with formulas (LibreOffice)
+│   │   └── common/                  # Shared Django ORM bootstrap
+│   ├── chrome_extension/            # Browser extension source (content + background scripts)
 │   ├── docker-compose.yml
-│   └── Dockerfile
+│   ├── Dockerfile
+│   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── pages/               # 37 pages (owner admin + client portal)
-│   │   ├── components/          # UI components
-│   │   ├── api/                 # Axios clients (auth, owner, client, agent, tools)
-│   │   ├── context/             # Auth, Theme, Bootstrap providers
-│   │   └── locales/             # 8 language translation files
+│   │   ├── pages/                   # 37+ pages (owner admin + client portal + setup wizard)
+│   │   ├── components/              # UI components (layout, forms, chat, integrations, tools)
+│   │   ├── api/                     # Axios clients (auth, owner, client, agent, tools, embedding)
+│   │   ├── context/                 # AuthContext, ThemeContext, BootstrapContext
+│   │   ├── locales/                 # 8 language translation files (en/de/fr/es/it/nl/da/uk)
+│   │   └── modules/                 # Experimental modules (pixel dashboard)
 │   ├── docker-compose.yml
 │   └── Dockerfile
-└── docs/
+├── docs/                            # Development plans + specs
+├── CLAUDE.md                        # Instructions for Claude Code
+├── SETUP.md                         # Full installation guide
+└── .github/workflows/               # CI/CD (pytest + eslint + build)
 ```
 
 ---
@@ -157,7 +168,7 @@ cd ../frontend && docker compose up -d
 # http://localhost:3000
 ```
 
-### Docker services
+### Docker Services
 
 | Service | Port | Description |
 |---------|------|-------------|
@@ -165,34 +176,373 @@ cd ../frontend && docker compose up -d
 | `redis` | 6380 | Cache + Celery broker |
 | `web` | 8000 | Django API (Gunicorn) |
 | `celery_worker` | — | Async task processing |
-| `celery_beat` | — | Scheduled tasks |
-| `qdrant` | 6333 | Vector search |
+| `celery_beat` | — | Scheduled tasks (digest, escalation timeouts, session cleanup) |
+| `qdrant` | 6333 | Vector search (optional, enabled via `USE_QDRANT`) |
 | `nginx` | 80 | Reverse proxy + static files |
 
 ---
 
-## Licensing
+## Dual-Agent Architecture
 
-Jeeves uses [Gumroad](https://gumroad.com) for license distribution. When you purchase the product, you get a license key that activates your instance during the setup wizard.
+Jeeves runs two agent personas with different capabilities:
 
-### How licensing works
+### Assistant (Sandbox)
 
-1. Purchase on Gumroad — you get a license key
-2. During first-time setup wizard, enter the key
-3. Jeeves verifies it against Gumroad API
-4. If verification fails (network issue), a 7-day grace period activates
-5. Re-verify anytime at `/api/owner/license/reverify/`
+Full-power agent for business owners. Available in the dashboard Sandbox.
 
-### Removing the Gumroad license module
+- Access to all MCP tools (RAG, email, leads, memory, coaching, sales intel, xlsx)
+- Business operations focus
+- Full conversation context
 
-This project is open source. If you want to remove the Gumroad license validation entirely:
+### Consultant / Concierge (Messengers)
 
-**1. Remove the license check from settings:**
+Customer-facing agent optimized for lead capture. Runs on WhatsApp, Telegram, Web Widget.
 
-In `backend/Jeeves/settings.py`, delete or comment out:
+- Limited tool scope (RAG, escalation, leads, memory)
+- Passive/Warm/Hot lead engagement strategies
+- Natural lead qualification without being pushy
+- Automatic escalation to human managers
+
+### Orchestrator Flow
+
+```
+User message → Build system prompt + history
+             → LLM call with available MCP tools (OpenAI function schema)
+             → If tool call returned: execute via MCP → feed result back → repeat
+             → If final text: return response
+             → Log everything to AgentLog
+             → Max 10 iterations (prevents infinite loops)
+```
+
+Auto-injected parameters (hidden from LLM): `client_id`, `session_id`, `user_id`.
+
+### AgentConfig (per-client)
+
+Each client gets an `AgentConfig` with customizable settings:
+
+- `language` — conversation language
+- `temperature` — creativity (0-1)
+- `max_tokens` — response length limit
+- `system_prompt` — custom prompt (falls back to `PlatformDefaults`)
+- LLM provider + embedding model selection
+
+---
+
+## MCP Tool Servers
+
+9 FastMCP servers running as stdio subprocesses. Each bootstraps Django ORM through `mcp_servers.common.django_setup`.
+
+| Server | Scope | Tools | Description |
+|--------|-------|-------|-------------|
+| `rag` | assistant, manager | `search_knowledge_base` | Semantic search over the knowledge base (Qdrant or pgvector) |
+| `escalation` | assistant, manager | `escalate_to_manager`, `check_escalation_status` | Route unanswered questions to live managers via Telegram |
+| `email` | assistant | `send_email`, `read_emails`, `search_emails`, `analyze_emails` | Send/read/search emails via client SMTP/IMAP |
+| `leads` | manager, leads | `capture_lead`, `qualify_lead`, `update_lead` | Lead capture, qualification, interest scoring |
+| `memory` | assistant, manager | `save_memory`, `search_memory`, `clear_memory` | Persistent conversational memory (Qdrant + Cohere embeddings) |
+| `coaching` | assistant | `analyze_gaps`, `generate_coaching_plan` | AI coaching, gap analysis, skill development |
+| `sales_intel` | assistant | `scrape_website`, `detect_tech_stack`, `research_company` | Website scraping and company research |
+| `xlsx` | assistant | `generate_xlsx`, `add_worksheet`, `add_formula` | Excel generation with formulas (uses LibreOffice for recalc) |
+| `sequential-thinking` | assistant | `think` | Chain-of-thought reasoning (npm: `@modelcontextprotocol/server-sequential-thinking`) |
+
+**Scopes** control which tools are available to which agent:
+- `assistant` — full tools in Sandbox
+- `manager` — limited tools for customer-facing Consultant
+- `leads` — lead-specific tools only
+
+Configured in `settings.py` under `MCP_SERVERS` and `MCP_TOOL_SCOPES`.
+
+---
+
+## RAG Knowledge Base
+
+### Document Processing Pipeline
+
+1. **Upload** — PDF, DOCX, TXT, CSV, JSON, JPG, PNG, GIF, WEBP
+2. **Parsing** — pdfplumber (PDF), python-docx (DOCX), standard parsers (CSV/JSON), Vision API (images)
+3. **Chunking** — recursive token-based splitter (default 512 tokens, 128 overlap), metadata preserved
+4. **Embedding** — via configurable provider (OpenAI, Cohere, Hugging Face, Ollama)
+5. **Storage** — Qdrant (primary) or pgvector (fallback)
+6. **Indexing** — Celery tasks with rate limiting (10/min)
+
+### Multi-Level Search
+
+Documents are organized in a three-level hierarchy with weighted search:
+
+| Level | Weight | Description |
+|-------|--------|-------------|
+| Client | 0.8 | Client-specific documents (highest priority) |
+| Specialization | 0.5 | Domain-specific shared docs |
+| Branch | 0.3 | Regional shared docs |
+
+- Similarity threshold: 0.1 (configurable)
+- Max results: 5 per level
+- Context window: max 2000 tokens (fits 4096 token limit with prompt + response)
+- Optional Cohere reranking for better relevance
+
+### Vector Search Backends
+
+**Qdrant** (primary, `USE_QDRANT=true`):
+- Collection: `concierge_embeddings`
+- Metadata filtering by client_id, level, etc.
+- Payload storage, snapshot backup
+
+**pgvector** (fallback):
+- Cosine distance similarity
+- IVFFlat or HNSW indexing
+
+### Knowledge Organization
+
+- **Knowledge Blocks** — group documents into logical collections
+- **Web Parsing** — scrape URLs and ingest content automatically
+- **Reindexing** — full reindex or incremental (new docs only)
+
+---
+
+## Messaging Channels
+
+### WhatsApp (Meta Business API)
+
+- **Webhook**: `POST /api/whatsapp/meta/webhook/`
+- **Security**: X-Hub-Signature-256 (HMAC-SHA256) verification
+- Message handling (text + media), conversation tracking
+- QR code linking to clients, auto-reply rules
+- Sentiment detection with negative rating escalation
+- Lead capture, RAG-powered responses, HITL escalation
+- Zero-touch configuration (`ClientZeroConfig`)
+- Legacy Twilio bridge support
+
+### Telegram
+
+- **Webhook**: `POST /api/clients/telegram/webhook/`
+- **Security**: X-Telegram-Bot-Api-Secret-Token verification
+- `/start` command (welcome + QR linking), `/start2` (custom linking)
+- Callback queries (inline button handling)
+- Manager replies via forwarding
+- Conversation history, sentiment analysis, lead capture
+
+### Email (SMTP/IMAP)
+
+- Send emails via client SMTP (encrypted credentials)
+- Read + search emails via IMAP
+- Analyze email sentiment/intent via LLM
+- Daily digest (automated at 17:00 Europe/Kyiv, or manual trigger)
+- Negative rating follow-up emails
+
+### Web Widget
+
+- **Script**: `/widget/chat.js` (inject into any page)
+- **Iframe**: `/widget/chat` (embedded chat)
+- Configurable domain restriction, light/dark mode, custom CSS
+- Conversation history (localStorage), image upload + analysis
+- Lead capture, RAG-powered responses
+
+### Voice / Telephony
+
+- Voice configuration per client
+- Multiple voice providers + voice selection
+- HITL escalation for complex calls
+- Endpoints: `/api/clients/telephony/*`
+
+---
+
+## Admin Dashboard
+
+### Owner Portal (`/owner/*`)
+
+Platform-wide administration. Protected by `BootstrapGate` (checks setup completion + license).
+
+| Page | What it does |
+|------|-------------|
+| Dashboard | Platform statistics, license info, overview |
+| Clients | CRUD clients, stats per client, API key generation |
+| Branches | Manage org hierarchy Level 1 |
+| Specializations | Manage org hierarchy Level 2 |
+| AI Providers > LLM | Configure LLM providers (OpenAI, Anthropic, Ollama, Kimi) + test connections |
+| AI Providers > Embeddings | Configure embedding models (OpenAI, Cohere, HF, Ollama) + test connections |
+| AI Providers > Pairs | Assign LLM + embedding model pairs |
+| Tools | Tool catalog management, discovery, URL import |
+| MCP Servers | MCP server configuration |
+| Feature Flags | Per-client feature toggles (off / selected / all) |
+| System Messages | Multi-language system prompts (default, assistant, consultant) |
+| Settings | Platform defaults (temperature, max_tokens, language, etc.) |
+| Setup Wizard | First-time setup: Gumroad license + owner account creation |
+
+### Client Portal (`/l/:tag/*`)
+
+Per-client management. Authenticated via `X-Client-Token` header.
+
+| Page | What it does |
+|------|-------------|
+| Dashboard | Stats, top questions, recent activity, web conversations |
+| History | Conversation browser with date/channel filter, search, sentiment |
+| Tools | Connected tools, flow canvas visual editor, edge middleware |
+| Integrations | WhatsApp QR, Telegram token, Email SMTP config, Widget config |
+| Leads | Lead list, detail view, scoring, qualification status |
+| Training | Prompt library, create/edit prompts, vote on suggestions |
+| Sandbox | Test RAG queries, upload files, image analysis, live chat |
+| Settings | Language, theme, profile, logo upload |
+
+---
+
+## API Reference
+
+Full documentation: [`backend/docs/API_DOCUMENTATION.md`](backend/docs/API_DOCUMENTATION.md)
+
+### Authentication Modes
+
+| Mode | Header | Used by |
+|------|--------|---------|
+| JWT Bearer | `Authorization: Bearer <token>` | Owner/Admin dashboard |
+| Client Token | `X-Client-Token: <tag>` | Client portal, web widget |
+| API Key | `X-API-Key: <key>` | External API clients, webhooks |
+
+### Key Endpoints
+
+#### Auth
+- `POST /api/accounts/register/` — register user
+- `POST /api/accounts/login/` — JWT login
+- `POST /api/accounts/refresh/` — refresh JWT
+- `GET /api/accounts/me/` — current user profile
+
+#### RAG & Chat
+- `POST /api/rag/query/` — query knowledge base
+- `POST /api/rag/chat/` — RAG chat (supports image analysis)
+- `POST /api/mcp/chat/` — MCP chat (SSE streaming, full agent orchestration)
+- `POST /api/rag/upload/` — upload document
+
+#### Client Management
+- `GET /api/clients/conversations/` — list conversations
+- `GET /api/clients/conversations/statistics/` — aggregated stats
+- `GET /api/clients/top-questions/` — most asked questions
+- `GET /api/clients/leads/` — list captured leads
+- `GET /api/clients/documents/` — list documents
+- `GET /api/clients/knowledge-blocks/` — list knowledge blocks
+- `POST /api/clients/reports/daily-digest/send/` — trigger daily digest
+
+#### Owner Admin
+- `GET /api/owner/dashboard/stats/` — platform statistics
+- `CRUD /api/owner/clients/` — manage clients
+- `CRUD /api/owner/branches/` — manage branches
+- `CRUD /api/owner/specializations/` — manage specializations
+- `CRUD /api/owner/ai-providers/llm/` — manage LLM providers
+- `CRUD /api/owner/ai-providers/embeddings/` — manage embedding models
+- `CRUD /api/owner/ai-providers/pairs/` — manage model pairs
+- `CRUD /api/owner/tools/` — manage tool catalog
+- `CRUD /api/owner/feature-flags/` — manage feature flags
+- `CRUD /api/owner/system-messages/` — manage system messages
+- `GET|PUT /api/owner/settings/defaults/` — platform defaults
+
+#### Channel Config
+- `GET|POST|PATCH /api/clients/whatsapp/meta/config/` — WhatsApp Meta config
+- `GET|POST|PATCH /api/clients/telegram/config/` — Telegram config
+- `GET|POST /api/clients/email-smtp/config/` — Email SMTP config
+- `GET|POST|PATCH /api/clients/web-widget/config/` — Web Widget config
+- `GET|POST /api/clients/hitl/config/` — HITL escalation config
+- `CRUD /api/clients/telephony/` — voice/telephony config
+- `GET|PUT /api/clients/channel-auto-reply/<channel>/` — auto-reply rules
+
+#### Tools
+- `GET /api/tools/catalog/` — tool catalog
+- `POST /api/tools/<slug>/connect/` — connect tool
+- `POST /api/tools/<slug>/disconnect/` — disconnect tool
+- `GET /api/tools/my/` — connected tools
+- `CRUD /api/tools/flow/connections/` — flow canvas connections
+- `CRUD /api/tools/flow/edges/<conn_id>/middleware/` — edge middleware
+
+#### Setup & License
+- `POST /api/setup/owner/` — create first owner account
+- `POST /api/setup/license/` — validate Gumroad license
+- `POST /api/setup/complete/` — mark setup complete
+- `POST /api/owner/license/reverify/` — re-verify license
+
+200+ total endpoints. See [`backend/docs/API_DOCUMENTATION.md`](backend/docs/API_DOCUMENTATION.md) for the complete list.
+
+---
+
+## Background Tasks
+
+### Periodic (Celery Beat)
+
+| Task | Schedule | Description |
+|------|----------|-------------|
+| `check_inactive_chat_sessions` | Every 60 seconds | Detect + clean up idle conversations |
+| `send_daily_digest` | Daily at 17:00 (Europe/Kyiv) | Email summary of last 24h to client contacts |
+| `check_escalation_timeouts` | Every 5 minutes | Auto-close expired HITL escalations |
+
+### Document Processing (Celery Worker)
+
+| Task | Description |
+|------|-------------|
+| `process_client_document` | Parse + chunk + embed client document |
+| `process_branch_document` | Parse + chunk + embed branch document |
+| `process_specialization_document` | Parse + chunk + embed specialization document |
+
+Rate limited: 10 tasks/minute per model type. Cost tracked in `UsageStats`.
+
+---
+
+## Security
+
+### Authentication
+
+- **JWT** — access (24h) + refresh (7d) tokens with rotation
+- **API Key** — per-client `ClientAPIKey` model, `X-API-Key` header
+- **Client Token** — tag-based auth for portal + widget
+
+### Role-Based Access Control
+
+4 roles with view-level permission checks:
+
+| Role | Access |
+|------|--------|
+| `ADMIN` | Full platform access |
+| `OWNER` | Platform admin dashboard, all clients |
+| `MANAGER` | HITL escalation, assigned clients |
+| `CLIENT` | Own portal only |
+
+### Webhook Security
+
+- **WhatsApp Meta**: X-Hub-Signature-256 (HMAC-SHA256 with `META_APP_SECRET`)
+- **Telegram**: X-Telegram-Bot-Api-Secret-Token header
+- **Bootstrap**: X-Bootstrap-Signature (HMAC-SHA256, 5-minute validity)
+
+### Data Protection
+
+- **EncryptedJSONField** — Fernet encryption for tool credentials, API configs, SMTP passwords
+- **Field encryption key** — `FIELD_ENCRYPTION_KEY` env var (base64-encoded Fernet key)
+- `.env` files never committed to git
+
+---
+
+## Licensing & Gumroad
+
+Jeeves uses [Gumroad](https://gumroad.com) for license distribution.
+
+### How It Works
+
+1. Purchase on Gumroad — you receive a license key
+2. During the setup wizard, enter the key
+3. Jeeves verifies it against the Gumroad API (`POST https://api.gumroad.com/v2/licenses/verify`)
+4. If verification fails (network issue), a **7-day grace period** activates
+5. Re-verify anytime via `POST /api/owner/license/reverify/`
+
+### License Status Flow
+
+```
+Missing → (enter key in wizard) → Valid
+                                → Grace (network error, 7-day countdown)
+                                → Expired (grace period ended)
+```
+
+### Removing the Gumroad License Module
+
+This project is open source. To remove license validation entirely:
+
+**Step 1. Remove the license check from settings:**
+
+In `backend/Jeeves/settings.py`, delete lines ~468-477:
 
 ```python
-# Line ~468-477
 GUMROAD_PRODUCT_ID = os.environ.get("GUMROAD_PRODUCT_ID", "")
 
 if not DEBUG and not GUMROAD_PRODUCT_ID:
@@ -201,19 +551,21 @@ if not DEBUG and not GUMROAD_PRODUCT_ID:
     )
 ```
 
-**2. Remove license-related views:**
+**Step 2. Remove license-related views:**
 
-In `backend/Jeeves/concierge_platform/views_setup.py`, remove `SetupLicenseView` and any license verification logic from the setup wizard.
+- In `backend/Jeeves/concierge_platform/views_setup.py` — remove `SetupLicenseView` and license verification logic from the setup wizard
+- In `backend/Jeeves/concierge_platform/views_owner.py` — remove the `/api/owner/license/reverify/` endpoint
+- Remove corresponding URL patterns from `urls.py`
 
-In `backend/Jeeves/concierge_platform/views_owner.py`, remove the `/api/owner/license/reverify/` endpoint.
+**Step 3. Delete the Gumroad client:**
 
-**3. Remove the Gumroad client:**
+```bash
+rm backend/Jeeves/concierge_platform/gumroad_client.py
+```
 
-Delete `backend/Jeeves/concierge_platform/gumroad_client.py`.
+**Step 4. Remove the PlatformLicense model:**
 
-**4. Clean up the PlatformLicense model:**
-
-In `backend/Jeeves/concierge_platform/models.py`, remove the `PlatformLicense` model and create a migration:
+In `backend/Jeeves/concierge_platform/models.py`, delete the `PlatformLicense` class, then:
 
 ```bash
 cd backend/Jeeves
@@ -221,15 +573,16 @@ python manage.py makemigrations concierge_platform
 python manage.py migrate
 ```
 
-**5. Remove frontend license checks:**
+**Step 5. Remove frontend license checks:**
 
-In `frontend/src/context/BootstrapContext.jsx`, remove the license status check from the bootstrap gate logic. The setup wizard steps related to license entry can be removed from the setup pages.
+- In `frontend/src/context/BootstrapContext.jsx` — remove license status check from the bootstrap gate
+- Remove the license step from the setup wizard pages
 
-**6. Remove env variable:**
+**Step 6. Clean up environment:**
 
-Remove `GUMROAD_PRODUCT_ID` from `backend/.env` and `backend/.env.example`.
+Remove `GUMROAD_PRODUCT_ID` from `backend/.env`, `backend/.env.example`, and `docker-compose.yml`.
 
-After these changes, the platform will run without any license validation.
+After these changes the platform runs without any license validation.
 
 ---
 
@@ -239,61 +592,127 @@ After these changes, the platform will run without any license validation.
 
 | Variable | Description |
 |----------|------------|
-| `SECRET_KEY` | Django secret key |
-| `OPENAI_API_KEY` | OpenAI API key (or another LLM provider) |
-| `GUMROAD_PRODUCT_ID` | Gumroad product ID (remove if self-hosting without license) |
+| `SECRET_KEY` | Django secret key (generate: `python -c "import secrets; print(secrets.token_urlsafe(50))"`) |
+| `OPENAI_API_KEY` | OpenAI API key (or configure another LLM provider) |
+| `GUMROAD_PRODUCT_ID` | Gumroad product ID (see [Removing Gumroad](#removing-the-gumroad-license-module) to skip) |
 
-### Optional
+### Database
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DB_NAME` | `admin_db` | PostgreSQL database name |
+| `DB_USER` | `admin_user` | Database user |
+| `DB_PASS` | — | Database password |
+| `DB_HOST` | `postgres` | Database host |
+| `DB_PORT` | `5432` | Database port |
+
+### AI Providers
 
 | Variable | Description |
 |----------|------------|
 | `ANTHROPIC_API_KEY` | Anthropic Claude API |
 | `COHERE_API_KEY` | Cohere embeddings + reranking |
-| `HUGGINGFACE_API_KEY` | Huggingface models |
-| `USE_QDRANT` | Enable Qdrant vector search (default: True) |
-| `QDRANT_HOST` | Qdrant hostname (default: qdrant) |
-| `FIELD_ENCRYPTION_KEY` | Fernet key for credential encryption |
+| `HUGGINGFACE_API_KEY` | Hugging Face models |
+| `KIMI_API_KEY` | Kimi (Moonshot) API |
+
+### Vector Search
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `USE_QDRANT` | `True` | Enable Qdrant vector search |
+| `QDRANT_HOST` | `qdrant` | Qdrant hostname |
+| `QDRANT_PORT` | `6333` | Qdrant port |
+
+### Security
+
+| Variable | Description |
+|----------|------------|
+| `FIELD_ENCRYPTION_KEY` | Base64 Fernet key for credential encryption |
+| `BOOTSTRAP_SECRET` | HMAC secret for bootstrap webhook verification |
+
+### Messaging
+
+| Variable | Description |
+|----------|------------|
 | `META_WABA_ID` | WhatsApp Business Account ID |
 | `META_APP_ID` | Meta app ID |
+| `META_APP_SECRET` | Meta app secret (webhook signature verification) |
 | `META_ACCESS_TOKEN` | Meta access token |
 | `TWILIO_ACCOUNT_SID` | Twilio SID (legacy WhatsApp) |
 | `TWILIO_AUTH_TOKEN` | Twilio auth token |
 
----
+### Infrastructure
 
-## API Authentication
-
-Two modes:
-
-- **Owner/Admin** — JWT Bearer token (`Authorization: Bearer <token>`)
-- **Client portal** — Client tag token (`X-Client-Token: <tag>`)
-
-API documentation: `backend/docs/API_DOCUMENTATION.md`
-
----
-
-## Background Tasks (Celery)
-
-| Task | Schedule |
-|------|----------|
-| Check inactive chat sessions | Every 60 seconds |
-| Send daily digest | Daily at 17:00 (Europe/Kyiv) |
-| Check escalation timeouts | Every 5 minutes |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CELERY_BROKER_URL` | `redis://redis:6379/0` | Celery broker |
+| `CELERY_RESULT_BACKEND` | `redis://redis:6379/0` | Celery results |
+| `CORS_ALLOWED_ORIGINS` | — | Frontend origins (comma-separated) |
+| `CSRF_TRUSTED_ORIGINS` | — | Trusted origins for CSRF |
+| `ALLOWED_HOSTS` | `localhost,127.0.0.1,web,nginx` | Django allowed hosts |
+| `DEBUG` | `True` | Debug mode (set `False` in production) |
 
 ---
 
 ## CI/CD
 
 GitHub Actions (`.github/workflows/main-tests.yml`):
-- Backend: pytest with PostgreSQL (pgvector) + Redis
-- Frontend: ESLint + production build
+
+- **Backend**: pytest with PostgreSQL (pgvector) + Redis services
+- **Frontend**: ESLint + production build
 - Runs on push/PR to `main`
+
+### Production Checklist
+
+- [ ] Set `DEBUG=False`
+- [ ] Generate fresh `SECRET_KEY`
+- [ ] Configure `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `CORS_ALLOWED_ORIGINS`
+- [ ] Set up HTTPS (Nginx + Let's Encrypt or Caddy)
+- [ ] Enable automated PostgreSQL backups
+- [ ] Set `GUMROAD_PRODUCT_ID` (or remove license module)
+- [ ] Generate `FIELD_ENCRYPTION_KEY`
+- [ ] Rotate all API keys
+
+---
+
+## LLM Providers
+
+### Supported
+
+| Provider | Type | Default Model |
+|----------|------|---------------|
+| OpenAI | `openai` | gpt-4o-mini |
+| Anthropic | `anthropic` | Claude family |
+| Ollama (main) | `ollama_main` | qwen2.5:7b |
+| Ollama (light) | `ollama_light` | qwen2.5:1.5b |
+| Kimi (Moonshot) | `kimi` | Advanced reasoning |
+
+### Configuration Priority
+
+1. `client.llm_provider_model` (FK to LLMProvider) — preferred
+2. `client.llm_provider` + `client.llm_model_name` — legacy
+3. `LLM_CONFIG` default — fallback
+
+### Embedding Models
+
+| Provider | Models |
+|----------|--------|
+| OpenAI | text-embedding-3-small, text-embedding-3-large |
+| Ollama | bge-m3, nomic-embed-text |
+| Hugging Face | Via transformers |
+| Cohere | embed-multilingual-v3.0 (reranking support) |
 
 ---
 
 ## Contributing
 
-Pull requests welcome. See the project structure above and [CLAUDE.md](CLAUDE.md) for development conventions.
+Pull requests welcome.
+
+- See [CLAUDE.md](CLAUDE.md) for development conventions and architecture details
+- See [SETUP.md](SETUP.md) for local development setup
+- Backend formatting: Black (120 chars), isort (black profile), flake8
+- Frontend: JSX (no TypeScript), ESLint
+- Tests: pytest + pytest-django (backend), ESLint + build (frontend)
 
 ---
 
