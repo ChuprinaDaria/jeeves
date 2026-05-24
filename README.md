@@ -1,8 +1,12 @@
 # Jeeves — Self-Hosted AI Assistant Platform
 
-Deploy your own AI assistant. Jeeves comes ready out of the box — rename him, retrain him, make him yours.
+> Your own AI butler. Doesn't judge. Doesn't sleep. Occasionally hallucinates — but so does your best employee.
 
-Multi-tenant AI concierge SaaS with RAG knowledge base, MCP tools, messaging integrations, and a full admin dashboard. Built on Django 5 + React 19. Distributed via [Gumroad](https://gumroad.com) for self-hosting.
+Multi-tenant AI concierge with RAG knowledge base, MCP tools, 5 messaging channels, and a full admin dashboard. Built on Django 5 + React 19. Fully open source, self-hosted, no license keys, no paywalls.
+
+### Status
+
+**Work in progress.** The project is functional but not finished. Bugs exist, some features are rough around the edges, and the documentation may lie to you. If something breaks — congratulations, you found a feature request. PRs, issues, and constructive complaints are very welcome.
 
 ---
 
@@ -28,7 +32,6 @@ Jeeves is a white-label AI assistant platform. Deploy it on your server, connect
 - [API Reference](#api-reference)
 - [Background Tasks](#background-tasks)
 - [Security](#security)
-- [Licensing & Gumroad](#licensing--gumroad)
 - [Environment Variables](#environment-variables)
 - [CI/CD](#cicd)
 - [Contributing](#contributing)
@@ -105,7 +108,7 @@ Jeeves is a white-label AI assistant platform. Deploy it on your server, connect
 │   │   ├── branches/                # Org hierarchy Level 1 + documents + embeddings
 │   │   ├── specializations/         # Org hierarchy Level 2 + documents + embeddings
 │   │   ├── clients/                 # Tenants, channels (WA/TG/Email/Widget), HITL, leads, QR codes
-│   │   ├── concierge_platform/      # PlatformDefaults, FeatureFlag, SystemMessage, PlatformLicense
+│   │   ├── concierge_platform/      # PlatformDefaults, FeatureFlag, SystemMessage
 │   │   ├── EmbeddingModel/          # AI model registry (EmbeddingModel, LLMProvider, ModelPair)
 │   │   ├── mcp_hub/                 # MCP server management + SSE streaming + tool execution
 │   │   ├── processing/              # Document parsing, chunking, embedding, UsageStats, Celery tasks
@@ -353,7 +356,7 @@ Platform-wide administration. Protected by `BootstrapGate` (checks setup complet
 
 | Page | What it does |
 |------|-------------|
-| Dashboard | Platform statistics, license info, overview |
+| Dashboard | Platform statistics, overview |
 | Clients | CRUD clients, stats per client, API key generation |
 | Branches | Manage org hierarchy Level 1 |
 | Specializations | Manage org hierarchy Level 2 |
@@ -365,7 +368,7 @@ Platform-wide administration. Protected by `BootstrapGate` (checks setup complet
 | Feature Flags | Per-client feature toggles (off / selected / all) |
 | System Messages | Multi-language system prompts (default, assistant, consultant) |
 | Settings | Platform defaults (temperature, max_tokens, language, etc.) |
-| Setup Wizard | First-time setup: Gumroad license + owner account creation |
+| Setup Wizard | First-time setup: owner account creation |
 
 ### Client Portal (`/l/:tag/*`)
 
@@ -449,11 +452,9 @@ Full documentation: [`backend/docs/API_DOCUMENTATION.md`](backend/docs/API_DOCUM
 - `CRUD /api/tools/flow/connections/` — flow canvas connections
 - `CRUD /api/tools/flow/edges/<conn_id>/middleware/` — edge middleware
 
-#### Setup & License
+#### Setup
 - `POST /api/setup/owner/` — create first owner account
-- `POST /api/setup/license/` — validate Gumroad license
 - `POST /api/setup/complete/` — mark setup complete
-- `POST /api/owner/license/reverify/` — re-verify license
 
 200+ total endpoints. See [`backend/docs/API_DOCUMENTATION.md`](backend/docs/API_DOCUMENTATION.md) for the complete list.
 
@@ -514,78 +515,6 @@ Rate limited: 10 tasks/minute per model type. Cost tracked in `UsageStats`.
 
 ---
 
-## Licensing & Gumroad
-
-Jeeves uses [Gumroad](https://gumroad.com) for license distribution.
-
-### How It Works
-
-1. Purchase on Gumroad — you receive a license key
-2. During the setup wizard, enter the key
-3. Jeeves verifies it against the Gumroad API (`POST https://api.gumroad.com/v2/licenses/verify`)
-4. If verification fails (network issue), a **7-day grace period** activates
-5. Re-verify anytime via `POST /api/owner/license/reverify/`
-
-### License Status Flow
-
-```
-Missing → (enter key in wizard) → Valid
-                                → Grace (network error, 7-day countdown)
-                                → Expired (grace period ended)
-```
-
-### Removing the Gumroad License Module
-
-This project is open source. To remove license validation entirely:
-
-**Step 1. Remove the license check from settings:**
-
-In `backend/Jeeves/settings.py`, delete lines ~468-477:
-
-```python
-GUMROAD_PRODUCT_ID = os.environ.get("GUMROAD_PRODUCT_ID", "")
-
-if not DEBUG and not GUMROAD_PRODUCT_ID:
-    raise ImproperlyConfigured(
-        "GUMROAD_PRODUCT_ID environment variable is required in production"
-    )
-```
-
-**Step 2. Remove license-related views:**
-
-- In `backend/Jeeves/concierge_platform/views_setup.py` — remove `SetupLicenseView` and license verification logic from the setup wizard
-- In `backend/Jeeves/concierge_platform/views_owner.py` — remove the `/api/owner/license/reverify/` endpoint
-- Remove corresponding URL patterns from `urls.py`
-
-**Step 3. Delete the Gumroad client:**
-
-```bash
-rm backend/Jeeves/concierge_platform/gumroad_client.py
-```
-
-**Step 4. Remove the PlatformLicense model:**
-
-In `backend/Jeeves/concierge_platform/models.py`, delete the `PlatformLicense` class, then:
-
-```bash
-cd backend/Jeeves
-python manage.py makemigrations concierge_platform
-python manage.py migrate
-```
-
-**Step 5. Remove frontend license checks:**
-
-- In `frontend/src/context/BootstrapContext.jsx` — remove license status check from the bootstrap gate
-- Remove the license step from the setup wizard pages
-
-**Step 6. Clean up environment:**
-
-Remove `GUMROAD_PRODUCT_ID` from `backend/.env`, `backend/.env.example`, and `docker-compose.yml`.
-
-After these changes the platform runs without any license validation.
-
----
-
 ## Environment Variables
 
 ### Required
@@ -594,7 +523,6 @@ After these changes the platform runs without any license validation.
 |----------|------------|
 | `SECRET_KEY` | Django secret key (generate: `python -c "import secrets; print(secrets.token_urlsafe(50))"`) |
 | `OPENAI_API_KEY` | OpenAI API key (or configure another LLM provider) |
-| `GUMROAD_PRODUCT_ID` | Gumroad product ID (see [Removing Gumroad](#removing-the-gumroad-license-module) to skip) |
 
 ### Database
 
@@ -669,7 +597,6 @@ GitHub Actions (`.github/workflows/main-tests.yml`):
 - [ ] Configure `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `CORS_ALLOWED_ORIGINS`
 - [ ] Set up HTTPS (Nginx + Let's Encrypt or Caddy)
 - [ ] Enable automated PostgreSQL backups
-- [ ] Set `GUMROAD_PRODUCT_ID` (or remove license module)
 - [ ] Generate `FIELD_ENCRYPTION_KEY`
 - [ ] Rotate all API keys
 
@@ -706,7 +633,9 @@ GitHub Actions (`.github/workflows/main-tests.yml`):
 
 ## Contributing
 
-Pull requests welcome.
+This project is open source and actively developed. Pull requests, bug reports, and feature ideas are welcome.
+
+Found a bug? [Open an issue.](https://github.com/ChuprinaDaria/jeeves/issues) Want to fix it yourself? Even better.
 
 - See [CLAUDE.md](CLAUDE.md) for development conventions and architecture details
 - See [SETUP.md](SETUP.md) for local development setup
@@ -718,4 +647,4 @@ Pull requests welcome.
 
 ## License
 
-See [LICENSE](LICENSE) for terms.
+MIT — See [LICENSE](LICENSE) for terms.
