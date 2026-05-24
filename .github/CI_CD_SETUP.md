@@ -1,23 +1,23 @@
 # CI/CD Pipeline Setup
 
-## 📋 Огляд
+## Overview
 
-Цей проєкт має повний CI/CD pipeline з автоматичним тестуванням та деплоєм:
+This project has a full CI/CD pipeline with automated testing and deployment:
 
-- **Main branch**: Запускає тести з покриттям коду
-- **Dev branch**: Автоматичний деплой бекенду та фронтенду
+- **Main branch**: Runs tests with code coverage
+- **Dev branch**: Automatic backend and frontend deployment
 
-## 🎯 Логіка запуску
+## Trigger Logic
 
-Pipeline автоматично визначає, що змінилося:
+The pipeline automatically detects what changed:
 
-- ✅ **Якщо зміни тільки у фронтенді** (`frontend/**`) → деплоїться тільки фронтенд
-- ✅ **Якщо зміни тільки у бекенді** (`backend/**`) → деплоїться тільки бекенд
-- ✅ **Якщо зміни в обох** → деплоїться і фронтенд, і бекенд
+- If changes are **only in frontend** (`frontend/**`) — only frontend is deployed
+- If changes are **only in backend** (`backend/**`) — only backend is deployed
+- If changes are **in both** — both frontend and backend are deployed
 
-## 🔐 Налаштування GitHub Secrets
+## GitHub Secrets Configuration
 
-Перейдіть до **Settings → Secrets and variables → Actions** та додайте:
+Go to **Settings → Secrets and variables → Actions** and add:
 
 ### Backend Deployment Secrets
 
@@ -27,91 +27,91 @@ VPS_USER=deploy
 VPS_SSH_PRIVATE_KEY=-----BEGIN OPENSSH PRIVATE KEY-----
 ...
 -----END OPENSSH PRIVATE KEY-----
-VPS_DOCKER_COMPOSE_PATH=/opt/ai-nexelin/docker-compose.yml
+VPS_DOCKER_COMPOSE_PATH=/path/to/docker-compose.yml
 ```
 
 ### Frontend Deployment Secrets
 
 ```bash
-FTP_HOST=w020c360.kasserver.com
-FTP_USER=f017cd3a
-FTP_PASSWORD=f5mPnpwnsotcoNraN4zF
+FTP_HOST=your.ftp.host
+FTP_USER=your_ftp_user
+FTP_PASSWORD=your_ftp_password
 FTP_DIR=/
-VITE_API_URL=https://api.nexelin.com/api
+VITE_API_URL=https://your-api-domain.com/api
 ```
 
-## 📁 Структура Workflow
+## Workflow Structure
 
 ### Main Branch (`main-tests.yml`)
 
-**Тригери:**
-- Push до `main`
-- Pull Request до `main`
+**Triggers:**
+- Push to `main`
+- Pull Request to `main`
 
 **Jobs:**
-1. **check-changes** - Визначає, що змінилося
-2. **backend-tests** - Запускається тільки якщо зміни в `backend/**`
-   - Тести з покриттям
-   - Звіти coverage (XML, HTML)
-3. **frontend-tests** - Запускається тільки якщо зміни в `frontend/**`
-   - ESLint перевірка
+1. **check-changes** — Detects what changed
+2. **backend-tests** — Runs only if changes in `backend/**`
+   - Tests with coverage
+   - Coverage reports (XML, HTML)
+3. **frontend-tests** — Runs only if changes in `frontend/**`
+   - ESLint check
    - Production build
 
 ### Dev Branch (`dev-deploy.yml`)
 
-**Тригери:**
-- Push до `dev`
+**Triggers:**
+- Push to `dev`
 
 **Jobs:**
-1. **check-changes** - Визначає, що змінилося
-2. **deploy-backend** - Запускається тільки якщо зміни в `backend/**`
-   - Безпечний деплой (зберігає database volumes)
+1. **check-changes** — Detects what changed
+2. **deploy-backend** — Runs only if changes in `backend/**`
+   - Safe deployment (preserves database volumes)
    - Health checks
-   - Детальне логування
-3. **deploy-frontend** - Запускається тільки якщо зміни в `frontend/**`
-   - Build production версії
-   - FTP деплой
+   - Detailed logging
+3. **deploy-frontend** — Runs only if changes in `frontend/**`
+   - Production build
+   - FTP deployment
    - Health check
 
-## 🛡️ Безпека деплою бекенду
+## Backend Deployment Safety
 
-Скрипт `deploy-backend-safe.sh` **НЕ видаляє**:
-- ✅ Database volumes (`postgres_data`)
-- ✅ Static files volume (`static_volume`)
-- ✅ Media files volume (`media_volume`)
+The `deploy-backend-safe.sh` script **does NOT delete**:
+- Database volumes (`postgres_data`)
+- Static files volume (`static_volume`)
+- Media files volume (`media_volume`)
 
-Він тільки:
-- 🔄 Перебудовує контейнери
-- 🔄 Запускає міграції (безпечно)
-- 🔄 Збирає статичні файли
+It only:
+- Rebuilds containers
+- Runs migrations (safely)
+- Collects static files
 
-## 🏥 Health Checks
+## Health Checks
 
 ### Backend Health Check
 
-Перевіряє:
-1. ✅ Статус Docker контейнерів
-2. ✅ Підключення до бази даних
-3. ✅ Підключення до Redis
-4. ✅ Відповідь API endpoint
-5. ✅ Помилки в логах
+Verifies:
+1. Docker container status
+2. Database connection
+3. Redis connection
+4. API endpoint response
+5. Error log inspection
 
 ### Frontend Health Check
 
-Перевіряє:
-1. ✅ Доступність сайту `https://app.nexelin.com`
+Verifies:
+1. Website accessibility
 
-## 📊 Логування
+## Logging
 
-Всі деплої мають детальне логування:
-- ✅ Timestamp для кожної операції
-- ✅ Кольорове форматування
-- ✅ Збереження логів на сервері
-- ✅ GitHub Actions Summary
+All deployments have detailed logging:
+- Timestamp for each operation
+- Color-formatted output
+- Logs saved on server
+- GitHub Actions Summary
 
-## 🔧 Локальне тестування
+## Local Testing
 
-### Тестування скриптів деплою
+### Testing Deployment Scripts
 
 ```bash
 # Backend
@@ -119,13 +119,13 @@ cd backend
 bash scripts/deploy-backend-safe.sh \
   --host your-server \
   --user deploy \
-  --compose-path /opt/ai-nexelin/docker-compose.yml
+  --compose-path /path/to/docker-compose.yml
 
 # Frontend
 cd frontend
 bash scripts/deploy-ftp-safe.sh \
-  --host w020c360.kasserver.com \
-  --user f017cd3a \
+  --host your-ftp-host \
+  --user your-ftp-user \
   --pass your-password \
   --dir /
 ```
@@ -140,65 +140,61 @@ bash scripts/health-check.sh \
   --url http://your-server:8000
 ```
 
-## 📝 Приклади використання
+## Usage Examples
 
-### Зміни тільки у фронтенді
+### Frontend-only changes
 
 ```bash
-# Змінюємо файл у frontend/
 git add frontend/src/pages/WebChatPage.jsx
 git commit -m "Update chat page"
 git push origin dev
 ```
 
-**Результат:** Запуститься тільки `deploy-frontend` job
+**Result:** Only `deploy-frontend` job runs
 
-### Зміни тільки у бекенді
+### Backend-only changes
 
 ```bash
-# Змінюємо файл у backend/
 git add backend/Jeeves/clients/views.py
 git commit -m "Update client views"
 git push origin dev
 ```
 
-**Результат:** Запуститься тільки `deploy-backend` job
+**Result:** Only `deploy-backend` job runs
 
-### Зміни в обох
+### Changes in both
 
 ```bash
-# Змінюємо файли в обох частинах
 git add frontend/ backend/
 git commit -m "Update both frontend and backend"
 git push origin dev
 ```
 
-**Результат:** Запустяться обидва jobs паралельно
+**Result:** Both jobs run in parallel
 
-## ⚠️ Важливо
+## Important
 
-1. **Database volumes** завжди зберігаються - дані не будуть втрачені
-2. **Secrets** мають бути налаштовані в GitHub перед першим деплоєм
-3. **SSH ключ** має мати доступ до сервера без пароля
-4. **FTP credentials** зберігаються в GitHub Secrets (не в коді!)
+1. **Database volumes** are always preserved — data is never lost
+2. **Secrets** must be configured in GitHub before the first deployment
+3. **SSH key** must have passwordless access to the server
+4. **FTP credentials** are stored in GitHub Secrets (never in code)
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
-### Backend деплой не запускається
+### Backend deployment doesn't start
 
-1. Перевірте, чи є зміни в `backend/**`
-2. Перевірте SSH ключ у secrets
-3. Перевірте права доступу на сервері
+1. Check if there are changes in `backend/**`
+2. Check the SSH key in secrets
+3. Check server access permissions
 
-### Frontend деплой не запускається
+### Frontend deployment doesn't start
 
-1. Перевірте, чи є зміни в `frontend/**`
-2. Перевірте FTP credentials у secrets
-3. Перевірте, чи встановлено `lftp` на runner
+1. Check if there are changes in `frontend/**`
+2. Check FTP credentials in secrets
+3. Check if `lftp` is installed on the runner
 
-### Health check не проходить
+### Health check fails
 
-1. Перевірте логи контейнерів: `docker-compose logs`
-2. Перевірте доступність портів
-3. Перевірте database connection
-
+1. Check container logs: `docker-compose logs`
+2. Check port accessibility
+3. Check database connection
