@@ -4,7 +4,7 @@ Instructions for Claude Code working on the Jeeves repository.
 
 ## Product
 
-**Jeeves** — multi-tenant AI assistant SaaS platform with RAG, MCP tools, messaging integrations, and admin dashboard. Self-hosted, sold on Gumroad. The AI character is named "Jeeves" (double 'e').
+**Jeeves** — multi-tenant AI assistant platform with RAG, MCP tools, messaging integrations, and admin dashboard. Open source (Elastic License 2.0), self-hosted. The AI character is named "Jeeves" (double 'e').
 
 ## Commands
 
@@ -65,7 +65,7 @@ cd frontend && docker compose up -d     # Frontend on :3000
 | `branches` | Org hierarchy Level 1 — documents + embeddings |
 | `specializations` | Org hierarchy Level 2 — documents + embeddings |
 | `clients` | **Largest app.** Tenants, channels (WhatsApp/Telegram/Email/Widget), HITL, leads, QR codes |
-| `concierge_platform` | PlatformDefaults (singleton), FeatureFlag, SystemMessage, PlatformLicense (Gumroad) |
+| `concierge_platform` | PlatformDefaults (singleton), FeatureFlag, SystemMessage |
 | `EmbeddingModel` | EmbeddingModel, LLMProvider, ModelPair — AI model registry |
 | `mcp_hub` | MCP server management + tool execution |
 | `processing` | Document parsing, chunking, embedding, UsageStats |
@@ -122,7 +122,7 @@ Configured in `settings.py` under `MCP_SERVERS`. Tool scopes in `MCP_TOOL_SCOPES
 - **Docker ports:** Postgres 5433, Redis 6380, Backend 8000, Frontend 3000 (Docker) / 5173 (Vite dev)
 - **Celery:** App in `Jeeves.celery`, autodiscover tasks. Beat schedule in `settings.py`
 - **Sensitive fields:** Use `EncryptedJSONField` for credentials (tool connections, API configs)
-- **Gumroad:** License validation via `concierge_platform/gumroad_client.py`. Product ID from `GUMROAD_PRODUCT_ID` env var. Grace period: 7 days on network failure
+- **License:** Elastic License 2.0 — free use, no reselling as hosted service, branding footer must stay
 
 ## CI/CD
 

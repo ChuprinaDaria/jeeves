@@ -154,21 +154,27 @@ See [SETUP.md](SETUP.md) for the full installation guide.
 # 1. Clone and configure
 git clone https://github.com/ChuprinaDaria/jeeves.git
 cd jeeves
+make setup                # copies .env.example files
+# Edit backend/.env — set SECRET_KEY, FIELD_ENCRYPTION_KEY, OPENAI_API_KEY
+
+# 2. Start all services
+make up                   # docker compose up -d
+make migrate              # run database migrations
+make superuser            # create admin account
+
+# 3. Open dashboard
+# http://localhost:3000
+```
+
+Or manually:
+
+```bash
 cp backend/.env.example backend/.env
-# Edit backend/.env — set at minimum: SECRET_KEY, OPENAI_API_KEY
-
-# 2. Start backend
+cp frontend/.env.example frontend/.env
 cd backend && docker compose up -d
-
-# 3. Run migrations + create admin
 docker compose exec web python manage.py migrate
 docker compose exec web python manage.py createsuperuser
-
-# 4. Start frontend
 cd ../frontend && docker compose up -d
-
-# 5. Open dashboard
-# http://localhost:3000
 ```
 
 ### Docker Services
@@ -285,7 +291,7 @@ Documents are organized in a three-level hierarchy with weighted search:
 ### Vector Search Backends
 
 **Qdrant** (primary, `USE_QDRANT=true`):
-- Collection: `concierge_embeddings`
+- Collection: `jeeves_embeddings`
 - Metadata filtering by client_id, level, etc.
 - Payload storage, snapshot backup
 
@@ -522,6 +528,7 @@ Rate limited: 10 tasks/minute per model type. Cost tracked in `UsageStats`.
 | Variable | Description |
 |----------|------------|
 | `SECRET_KEY` | Django secret key (generate: `python -c "import secrets; print(secrets.token_urlsafe(50))"`) |
+| `FIELD_ENCRYPTION_KEY` | Fernet key for credential encryption (generate: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`) |
 | `OPENAI_API_KEY` | OpenAI API key (or configure another LLM provider) |
 
 ### Database
@@ -549,6 +556,7 @@ Rate limited: 10 tasks/minute per model type. Cost tracked in `UsageStats`.
 |----------|---------|-------------|
 | `USE_QDRANT` | `True` | Enable Qdrant vector search |
 | `QDRANT_HOST` | `qdrant` | Qdrant hostname |
+| `QDRANT_COLLECTION` | `jeeves_embeddings` | Qdrant collection name |
 | `QDRANT_PORT` | `6333` | Qdrant port |
 
 ### Security
