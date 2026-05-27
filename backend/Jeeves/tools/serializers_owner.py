@@ -32,8 +32,10 @@ class ToolCardOwnerSerializer(serializers.ModelSerializer):
             return len(schema)
         return 0
 
+    slug = serializers.SlugField(required=False, allow_blank=True, default='')
+
     def validate_slug(self, value):
-        return value  # allow explicit slug
+        return value  # allow explicit slug, auto-generated in create()
 
     def create(self, validated_data):
         if not validated_data.get('slug'):
@@ -63,3 +65,24 @@ class FromUrlRequestSerializer(serializers.Serializer):
         child=serializers.ChoiceField(choices=['assistant', 'manager', 'leads']),
         required=False, default=['assistant'],
     )
+
+
+class InstallPackageRequestSerializer(serializers.Serializer):
+    package_name = serializers.CharField(max_length=255)
+    package_type = serializers.ChoiceField(choices=['npm', 'pypi'])
+    run_command = serializers.CharField(max_length=500, required=False, default='', allow_blank=True)
+    run_args = serializers.ListField(
+        child=serializers.CharField(), required=False, default=list,
+    )
+    env_config = serializers.DictField(required=False, default=dict)
+    name = serializers.CharField(max_length=100, required=False, default='')
+    icon = serializers.CharField(max_length=50, required=False, default='puzzle')
+    color = serializers.CharField(max_length=7, required=False, default='#6366f1')
+    category = serializers.ChoiceField(
+        choices=ToolCard.CATEGORY_CHOICES, required=False, default='custom',
+    )
+    targets = serializers.ListField(
+        child=serializers.ChoiceField(choices=['assistant', 'manager', 'leads']),
+        required=False, default=['assistant'],
+    )
+    source_url = serializers.URLField(required=False, allow_blank=True, default='')

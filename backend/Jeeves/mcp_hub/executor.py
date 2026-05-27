@@ -62,17 +62,62 @@ class MCPExecutor:
         return await handler(connection=connection, tool_name=tool_name, **arguments)
 
     async def _call_mcp(self, tool_card, connection, tool_name, arguments):
-        """Call external MCP server via SSE transport."""
+        """Call external MCP server via SSE, Streamable HTTP, or stdio transport."""
+        from mcp import ClientSession
+
+        if tool_card.transport_type == 'stdio':
+            return await self._call_stdio(tool_card, tool_name, arguments)
+
+        if tool_card.transport_type == 'streamable_http':
+            return await self._call_streamable_http(tool_card, connection, tool_name, arguments)
+
+        # Default: SSE
+        return await self._call_sse(tool_card, connection, tool_name, arguments)
+
+    async def _call_sse(self, tool_card, connection, tool_name, arguments):
         from mcp import ClientSession
         from mcp.client.sse import sse_client
 
         headers = {}
-        # Pass credentials as auth header if available
         token = connection.credentials.get('access_token') or connection.credentials.get('api_key')
         if token:
             headers['Authorization'] = f'Bearer {token}'
 
         async with sse_client(tool_card.mcp_server_url, headers=headers) as (read, write):
+            async with ClientSession(read, write) as mcp_session:
+                await mcp_session.initialize()
+                result = await mcp_session.call_tool(tool_name, arguments)
+                return {'content': [c.model_dump() for c in result.content]}
+
+    async def _call_streamable_http(self, tool_card, connection, tool_name, arguments):
+        from mcp import ClientSession
+        from mcp.client.streamable_http import streamablehttp_client
+
+        headers = {}
+        token = connection.credentials.get('access_token') or connection.credentials.get('api_key')
+        if token:
+            headers['Authorization'] = f'Bearer {token}'
+
+        async with streamablehttp_client(tool_card.mcp_server_url, headers=headers) as (read, write, _):
+            async with ClientSession(read, write) as mcp_session:
+                await mcp_session.initialize()
+                result = await mcp_session.call_tool(tool_name, arguments)
+                return {'content': [c.model_dump() for c in result.content]}
+
+    async def _call_stdio(self, tool_card, tool_name, arguments):
+        from mcp import ClientSession
+        from mcp.client.stdio import stdio_client, StdioServerParameters
+
+        installed = getattr(tool_card, 'installed_server', None)
+        if not installed:
+            raise RuntimeError(f"No installed server config for stdio tool {tool_card.slug}")
+
+        server_params = StdioServerParameters(
+            command=installed.run_command,
+            args=installed.run_args or [],
+            env=installed.env_config or None,
+        )
+        async with stdio_client(server_params) as (read, write):
             async with ClientSession(read, write) as mcp_session:
                 await mcp_session.initialize()
                 result = await mcp_session.call_tool(tool_name, arguments)

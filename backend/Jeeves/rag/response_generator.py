@@ -346,83 +346,63 @@ class ResponseGenerator:
                 logger.debug(f"Failed to find LLMProvider: {e}")
         
         # Create SEPARATE UsageStats records for embedding and LLM tokens
-        # Each model (embedding and LLM) has its own GUID from MG platform
         if client:
             try:
                 from Jeeves.processing.models import UsageStats
-                from Jeeves.processing.usage_sync import send_usage_to_mg_async_delay
                 from decimal import Decimal
-                
+
                 # Create embedding usage stats if we have embedding tokens
                 if embedding_model and embedding_tokens > 0:
                     emb_price = Decimal(str(embedding_model.cost_per_1k_tokens))
                     embedding_cost = (Decimal(embedding_tokens) / Decimal('1000')) * emb_price
-                    
-                    embedding_metadata = {
-                        'query': query[:200],
-                        'operation': 'rag_chat_embedding',
-                        'embedding_tokens': embedding_tokens,
-                    }
-                    
-                    embedding_usage_stat = UsageStats.objects.create(
+
+                    UsageStats.objects.create(
                         client=client,
                         embedding_model=embedding_model,
                         llm_provider=None,
                         operation_type='rag_chat_embedding',
                         tokens_used=embedding_tokens,
                         cost=embedding_cost,
-                        metadata=embedding_metadata,
+                        metadata={
+                            'query': query[:200],
+                            'operation': 'rag_chat_embedding',
+                            'embedding_tokens': embedding_tokens,
+                        },
                     )
-                    
-                    # Send embedding stats to MG asynchronously
-                    try:
-                        send_usage_to_mg_async_delay(embedding_usage_stat.id)
-                    except Exception:
-                        pass  # Best-effort sync
-                
+
                 # Create LLM usage stats if we have LLM tokens
                 if llm_provider_obj and llm_usage:
                     llm_tokens = int(llm_usage.get('total_tokens', 0))
                     if llm_tokens > 0:
                         prompt_tokens = int(llm_usage.get('prompt_tokens', 0))
                         completion_tokens = int(llm_usage.get('completion_tokens', 0))
-                        
-                        # Calculate cost using LLMProvider pricing
+
                         if llm_provider_obj:
                             in_price = Decimal(str(llm_provider_obj.cost_per_1k_input_tokens))
                             out_price = Decimal(str(llm_provider_obj.cost_per_1k_output_tokens))
                             llm_cost = (Decimal(prompt_tokens) / Decimal('1000') * in_price) + \
                                        (Decimal(completion_tokens) / Decimal('1000') * out_price)
                         else:
-                            # Fallback: use default cost if provider not found
                             logger.warning(f"LLMProvider not found for client {client.id}, using default cost $0.002 per 1k tokens")
                             llm_cost = Decimal(str(llm_tokens)) / Decimal('1000') * Decimal('0.002')
-                        
-                        llm_metadata = {
-                            'query': query[:200],
-                            'operation': 'rag_chat_llm',
-                            'llm_tokens': llm_tokens,
-                            'llm_model': llm_model,
-                            'llm_provider': llm_provider,
-                            'prompt_tokens': prompt_tokens,
-                            'completion_tokens': completion_tokens,
-                        }
-                        
-                        llm_usage_stat = UsageStats.objects.create(
+
+                        UsageStats.objects.create(
                             client=client,
                             embedding_model=None,
                             llm_provider=llm_provider_obj,
                             operation_type='rag_chat_llm',
                             tokens_used=llm_tokens,
                             cost=llm_cost,
-                            metadata=llm_metadata,
+                            metadata={
+                                'query': query[:200],
+                                'operation': 'rag_chat_llm',
+                                'llm_tokens': llm_tokens,
+                                'llm_model': llm_model,
+                                'llm_provider': llm_provider,
+                                'prompt_tokens': prompt_tokens,
+                                'completion_tokens': completion_tokens,
+                            },
                         )
-                        
-                        # Send LLM stats to MG asynchronously
-                        try:
-                            send_usage_to_mg_async_delay(llm_usage_stat.id)
-                        except Exception:
-                            pass  # Best-effort sync
             except Exception as e:
                 logger.warning(f"Failed to create separate UsageStats: {e}")
         

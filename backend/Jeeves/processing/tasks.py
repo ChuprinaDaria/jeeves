@@ -12,7 +12,6 @@ from .chunker import chunk_text
 from .embedding_service import EmbeddingService
 from .models import UsageStats
 from .metadata_extractor import extract_metadata
-from .usage_sync import send_usage_to_mg_async_delay
 
 
 @shared_task(bind=True, max_retries=0)
@@ -140,13 +139,6 @@ def process_client_document(self, document_id: int):
                 "chunks_count": len(chunks),
             },
         )
-        try:
-            # Fire-and-forget async sync (best-effort, non-blocking)
-            latest = UsageStats.objects.filter(client=client).order_by('-id').first()
-            if latest:
-                send_usage_to_mg_async_delay(latest.id)
-        except Exception:
-            pass
 
         return {
             "status": "success",
@@ -253,13 +245,6 @@ def process_branch_document(self, document_id: int):
                 "chunks_count": len(chunks),
             },
         )
-        try:
-            # Fire-and-forget async sync (best-effort, non-blocking)
-            latest = UsageStats.objects.filter(branch=branch).order_by('-id').first()
-            if latest:
-                send_usage_to_mg_async_delay(latest.id)
-        except Exception:
-            pass
 
         return {
             "status": "success",
@@ -368,13 +353,6 @@ def process_specialization_document(self, document_id: int):
                 "chunks_count": len(chunks),
             },
         )
-        try:
-            # Fire-and-forget async sync (best-effort, non-blocking)
-            latest = UsageStats.objects.filter(specialization=specialization).order_by('-id').first()
-            if latest:
-                send_usage_to_mg_async_delay(latest.id)
-        except Exception:
-            pass
 
         return {
             "status": "success",

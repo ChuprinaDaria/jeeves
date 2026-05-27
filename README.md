@@ -488,6 +488,20 @@ Rate limited: 10 tasks/minute per model type. Cost tracked in `UsageStats`.
 
 ---
 
+## Privacy & Data
+
+Jeeves is designed for **complete data sovereignty**. When you self-host Jeeves, your data stays on your server — period.
+
+- **Zero telemetry** — no analytics, no tracking pixels, no phone-home calls, no usage reporting
+- **Zero external dependencies at runtime** — the only outbound connections are to services **you** explicitly configure (your LLM provider, your email server, your messaging channels)
+- **No license validation** — no activation servers, no periodic checks, no "calling home"
+- **Full source audit** — the codebase is open. Search for `fetch`, `requests.post`, `axios` — every external call is user-configured
+- **Automated security scanning** — CodeQL (SAST) and Dependabot run on every PR via GitHub Actions
+
+Your AI provider (OpenAI, Anthropic, Cohere, etc.) will receive the queries and documents you send to their API — that's inherent to using any LLM. If this concerns you, use a local model via Ollama (fully supported).
+
+---
+
 ## Security
 
 ### Authentication

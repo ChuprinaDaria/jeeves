@@ -1,8 +1,6 @@
 from django.contrib import admin
 from django.contrib import messages
 from .models import EmbeddingModel, LLMProvider, ModelPair
-import requests
-from django.conf import settings
 
 
 @admin.register(EmbeddingModel)
@@ -13,7 +11,7 @@ class EmbeddingModelAdmin(admin.ModelAdmin):
     ordering = ['provider', 'name']
     list_editable = ['is_active', 'is_default']
     actions = [
-        'trigger_reindex', 'sync_from_platform', 'deactivate_invalid_models',
+        'trigger_reindex', 'deactivate_invalid_models',
         'add_text_embedding_3_small', 'add_text_embedding_3_large', 'add_text_embedding_ada_002',
         'add_anthropic_embedding_placeholder'
     ]
@@ -62,63 +60,6 @@ class EmbeddingModelAdmin(admin.ModelAdmin):
         else:
             self.message_user(request, "Невалідних моделей не знайдено")
     deactivate_invalid_models.short_description = "Деактивувати моделі з dimensions > 2000"
-    
-    def sync_from_platform(self, request, queryset):
-        """Синхронізувати моделі з MG platform"""
-        try:
-            mg_base = getattr(settings, 'MG_AI_USAGE_URL', '').rsplit('/api/', 1)[0]
-            if not mg_base:
-                mg_base = 'http://localhost:8000'
-            external_url = f'{mg_base}/api/ai-models'
-            response = requests.get(external_url, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-
-            if data.get('status') != 'ok':
-                self.message_user(request, f'Failed to fetch models from {external_url}', level=messages.ERROR)
-                return
-
-            ai_models = data.get('models', [])
-            created_count = 0
-            updated_count = 0
-
-            for ai_model in ai_models:
-                model_name = ai_model.get('name', '')
-                description = ai_model.get('description', '')
-
-                # Перевіряємо чи модель вже існує
-                embedding_model, created = EmbeddingModel.objects.get_or_create(
-                    name=model_name,
-                    defaults={
-                        'provider': 'openai',  # Можна змінити на динамічне визначення
-                        'model_name': model_name,
-                        'dimensions': 1536,  # Можна змінити на динамічне визначення
-                        'cost_per_1k_tokens': 0.0,
-                        'is_active': ai_model.get('active', True),
-                    }
-                )
-
-                if created:
-                    created_count += 1
-                else:
-                    # Оновлюємо статус активності
-                    if embedding_model.is_active != ai_model.get('active', True):
-                        embedding_model.is_active = ai_model.get('active', True)
-                        embedding_model.save()
-                        updated_count += 1
-
-            self.message_user(
-                request,
-                f"Синхронізовано: {created_count} нових моделей, {updated_count} оновлено",
-                level=messages.SUCCESS
-            )
-        except requests.RequestException as e:
-            self.message_user(
-                request,
-                f'Error syncing from MG platform: {str(e)}',
-                level=messages.ERROR
-            )
-    sync_from_platform.short_description = "Синхронізувати моделі з MG platform"
     
     @admin.action(description='➕ Додати text-embedding-3-small')
     def add_text_embedding_3_small(self, request, queryset):

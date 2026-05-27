@@ -82,6 +82,7 @@ export const mcpServersAPI = {
   delete: (id) => api.delete(`/owner/tools/${id}/`),
   discover: (url) => api.post('/owner/tools/discover/', { url }),
   createFromUrl: (data) => api.post('/owner/tools/from-url/', data),
+  install: (data) => api.post('/owner/tools/install/', data, { timeout: 180000 }),
   refresh: (id) => api.post(`/owner/tools/${id}/refresh/`),
 };
 

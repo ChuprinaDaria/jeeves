@@ -41,7 +41,7 @@ const MCPServerEditPage = () => {
   // Discovery state (new server flow)
   const [url, setUrl] = useState('');
   const [discovering, setDiscovering] = useState(false);
-  const [discovered, setDiscovered] = useState(null); // {server_name, tools}
+  const [discovered, setDiscovered] = useState(null); // {type:'live', server_name, tools} or {type:'parsed', ...}
   const [discoverError, setDiscoverError] = useState('');
 
   // Form state
@@ -184,8 +184,166 @@ const MCPServerEditPage = () => {
         </div>
       )}
 
-      {/* Discovered tools preview */}
-      {discovered && (
+      {/* Parsed catalog page — server info card */}
+      {discovered?.type === 'parsed' && (
+        <div className="space-y-3">
+          <div className="p-4 border border-ink/10 rounded-sm bg-ink/[0.02] space-y-3">
+            <h3 className="text-sm font-medium text-ink">
+              {discovered.server_name || 'MCP Server'}
+            </h3>
+            {discovered.description && (
+              <p className="text-sm text-ink/60">{discovered.description}</p>
+            )}
+
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              {discovered.npm_package && (
+                <div>
+                  <span className="text-xs label-mono text-ink/50">npm</span>
+                  <p className="font-mono text-xs">{discovered.npm_package}</p>
+                </div>
+              )}
+              {discovered.pip_package && (
+                <div>
+                  <span className="text-xs label-mono text-ink/50">pip</span>
+                  <p className="font-mono text-xs">{discovered.pip_package}</p>
+                </div>
+              )}
+              {discovered.github_url && (
+                <div className="col-span-2">
+                  <span className="text-xs label-mono text-ink/50">GitHub</span>
+                  <p className="text-xs">
+                    <a href={discovered.github_url} target="_blank" rel="noreferrer" className="text-iris hover:underline">
+                      {discovered.github_url.replace('https://github.com/', '')}
+                    </a>
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {discovered.mcp_config && Object.keys(discovered.mcp_config).length > 0 && (
+              <div>
+                <span className="text-xs label-mono text-ink/50">MCP Config</span>
+                <pre className="mt-1 p-2 bg-ink/5 rounded-sm text-xs font-mono overflow-x-auto">
+                  {JSON.stringify(discovered.mcp_config, null, 2)}
+                </pre>
+              </div>
+            )}
+
+            {/* Install section — show when npm or pip package found */}
+            {(discovered.npm_package || discovered.pip_package) && (
+              <div className="pt-3 border-t border-ink/10 space-y-3">
+                <div className="space-y-2">
+                  <span className="text-xs label-mono text-ink/60">Connect to targets</span>
+                  <div className="flex gap-4">
+                    {TARGETS.map((t) => (
+                      <label key={t.value} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={form.targets.includes(t.value)}
+                          onChange={() => toggleTarget(t.value)}
+                        />
+                        {t.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {errors.error && (
+                  <p className="text-sm text-red-600 p-2 bg-red-50 rounded-sm">{String(errors.error)}</p>
+                )}
+
+                {busy && (
+                  <div className="flex items-center gap-3 p-3 bg-iris/5 border border-iris/20 rounded-sm">
+                    <div className="w-4 h-4 border-2 border-iris/30 border-t-iris rounded-full animate-spin" />
+                    <div className="text-sm text-ink/70">
+                      <p className="font-medium">Installing package...</p>
+                      <p className="text-xs text-ink/50">This may take up to 2 minutes (npm install + tool discovery)</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <button
+                    className={buttonClass}
+                    disabled={busy}
+                    onClick={async () => {
+                      setBusy(true);
+                      setErrors({});
+                      try {
+                        const pkg = discovered.npm_package || discovered.pip_package;
+                        const pkgType = discovered.npm_package ? 'npm' : 'pypi';
+                        const cfg = discovered.mcp_config || {};
+                        await mcpServersAPI.install({
+                          package_name: pkg,
+                          package_type: pkgType,
+                          run_command: cfg.command || '',
+                          run_args: cfg.args || [],
+                          env_config: cfg.env || {},
+                          name: discovered.server_name || pkg,
+                          icon: form.icon,
+                          color: form.color,
+                          category: form.category,
+                          targets: form.targets,
+                          source_url: url,
+                        });
+                        navigate('/owner/mcp-servers');
+                      } catch (e) {
+                        setErrors(e?.response?.data || { error: 'Install failed' });
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    {busy
+                      ? 'Installing...'
+                      : `Install ${discovered.npm_package ? '(npm)' : '(pip)'} & Connect All Clients`}
+                  </button>
+                  <button
+                    className={secondaryClass}
+                    onClick={() => navigate('/owner/mcp-servers')}
+                    disabled={busy}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* No installable package found */}
+            {!discovered.npm_package && !discovered.pip_package && (
+              <div className="pt-2 border-t border-ink/10">
+                <p className="text-sm text-ink/50">
+                  No installable package found. Check the GitHub repo for manual setup instructions.
+                </p>
+              </div>
+            )}
+
+            {/* SSE endpoint shortcut */}
+            {discovered.sse_endpoint && (
+              <div className="pt-2 border-t border-ink/10">
+                <button
+                  className={secondaryClass}
+                  onClick={() => {
+                    setUrl(discovered.sse_endpoint);
+                    setDiscovered(null);
+                  }}
+                >
+                  Or try remote endpoint: {discovered.sse_endpoint}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {!discovered.npm_package && !discovered.pip_package && (
+            <button className={secondaryClass} onClick={() => navigate('/owner/mcp-servers')}>
+              Back
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Live discovery — tools preview + config form */}
+      {discovered?.type === 'live' && (
         <div className="space-y-3">
           <div className="p-4 border border-ink/10 rounded-sm bg-ink/[0.02]">
             <div className="flex items-center justify-between mb-2">
@@ -306,6 +464,79 @@ const MCPServerEditPage = () => {
               >
                 Delete
               </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Edit mode — show tools when loaded from existing */}
+      {isEdit && discovered && !discovered.type && (
+        <div className="space-y-3">
+          <div className="p-4 border border-ink/10 rounded-sm bg-ink/[0.02]">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-ink">
+                Available Tools ({discovered.tools.length})
+              </h3>
+              {!existing?.is_builtin && (
+                <button className={secondaryClass} onClick={handleRefresh} disabled={busy}>
+                  Refresh Tools
+                </button>
+              )}
+            </div>
+            <div className="space-y-1">
+              {discovered.tools.map((tool, i) => (
+                <div key={i} className="text-sm py-1 border-b border-ink/5 last:border-0">
+                  <span className="font-mono text-xs text-ink/80">{tool.name}</span>
+                  {tool.description && <span className="ml-2 text-ink/50">{tool.description}</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Name" error={errors.name}>
+              <input className={inputClass} value={form.name} onChange={(e) => set('name', e.target.value)} disabled={existing?.is_builtin} />
+            </Field>
+            <Field label="Category">
+              <select className={inputClass} value={form.category} onChange={(e) => set('category', e.target.value)}>
+                {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </select>
+            </Field>
+            <Field label="Icon (name)">
+              <input className={inputClass} value={form.icon} onChange={(e) => set('icon', e.target.value)} />
+            </Field>
+            <Field label="Color">
+              <div className="flex gap-2 items-center">
+                <input type="color" value={form.color} onChange={(e) => set('color', e.target.value)} className="w-10 h-10 border border-ink/20 rounded-sm cursor-pointer" />
+                <input className={inputClass} value={form.color} onChange={(e) => set('color', e.target.value)} maxLength={7} />
+              </div>
+            </Field>
+          </div>
+
+          <div className="space-y-2">
+            <span className="text-xs label-mono text-ink/60">Connect to targets</span>
+            <div className="flex gap-4">
+              {TARGETS.map((t) => (
+                <label key={t.value} className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={form.targets.includes(t.value)} onChange={() => toggleTarget(t.value)} disabled={existing?.is_builtin} />
+                  {t.label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {errors.detail && <p className="text-sm text-red-600">{String(errors.detail)}</p>}
+          {errors.error && <p className="text-sm text-red-600">{String(errors.error)}</p>}
+
+          <div className="flex gap-2">
+            {!existing?.is_builtin && (
+              <button className={buttonClass} onClick={handleSave} disabled={busy}>Save</button>
+            )}
+            <button className={secondaryClass} onClick={() => navigate('/owner/mcp-servers')}>
+              {existing?.is_builtin ? 'Back' : 'Cancel'}
+            </button>
+            {!existing?.is_builtin && (
+              <button className="ml-auto px-4 py-2 border border-red-600 text-red-600 rounded-sm text-sm" onClick={handleDelete}>Delete</button>
             )}
           </div>
         </div>
