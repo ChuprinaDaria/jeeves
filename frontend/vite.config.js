@@ -8,19 +8,29 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false, // Вимкнути sourcemaps в production для безпеки
-    minify: 'esbuild', // Швидша мініфікація з esbuild
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          axios: ['axios'],
-          i18n: ['i18next', 'react-i18next'],
+        manualChunks(id) {
+          if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/') || id.includes('node_modules/react-router-dom')) {
+            return 'vendor';
+          }
+          if (id.includes('node_modules/axios')) {
+            return 'axios';
+          }
+          if (id.includes('node_modules/i18next') || id.includes('node_modules/react-i18next')) {
+            return 'i18n';
+          }
         },
       },
     },
     // Видаляємо console.log в production
-    esbuild: {
-      drop: ['console', 'debugger'],
+    oxc: {
+      transform: {
+        define: {
+          'console.log': 'void 0',
+          'console.debug': 'void 0',
+        },
+      },
     },
   },
   server: {
