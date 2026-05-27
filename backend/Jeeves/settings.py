@@ -15,7 +15,7 @@ WSGI_APPLICATION = "Jeeves.wsgi.application"
 
 # === SECURITY ===
 SECRET_KEY = env("SECRET_KEY", default="dev-secret")
-FIELD_ENCRYPTION_KEY = env('FIELD_ENCRYPTION_KEY', default='ZF864sWF1B0QvMRbkRgDD_NzEP4GUqPogPbdqzuwjhU=')
+FIELD_ENCRYPTION_KEY = env('FIELD_ENCRYPTION_KEY')
 DEBUG = env.bool("DEBUG", default=False)
 
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[

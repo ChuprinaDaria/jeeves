@@ -60,7 +60,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       CLIENT_PORTAL_BASE_URL: "${CLIENT_PORTAL_BASE_URL:-http://localhost:3000}"
-      WHATSAPP_QR_SECRET: "super_secret_key_9283jd0923jd"
+      WHATSAPP_QR_SECRET: "${WHATSAPP_QR_SECRET:-change-me}"
       GUMROAD_PRODUCT_ID: "${GUMROAD_PRODUCT_ID:-dev_placeholder}"
     depends_on:
       postgres:
