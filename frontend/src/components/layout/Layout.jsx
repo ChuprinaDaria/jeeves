@@ -37,6 +37,9 @@ const Layout = () => {
         >
           <Outlet />
         </main>
+        <footer className="px-4 py-3 text-center text-xs text-ink/40">
+          Jeeves — by Daria Chuprina &amp; open-source community. Forever free.
+        </footer>
       </div>
     </div>
   );
