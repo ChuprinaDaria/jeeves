@@ -1555,7 +1555,7 @@ class BootstrapProvisionView(APIView):
         if client is None:
             # Build a safe, deterministic base username within DB limits
             max_username_len = getattr(User._meta.get_field('username'), 'max_length', 150)  # type: ignore
-            token_hash = hashlib.sha1(client_token.encode('utf-8')).hexdigest()[:8]
+            token_hash = hashlib.sha1(client_token.encode('utf-8'), usedforsecurity=False).hexdigest()[:8]
             token_slug = slugify(client_token)
             base_prefix = "client_"
             reserved = 1 + len(token_hash)  # '_' + hash
@@ -2472,7 +2472,7 @@ class SaveSandboxQAView(APIView):
             qa_content = f"Question: {question}\n\nAnswer: {answer}\n"
             
             # Створити унікальну назву файлу на основі хешу питання
-            question_hash = hashlib.md5(question.encode()).hexdigest()[:8]
+            question_hash = hashlib.md5(question.encode(), usedforsecurity=False).hexdigest()[:8]
             filename = f"sandbox_qa_{question_hash}.txt"
             title = f"Q&A: {question[:50]}..." if len(question) > 50 else f"Q&A: {question}"
             
@@ -2738,7 +2738,7 @@ class SaveSandboxPhotoView(APIView):
             )
             
             # Створити унікальну назву для фото
-            file_hash = hashlib.md5(photo.read()).hexdigest()[:8]
+            file_hash = hashlib.md5(photo.read(), usedforsecurity=False).hexdigest()[:8]
             photo.seek(0)  # Повернути вказівник після читання
             
             # Визначити розширення файлу

@@ -454,7 +454,7 @@ class PromptViewSet(viewsets.ModelViewSet):
             user_agent = request.META.get('HTTP_USER_AGENT', 'unknown')[:50]  # Обмежуємо довжину
             # Створюємо унікальний ідентифікатор для анонімного користувача
             unique_string = f"{ip_address}:{user_agent}"
-            user_identifier = hashlib.md5(unique_string.encode()).hexdigest()
+            user_identifier = hashlib.md5(unique_string.encode(), usedforsecurity=False).hexdigest()
             user = None
         
         # Перевіряємо чи вже є голос
@@ -709,7 +709,7 @@ class PromptVoteView(APIView):
             user_agent = request.META.get('HTTP_USER_AGENT', 'unknown')[:50]  # Обмежуємо довжину
             # Створюємо унікальний ідентифікатор для анонімного користувача
             unique_string = f"{ip_address}:{user_agent}"
-            user_identifier = hashlib.md5(unique_string.encode()).hexdigest()
+            user_identifier = hashlib.md5(unique_string.encode(), usedforsecurity=False).hexdigest()
             user = None
         
         # Перевіряємо чи вже є голос
