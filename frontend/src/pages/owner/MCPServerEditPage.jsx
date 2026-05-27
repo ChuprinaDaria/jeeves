@@ -44,6 +44,10 @@ const MCPServerEditPage = () => {
   const [discovered, setDiscovered] = useState(null); // {type:'live', server_name, tools} or {type:'parsed', ...}
   const [discoverError, setDiscoverError] = useState('');
 
+  // Env vars state (shown when server needs API keys)
+  const [envVars, setEnvVars] = useState({}); // {VAR_NAME: 'value'}
+  const [needsEnv, setNeedsEnv] = useState(null); // response from backend
+
   // Form state
   const [form, setForm] = useState({
     name: '',
@@ -262,23 +266,43 @@ const MCPServerEditPage = () => {
                   </div>
                 )}
 
+                {/* Env vars form — shown when server needs API keys */}
+                {needsEnv && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-sm space-y-3">
+                    <p className="text-sm font-medium text-amber-800">{needsEnv.message}</p>
+                    {needsEnv.env_vars.map((v) => (
+                      <Field key={v.name} label={v.name}>
+                        <input
+                          className={inputClass}
+                          type="password"
+                          placeholder={`Enter ${v.name}`}
+                          value={envVars[v.name] || ''}
+                          onChange={(e) => setEnvVars((prev) => ({ ...prev, [v.name]: e.target.value }))}
+                        />
+                      </Field>
+                    ))}
+                  </div>
+                )}
+
                 <div className="flex gap-2">
                   <button
                     className={buttonClass}
-                    disabled={busy}
+                    disabled={busy || (needsEnv && needsEnv.env_vars.some((v) => !envVars[v.name]))}
                     onClick={async () => {
                       setBusy(true);
                       setErrors({});
+                      setNeedsEnv(null);
                       try {
-                        const pkg = discovered.npm_package || discovered.pip_package;
-                        const pkgType = discovered.npm_package ? 'npm' : 'pypi';
+                        const pkg = needsEnv?.package_name || discovered.npm_package || discovered.pip_package;
+                        const pkgType = needsEnv?.package_type || (discovered.npm_package ? 'npm' : 'pypi');
                         const cfg = discovered.mcp_config || {};
+                        const mergedEnv = { ...(cfg.env || {}), ...envVars };
                         await mcpServersAPI.install({
                           package_name: pkg,
                           package_type: pkgType,
-                          run_command: cfg.command || '',
-                          run_args: cfg.args || [],
-                          env_config: cfg.env || {},
+                          run_command: needsEnv?.run_command || cfg.command || '',
+                          run_args: needsEnv?.run_args || cfg.args || [],
+                          env_config: Object.keys(mergedEnv).length ? mergedEnv : {},
                           name: discovered.server_name || pkg,
                           icon: form.icon,
                           color: form.color,
@@ -288,7 +312,12 @@ const MCPServerEditPage = () => {
                         });
                         navigate('/owner/mcp-servers');
                       } catch (e) {
-                        setErrors(e?.response?.data || { error: 'Install failed' });
+                        const data = e?.response?.data;
+                        if (data?.error === 'needs_env') {
+                          setNeedsEnv(data);
+                        } else {
+                          setErrors(data || { error: 'Install failed' });
+                        }
                       } finally {
                         setBusy(false);
                       }
@@ -296,7 +325,9 @@ const MCPServerEditPage = () => {
                   >
                     {busy
                       ? 'Installing...'
-                      : `Install ${discovered.npm_package ? '(npm)' : '(pip)'} & Connect All Clients`}
+                      : needsEnv
+                        ? 'Retry with API Key'
+                        : `Install ${discovered.npm_package ? '(npm)' : '(pip)'} & Connect All Clients`}
                   </button>
                   <button
                     className={secondaryClass}

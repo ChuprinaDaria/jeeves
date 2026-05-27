@@ -24,6 +24,45 @@ from .serializers_owner import (
 logger = logging.getLogger(__name__)
 
 
+def _detect_missing_env(error_text, run_command, run_args, package_name):
+    """Try to figure out which env vars a server needs from its error output.
+
+    Returns list of {"name": "VAR_NAME", "hint": "..."} or empty list.
+    """
+    import re
+    import subprocess
+
+    # 1. Check error text for common patterns
+    env_patterns = re.findall(r'([A-Z][A-Z0-9_]{2,}(?:_KEY|_URL|_TOKEN|_SECRET|_ID)?)', error_text)
+    known_prefixes = {'FIRECRAWL_', 'OPENAI_', 'ANTHROPIC_', 'COHERE_', 'GITHUB_', 'SLACK_',
+                      'NOTION_', 'SUPABASE_', 'GOOGLE_', 'AWS_', 'AZURE_', 'STRIPE_',
+                      'SENDGRID_', 'TWILIO_', 'BRAVE_', 'TAVILY_', 'SERPER_', 'PERPLEXITY_'}
+    key_suffixes = ('_KEY', '_TOKEN', '_SECRET', '_URL', '_ID', '_API_KEY')
+
+    found = []
+    seen = set()
+    for var in env_patterns:
+        if var in seen:
+            continue
+        seen.add(var)
+        is_known = any(var.startswith(p) for p in known_prefixes)
+        is_key_like = var.endswith(key_suffixes)
+        if is_known or is_key_like:
+            found.append({'name': var, 'required': True})
+
+    # 2. If nothing found in error, try running with --help or checking README patterns
+    if not found and "must be provided" in error_text.lower():
+        # Generic "must be provided" — try to extract from nearby text
+        must_match = re.search(r'(?:Either\s+)?(\w+)(?:\s+or\s+(\w+))?\s+must be provided', error_text)
+        if must_match:
+            for g in must_match.groups():
+                if g and g not in seen:
+                    found.append({'name': g, 'required': True})
+                    seen.add(g)
+
+    return found
+
+
 class ToolCardOwnerViewSet(viewsets.ModelViewSet):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsOwner]
@@ -189,9 +228,25 @@ class ToolCardOwnerViewSet(viewsets.ModelViewSet):
                 run_command = package_name.replace('-', '_')
 
         # 3. Discover tools via stdio
+        import os
+        env = {**os.environ, **(data['env_config'] or {})} if data['env_config'] else None
         try:
-            result = discover_stdio(run_command, run_args, data['env_config'] or None)
+            result = discover_stdio(run_command, run_args, env)
         except DiscoveryError as e:
+            err_text = str(e)
+            # Detect missing env var errors — common patterns from MCP servers
+            env_hints = _detect_missing_env(err_text, run_command, run_args, package_name)
+            if env_hints:
+                return Response({
+                    'error': 'needs_env',
+                    'message': f'Package installed. Server requires configuration:',
+                    'env_vars': env_hints,
+                    'package_name': package_name,
+                    'package_type': package_type,
+                    'version': version,
+                    'run_command': run_command,
+                    'run_args': run_args,
+                }, status=status.HTTP_400_BAD_REQUEST)
             return Response(
                 {'error': f'Package installed but tool discovery failed: {e}'},
                 status=status.HTTP_400_BAD_REQUEST,

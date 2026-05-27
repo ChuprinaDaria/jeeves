@@ -241,8 +241,38 @@ async def _discover_stdio(command: str, args: list, env: dict = None) -> Discove
             return DiscoveryResult(server_name=server_name, tools=tools, transport="stdio")
 
 
+def _preflight_stdio(command: str, args: list, env: dict = None) -> None:
+    """Quick check: run the server and see if it crashes immediately with an error message.
+
+    If it exits with non-zero within 3s, capture stderr and raise DiscoveryError.
+    If it stays running or exits cleanly, do nothing — let the real discovery handle it.
+    """
+    import subprocess
+    try:
+        proc = subprocess.run(
+            [command] + args,
+            capture_output=True, text=True, timeout=3,
+            env=env,
+        )
+        if proc.returncode != 0 and proc.stderr.strip():
+            raise DiscoveryError(proc.stderr.strip())
+        if proc.returncode != 0 and proc.stdout.strip():
+            raise DiscoveryError(proc.stdout.strip())
+    except subprocess.TimeoutExpired:
+        pass  # server stayed alive — good, let stdio discovery handle it
+    except DiscoveryError:
+        raise
+    except FileNotFoundError:
+        raise DiscoveryError(f"Command not found: {command}")
+    except Exception:
+        pass
+
+
 def discover_stdio(command: str, args: list = None, env: dict = None) -> DiscoveryResult:
     """Discover tools from a local stdio MCP server."""
+    # Quick preflight — catch fast crashes with useful error messages
+    _preflight_stdio(command, args or [], env)
+
     try:
         result = asyncio.run(
             asyncio.wait_for(
