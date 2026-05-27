@@ -1,11 +1,9 @@
 import pytest
-from django.utils import timezone
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from Jeeves.accounts.models import User, Roles
 from Jeeves.branches.models import Branch
-from Jeeves.concierge_platform.models import PlatformLicense
 
 
 def _owner_client():
@@ -50,22 +48,14 @@ class TestDashboardStats:
             "clients": 0,
             "documents": 0,
         }
-        assert body["config_health"]["license_valid"] is False
         assert body["config_health"]["branches_exist"] is False
-        assert body["license"]["status"] == "missing"
 
     def test_with_data(self):
         c, owner = _owner_client()
         Branch.objects.create(name="B1", slug="b1")
         Branch.objects.create(name="B2", slug="b2")
-        lic = PlatformLicense.get()
-        lic.status = PlatformLicense.LicenseStatus.VALID
-        lic.last_verified_at = timezone.now()
-        lic.save()
 
         resp = c.get(self.url)
         body = resp.json()
         assert body["counters"]["branches"] == 2
         assert body["config_health"]["branches_exist"] is True
-        assert body["config_health"]["license_valid"] is True
-        assert body["license"]["status"] == "valid"

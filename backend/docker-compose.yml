@@ -4,7 +4,7 @@ services:
   # ======================== DATABASE =========================
   postgres:
     image: pgvector/pgvector:pg16
-    container_name: concierge_db
+    container_name: jeeves_db
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB_NAME:-admin_db}
@@ -20,12 +20,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-    networks: [concierge_network]
+    networks: [jeeves_network]
 
   # ========================= REDIS ===========================
   redis:
     image: redis:7-alpine
-    container_name: concierge_redis
+    container_name: jeeves_redis
     restart: unless-stopped
     ports:
       - "6380:6379"
@@ -34,14 +34,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-    networks: [concierge_network]
+    networks: [jeeves_network]
 
   # ========================= BACKEND =========================
   web:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: concierge_web
+    container_name: jeeves_web
     restart: unless-stopped
     command: >
       sh -c "gunicorn Jeeves.wsgi:application --bind 0.0.0.0:8000 --workers 3 --threads 2 --timeout 120"
@@ -60,8 +60,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       CLIENT_PORTAL_BASE_URL: "${CLIENT_PORTAL_BASE_URL:-http://localhost:3000}"
-      WHATSAPP_QR_SECRET: "super_secret_key_9283jd0923jd"
-      GUMROAD_PRODUCT_ID: "${GUMROAD_PRODUCT_ID:-dev_placeholder}"
+      WHATSAPP_QR_SECRET: "${WHATSAPP_QR_SECRET:-change-me}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -78,13 +77,13 @@ services:
       retries: 10
     extra_hosts:
       - "ollama:host-gateway"
-    networks: [concierge_network]
+    networks: [jeeves_network]
 
   # ==================== CELERY WORKER ========================
   celery_worker:
     build:
       context: .
-    container_name: concierge_celery_worker
+    container_name: jeeves_celery_worker
     restart: unless-stopped
     command: sh -c "celery -A Jeeves worker -l info"
     env_file: ../.env
@@ -99,7 +98,6 @@ services:
       DB_PORT: "5432"
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
-      GUMROAD_PRODUCT_ID: "${GUMROAD_PRODUCT_ID:-dev_placeholder}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -113,13 +111,13 @@ services:
       - .:/app
     extra_hosts:
       - "ollama:host-gateway"
-    networks: [concierge_network]
+    networks: [jeeves_network]
 
   # ==================== CELERY BEAT ==========================
   celery_beat:
     build:
       context: .
-    container_name: concierge_celery_beat
+    container_name: jeeves_celery_beat
     restart: unless-stopped
     command: sh -c "celery -A Jeeves beat -l info"
     env_file: ../.env
@@ -134,7 +132,6 @@ services:
       DB_PORT: "5432"
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
-      GUMROAD_PRODUCT_ID: "${GUMROAD_PRODUCT_ID:-dev_placeholder}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -148,14 +145,14 @@ services:
       - .:/app
     extra_hosts:
       - "ollama:host-gateway"
-    networks: [concierge_network]
+    networks: [jeeves_network]
 
   # ========================= FRONTEND =========================
 
   # ========================= NGINX ===========================
   nginx:
     image: nginx:alpine
-    container_name: concierge_nginx
+    container_name: jeeves_nginx
     restart: unless-stopped
     ports:
       - "80:80"
@@ -164,12 +161,12 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
     depends_on:
       - web
-    networks: [concierge_network]
+    networks: [jeeves_network]
 
 
 # ===================== NETWORKS & VOLUMES ====================
 networks:
-  concierge_network:
+  jeeves_network:
     driver: bridge
 
 volumes:

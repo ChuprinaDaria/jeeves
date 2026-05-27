@@ -223,6 +223,9 @@ const ClientLayout = () => {
         <main id="main-content" className="flex-1 p-3 md:p-6 pt-16 md:pt-6 overflow-x-hidden">
           <Outlet />
         </main>
+        <footer className="px-4 py-3 text-center text-xs text-ink/40 dark:text-gray-500">
+          Jeeves — by Daria Chuprina &amp; open-source community. Forever free.
+        </footer>
       </div>
     </div>
   );

@@ -15,7 +15,7 @@ WSGI_APPLICATION = "Jeeves.wsgi.application"
 
 # === SECURITY ===
 SECRET_KEY = env("SECRET_KEY", default="dev-secret")
-FIELD_ENCRYPTION_KEY = env('FIELD_ENCRYPTION_KEY', default='ZF864sWF1B0QvMRbkRgDD_NzEP4GUqPogPbdqzuwjhU=')
+FIELD_ENCRYPTION_KEY = env('FIELD_ENCRYPTION_KEY')
 DEBUG = env.bool("DEBUG", default=False)
 
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[
@@ -297,9 +297,9 @@ COHERE_RERANK_MODEL = env("COHERE_RERANK_MODEL", default="rerank-multilingual-v3
 
 # Qdrant vector search
 USE_QDRANT = env.bool("USE_QDRANT", default=True)
-QDRANT_HOST = env("QDRANT_HOST", default="concierge_qdrant")
+QDRANT_HOST = env("QDRANT_HOST", default="qdrant")
 QDRANT_PORT = env.int("QDRANT_PORT", default=6333)
-QDRANT_COLLECTION = env("QDRANT_COLLECTION", default="concierge_embeddings")
+QDRANT_COLLECTION = env("QDRANT_COLLECTION", default="jeeves_embeddings")
 WHATSAPP_QR_SECRET = env("WHATSAPP_QR_SECRET", default="")
 BOOTSTRAP_SECRET = env("BOOTSTRAP_SECRET", default="")
 TWILIO_ACCOUNT_SID = env("TWILIO_ACCOUNT_SID", default="")
@@ -464,16 +464,4 @@ MCP_TOOL_SCOPES = {
     'canvas_remove_tool_connection': ['assistant'],
     'canvas_list_connections': ['assistant'],
 }
-
-# --- Gumroad license validation ---------------------------------------------
-# The Jeeves platform is sold on Gumroad. Every installation validates the
-# purchaser's license key against this product id. Must be baked into the
-# shipped image via environment variable.
-GUMROAD_PRODUCT_ID = os.environ.get("GUMROAD_PRODUCT_ID", "")
-
-if not DEBUG and not GUMROAD_PRODUCT_ID:
-    from django.core.exceptions import ImproperlyConfigured
-    raise ImproperlyConfigured(
-        "GUMROAD_PRODUCT_ID environment variable is required in production"
-    )
 

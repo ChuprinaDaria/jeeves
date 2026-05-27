@@ -14,9 +14,6 @@ export const BootstrapProvider = ({ children }) => {
   const [state, setState] = useState({
     loading: true,
     setupRequired: null,
-    licenseStatus: null,
-    licenseLastVerifiedAt: null,
-    graceDaysRemaining: null,
     error: null,
   });
 
@@ -27,9 +24,6 @@ export const BootstrapProvider = ({ children }) => {
       setState({
         loading: false,
         setupRequired: data.setup_required,
-        licenseStatus: data.license_status,
-        licenseLastVerifiedAt: data.license_last_verified_at,
-        graceDaysRemaining: data.grace_days_remaining,
         error: null,
       });
     } catch (err) {

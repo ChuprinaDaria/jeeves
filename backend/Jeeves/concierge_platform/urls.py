@@ -58,10 +58,8 @@ router.register(
 urlpatterns = [
     path('platform/bootstrap/', views_platform.BootstrapView.as_view(), name='platform-bootstrap'),
     path('setup/owner/', views_setup.CreateOwnerView.as_view(), name='setup-owner'),
-    path('setup/license/', views_setup.SetupLicenseView.as_view(), name='setup-license'),
     path('setup/complete/', views_setup.SetupCompleteView.as_view(), name='setup-complete'),
     path('owner/dashboard/stats/', views_owner.DashboardStatsView.as_view(), name='owner-dashboard-stats'),
-    path('owner/license/reverify/', views_owner.ReverifyLicenseView.as_view(), name='owner-license-reverify'),
     path('owner/settings/defaults/', views_owner.PlatformDefaultsView.as_view(), name='owner-settings-defaults'),
 ]
 

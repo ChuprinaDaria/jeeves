@@ -28,16 +28,6 @@ class OwnerCreateSerializer(serializers.Serializer):
         return value
 
 
-class LicenseKeySerializer(serializers.Serializer):
-    """Validates input for POST /api/setup/license and /api/owner/license/reverify.
-
-    Thin wrapper — the real validation is done by the Gumroad API call
-    inside the view.
-    """
-
-    license_key = serializers.CharField(max_length=100, min_length=1)
-
-
 from Jeeves.concierge_platform.models import PlatformDefaults
 
 

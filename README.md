@@ -352,7 +352,7 @@ Documents are organized in a three-level hierarchy with weighted search:
 
 ### Owner Portal (`/owner/*`)
 
-Platform-wide administration. Protected by `BootstrapGate` (checks setup completion + license).
+Platform-wide administration. Protected by `BootstrapGate` (checks setup completion).
 
 | Page | What it does |
 |------|-------------|
@@ -633,18 +633,24 @@ GitHub Actions (`.github/workflows/main-tests.yml`):
 
 ## Contributing
 
-This project is open source and actively developed. Pull requests, bug reports, and feature ideas are welcome.
+Jeeves is free forever and actively developed. Pull requests, bug reports, and feature ideas are welcome.
 
-Found a bug? [Open an issue.](https://github.com/ChuprinaDaria/jeeves/issues) Want to fix it yourself? Even better.
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — how to set up, code style, PR process
+- **[SETUP.md](SETUP.md)** — local development setup
+- **[SECURITY.md](SECURITY.md)** — reporting vulnerabilities
+- **[Code of Conduct](CODE_OF_CONDUCT.md)** — community standards
 
-- See [CLAUDE.md](CLAUDE.md) for development conventions and architecture details
-- See [SETUP.md](SETUP.md) for local development setup
-- Backend formatting: Black (120 chars), isort (black profile), flake8
-- Frontend: JSX (no TypeScript), ESLint
-- Tests: pytest + pytest-django (backend), ESLint + build (frontend)
+Found a bug? [Open an issue.](https://github.com/ChuprinaDaria/jeeves/issues)
 
 ---
 
 ## License
 
-MIT — See [LICENSE](LICENSE) for terms.
+Elastic License 2.0 — See [LICENSE](LICENSE) for full terms.
+
+**In short:**
+- **Free forever** — use, deploy, modify for yourself or your organization
+- **Don't sell it** — you may not provide Jeeves as a hosted/managed service to third parties
+- **Keep the branding** — the "Jeeves" name and attribution footer must remain intact
+
+Jeeves — by Daria Chuprina & open-source community. Forever free.

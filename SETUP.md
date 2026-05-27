@@ -1,4 +1,4 @@
-# Concierge AI Platform — Setup Guide
+# Jeeves — Setup Guide
 
 This guide walks through installing Concierge locally via Docker Compose.
 
@@ -15,6 +15,18 @@ This guide walks through installing Concierge locally via Docker Compose.
 git clone <your-repo-url> concierge
 cd concierge
 ```
+
+## Quick start (recommended)
+
+```bash
+make setup     # copies .env.example files
+# Edit backend/.env — add your API keys and FIELD_ENCRYPTION_KEY
+make up        # starts all services
+make migrate   # runs database migrations
+make superuser # creates your admin account
+```
+
+For all available commands, see the [Makefile](Makefile).
 
 ## 2. Configure environment
 
@@ -132,3 +144,7 @@ Before deploying to production:
 - [ ] Enable automated PostgreSQL backups
 - [ ] Review Celery beat schedule for your use case
 - [ ] Rotate any third-party API keys that were committed during development
+
+## For contributors
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for code style, testing, and PR guidelines.
