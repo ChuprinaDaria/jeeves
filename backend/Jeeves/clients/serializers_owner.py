@@ -98,6 +98,9 @@ class ClientOwnerSerializer(serializers.ModelSerializer):
     # API key — masked read-only
     api_key_masked = serializers.SerializerMethodField()
 
+    user = serializers.CharField(required=False, allow_blank=True)
+    description = serializers.CharField(required=False, allow_blank=True, default='')
+
     class Meta:
         model = Client
         fields = [
@@ -177,6 +180,11 @@ class ClientOwnerSerializer(serializers.ModelSerializer):
         return _mask(obj.api_key)
 
     # --- Write semantics for SMTP password ---
+
+    def create(self, validated_data):
+        if not validated_data.get('user'):
+            validated_data['user'] = validated_data.get('company_name', '')
+        return super().create(validated_data)
 
     def update(self, instance, validated_data):
         smtp_password = validated_data.pop('email_smtp_password', serializers.empty)
