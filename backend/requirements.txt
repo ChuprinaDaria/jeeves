@@ -48,7 +48,7 @@ openai==1.54.0
 orjson==3.11.9
 packaging==25.0
 pgvector==0.3.6
-Pillow==11.3.0
+Pillow==12.2.0
 prompt_toolkit==3.0.52
 psutil==7.0.0
 psycopg==3.2.3
