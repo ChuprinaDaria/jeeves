@@ -297,9 +297,9 @@ COHERE_RERANK_MODEL = env("COHERE_RERANK_MODEL", default="rerank-multilingual-v3
 
 # Qdrant vector search
 USE_QDRANT = env.bool("USE_QDRANT", default=True)
-QDRANT_HOST = env("QDRANT_HOST", default="concierge_qdrant")
+QDRANT_HOST = env("QDRANT_HOST", default="qdrant")
 QDRANT_PORT = env.int("QDRANT_PORT", default=6333)
-QDRANT_COLLECTION = env("QDRANT_COLLECTION", default="concierge_embeddings")
+QDRANT_COLLECTION = env("QDRANT_COLLECTION", default="jeeves_embeddings")
 WHATSAPP_QR_SECRET = env("WHATSAPP_QR_SECRET", default="")
 BOOTSTRAP_SECRET = env("BOOTSTRAP_SECRET", default="")
 TWILIO_ACCOUNT_SID = env("TWILIO_ACCOUNT_SID", default="")

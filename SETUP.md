@@ -1,4 +1,4 @@
-# Concierge AI Platform — Setup Guide
+# Jeeves — Setup Guide
 
 This guide walks through installing Concierge locally via Docker Compose.
 
