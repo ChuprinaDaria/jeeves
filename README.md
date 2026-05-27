@@ -1,5 +1,11 @@
 # Jeeves — Self-Hosted AI Assistant Platform
 
+[![Tests](https://github.com/ChuprinaDaria/jeeves/actions/workflows/main-tests.yml/badge.svg)](https://github.com/ChuprinaDaria/jeeves/actions/workflows/main-tests.yml)
+[![CodeQL](https://github.com/ChuprinaDaria/jeeves/actions/workflows/codeql.yml/badge.svg)](https://github.com/ChuprinaDaria/jeeves/actions/workflows/codeql.yml)
+[![Security Scan](https://github.com/ChuprinaDaria/jeeves/actions/workflows/security-scan.yml/badge.svg)](https://github.com/ChuprinaDaria/jeeves/actions/workflows/security-scan.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/ChuprinaDaria/jeeves/badge)](https://securityscorecards.dev/viewer/?uri=github.com/ChuprinaDaria/jeeves)
+[![License: ELv2](https://img.shields.io/badge/License-ELv2-blue.svg)](LICENSE)
+
 > Your own AI butler. Doesn't judge. Doesn't sleep. Occasionally hallucinates — but so does your best employee.
 
 Multi-tenant AI concierge with RAG knowledge base, MCP tools, 5 messaging channels, and a full admin dashboard. Built on Django 5 + React 19. Fully open source, self-hosted, no license keys, no paywalls.
@@ -31,6 +37,7 @@ Jeeves is a white-label AI assistant platform. Deploy it on your server, connect
 - [Admin Dashboard](#admin-dashboard)
 - [API Reference](#api-reference)
 - [Background Tasks](#background-tasks)
+- [Privacy & Data](#privacy--data)
 - [Security](#security)
 - [Environment Variables](#environment-variables)
 - [CI/CD](#cicd)
