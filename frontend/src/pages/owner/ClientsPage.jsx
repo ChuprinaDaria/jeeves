@@ -124,6 +124,16 @@ const ClientsPage = () => {
                 </td>
                 <td className="px-3 py-2 text-xs">{formatDate(row.created_at)}</td>
                 <td className="px-3 py-2 text-right space-x-2">
+                  {row.tag && (
+                    <a
+                      href={`/l/${row.tag}/dashboard`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-iris underline text-xs"
+                    >
+                      Portal
+                    </a>
+                  )}
                   <Link
                     to={`/owner/clients/${row.id}`}
                     className="text-ink underline text-xs"

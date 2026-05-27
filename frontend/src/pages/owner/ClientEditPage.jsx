@@ -89,11 +89,11 @@ const ClientEditPage = () => {
             description: detail.description || '',
             client_type: detail.client_type || '',
             is_active: !!detail.is_active,
-            branch_id: detail.branch_id ?? '',
-            specialization_id: detail.specialization_id ?? '',
+            branch_id: detail.branch?.id ?? '',
+            specialization_id: detail.specialization?.id ?? '',
             greeting_message: detail.greeting_message || '',
-            llm_provider_model_id: detail.llm_provider_model_id ?? '',
-            embedding_model_id: detail.embedding_model_id ?? '',
+            llm_provider_model_id: detail.llm_provider_model?.id ?? '',
+            embedding_model_id: detail.embedding_model?.id ?? '',
             telegram_enabled: !!detail.telegram_enabled,
             whatsapp_meta_enabled: !!detail.whatsapp_meta_enabled,
             whatsapp_bridge_enabled: !!detail.whatsapp_bridge_enabled,
@@ -179,9 +179,21 @@ const ClientEditPage = () => {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <h1 className="text-2xl font-semibold text-ink">
-        {isEdit ? `Edit ${existing?.company_name || ''}` : 'New Client'}
-      </h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-ink">
+          {isEdit ? `Edit ${existing?.company_name || ''}` : 'New Client'}
+        </h1>
+        {isEdit && existing?.tag && (
+          <a
+            href={`/l/${existing.tag}/dashboard`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 border-2 border-iris text-iris rounded-sm text-sm hover:bg-iris/10"
+          >
+            Open Portal
+          </a>
+        )}
+      </div>
 
       {/* Section 1 — Basic Info */}
       <div className="space-y-4">

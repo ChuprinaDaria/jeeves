@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import { useSearchParams, useNavigate, Navigate } from 'react-router-dom';
-import { Loader2, LogIn, KeyRound } from 'lucide-react';
 import api from '../api/axios';
+
+const inputClass =
+  'w-full px-3 py-2 border border-ink/20 rounded-sm bg-paper focus:outline-none focus:border-iris text-lg tracking-wider';
+
+const buttonClass =
+  'w-full px-4 py-2 bg-ink text-cream rounded-sm hover:bg-ink/90 disabled:opacity-50';
 
 const ClientLoginPage = () => {
   const [searchParams] = useSearchParams();
@@ -16,7 +21,6 @@ const ClientLoginPage = () => {
     return <Navigate to={`/l/${tagFromQuery}/dashboard`} replace />;
   }
 
-  // Без тегу — сторінка логіна
   const handleSubmit = async (e) => {
     e.preventDefault();
     const tag = tagInput.trim();
@@ -27,7 +31,7 @@ const ClientLoginPage = () => {
 
     try {
       const response = await api.get('/clients/me/', {
-        headers: { 'X-Client-Token': tag }
+        headers: { 'X-Client-Token': tag },
       });
       if (response.data) {
         navigate(`/l/${tag}/dashboard`);
@@ -44,75 +48,48 @@ const ClientLoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-gray-950 dark:via-gray-900 dark:to-indigo-950 px-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl shadow-lg mb-4">
-            <KeyRound className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            CONCIERGE
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-2">
-            Enter your access code to continue
-          </p>
+    <div className="min-h-screen bg-cream flex items-center justify-center p-4">
+      <form
+        onSubmit={handleSubmit}
+        className="max-w-md w-full bg-paper border border-ink/10 rounded-sm p-6 space-y-4"
+      >
+        <div className="mb-4">
+          <div className="label-mono text-ink/60">Jeeves</div>
+          <h1 className="text-2xl font-semibold text-ink">Client portal</h1>
+          <p className="text-sm text-fog mt-1">Enter your access code to continue</p>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-8">
-          <form onSubmit={handleSubmit}>
-            <div className="mb-6">
-              <label
-                htmlFor="tag-input"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-              >
-                Access Code
-              </label>
-              <input
-                id="tag-input"
-                type="text"
-                value={tagInput}
-                onChange={(e) => {
-                  setTagInput(e.target.value);
-                  if (error) setError(null);
-                }}
-                placeholder="Enter your code..."
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all text-lg tracking-wider"
-                autoFocus
-                autoComplete="off"
-                disabled={loading}
-              />
-            </div>
-
-            {error && (
-              <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading || !tagInput.trim()}
-              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white font-medium rounded-xl transition-all shadow-md hover:shadow-lg disabled:shadow-none"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Checking...
-                </>
-              ) : (
-                <>
-                  <LogIn className="w-5 h-5" />
-                  Continue
-                </>
-              )}
-            </button>
-          </form>
+        <div>
+          <label className="block text-sm mb-1">Access Code</label>
+          <input
+            className={inputClass}
+            type="text"
+            value={tagInput}
+            onChange={(e) => {
+              setTagInput(e.target.value);
+              if (error) setError(null);
+            }}
+            placeholder="Enter your code..."
+            autoFocus
+            autoComplete="off"
+            disabled={loading}
+          />
         </div>
 
-        <p className="text-center text-xs text-gray-400 dark:text-gray-500 mt-6">
+        {error && <p className="text-red-600 text-sm">{error}</p>}
+
+        <button
+          type="submit"
+          className={buttonClass}
+          disabled={loading || !tagInput.trim()}
+        >
+          {loading ? 'Checking...' : 'Continue'}
+        </button>
+
+        <p className="text-sm text-fog text-center pt-2">
           Your access code was provided by your administrator
         </p>
-      </div>
+      </form>
     </div>
   );
 };
