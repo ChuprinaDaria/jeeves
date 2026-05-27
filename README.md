@@ -352,7 +352,7 @@ Documents are organized in a three-level hierarchy with weighted search:
 
 ### Owner Portal (`/owner/*`)
 
-Platform-wide administration. Protected by `BootstrapGate` (checks setup completion + license).
+Platform-wide administration. Protected by `BootstrapGate` (checks setup completion).
 
 | Page | What it does |
 |------|-------------|
@@ -647,4 +647,11 @@ Found a bug? [Open an issue.](https://github.com/ChuprinaDaria/jeeves/issues) Wa
 
 ## License
 
-MIT — See [LICENSE](LICENSE) for terms.
+Elastic License 2.0 — See [LICENSE](LICENSE) for full terms.
+
+**In short:**
+- **Free forever** — use, deploy, modify for yourself or your organization
+- **Don't sell it** — you may not provide Jeeves as a hosted/managed service to third parties
+- **Keep the branding** — the "Jeeves" name and attribution footer must remain intact
+
+Jeeves — by Daria Chuprina & open-source community. Forever free.
