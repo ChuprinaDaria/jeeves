@@ -47,10 +47,12 @@ services:
       sh -c "gunicorn Jeeves.wsgi:application --bind 0.0.0.0:8000 --workers 3 --threads 2 --timeout 120"
     ports:
       - "8000:8000"
-    env_file: ../.env
+    env_file:
+      - .env
+      - ../.env
     environment:
       DJANGO_SETTINGS_MODULE: Jeeves.settings
-      DEBUG: "0"
+      DEBUG: "${DEBUG:-1}"
       SECRET_KEY: ${SECRET_KEY:-dev-secret}
       DB_NAME: ${DB_NAME:-admin_db}
       DB_USER: ${DB_USER:-admin_user}
@@ -59,7 +61,7 @@ services:
       DB_PORT: "5432"
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
-      CLIENT_PORTAL_BASE_URL: "${CLIENT_PORTAL_BASE_URL:-http://localhost:3000}"
+      CLIENT_PORTAL_BASE_URL: "${CLIENT_PORTAL_BASE_URL:-http://localhost:5173}"
       WHATSAPP_QR_SECRET: "${WHATSAPP_QR_SECRET:-change-me}"
     depends_on:
       postgres:
@@ -86,10 +88,12 @@ services:
     container_name: jeeves_celery_worker
     restart: unless-stopped
     command: sh -c "celery -A Jeeves worker -l info"
-    env_file: ../.env
+    env_file:
+      - .env
+      - ../.env
     environment:
       DJANGO_SETTINGS_MODULE: Jeeves.settings
-      DEBUG: "0"
+      DEBUG: "${DEBUG:-1}"
       SECRET_KEY: ${SECRET_KEY:-dev-secret}
       DB_NAME: ${DB_NAME:-admin_db}
       DB_USER: ${DB_USER:-admin_user}
@@ -120,10 +124,12 @@ services:
     container_name: jeeves_celery_beat
     restart: unless-stopped
     command: sh -c "celery -A Jeeves beat -l info"
-    env_file: ../.env
+    env_file:
+      - .env
+      - ../.env
     environment:
       DJANGO_SETTINGS_MODULE: Jeeves.settings
-      DEBUG: "0"
+      DEBUG: "${DEBUG:-1}"
       SECRET_KEY: ${SECRET_KEY:-dev-secret}
       DB_NAME: ${DB_NAME:-admin_db}
       DB_USER: ${DB_USER:-admin_user}
