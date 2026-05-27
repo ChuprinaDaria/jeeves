@@ -74,28 +74,31 @@ def _parse_catalog_page(html: str, source_url: str) -> PageParseResult:
     if gh:
         result.github_url = gh.group(0).rstrip('/')
 
-    # npm package — npx or npm install
-    npm = re.search(r'npx\s+(?:-y\s+)?(@?[\w./-]+)', html)
+    # npm package — npx or npm install (package must start with letter or @)
+    npm = re.search(r'npx\s+(?:-y\s+)?(@[\w./-]+|[a-zA-Z][\w./-]*)', html)
     if npm:
         result.npm_package = npm.group(1)
     else:
-        npm_install = re.search(r'npm\s+install\s+(?:-g\s+)?(@?[\w./-]+)', html)
+        npm_install = re.search(r'npm\s+install\s+(?:-g\s+)?(@[\w./-]+|[a-zA-Z][\w./-]*)', html)
         if npm_install:
             result.npm_package = npm_install.group(1)
 
-    # pip package
-    pip = re.search(r'(?:pip|pip3|uv pip)\s+install\s+([\w.-]+)', html)
+    # pip package — must start with letter
+    pip = re.search(r'(?:pip|pip3|uv pip)\s+install\s+([a-zA-Z][\w.-]*)', html)
     if pip:
         result.pip_package = pip.group(1)
     else:
-        uvx = re.search(r'uvx\s+([\w.-]+)', html)
+        uvx = re.search(r'uvx\s+([a-zA-Z][\w.-]*)', html)
         if uvx:
             result.pip_package = uvx.group(1)
 
-    # SSE/HTTP endpoint URLs — must end with /sse or /events, not just /mcp (too broad)
-    sse = re.search(r'(https?://[^\s"\'<>]+/(?:sse|events))\b', html)
+    # SSE/HTTP endpoint URLs — must end with /sse, exclude known false positives
+    sse = re.search(r'(https?://[^\s"\'<>]+/sse)\b', html)
     if sse:
-        result.sse_endpoint = sse.group(1)
+        ep = sse.group(1)
+        # Reject known false positives (GitHub, Google, etc.)
+        if not any(host in ep for host in ['github.com', 'google.com', 'stackoverflow.com']):
+            result.sse_endpoint = ep
 
     # MCP JSON config blocks — look for {"command": ..., "args": [...]}
     json_blocks = re.findall(r'\{[^{}]*"command"\s*:\s*"[^"]+?"[^{}]*\}', html)

@@ -55,6 +55,7 @@ const MCPServerEditPage = () => {
     color: '#6366f1',
     category: 'custom',
     targets: ['assistant'],
+    api_key: '',
   });
   const [existing, setExisting] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -123,6 +124,7 @@ const MCPServerEditPage = () => {
           color: form.color,
           category: form.category,
           targets: form.targets,
+          api_key: form.api_key,
         });
       }
       navigate('/owner/mcp-servers');
@@ -466,6 +468,19 @@ const MCPServerEditPage = () => {
               ))}
             </div>
           </div>
+
+          {/* API Key — optional, for servers that require auth */}
+          {!isEdit && (
+            <Field label="API Key (optional — for servers that require authentication)">
+              <input
+                className={inputClass}
+                type="password"
+                placeholder="sk-..."
+                value={form.api_key}
+                onChange={(e) => set('api_key', e.target.value)}
+              />
+            </Field>
+          )}
 
           {/* Errors */}
           {errors.detail && (

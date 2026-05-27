@@ -145,6 +145,7 @@ class ToolCardOwnerViewSet(viewsets.ModelViewSet):
 
         # 2. Create ToolCard
         transport = result.transport or 'sse'
+        api_key = data.get('api_key', '')
         name = data['name'] or result.server_name or 'Unnamed MCP Server'
         tool_data = {
             'name': name,
@@ -157,7 +158,8 @@ class ToolCardOwnerViewSet(viewsets.ModelViewSet):
             'transport_type': transport,
             'is_builtin': False,
             'tools_schema': result.tools,
-            'auth_type': 'none',
+            'auth_type': 'api_key' if api_key else 'none',
+            'auth_config': {'fields': [{'name': 'api_key', 'label': 'API Key', 'type': 'password', 'required': True}]} if api_key else {},
             'is_active': True,
             'is_system': True,
             'skill_scopes': {'scopes': data['targets']},
@@ -166,8 +168,9 @@ class ToolCardOwnerViewSet(viewsets.ModelViewSet):
         card_ser.is_valid(raise_exception=True)
         tool_card = card_ser.save()
 
-        # 3. Auto-connect all clients
+        # 3. Auto-connect all clients (with credentials if API key provided)
         now = timezone.now()
+        creds = {'api_key': api_key} if api_key else {}
         clients = Client.objects.all()
         connections = []
         for client in clients:
@@ -179,6 +182,7 @@ class ToolCardOwnerViewSet(viewsets.ModelViewSet):
                     status='connected',
                     enabled=True,
                     connected_at=now,
+                    credentials=creds,
                 ))
         ToolConnection.objects.bulk_create(connections, ignore_conflicts=True)
 

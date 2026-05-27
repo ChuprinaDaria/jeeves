@@ -65,6 +65,7 @@ class FromUrlRequestSerializer(serializers.Serializer):
         child=serializers.ChoiceField(choices=['assistant', 'manager', 'leads']),
         required=False, default=['assistant'],
     )
+    api_key = serializers.CharField(max_length=500, required=False, default='', allow_blank=True)
 
 
 class InstallPackageRequestSerializer(serializers.Serializer):
