@@ -3,6 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 from Jeeves.clients.models import Client
 from Jeeves.clients.views import get_client_from_request
@@ -211,6 +212,7 @@ class AuthMeView(APIView):
     - Звичайних користувачів (повертає дані User)
     - Клієнтів через JWT токен (username=client_{id}, повертає дані Client)
     """
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):

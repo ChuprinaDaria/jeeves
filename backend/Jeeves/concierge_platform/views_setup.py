@@ -2,9 +2,11 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from Jeeves.accounts.models import User, Roles
+from Jeeves.concierge_platform.permissions import IsOwner
 from Jeeves.concierge_platform.serializers import OwnerCreateSerializer
 
 
@@ -56,90 +58,11 @@ class CreateOwnerView(APIView):
         )
 
 
-from django.utils import timezone
-from rest_framework_simplejwt.authentication import JWTAuthentication
-
-from Jeeves.concierge_platform import gumroad_client
-from Jeeves.concierge_platform.models import PlatformLicense
-from Jeeves.concierge_platform.permissions import IsOwner
-from Jeeves.concierge_platform.serializers import LicenseKeySerializer
-
-
-class SetupLicenseView(APIView):
-    """Save + verify the Gumroad license key during wizard Step 2.
-
-    - valid:         persist key, status=valid, return 200 valid
-    - invalid:       do NOT persist, return 400 invalid_key
-    - network_error: persist key, status=grace, return 200 grace
-    """
-
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsOwner]
-
-    def post(self, request):
-        serializer = LicenseKeySerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        license_key = serializer.validated_data["license_key"]
-
-        result = gumroad_client.verify_license(license_key)
-        lic = PlatformLicense.get()
-        now = timezone.now()
-
-        if result.outcome == "valid":
-            lic.license_key = license_key
-            lic.status = PlatformLicense.LicenseStatus.VALID
-            lic.last_verified_at = now
-            lic.last_attempt_at = now
-            lic.last_error = ""
-            purchase = result.data.get("purchase", {}) or {}
-            lic.gumroad_purchase_email = purchase.get("email", "") or ""
-            lic.gumroad_product_id = purchase.get("product_id", "") or ""
-            lic.gumroad_uses = int(result.data.get("uses", 0) or 0)
-            lic.save()
-            return Response({"status": "valid"})
-
-        if result.outcome == "invalid":
-            return Response(
-                {"error": "invalid_key", "message": result.error},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # network_error — grace
-        lic.license_key = license_key
-        lic.status = PlatformLicense.LicenseStatus.GRACE
-        lic.last_attempt_at = now
-        lic.last_error = result.error
-        lic.save()
-        return Response({
-            "status": "grace",
-            "message": (
-                "We couldn't reach Gumroad. Your key was saved and we'll retry "
-                "automatically. Grace period: 7 days."
-            ),
-        })
-
-
 class SetupCompleteView(APIView):
-    """Finalize the setup wizard. Idempotent on re-calls."""
+    """Finalize the setup wizard. Creating the owner is the only step now."""
 
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsOwner]
 
     def post(self, request):
-        lic = PlatformLicense.get()
-        if lic.is_setup_complete:
-            return Response(status=status.HTTP_204_NO_CONTENT)
-
-        ok_statuses = (
-            PlatformLicense.LicenseStatus.VALID,
-            PlatformLicense.LicenseStatus.GRACE,
-        )
-        if not lic.license_key or lic.status not in ok_statuses:
-            return Response(
-                {"error": "license_not_ready"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        lic.setup_completed_at = timezone.now()
-        lic.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
