@@ -90,7 +90,7 @@ wcwidth==0.2.14
 websocket-client==1.8.0
 whitenoise==6.8.2
 zstandard==0.25.0
-lingua-language-detector>=2.0.1
+lingua-language-detector>=2.2.0
 mcp>=1.9.0
 fastmcp>=2.0.0
 qdrant-client>=1.9.0
