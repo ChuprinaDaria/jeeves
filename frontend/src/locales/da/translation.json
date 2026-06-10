@@ -230,7 +230,14 @@
     "telegramPersonalDesc": "Din personlige konto via Matrix-broen",
     "telegramConnected": "Telegram forbundet",
     "startTelegramLogin": "Forbind Telegram",
-    "checkingState": "Tjekker bro…"
+    "checkingState": "Tjekker bro…",
+    "instagramDesc2": "Personlig konto via Matrix-bro",
+    "bridgeViaMatrix": "via Matrix-bro",
+    "bridgeConnected": "Bro forbundet",
+    "scanQrInstructions": "Scan QR med appen",
+    "startBridgeLogin": "Log ind",
+    "extensionDescPrereq": "Påkrævet for Instagram / Facebook / LinkedIn — videresender cookies til bridge",
+    "instagramDesc3": "Installer Chrome-udvidelsen først — den videresender dine IG-cookies"
   },
   "history": {
     "title": "Aktivitet",

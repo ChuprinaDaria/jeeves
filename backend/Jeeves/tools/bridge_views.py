@@ -35,6 +35,19 @@ SUPPORTED_NETWORKS = {
         'login_command': 'login phone',
         'qr_message_type': None,  # phone+code flow, no QR
     },
+    'instagram': {
+        # mautrix-meta in `instagram` mode — bot is still @metabot.
+        'bot': 'metabot',
+        'login_command': 'login instagram',
+        'qr_message_type': None,
+    },
+    'facebook': {
+        # mautrix-meta in `facebook`/`messenger` mode — separate instance,
+        # bot also @metabot (one bridge per mode in this deployment).
+        'bot': 'metabot',
+        'login_command': 'login facebook',
+        'qr_message_type': None,
+    },
 }
 
 

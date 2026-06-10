@@ -476,7 +476,14 @@
     "telegramPersonalDesc": "Your personal account via Matrix bridge",
     "telegramConnected": "Telegram connected",
     "startTelegramLogin": "Start Telegram login",
-    "checkingState": "Checking bridge state…"
+    "checkingState": "Checking bridge state…",
+    "instagramDesc2": "Personal account via Matrix bridge",
+    "bridgeViaMatrix": "via Matrix bridge",
+    "bridgeConnected": "Bridge connected",
+    "scanQrInstructions": "Scan QR with the app on your phone",
+    "startBridgeLogin": "Start login",
+    "extensionDescPrereq": "Required for Instagram / Facebook / LinkedIn — collects cookies & syncs them to the bridge",
+    "instagramDesc3": "Install the Chrome extension first — it bridges your IG cookies"
   },
   "history": {
     "title": "Activity",

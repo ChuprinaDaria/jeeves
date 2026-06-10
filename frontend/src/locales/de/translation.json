@@ -237,7 +237,14 @@
     "telegramPersonalDesc": "Dein persönliches Konto über die Matrix-Bridge",
     "telegramConnected": "Telegram verbunden",
     "startTelegramLogin": "Telegram anmelden",
-    "checkingState": "Bridge-Status wird geprüft…"
+    "checkingState": "Bridge-Status wird geprüft…",
+    "instagramDesc2": "Persönliches Konto über Matrix-Bridge",
+    "bridgeViaMatrix": "über Matrix-Bridge",
+    "bridgeConnected": "Bridge verbunden",
+    "scanQrInstructions": "QR-Code mit der App scannen",
+    "startBridgeLogin": "Anmelden",
+    "extensionDescPrereq": "Erforderlich für Instagram / Facebook / LinkedIn — überträgt Cookies an die Bridge",
+    "instagramDesc3": "Installiere zuerst die Chrome-Erweiterung — sie überträgt deine IG-Cookies"
   },
   "history": {
     "title": "Aktivität",

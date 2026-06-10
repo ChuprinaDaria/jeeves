@@ -230,7 +230,14 @@
     "telegramPersonalDesc": "Je persoonlijke account via de Matrix-bridge",
     "telegramConnected": "Telegram verbonden",
     "startTelegramLogin": "Verbind Telegram",
-    "checkingState": "Bridge controleren…"
+    "checkingState": "Bridge controleren…",
+    "instagramDesc2": "Persoonlijk account via Matrix-bridge",
+    "bridgeViaMatrix": "via Matrix-bridge",
+    "bridgeConnected": "Bridge verbonden",
+    "scanQrInstructions": "Scan de QR met de app",
+    "startBridgeLogin": "Verbinden",
+    "extensionDescPrereq": "Vereist voor Instagram / Facebook / LinkedIn — geeft cookies door aan de bridge",
+    "instagramDesc3": "Installeer eerst de Chrome-extensie — die geeft je IG-cookies door"
   },
   "history": {
     "title": "Activiteit",

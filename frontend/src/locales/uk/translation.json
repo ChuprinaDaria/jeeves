@@ -286,7 +286,14 @@
     "telegramPersonalDesc": "Твій особистий акаунт через Matrix-міст",
     "telegramConnected": "Telegram підключено",
     "startTelegramLogin": "Підключити Telegram",
-    "checkingState": "Перевіряю стан мосту…"
+    "checkingState": "Перевіряю стан мосту…",
+    "instagramDesc2": "Особистий акаунт через Matrix-міст",
+    "bridgeViaMatrix": "через Matrix-міст",
+    "bridgeConnected": "Міст підключено",
+    "scanQrInstructions": "Скануй QR у застосунку на телефоні",
+    "startBridgeLogin": "Підключити",
+    "extensionDescPrereq": "Потрібне для Instagram / Facebook / LinkedIn — збирає кукіси й передає в міст",
+    "instagramDesc3": "Спершу постав розширення — воно проброшує кукіси IG в міст"
   },
   "settings": {
     "title": "Налаштування",

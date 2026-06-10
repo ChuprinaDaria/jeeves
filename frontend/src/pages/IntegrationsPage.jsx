@@ -35,6 +35,7 @@ import ChromeExtensionSetup from '../components/integrations/ChromeExtensionSetu
 import HITLSetup from '../components/integrations/HITLSetup';
 import WhatsAppSetup from '../components/integrations/WhatsAppSetup';
 import TelegramPersonalSetup from '../components/integrations/TelegramPersonalSetup';
+import BridgeSetup from '../components/integrations/BridgeSetup';
 
 const ACCENT_BORDER = {
   rose:  'border-rose text-rose',
@@ -59,6 +60,7 @@ const IntegrationsPage = () => {
   });
   const [whatsappPhone, setWhatsappPhone] = useState('');
   const [telegramPersonalHandle, setTelegramPersonalHandle] = useState('');
+  const [instagramHandle, setInstagramHandle] = useState('');
   const [modal, setModal] = useState(null); // 'whatsapp' | 'email' | 'telegram' | 'hitl' | 'extension' | 'webwidget' | 'web'
   const [webQR, setWebQR] = useState(null);
   const [loadingWebQR, setLoadingWebQR] = useState(false);
@@ -76,8 +78,9 @@ const IntegrationsPage = () => {
       api.get('/clients/telegram/config/').catch(() => ({ data: {} })),
       api.get('/clients/hitl/config/').catch(() => ({ data: {} })),
       api.get('/tools/matrix/bridges/telegram/state/').catch(() => ({ data: {} })),
+      api.get('/tools/matrix/bridges/instagram/state/').catch(() => ({ data: {} })),
     ])
-      .then(([wa, me, email, tg, hitl, tgPersonal]) => {
+      .then(([wa, me, email, tg, hitl, tgPersonal, igPersonal]) => {
         if (!mounted) return;
         setClientInfo(me.data);
         setStatus({
@@ -85,12 +88,14 @@ const IntegrationsPage = () => {
           email:            !!email.data?.email_smtp_enabled,
           telegram:         !!tg.data?.telegram_enabled,
           telegramPersonal: tgPersonal.data?.status === 'connected',
+          instagramBridge:  igPersonal.data?.status === 'connected',
           hitl:             !!hitl.data?.hitl_enabled,
           extension:        !!me.data?.extension_enabled,
           web:              true,
         });
         setWhatsappPhone(wa.data?.remote_handle || '');
         setTelegramPersonalHandle(tgPersonal.data?.remote_handle || '');
+        setInstagramHandle(igPersonal.data?.remote_handle || '');
       })
       .finally(() => mounted && setLoading(false));
     return () => { mounted = false; };
@@ -111,6 +116,14 @@ const IntegrationsPage = () => {
         .then((r) => {
           setStatus((s) => ({ ...s, telegramPersonal: r.data?.status === 'connected' }));
           setTelegramPersonalHandle(r.data?.remote_handle || '');
+        })
+        .catch(() => {})
+    );
+    if (keys.includes('instagram-bridge')) tasks.push(
+      api.get('/tools/matrix/bridges/instagram/state/')
+        .then((r) => {
+          setStatus((s) => ({ ...s, instagramBridge: r.data?.status === 'connected' }));
+          setInstagramHandle(r.data?.remote_handle || '');
         })
         .catch(() => {})
     );
@@ -209,6 +222,37 @@ const IntegrationsPage = () => {
       onClick: () => setModal('telegram-personal'),
     },
     {
+      key: 'extension', icon: PuzzlePiece,    accent: 'iris',
+      name: t('integrations.extensionName')   || 'Chrome Extension',
+      desc: t('integrations.extensionDescPrereq')
+        || 'Required for Instagram / Facebook / LinkedIn — collects cookies & syncs them to the bridge',
+      state: status.extension ? 'connected' : 'notConnected',
+      onClick: () => setModal('extension'),
+    },
+    {
+      key: 'instagram', icon: InstagramLogo,  accent: 'rose',
+      name: t('integrations.instagramName')   || 'Instagram DM',
+      desc: t('integrations.instagramDesc3')
+        || 'Install the Chrome extension first — it bridges your IG cookies',
+      state: status.instagramBridge ? 'connected' : 'notConnected',
+      meta: status.instagramBridge && instagramHandle ? `@${instagramHandle}` : null,
+      onClick: () => setModal('instagram-bridge'),
+    },
+    {
+      key: 'messenger', icon: FacebookLogo,   accent: 'iris',
+      name: t('integrations.messengerName')   || 'Facebook Messenger',
+      desc: t('integrations.messengerDesc')   || 'Bridge conversations via extension',
+      state: 'notConnected', meta: viaExt,
+      onClick: () => setModal('extension'),
+    },
+    {
+      key: 'linkedin',  icon: LinkedinLogo,   accent: 'iris',
+      name: t('integrations.linkedinName')    || 'LinkedIn Messages',
+      desc: t('integrations.linkedinDesc')    || 'Lead-gen bridge via extension',
+      state: 'notConnected', meta: viaExt,
+      onClick: () => setModal('extension'),
+    },
+    {
       key: 'email',     icon: EnvelopeSimple, accent: 'rose',
       name: t('integrations.emailName')       || 'Email',
       desc: t('integrations.emailDesc')       || 'SMTP — transactional & reports',
@@ -221,34 +265,6 @@ const IntegrationsPage = () => {
       desc: t('integrations.hitlDesc')        || 'Escalate to humans via Telegram',
       state: status.hitl ? 'connected' : 'notConnected',
       onClick: () => setModal('hitl'),
-    },
-    {
-      key: 'extension', icon: PuzzlePiece,    accent: 'iris',
-      name: t('integrations.extensionName')   || 'Chrome Extension',
-      desc: t('integrations.extensionDesc')   || 'Web AI agent for scraping & automation',
-      state: status.extension ? 'connected' : 'notConnected',
-      onClick: () => setModal('extension'),
-    },
-    {
-      key: 'messenger', icon: FacebookLogo,   accent: 'iris',
-      name: t('integrations.messengerName')   || 'Facebook Messenger',
-      desc: t('integrations.messengerDesc')   || 'Bridge conversations via extension',
-      state: 'notConnected', meta: viaExt,
-      onClick: () => setModal('extension'),
-    },
-    {
-      key: 'instagram', icon: InstagramLogo,  accent: 'rose',
-      name: t('integrations.instagramName')   || 'Instagram DM',
-      desc: t('integrations.instagramDesc')   || 'Direct messages via extension',
-      state: 'notConnected', meta: viaExt,
-      onClick: () => setModal('extension'),
-    },
-    {
-      key: 'linkedin',  icon: LinkedinLogo,   accent: 'iris',
-      name: t('integrations.linkedinName')    || 'LinkedIn Messages',
-      desc: t('integrations.linkedinDesc')    || 'Lead-gen bridge via extension',
-      state: 'notConnected', meta: viaExt,
-      onClick: () => setModal('extension'),
     },
     {
       key: 'gcal',      icon: CalendarBlank,  accent: 'rose',
@@ -359,6 +375,13 @@ const IntegrationsPage = () => {
       {modal === 'telegram-personal' && (
         <TelegramPersonalSetup
           onClose={() => { setModal(null); reload(['telegram-personal']); }}
+        />
+      )}
+      {modal === 'instagram-bridge' && (
+        <BridgeSetup
+          network="instagram"
+          title={t('integrations.instagramName') || 'Instagram DM'}
+          onClose={() => { setModal(null); reload(['instagram-bridge']); }}
         />
       )}
       {modal === 'extension'  && <ChromeExtensionSetup onClose={() => setModal(null)} />}
