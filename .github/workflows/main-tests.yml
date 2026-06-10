@@ -78,11 +78,10 @@ jobs:
           pip install pytest pytest-django pytest-cov pytest-xdist coverage
 
       - name: 🗄️ Setup database
-        run: |
-          cd Jeeves
-          python manage.py migrate --noinput
+        # python -m django з backend/ замість manage.py з backend/Jeeves:
+        # інакше Jeeves/celery.py затіняє пакет celery (sys.path[0] = cwd скрипта)
+        run: python -m django migrate --noinput
         env:
-          # Пакет Jeeves живе в backend/, а cwd — backend/Jeeves
           PYTHONPATH: ${{ github.workspace }}/backend
           # settings.py читає DB_* змінні (не DATABASE_URL)
           DB_NAME: test_db
