@@ -50,11 +50,11 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="contentplan",
-            index=models.Index(fields=["client", "-created_at"], name="content_pla_client__7c2a45_idx"),
+            index=models.Index(fields=["client", "-created_at"], name="content_pla_client__69bf72_idx"),
         ),
         migrations.AddIndex(
             model_name="contentplan",
-            index=models.Index(fields=["client", "status"], name="content_pla_client__d1f3a1_idx"),
+            index=models.Index(fields=["client", "status"], name="content_pla_client__2e9a54_idx"),
         ),
         migrations.CreateModel(
             name="ContentPost",
@@ -130,11 +130,11 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="contentpost",
-            index=models.Index(fields=["content_plan", "status"], name="content_pos_content_19b248_idx"),
+            index=models.Index(fields=["content_plan", "status"], name="content_pla_content_ec633c_idx"),
         ),
         migrations.AddIndex(
             model_name="contentpost",
-            index=models.Index(fields=["content_plan", "network", "scheduled_at"], name="content_pos_content_4b07e1_idx"),
+            index=models.Index(fields=["content_plan", "network", "scheduled_at"], name="content_pla_content_842882_idx"),
         ),
         migrations.CreateModel(
             name="ContentIdea",
@@ -168,6 +168,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="contentidea",
-            index=models.Index(fields=["client", "status"], name="content_ide_client__cf4d23_idx"),
+            index=models.Index(fields=["client", "status"], name="content_pla_client__b5babd_idx"),
         ),
     ]
