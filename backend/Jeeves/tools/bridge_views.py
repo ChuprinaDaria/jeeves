@@ -145,19 +145,42 @@ def _download_mxc_to_b64(client: httpx.Client, mxc: str) -> str | None:
 
 
 def _bridge_state(client: httpx.Client, room_id: str, network: str) -> dict:
-    """Read the most recent fi.mau.bridge.state event for this room."""
+    """Scan recent bridge messages to determine the current connection state.
+
+    Returns the most recent text + a `connection_marker` priority — a
+    "Successfully logged in" anywhere in the window beats a stale
+    "expired/timeout" notice, because the bridge does not actively reset the
+    state after a failed login attempt if the previous session is still alive.
+    """
     bridge_mxid = _bridge_mxid(network)
-    chunk = _read_recent(client, room_id, limit=20)
-    latest_text = None
+    chunk = _read_recent(client, room_id, limit=50)
+    connected_text = None
+    last_text = None
+    failure_text = None
     for ev in chunk:
         if ev.get('sender') != bridge_mxid:
             continue
         content = ev.get('content', {})
-        if content.get('msgtype') == 'm.notice' and not latest_text:
-            latest_text = content.get('body') or ''
+        if content.get('msgtype') not in ('m.notice', 'm.text'):
+            continue
+        body = content.get('body') or ''
+        if last_text is None:
+            last_text = body
+        if connected_text is None and 'Successfully logged in' in body:
+            connected_text = body
+        body_lower = body.lower()
+        if failure_text is None and (
+            'timed out' in body_lower or 'expired' in body_lower or 'login failed' in body_lower
+        ):
+            failure_text = body
+
+    # Connected wins over failure (the bridge keeps an existing session live
+    # even if a separate fresh login attempt timed out).
+    chosen = connected_text or failure_text or last_text
     return {
-        'last_bridge_message': latest_text,
+        'last_bridge_message': chosen,
         'room_id': room_id,
+        'is_connected': bool(connected_text),
     }
 
 
@@ -248,6 +271,57 @@ class BridgeLoginStartView(APIView):
         }
 
 
+class BridgeStateView(APIView):
+    """GET /api/tools/matrix/bridges/<network>/state/
+
+    Returns current connection status for the bridge without requiring an
+    active login_id. Looks up the bot's existing management DM with the bridge
+    bot via ``m.direct`` and reads the most recent bridge messages to detect
+    a successful login.
+    """
+
+    def get(self, request, network):
+        client = getattr(request, 'client', None)
+        if client is None:
+            return Response({'error': 'Client not found'}, status=status.HTTP_401_UNAUTHORIZED)
+        if network not in SUPPORTED_NETWORKS:
+            return Response({'error': 'Unsupported network'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            with httpx.Client(timeout=10.0) as http:
+                resp = http.get(
+                    f'{_hs()}/_matrix/client/v3/user/{urllib.parse.quote(_bot_user_id())}/account_data/m.direct',
+                    headers=_auth(),
+                )
+                direct = resp.json() if resp.status_code == 200 else {}
+                rooms = direct.get(_bridge_mxid(network)) or []
+                if not rooms:
+                    return Response({'status': 'disconnected'})
+                state = _bridge_state(http, rooms[0], network)
+        except Exception as exc:
+            return Response(
+                {'error': f'{type(exc).__name__}: {exc}'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        last = state.get('last_bridge_message') or ''
+        if state.get('is_connected'):
+            # "Successfully logged in as +48727842737"
+            # or "Successfully logged in as dcprn (`839685195`)"
+            handle = ''
+            after = last.split(' as ', 1)
+            if len(after) == 2:
+                tail = after[1].split('(', 1)[0].strip()
+                handle = tail.rstrip('.,').strip('`')
+            return Response({
+                'status': 'connected',
+                'message': last,
+                'remote_handle': handle,
+                'room_id': state['room_id'],
+            })
+        return Response({'status': 'disconnected', 'message': last})
+
+
 class BridgeLoginStatusView(APIView):
     """GET /api/tools/matrix/bridges/<network>/login/status?login_id=<room_id>
 
@@ -276,8 +350,8 @@ class BridgeLoginStatusView(APIView):
             )
 
         last = state.get('last_bridge_message') or ''
-        if 'Successfully logged in' in last:
+        if state.get('is_connected'):
             return Response({'status': 'connected', 'message': last, 'room_id': room_id})
-        if 'expired' in last.lower():
+        if 'expired' in last.lower() or 'timed out' in last.lower():
             return Response({'status': 'expired', 'message': last, 'room_id': room_id})
         return Response({'status': 'pending', 'message': last, 'room_id': room_id})

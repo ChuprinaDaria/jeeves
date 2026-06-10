@@ -68,7 +68,7 @@ const IntegrationsPage = () => {
     let mounted = true;
     setLoading(true);
     Promise.all([
-      api.get('/clients/whatsapp/bridge/config/').catch(() => ({ data: {} })),
+      api.get('/tools/matrix/bridges/whatsapp/state/').catch(() => ({ data: {} })),
       api.get('/clients/me/'),
       api.get('/clients/email-smtp/config/').catch(() => ({ data: {} })),
       api.get('/clients/telegram/config/').catch(() => ({ data: {} })),
@@ -78,14 +78,14 @@ const IntegrationsPage = () => {
         if (!mounted) return;
         setClientInfo(me.data);
         setStatus({
-          whatsapp:  wa.data?.whatsapp_bridge_status === 'connected',
+          whatsapp:  wa.data?.status === 'connected',
           email:     !!email.data?.email_smtp_enabled,
           telegram:  !!tg.data?.telegram_enabled,
           hitl:      !!hitl.data?.hitl_enabled,
           extension: !!me.data?.extension_enabled,
           web:       true,
         });
-        setWhatsappPhone(wa.data?.whatsapp_bridge_phone || '');
+        setWhatsappPhone(wa.data?.remote_handle || '');
       })
       .finally(() => mounted && setLoading(false));
     return () => { mounted = false; };
@@ -94,10 +94,10 @@ const IntegrationsPage = () => {
   const reload = (keys) => {
     const tasks = [];
     if (keys.includes('whatsapp')) tasks.push(
-      api.get('/clients/whatsapp/bridge/config/')
+      api.get('/tools/matrix/bridges/whatsapp/state/')
         .then((r) => {
-          setStatus((s) => ({ ...s, whatsapp: r.data?.whatsapp_bridge_status === 'connected' }));
-          setWhatsappPhone(r.data?.whatsapp_bridge_phone || '');
+          setStatus((s) => ({ ...s, whatsapp: r.data?.status === 'connected' }));
+          setWhatsappPhone(r.data?.remote_handle || '');
         })
         .catch(() => {})
     );
