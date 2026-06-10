@@ -259,6 +259,26 @@ const ConnectModal = ({ tool, onClose, onConnected }) => {
           </button>
         </div>
 
+        {tool.slug === 'matrix' && (
+          <div className="px-6 pt-4 pb-2 text-xs text-slate space-y-2">
+            <p className="font-medium text-ink">{t('tools.matrix.howto_title', 'How to connect')}</p>
+            <ol className="list-decimal list-inside space-y-1">
+              <li>{t('tools.matrix.step_login', 'Sign in to your Matrix homeserver in Element (web/desktop/mobile).')}</li>
+              <li>
+                {t('tools.matrix.step_token', 'Open Settings → Help & About → Advanced → Access Token, copy it.')}
+              </li>
+              <li>
+                {t('tools.matrix.step_bridge', 'To pair WhatsApp / Telegram / Instagram, DM the bridge bot in Element and follow:')}
+                <ul className="list-disc list-inside ml-4 mt-1">
+                  <li><code>@whatsappbot:&lt;your-domain&gt;</code> → <code>login</code> (scan QR)</li>
+                  <li><code>@telegrambot:&lt;your-domain&gt;</code> → <code>login</code> (phone + code)</li>
+                  <li><code>@metabot:&lt;your-domain&gt;</code> → <code>login instagram</code> or <code>login facebook</code></li>
+                </ul>
+              </li>
+            </ol>
+          </div>
+        )}
+
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (

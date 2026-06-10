@@ -62,3 +62,7 @@ docs/superpowers/
 
 # Extension zip (built artifact)
 backend/chrome_extension/*.zip
+
+# Tooling scratch dirs (fartrun MCP reports, firecrawl research dumps)
+.fartrun/
+.firecrawl/

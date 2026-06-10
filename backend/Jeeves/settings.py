@@ -86,6 +86,7 @@ INSTALLED_APPS = [
     "Jeeves.tools",
     "Jeeves.agents",
     "Jeeves.mcp_hub",
+    "Jeeves.content_planner",
 ]
 
 MIDDLEWARE = [
@@ -435,7 +436,32 @@ MCP_SERVERS = {
         'args': ['-y', '@modelcontextprotocol/server-sequential-thinking'],
         'enabled': True,
     },
+    'matrix': {
+        'command': 'python',
+        'args': ['-m', 'mcp_servers.matrix.server'],
+        'enabled': True,
+    },
+    'hardware': {
+        'command': 'python',
+        'args': ['-m', 'mcp_servers.hardware.server'],
+        'enabled': False,
+    },
+    'google-workspace': {
+        'command': 'python',
+        'args': ['-m', 'mcp_servers.google_workspace.server'],
+        'enabled': True,
+    },
+    'content-planner': {
+        'command': 'python',
+        'args': ['-m', 'mcp_servers.content_planner.server'],
+        'enabled': True,
+    },
 }
+
+# Matrix homeserver service-account (used when ToolConnection.credentials is missing)
+MATRIX_HOMESERVER_URL = os.environ.get('MATRIX_HOMESERVER_URL', '')
+MATRIX_BOT_USER_ID = os.environ.get('MATRIX_BOT_USER_ID', '')
+MATRIX_BOT_TOKEN = os.environ.get('MATRIX_BOT_TOKEN', '')
 
 MCP_TOOL_SCOPES = {
     'send_email': ['assistant'],
@@ -449,5 +475,51 @@ MCP_TOOL_SCOPES = {
     'canvas_add_tool_connection': ['assistant'],
     'canvas_remove_tool_connection': ['assistant'],
     'canvas_list_connections': ['assistant'],
+    # Matrix (cross-platform DM via mautrix bridges)
+    'matrix_list_rooms': ['assistant', 'manager'],
+    'matrix_read_room_history': ['assistant', 'manager'],
+    'matrix_send_message': ['assistant', 'manager'],
+    'matrix_send_typing': ['assistant'],
+    'matrix_mark_read': ['assistant'],
+    'matrix_invite_user': ['manager'],
+    # Hardware (remote PC control — admin-only by default)
+    'pc_wake': ['assistant'],
+    'pc_shutdown': ['assistant'],
+    'pc_status': ['assistant'],
+    'pc_launch_workspace': ['assistant'],
+    'pc_stop_workspace': ['assistant'],
+    'pc_list_dir': ['assistant'],
+    'pc_read_file': ['assistant'],
+    'pc_write_file': ['assistant'],
+    'pc_find_files': ['assistant'],
+    'pc_grep': ['assistant'],
+    'pc_disk_usage': ['assistant'],
+    'pc_processes': ['assistant'],
+    'pc_screenshot': ['assistant'],
+    'pc_clipboard_read': ['assistant'],
+    'pc_clipboard_write': ['assistant'],
+    'pc_open_url': ['assistant'],
+    'pc_system_info': ['assistant'],
+    'pc_run_safe': ['assistant'],
+    # Google Workspace
+    'gcal_list_events': ['assistant', 'manager'],
+    'gcal_create_event': ['assistant', 'manager'],
+    'gcal_suggest_time': ['assistant', 'manager'],
+    'sheets_read_range': ['assistant', 'manager'],
+    'sheets_append_row': ['assistant', 'manager'],
+    'reviews_list': ['manager'],
+    'reviews_reply': ['manager'],
+    # Content Planner
+    'cp_create_plan': ['assistant', 'manager'],
+    'cp_list_plans': ['assistant', 'manager'],
+    'cp_approve_plan': ['manager'],
+    'cp_create_post': ['assistant', 'manager'],
+    'cp_list_posts': ['assistant', 'manager'],
+    'cp_approve_post': ['manager'],
+    'cp_reschedule_post': ['assistant', 'manager'],
+    'cp_reject_post': ['manager'],
+    'cp_mark_published': ['assistant', 'manager'],
+    'cp_capture_idea': ['assistant', 'manager'],
+    'cp_list_ideas': ['assistant', 'manager'],
 }
 

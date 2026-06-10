@@ -1,0 +1,47 @@
+# mautrix-telegram — minimal config.
+# Full template: https://github.com/mautrix/telegram/blob/master/mautrix_telegram/example-config.yaml
+# You need a Telegram API ID + hash from https://my.telegram.org/apps
+
+homeserver:
+  address: http://synapse:8008
+  domain: matrix.lazysoft.example.com
+  verify_ssl: true
+
+appservice:
+  address: http://mautrix-telegram:29317
+  hostname: 0.0.0.0
+  port: 29317
+  database: sqlite:///data/mautrix-telegram.db
+  id: telegram
+  bot_username: telegrambot
+  bot_displayname: Telegram bridge bot
+  as_token: GENERATE_ME
+  hs_token: GENERATE_ME
+
+telegram:
+  api_id: REPLACE_ME
+  api_hash: REPLACE_ME
+  bot_token: disabled  # set to a real bot token for "bot mode", or keep "disabled" for userbot only
+
+bridge:
+  username_template: "telegram_{userid}"
+  alias_template: "telegram_{groupname}"
+  displayname_template: "{displayname} (TG)"
+  delivery_receipts: true
+  permissions:
+    "*": relaybot
+    "matrix.lazysoft.example.com": full
+    "@jeeves-bot:matrix.lazysoft.example.com": admin
+
+logging:
+  version: 1
+  root:
+    level: INFO
+    handlers: [console]
+  handlers:
+    console:
+      class: logging.StreamHandler
+      formatter: precise
+  formatters:
+    precise:
+      format: "[%(asctime)s] [%(levelname)s@%(name)s] %(message)s"

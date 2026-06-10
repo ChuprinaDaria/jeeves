@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { mcpServersAPI } from '../../api/owner';
@@ -21,10 +21,13 @@ const TRANSPORT_LABELS = {
   streamable_http: 'HTTP',
 };
 
+const ALL_CATEGORY = '__all__';
+
 const MCPServersPage = () => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activeCategory, setActiveCategory] = useState(ALL_CATEGORY);
   const navigate = useNavigate();
 
   const refresh = () => {
@@ -43,6 +46,20 @@ const MCPServersPage = () => {
     refresh();
   }, []);
 
+  const categories = useMemo(() => {
+    const counts = rows.reduce((acc, row) => {
+      const key = row.category || 'custom';
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(counts).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [rows]);
+
+  const filteredRows = useMemo(() => {
+    if (activeCategory === ALL_CATEGORY) return rows;
+    return rows.filter((row) => (row.category || 'custom') === activeCategory);
+  }, [rows, activeCategory]);
+
   const handleDelete = async (row) => {
     if (!window.confirm(`Delete "${row.name}"?`)) return;
     try {
@@ -51,6 +68,25 @@ const MCPServersPage = () => {
     } catch (e) {
       alert(e?.response?.data?.error || 'Delete failed');
     }
+  };
+
+  const tabButton = (key, label, count) => {
+    const isActive = activeCategory === key;
+    return (
+      <button
+        key={key}
+        type="button"
+        onClick={() => setActiveCategory(key)}
+        className={`px-3 py-1.5 text-xs rounded-sm border transition-colors ${
+          isActive
+            ? 'bg-ink text-cream border-ink'
+            : 'bg-cream text-ink/70 border-ink/15 hover:bg-ink/5'
+        }`}
+      >
+        {label}
+        <span className="ml-1.5 opacity-70">({count})</span>
+      </button>
+    );
   };
 
   return (
@@ -64,6 +100,15 @@ const MCPServersPage = () => {
           + Add MCP Server
         </button>
       </div>
+
+      {!loading && rows.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {tabButton(ALL_CATEGORY, 'All', rows.length)}
+          {categories.map(([key, count]) =>
+            tabButton(key, CATEGORY_LABELS[key] || key, count),
+          )}
+        </div>
+      )}
 
       {loading && <p className="text-sm text-ink/60">Loading...</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -80,7 +125,11 @@ const MCPServersPage = () => {
         </div>
       )}
 
-      {!loading && rows.length > 0 && (
+      {!loading && rows.length > 0 && filteredRows.length === 0 && (
+        <p className="text-sm text-ink/60">No servers in this category.</p>
+      )}
+
+      {!loading && filteredRows.length > 0 && (
         <table className="w-full text-sm border border-ink/10 rounded-sm overflow-hidden">
           <thead className="bg-ink/5 text-left">
             <tr>
@@ -94,7 +143,7 @@ const MCPServersPage = () => {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {filteredRows.map((row) => (
               <tr key={row.id} className="border-t border-ink/10">
                 <td className="px-3 py-2 font-medium">
                   {row.name}

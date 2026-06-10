@@ -1,0 +1,18 @@
+pc:
+  mac: "AA:BB:CC:DD:EE:FF"      # MAC-адреса ПК
+  ip: "192.168.1.100"            # локальна IP ПК
+  ssh_user: "dasha"
+  ssh_key: "/home/pi/.ssh/id_rsa"
+  broadcast: "192.168.1.255"
+
+repos:
+  nexelin: "/home/dasha/projects/nexelin"
+  adme: "/home/dasha/projects/adme"
+  usage-monitor: "/home/dasha/projects/claude-usage-monitor"
+  scraper: "/home/dasha/projects/ai-lead-scraper"
+  runebox: "/home/dasha/projects/runebox"
+
+timeouts:
+  wol_wait: 120
+  ssh_wait: 15
+  ping_interval: 3

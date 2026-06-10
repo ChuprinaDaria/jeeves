@@ -1,0 +1,43 @@
+# mautrix-meta — bridges Instagram DM + Facebook Messenger via a single bridge.
+# Full template: https://github.com/mautrix/meta/blob/main/example-config.yaml
+# Requires Instagram/Facebook account credentials or cookies; FB Messenger via
+# user account, NOT Page access tokens.
+
+network:
+  # 'instagram' | 'facebook' | 'messenger'  — the bridge can pick at login time
+  mode: instagram
+
+homeserver:
+  address: http://synapse:8008
+  domain: matrix.lazysoft.example.com
+  software: standard
+
+appservice:
+  address: http://mautrix-meta:29319
+  hostname: 0.0.0.0
+  port: 29319
+  database:
+    type: sqlite3-fk-wal
+    uri: file:/data/mautrix-meta.db?_txlock=immediate
+  id: meta
+  bot:
+    username: metabot
+    displayname: Meta bridge bot
+  as_token: GENERATE_ME
+  hs_token: GENERATE_ME
+
+bridge:
+  username_template: "meta_{{.}}"
+  displayname_template: "{{or .DisplayName .Username}} ({{if eq .Network \"instagram\"}}IG{{else}}FB{{end}})"
+  personal_filtering_spaces: true
+  delivery_receipts: true
+  permissions:
+    "*": relay
+    "matrix.lazysoft.example.com": user
+    "@jeeves-bot:matrix.lazysoft.example.com": admin
+
+logging:
+  min_level: info
+  writers:
+    - type: stdout
+      format: pretty-colored
