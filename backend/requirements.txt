@@ -15,7 +15,7 @@ click-repl==0.3.0
 distro==1.9.0
 Django==5.1.15
 django-cors-headers==4.5.0
-django-environ==0.11.2
+django-environ==0.13.0
 django-formtools==2.6.1
 django-otp==1.5.4
 django-phonenumber-field==8.4.0
