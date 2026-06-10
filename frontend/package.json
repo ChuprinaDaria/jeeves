@@ -18,7 +18,7 @@
     "axios": "^1.13.1",
     "d3-cloud": "^1.2.9",
     "i18next": "^26.2.0",
-    "lucide-react": "^1.16.0",
+    "lucide-react": "^1.17.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.7",
     "react-hook-form": "^7.76.1",
