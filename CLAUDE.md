@@ -46,6 +46,22 @@ cd backend && docker compose up -d      # Backend on :8000
 cd frontend && docker compose up -d     # Frontend on :3000
 ```
 
+### Matrix (optional — for `mcp_matrix`)
+
+```bash
+cd infra/matrix
+cp .env.example .env                              # fill MATRIX_DOMAIN + SYNAPSE_DB_PASSWORD
+mkdir -p synapse
+docker compose --env-file .env run --rm synapse generate
+# … patch synapse/homeserver.yaml (Postgres, listeners, federation off) — see docs/matrix-setup.md
+docker compose --env-file .env up -d synapse-db synapse
+docker compose exec -T synapse register_new_matrix_user \
+  -u jeeves-bot -p <STRONG_PWD> -a -c /data/homeserver.yaml http://localhost:8008
+# capture access_token via POST /_matrix/client/v3/login, drop into backend/.env as MATRIX_BOT_TOKEN
+```
+
+Bridges (WhatsApp / Telegram / Meta) live in the same compose but require per-bridge credentials and Synapse `app_service_config_files:` wiring — see `docs/matrix-setup.md` §3.
+
 ## Architecture
 
 ### Monorepo layout
@@ -66,6 +82,7 @@ cd frontend && docker compose up -d     # Frontend on :3000
 | `specializations` | Org hierarchy Level 2 — documents + embeddings |
 | `clients` | **Largest app.** Tenants, channels (WhatsApp/Telegram/Email/Widget), HITL, leads, QR codes |
 | `concierge_platform` | PlatformDefaults (singleton), FeatureFlag, SystemMessage |
+| `content_planner` | ContentPlan / ContentPost / ContentIdea — editorial calendar fed by `mcp_content_planner` |
 | `EmbeddingModel` | EmbeddingModel, LLMProvider, ModelPair — AI model registry |
 | `mcp_hub` | MCP server management + tool execution |
 | `processing` | Document parsing, chunking, embedding, UsageStats |
@@ -82,7 +99,7 @@ Dual-agent system: Assistant (sandbox, full power) + Consultant (messengers, lea
 
 ### MCP servers (`backend/mcp_servers/`)
 
-9 FastMCP servers communicating via stdio. Each bootstraps Django ORM through `mcp_servers.common.django_setup`:
+FastMCP servers communicating via stdio. Each bootstraps Django ORM through `mcp_servers.common.django_setup`:
 
 | Server | Function |
 |--------|----------|
@@ -94,8 +111,22 @@ Dual-agent system: Assistant (sandbox, full power) + Consultant (messengers, lea
 | `coaching` | AI coaching, gap analysis |
 | `sales_intel` | Website scraping, tech stack detection |
 | `xlsx` | Excel generation with formulas (LibreOffice) |
+| `matrix` | Cross-platform DM via Synapse + mautrix bridges (IG/FB/WA/TG). Replaces direct Meta Graph / Telegram Bot API |
+| `hardware` | Remote workstation control via SSH + Wake-on-LAN (ported from sloth/pi-remote). Disabled by default — requires `config.yaml` |
+| `google_workspace` | Google Calendar / Sheets / Business Reviews via OAuth |
+| `content_planner` | Editorial CRUD over `content_planner.ContentPlan` / `ContentPost` / `ContentIdea`. Publishes through `mcp_matrix` |
 
 Configured in `settings.py` under `MCP_SERVERS`. Tool scopes in `MCP_TOOL_SCOPES`.
+
+### Matrix infrastructure (`infra/matrix/`)
+
+Optional self-hosted Synapse + mautrix bridges stack that powers `mcp_matrix`. Full setup spec: [`docs/matrix-setup.md`](docs/matrix-setup.md).
+
+- `docker compose --env-file .env up -d synapse-db synapse` (from `infra/matrix/`).
+- Backend `web` joins the external Docker network `matrix_matrix`; `mcp_matrix` reaches Synapse at `http://synapse:8008`.
+- `backend/.env` must define `MATRIX_HOMESERVER_URL`, `MATRIX_BOT_USER_ID`, `MATRIX_BOT_TOKEN` (service-account `@jeeves-bot:<domain>`).
+- Per-client OAuth-style credentials live in `tools.ToolConnection.credentials` (slug=`matrix`, `EncryptedJSONField`): `{homeserver_url, user_id, access_token}`.
+- Bridges (`mautrix-whatsapp`, `mautrix-telegram`, `mautrix-meta`) ship in compose but stay down until per-bridge `config.yaml` + AS registration are generated. None are live yet.
 
 ### Frontend architecture
 
