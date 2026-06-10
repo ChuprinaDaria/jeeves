@@ -2108,6 +2108,49 @@ class WhatsAppBridgeConfig(models.Model):
         return f"WhatsApp Bridge ({self.homeserver_domain}) — {status}"
 
 
+class MatrixRoomBinding(models.Model):
+    """Maps a Matrix ``room_id`` to a Jeeves ``Client`` + source network.
+
+    Populated when the agent (or a bridge bot) joins a room on behalf of a
+    client puppet. The long-poll listener uses this table to route inbound
+    Matrix events to the correct client's agent.
+    """
+
+    SOURCE_MATRIX = 'matrix'
+    SOURCE_TELEGRAM = 'telegram'
+    SOURCE_WHATSAPP = 'whatsapp'
+    SOURCE_INSTAGRAM = 'instagram'
+    SOURCE_FACEBOOK = 'facebook'
+    SOURCE_CHOICES = [
+        (SOURCE_MATRIX, 'Matrix (native)'),
+        (SOURCE_TELEGRAM, 'Telegram'),
+        (SOURCE_WHATSAPP, 'WhatsApp'),
+        (SOURCE_INSTAGRAM, 'Instagram DM'),
+        (SOURCE_FACEBOOK, 'Facebook Messenger'),
+    ]
+
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='matrix_rooms')
+    room_id = models.CharField(max_length=255, unique=True)
+    source_network = models.CharField(max_length=20, choices=SOURCE_CHOICES, default=SOURCE_MATRIX)
+    remote_handle = models.CharField(
+        max_length=255, blank=True,
+        help_text='Source-network identifier of the other party (phone, @username, IG handle).'
+    )
+    last_event_id = models.CharField(max_length=255, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['client', 'is_active']),
+            models.Index(fields=['source_network']),
+        ]
+
+    def __str__(self):
+        return f'{self.client_id}:{self.source_network} {self.room_id}'
+
+
 class Lead(models.Model):
     """Lead collected from messenger conversations via LLM extraction."""
 

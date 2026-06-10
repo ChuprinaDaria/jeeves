@@ -531,5 +531,18 @@
     "status": "Status",
     "date": "Dato",
     "viewConversation": "Se samtale"
+  },
+  "tools": {
+    "matrix": {
+      "howto_title": "Sådan forbinder du",
+      "step_login": "Log ind på din Matrix-server i Element (web/desktop/mobil).",
+      "step_token": "Indstillinger → Hjælp og om → Avanceret → Adgangstoken, og kopiér det.",
+      "step_bridge": "For at parre WhatsApp / Telegram / Instagram, skriv til bridge-botten i Element:",
+      "bridge_whatsapp": "scan QR",
+      "bridge_telegram": "telefon + SMS-kode",
+      "bridge_meta": "Instagram- eller Facebook-login",
+      "field_homeserver_help": "f.eks. https://matrix.example.com",
+      "bridges_label": "Aktive bridges"
+    }
   }
 }

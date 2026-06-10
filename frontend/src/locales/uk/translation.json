@@ -338,5 +338,18 @@
     "reportSendError": "Не вдалося надіслати звіт",
     "reportInvalidEmail": "Неправильний email",
     "reportMaxRecipients": "Максимум 5 отримувачів"
+  },
+  "tools": {
+    "matrix": {
+      "howto_title": "Як підключити",
+      "step_login": "Залогінься на свій Matrix-сервер у Element (web/desktop/mobile).",
+      "step_token": "Налаштування → Допомога й про програму → Розширені → Access Token, скопіюй.",
+      "step_bridge": "Щоб під'єднати WhatsApp / Telegram / Instagram — напиши боту-мосту в Element:",
+      "bridge_whatsapp": "сканування QR",
+      "bridge_telegram": "телефон + SMS-код",
+      "bridge_meta": "логін Instagram або Facebook",
+      "field_homeserver_help": "напр. https://matrix.example.com",
+      "bridges_label": "Активні мости"
+    }
   }
 }

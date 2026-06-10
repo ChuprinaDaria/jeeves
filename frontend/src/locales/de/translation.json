@@ -594,5 +594,18 @@
     "viewConversationBtn": "Konversation ansehen",
     "noConversation": "Keine Konversation verknüpft",
     "close": "Schließen"
+  },
+  "tools": {
+    "matrix": {
+      "howto_title": "So verbindest du dich",
+      "step_login": "Melde dich bei deinem Matrix-Server in Element an (Web/Desktop/Mobil).",
+      "step_token": "Einstellungen → Hilfe & Info → Erweitert → Access Token, dann kopieren.",
+      "step_bridge": "Um WhatsApp / Telegram / Instagram zu koppeln, schreibe dem Bridge-Bot in Element:",
+      "bridge_whatsapp": "QR scannen",
+      "bridge_telegram": "Telefon + SMS-Code",
+      "bridge_meta": "Instagram- oder Facebook-Login",
+      "field_homeserver_help": "z. B. https://matrix.example.com",
+      "bridges_label": "Aktive Bridges"
+    }
   }
 }

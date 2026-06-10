@@ -13,6 +13,7 @@ setup()
 from fastmcp import FastMCP  # noqa: E402
 
 from mcp_servers.matrix.tools import (  # noqa: E402
+    create_dm_room as _create_dm_room,
     list_rooms as _list_rooms,
     read_room_history as _read_room_history,
     send_message as _send_message,
@@ -73,6 +74,16 @@ async def matrix_mark_read(client_id: int, room_id: str, event_id: str) -> str:
 async def matrix_invite_user(client_id: int, room_id: str, user_id: str) -> str:
     """Invite a Matrix user to a room — used for HITL escalation (e.g. invite a manager)."""
     return await _invite_user(client_id, room_id, user_id)
+
+
+@mcp.tool()
+async def matrix_create_dm_room(client_id: int | None, invitee_mxid: str, name: str | None = None) -> str:
+    """Create a private 1:1 Matrix room and invite a single user.
+
+    Use for Matrix-native conversations (HITL with a manager, smoke tests).
+    Bridged DMs (Telegram/WhatsApp/IG) appear automatically — do not create them here.
+    """
+    return await _create_dm_room(client_id, invitee_mxid, name)
 
 
 if __name__ == "__main__":

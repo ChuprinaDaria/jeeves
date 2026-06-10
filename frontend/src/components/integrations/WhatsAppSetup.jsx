@@ -33,13 +33,18 @@ const WhatsAppSetup = ({ onClose, bridgeConfig }) => {
     setError('');
     setQrData(null);
     try {
-      const res = await api.post('/clients/whatsapp/bridge/login/');
-      if (res.data.qr) {
-        setQrData(res.data.qr);
-        setLoginId(res.data.login_id);
-        startPolling(res.data.login_id);
-      } else if (res.data.error) {
-        setError(res.data.error);
+      const res = await api.post('/tools/matrix/bridges/whatsapp/login/start/');
+      const data = res.data;
+      if (data.step === 'connected') {
+        setStatus('connected');
+        setPhone(data.prompt || '');
+        setSuccess(t('integrations.whatsappConnected') || 'Connected');
+      } else if (data.qr) {
+        setQrData(data.qr);
+        setLoginId(data.login_id);
+        startPolling(data.login_id);
+      } else {
+        setError(data.error || data.prompt || 'Bridge did not return a QR code');
       }
     } catch (err) {
       const msg = err.response?.data?.error || err.response?.data?.detail || 'Failed to start login';
@@ -53,33 +58,23 @@ const WhatsAppSetup = ({ onClose, bridgeConfig }) => {
     stopPolling();
     pollRef.current = setInterval(async () => {
       try {
-        const res = await api.get(`/clients/whatsapp/bridge/login/status/?login_id=${id}`);
+        const res = await api.get(`/tools/matrix/bridges/whatsapp/login/status/?login_id=${encodeURIComponent(id)}`);
         const data = res.data;
-
-        if (data.status === 'connected' || data.status === 'success') {
+        if (data.status === 'connected') {
           stopPolling();
           setStatus('connected');
-          setPhone(data.phone || '');
           setQrData(null);
           setLoginId(null);
-          setSuccess(t('integrations.whatsappConnected'));
+          setSuccess(t('integrations.whatsappConnected') || 'Connected');
           setTimeout(() => setSuccess(''), 3000);
-        } else if (data.status === 'error' || data.status === 'failed') {
-          stopPolling();
-          setError(data.error || data.message || 'Connection failed');
-          setQrData(null);
-          setLoginId(null);
-        } else if (data.status === 'qr_expired') {
+        } else if (data.status === 'expired') {
           stopPolling();
           setQrData(null);
           setLoginId(null);
-          setError(t('integrations.qrExpired'));
-        } else if (data.qr) {
-          // New QR code received (refresh)
-          setQrData(data.qr);
+          setError(t('integrations.qrExpired') || 'QR expired');
         }
       } catch {
-        // Polling error, continue silently
+        // ignore polling errors
       }
     }, 2500);
   };

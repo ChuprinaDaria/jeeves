@@ -32,6 +32,8 @@ services:
       SYNAPSE_REPORT_STATS: "no"
     volumes:
       - ./synapse:/data
+      - ./bridges/mautrix-telegram/registration.yaml:/data/mautrix-telegram-registration.yaml:ro
+      - ./bridges/mautrix-whatsapp/registration.yaml:/data/mautrix-whatsapp-registration.yaml:ro
     ports:
       # System nginx reverse-proxies matrix.<domain> -> 127.0.0.1:8008
       - "127.0.0.1:8008:8008"
@@ -45,6 +47,9 @@ services:
       - synapse
     volumes:
       - ./bridges/mautrix-whatsapp:/data
+    environment:
+      UID: "1337"
+      GID: "1337"
     networks:
       - matrix
 
@@ -55,6 +60,9 @@ services:
       - synapse
     volumes:
       - ./bridges/mautrix-telegram:/data
+    environment:
+      UID: "1337"
+      GID: "1337"
     networks:
       - matrix
 

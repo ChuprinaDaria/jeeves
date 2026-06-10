@@ -4,9 +4,12 @@ import { X, Eye, EyeSlash, ArrowClockwise } from '@phosphor-icons/react';
 import { toolsAPI } from '../../api/tools';
 import api from '../../api/axios';
 
+const MATRIX_BRIDGES = ['telegram', 'whatsapp', 'instagram', 'facebook'];
+
 const ConnectModal = ({ tool, onClose, onConnected }) => {
   const { t } = useTranslation();
   const [credentials, setCredentials] = useState({});
+  const [bridges, setBridges] = useState([]);
   const [showPasswords, setShowPasswords] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -48,7 +51,9 @@ const ConnectModal = ({ tool, onClose, onConnected }) => {
     setError('');
 
     try {
-      const res = await toolsAPI.connect(tool.slug, credentials);
+      const res = tool.slug === 'matrix'
+        ? await toolsAPI.connectWithConfig(tool.slug, credentials, { bridges })
+        : await toolsAPI.connect(tool.slug, credentials);
       const data = res.data;
 
       if (data.status === 'connected') {
@@ -260,22 +265,42 @@ const ConnectModal = ({ tool, onClose, onConnected }) => {
         </div>
 
         {tool.slug === 'matrix' && (
-          <div className="px-6 pt-4 pb-2 text-xs text-slate space-y-2">
-            <p className="font-medium text-ink">{t('tools.matrix.howto_title', 'How to connect')}</p>
-            <ol className="list-decimal list-inside space-y-1">
-              <li>{t('tools.matrix.step_login', 'Sign in to your Matrix homeserver in Element (web/desktop/mobile).')}</li>
-              <li>
-                {t('tools.matrix.step_token', 'Open Settings → Help & About → Advanced → Access Token, copy it.')}
-              </li>
-              <li>
-                {t('tools.matrix.step_bridge', 'To pair WhatsApp / Telegram / Instagram, DM the bridge bot in Element and follow:')}
-                <ul className="list-disc list-inside ml-4 mt-1">
-                  <li><code>@whatsappbot:&lt;your-domain&gt;</code> → <code>login</code> (scan QR)</li>
-                  <li><code>@telegrambot:&lt;your-domain&gt;</code> → <code>login</code> (phone + code)</li>
-                  <li><code>@metabot:&lt;your-domain&gt;</code> → <code>login instagram</code> or <code>login facebook</code></li>
-                </ul>
-              </li>
-            </ol>
+          <div className="px-6 pt-4 pb-2 text-xs text-slate space-y-3">
+            <div className="space-y-2">
+              <p className="font-medium text-ink">{t('tools.matrix.howto_title')}</p>
+              <ol className="list-decimal list-inside space-y-1">
+                <li>{t('tools.matrix.step_login')}</li>
+                <li>{t('tools.matrix.step_token')}</li>
+                <li>
+                  {t('tools.matrix.step_bridge')}
+                  <ul className="list-disc list-inside ml-4 mt-1">
+                    <li><code>@whatsappbot:&lt;your-domain&gt;</code> → <code>login</code> ({t('tools.matrix.bridge_whatsapp')})</li>
+                    <li><code>@telegrambot:&lt;your-domain&gt;</code> → <code>login</code> ({t('tools.matrix.bridge_telegram')})</li>
+                    <li><code>@metabot:&lt;your-domain&gt;</code> → <code>login instagram</code> / <code>login facebook</code> ({t('tools.matrix.bridge_meta')})</li>
+                  </ul>
+                </li>
+              </ol>
+            </div>
+            <div>
+              <p className="font-medium text-ink mb-1">{t('tools.matrix.bridges_label', 'Enabled bridges')}</p>
+              <div className="grid grid-cols-2 gap-1">
+                {MATRIX_BRIDGES.map((b) => (
+                  <label key={b} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={bridges.includes(b)}
+                      onChange={(e) =>
+                        setBridges((prev) =>
+                          e.target.checked ? [...prev, b] : prev.filter((x) => x !== b)
+                        )
+                      }
+                      className="w-4 h-4 rounded-sm border-[1.5px] border-rule text-iris accent-iris"
+                    />
+                    <span className="capitalize">{b}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 

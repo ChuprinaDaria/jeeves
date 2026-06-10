@@ -115,6 +115,7 @@ class ToolConnectView(APIView):
             return Response({'error': 'Tool not found'}, status=status.HTTP_404_NOT_FOUND)
 
         credentials = request.data.get('credentials', {})
+        config = request.data.get('config', {})
         target = request.data.get('target', 'assistant')
 
         # Validate required fields from auth_config
@@ -146,16 +147,20 @@ class ToolConnectView(APIView):
             return Response({'status': 'pending', 'initiate_url': initiate_url})
 
         # api_key, credentials, none
+        defaults = {
+            'credentials': credentials,
+            'status': 'connected',
+            'enabled': True,
+            'connected_at': timezone.now(),
+            'last_error': '',
+            'error_count': 0,
+        }
+        if config:
+            defaults['config'] = config
         conn, _ = ToolConnection.objects.update_or_create(
             client=client, tool_card=tool_card, target=target,
-            defaults={
-                'credentials': credentials,
-                'status': 'connected',
-                'enabled': True,
-                'connected_at': timezone.now(),
-                'last_error': '',
-                'error_count': 0,
-            })
+            defaults=defaults,
+        )
         return Response({'status': conn.status})
 
 

@@ -234,6 +234,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'Jeeves.clients.tasks.check_escalation_timeouts',
         'schedule': 300.0,  # Run every 5 minutes to check for timed out escalations
     },
+    'matrix-listener-bootstrap': {
+        'task': 'agents.matrix_listener_bootstrap',
+        'schedule': 60.0,  # No-op if already running; self-respawns after crashes
+    },
 }
 
 # === RAG CONFIGS (SHORTENED) ===

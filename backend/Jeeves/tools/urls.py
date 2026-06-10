@@ -1,7 +1,13 @@
 from django.urls import path
 from . import views
+from . import bridge_views
 
 urlpatterns = [
+    path('matrix/bridges/<str:network>/login/start/',
+         bridge_views.BridgeLoginStartView.as_view(), name='matrix-bridge-login-start'),
+    path('matrix/bridges/<str:network>/login/status/',
+         bridge_views.BridgeLoginStatusView.as_view(), name='matrix-bridge-login-status'),
+
     path('catalog/', views.ToolCatalogView.as_view(), name='tool-catalog'),
     path('<slug:slug>/connect/', views.ToolConnectView.as_view(), name='tool-connect'),
     path('<slug:slug>/disconnect/', views.ToolDisconnectView.as_view(), name='tool-disconnect'),

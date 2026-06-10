@@ -70,3 +70,16 @@ backend/chrome_extension/*.zip
 # Local Synapse state (generated homeserver.yaml has secrets baked in)
 infra/matrix/synapse/
 infra/matrix/.bot-secret
+
+# Bridge runtime state — contains AS/HS tokens, login sessions, message db
+infra/matrix/bridges/*/config.yaml
+infra/matrix/bridges/*/registration.yaml
+infra/matrix/bridges/*/*.db
+infra/matrix/bridges/*/*.db-shm
+infra/matrix/bridges/*/*.db-wal
+infra/matrix/bridges/*/logs/
+
+# Playwright dev snapshots
+/*.yml
+/*.png
+.playwright-mcp/

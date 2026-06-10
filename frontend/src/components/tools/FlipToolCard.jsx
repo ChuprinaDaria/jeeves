@@ -28,12 +28,167 @@ const resolveTagline = (tool, lang) => {
   return tool.tagline;
 };
 
+const MATRIX_BRIDGES = ['telegram', 'whatsapp', 'instagram', 'facebook'];
+
+const MatrixBridgesPanel = ({ bridges, setBridges, t }) => {
+  const [activeBridge, setActiveBridge] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [loginState, setLoginState] = useState(null); // {login_id, qr, prompt, step}
+  const [input, setInput] = useState('');
+  const pollRef = useRef(null);
+
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+
+  const startBridge = async (network) => {
+    setError('');
+    setActiveBridge(network);
+    setLoading(true);
+    setLoginState(null);
+    setInput('');
+    try {
+      const res = await toolsAPI.startBridgeLogin(network);
+      setLoginState(res.data);
+      if (res.data.step !== 'connected') startPolling(network, res.data.login_id);
+      else stopPolling();
+    } catch (e) {
+      setError(e.response?.data?.error || 'Bridge login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startPolling = (network, loginId) => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(async () => {
+      try {
+        const s = await toolsAPI.bridgeLoginStatus(network, loginId);
+        if (s.data.status === 'connected') {
+          setLoginState(prev => ({ ...(prev || {}), step: 'connected', prompt: s.data.message }));
+          stopPolling();
+          if (!bridges.includes(network)) setBridges([...bridges, network]);
+        }
+      } catch { /* ignore */ }
+    }, 3000);
+  };
+
+  const stopPolling = () => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+  };
+
+  const submitStep = async () => {
+    if (!input.trim() || !activeBridge) return;
+    setLoading(true);
+    setError('');
+    try {
+      const res = await toolsAPI.startBridgeLogin(activeBridge, input.trim());
+      setInput('');
+      setLoginState(res.data);
+      if (res.data.step === 'connected') {
+        stopPolling();
+        if (!bridges.includes(activeBridge)) setBridges([...bridges, activeBridge]);
+      } else {
+        startPolling(activeBridge, res.data.login_id);
+      }
+    } catch (e) {
+      setError(e.response?.data?.error || 'Submit failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isConnected = loginState?.step === 'connected';
+
+  return (
+    <div className="pt-1">
+      <div className="text-[10px] font-medium text-slate mb-1">
+        {t('tools.matrix.bridges_label')}
+      </div>
+      <div className="grid grid-cols-2 gap-0.5">
+        {MATRIX_BRIDGES.map((b) => (
+          <label key={b} className="flex items-center gap-1 text-[10px] text-slate cursor-pointer">
+            <input
+              type="checkbox"
+              checked={bridges.includes(b)}
+              onChange={(e) => {
+                if (e.target.checked) startBridge(b);
+                else setBridges(bridges.filter((x) => x !== b));
+              }}
+              className="w-3 h-3 rounded-sm border-[1.5px] border-rule accent-iris"
+            />
+            <span className="capitalize">{b}</span>
+          </label>
+        ))}
+      </div>
+
+      {activeBridge && (
+        <div className="mt-2 p-2 border-[1.5px] border-rule rounded-sm bg-mist/40 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <div className="text-[10px] font-semibold capitalize text-ink">{activeBridge} login</div>
+            <button
+              type="button"
+              onClick={() => { stopPolling(); setActiveBridge(null); setLoginState(null); }}
+              className="text-[10px] text-fog hover:text-ink"
+            >×</button>
+          </div>
+
+          {error && (
+            <div className="text-[10px] text-rose">{error}</div>
+          )}
+
+          {loading && !loginState && (
+            <div className="flex items-center gap-1 text-[10px] text-fog">
+              <ArrowClockwise weight="light" size={12} className="animate-spin" />
+              Talking to bridge…
+            </div>
+          )}
+
+          {loginState?.qr && !isConnected && (
+            <div className="flex flex-col items-center gap-1">
+              <img src={`data:image/png;base64,${loginState.qr}`} alt="QR" className="w-32 h-32 bg-paper p-1 rounded-sm" />
+              <div className="text-[10px] text-slate text-center">Scan with phone's WhatsApp → Linked devices</div>
+            </div>
+          )}
+
+          {loginState?.prompt && !loginState?.qr && !isConnected && (
+            <div className="space-y-1">
+              <div className="text-[10px] text-slate whitespace-pre-wrap">{loginState.prompt}</div>
+              <div className="flex gap-1">
+                <input
+                  type={loginState.step === 'password' ? 'password' : 'text'}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder={loginState.step}
+                  className="flex-1 px-1.5 py-1 text-[10px] border-[1.5px] border-rule rounded-sm bg-paper outline-none focus:border-iris"
+                />
+                <button
+                  type="button"
+                  onClick={submitStep}
+                  disabled={loading || !input.trim()}
+                  className="px-2 py-1 text-[10px] border-[1.5px] border-iris text-iris rounded-sm disabled:opacity-50"
+                >Send</button>
+              </div>
+            </div>
+          )}
+
+          {isConnected && (
+            <div className="text-[10px] text-sage">
+              ✓ {loginState.prompt || 'Connected'}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
   const { t, i18n } = useTranslation();
   const [flipped, setFlipped] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [credentials, setCredentials] = useState({});
+  const [bridges, setBridges] = useState([]);
   const [showPasswords, setShowPasswords] = useState({});
   const [qrData, setQrData] = useState(null);
   const pollRef = useRef(null);
@@ -127,7 +282,9 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
     setLoading(true);
     setError('');
     try {
-      const res = await toolsAPI.connect(tool.slug, credentials, { timeout: 10000 });
+      const res = tool.slug === 'matrix'
+        ? await toolsAPI.connectWithConfig(tool.slug, credentials, { bridges })
+        : await toolsAPI.connect(tool.slug, credentials, { timeout: 10000 });
       if (res.data.status === 'connected') {
         setFlipped(false);
         onConnected(tool.slug);
@@ -385,6 +542,13 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
                   )}
                 </div>
               ))}
+              {tool.slug === 'matrix' && (
+                <MatrixBridgesPanel
+                  bridges={bridges}
+                  setBridges={setBridges}
+                  t={t}
+                />
+              )}
               <button
                 type="submit"
                 disabled={loading}

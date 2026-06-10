@@ -115,7 +115,7 @@ services:
       - .:/app
     extra_hosts:
       - "ollama:host-gateway"
-    networks: [jeeves_network]
+    networks: [jeeves_network, matrix]
 
   # ==================== CELERY BEAT ==========================
   celery_beat:

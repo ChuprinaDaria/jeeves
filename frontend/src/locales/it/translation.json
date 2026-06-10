@@ -531,5 +531,18 @@
     "status": "Stato",
     "date": "Data",
     "viewConversation": "Vedi conversazione"
+  },
+  "tools": {
+    "matrix": {
+      "howto_title": "Come connettersi",
+      "step_login": "Accedi al tuo server Matrix da Element (web/desktop/mobile).",
+      "step_token": "Impostazioni → Aiuto e info → Avanzate → Token di accesso, poi copialo.",
+      "step_bridge": "Per collegare WhatsApp / Telegram / Instagram, scrivi al bot bridge in Element:",
+      "bridge_whatsapp": "scansiona QR",
+      "bridge_telegram": "telefono + codice SMS",
+      "bridge_meta": "accesso a Instagram o Facebook",
+      "field_homeserver_help": "es. https://matrix.example.com",
+      "bridges_label": "Bridge attivi"
+    }
   }
 }

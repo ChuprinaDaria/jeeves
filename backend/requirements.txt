@@ -37,10 +37,6 @@ joblib==1.5.2
 jsonpatch==1.33
 jsonpointer==3.1.1
 kombu==5.6.2
-langchain==0.3.30
-langchain-core==1.3.3
-langchain-text-splitters==1.1.2
-langsmith==0.8.0
 lxml==6.1.0
 numpy==2.3.3
 tldextract==5.3.1

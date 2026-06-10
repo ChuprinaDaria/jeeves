@@ -531,5 +531,18 @@
     "status": "Status",
     "date": "Datum",
     "viewConversation": "Gesprek bekijken"
+  },
+  "tools": {
+    "matrix": {
+      "howto_title": "Hoe verbinden",
+      "step_login": "Log in op je Matrix-server in Element (web/desktop/mobiel).",
+      "step_token": "Instellingen → Help en info → Geavanceerd → Toegangstoken, kopieer het.",
+      "step_bridge": "Om WhatsApp / Telegram / Instagram te koppelen, stuur de bridge-bot in Element:",
+      "bridge_whatsapp": "QR scannen",
+      "bridge_telegram": "telefoon + sms-code",
+      "bridge_meta": "Instagram- of Facebook-login",
+      "field_homeserver_help": "bijv. https://matrix.example.com",
+      "bridges_label": "Actieve bridges"
+    }
   }
 }

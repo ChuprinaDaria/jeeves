@@ -95,3 +95,37 @@ async def invite_user(client_id: int, room_id: str, user_id: str) -> str:
         return json.dumps({"ok": ok, "error": getattr(resp, "message", None)}, ensure_ascii=False)
     finally:
         await client.close()
+
+
+async def create_dm_room(
+    client_id: int | None,
+    invitee_mxid: str,
+    name: str | None = None,
+) -> str:
+    """Create a private 1:1 Matrix room with another user.
+
+    Used to seed a conversation from the agent's side (e.g. HITL room with a
+    manager, or a smoke-test room). Bridge-created rooms appear automatically
+    via the bridge bot — only call this for *Matrix-native* DMs.
+    """
+    client = await get_async_client(client_id)
+    try:
+        from nio import RoomVisibility
+
+        kwargs: dict[str, Any] = {
+            "visibility": RoomVisibility.private,
+            "invite": [invitee_mxid],
+            "is_direct": True,
+        }
+        if name:
+            kwargs["name"] = name
+        resp = await client.room_create(**kwargs)
+        room_id = getattr(resp, "room_id", None)
+        if not room_id:
+            return json.dumps(
+                {"ok": False, "error": getattr(resp, "message", "room_create returned no room_id")},
+                ensure_ascii=False,
+            )
+        return json.dumps({"ok": True, "room_id": room_id, "invited": [invitee_mxid]}, ensure_ascii=False)
+    finally:
+        await client.close()
