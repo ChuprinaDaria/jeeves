@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status, permissions
 from rest_framework.permissions import AllowAny
 from django.core.cache import cache as django_cache
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Sum
 from django.utils.timezone import now, timedelta
 from .serializers import RAGQuerySerializer, DocumentUploadSerializer
@@ -681,8 +681,19 @@ class PublicRAGChatView(APIView):
 
         lang = (language or 'en').strip().lower()
 
-        # Ключ для кешу (уникаємо збереження сирого тексту в ключі)
-        cache_key_src = f"{lang}:{text}"
+        # Ключ для кешу (уникаємо збереження сирого тексту в ключі).
+        # Включає клієнта та провайдера/модель — інакше результат одного
+        # тенанта/моделі віддавався б іншому для того самого тексту.
+        client_hint = getattr(client, 'id', None) or 'anon'
+        provider_hint = (
+            ((getattr(client, 'llm_provider', None) or '').strip().lower() if client is not None else '')
+            or settings.LLM_CONFIG.get('provider', 'openai')
+        )
+        model_hint = (
+            ((getattr(client, 'llm_model_name', None) or '').strip() if client is not None else '')
+            or settings.LLM_CONFIG.get('model', 'gpt-4o-mini')
+        )
+        cache_key_src = f"{client_hint}:{provider_hint}:{model_hint}:{lang}:{text}"
         cache_key = f"email_intent:{hashlib.sha256(cache_key_src.encode('utf-8')).hexdigest()}"
         cached_result = django_cache.get(cache_key)
         if cached_result is not None:
@@ -1595,15 +1606,21 @@ class BootstrapProvisionView(APIView):
                     except Exception:
                         pass
 
-                client = Client.objects.create(
-                    user=user.username,  # Store username as string (CharField)
-                    specialization=specialization,
-                    company_name=f"{branch.name} / {specialization.name}",
-                    is_active=True,
-                    client_type='generic',
-                    tag=client_token,
-                    description=f"Auto-created for token {client_token}",
-                )
+                try:
+                    # Savepoint: при паралельному bootstrap двоє можуть пройти
+                    # filter().first() і зіткнутися на unique tag
+                    with transaction.atomic():
+                        client = Client.objects.create(
+                            user=user.username,  # Store username as string (CharField)
+                            specialization=specialization,
+                            company_name=f"{branch.name} / {specialization.name}",
+                            is_active=True,
+                            client_type='generic',
+                            tag=client_token,
+                            description=f"Auto-created for token {client_token}",
+                        )
+                except IntegrityError:
+                    client = Client.objects.get(tag=client_token)
         
         # Update specialization if differs (for existing clients)
         if getattr(client, 'specialization_id', None) != getattr(specialization, 'id', None):

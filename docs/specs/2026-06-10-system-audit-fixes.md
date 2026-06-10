@@ -11,6 +11,9 @@ This spec records all of them, prioritized by impact, and defines what is fixed 
 
 ## Phase 1 — Critical fixes (THIS PR)
 
+> **Note:** file/line references below reflect the pre-fix state of the codebase
+> at audit time (2026-06-10); they will drift as the code evolves.
+
 ### 1.1 Insecure configuration defaults (CRITICAL)
 - `backend/Jeeves/settings.py:17` — `SECRET_KEY` defaulted to `"dev-secret"`.
 - `backend/Jeeves/settings.py:124` — `DB_PASS` defaulted to `"admin_pass"`.
@@ -139,6 +142,15 @@ all pre-existing ESLint errors fixed so lint can be blocking.
    webhook auth.
 6. **Observability.** Sentry, Flower, JSON logging, request-ID middleware,
    django-prometheus.
+7. **SSRF hardening against DNS rebinding.** The sales_intel check validates the
+   resolved IP at check time, but the downstream fetcher (external
+   open_sales_stack package) re-resolves at connect time. Full fix requires
+   pinning vetted IPs at socket-connect in the fetcher, or container egress
+   rules blocking private ranges.
+8. **Meta webhook fail-closed per tenant.** Signature header is now mandatory
+   and verified when a secret is known; clients without a configured
+   `meta_app_secret` still cannot be verified. Enforce secret configuration for
+   enabled WhatsApp clients (or refuse to enable the channel without one).
 
 ## Phase 3 — Medium priority
 

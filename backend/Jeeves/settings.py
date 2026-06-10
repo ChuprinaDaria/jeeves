@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from datetime import timedelta
+from django.core.exceptions import ImproperlyConfigured
 from environ import Env
 from typing import Any
 import mimetypes
@@ -19,7 +20,6 @@ DEBUG = env.bool("DEBUG", default=False)
 _DEV_SECRET_KEY = "dev-secret"
 SECRET_KEY = env("SECRET_KEY", default=_DEV_SECRET_KEY)
 if not DEBUG and SECRET_KEY == _DEV_SECRET_KEY:
-    from django.core.exceptions import ImproperlyConfigured
     raise ImproperlyConfigured(
         "SECRET_KEY is not set. Refusing to start with the insecure dev default while DEBUG=False. "
         "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(50))\""
@@ -132,7 +132,6 @@ WHITENOISE_MANIFEST_STRICT = False
 _DEV_DB_PASS = "admin_pass"
 _DB_PASS = env("DB_PASS", default=_DEV_DB_PASS)
 if not DEBUG and _DB_PASS == _DEV_DB_PASS:
-    from django.core.exceptions import ImproperlyConfigured
     raise ImproperlyConfigured(
         "DB_PASS is not set. Refusing to start with the insecure dev default while DEBUG=False."
     )

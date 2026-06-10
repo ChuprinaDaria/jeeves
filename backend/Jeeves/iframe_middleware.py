@@ -53,14 +53,13 @@ class AllowIframeMiddleware:
         )
 
         if allowed:
-            # Дозволяємо вбудовування з конкретного origin
-            response['X-Frame-Options'] = f'ALLOW-FROM {origin}' if origin else 'SAMEORIGIN'
+            # Origin може бути порожнім (зокрема GET-навігація) — тоді
+            # використовуємо валідований referer_origin, інакше SAMEORIGIN
+            # суперечив би щойно даному дозволу
+            ancestor = origin or referer_origin
+            response['X-Frame-Options'] = f'ALLOW-FROM {ancestor}'
             # Сучасний стандарт - Content-Security-Policy
-            if origin:
-                response['Content-Security-Policy'] = f"frame-ancestors {origin} 'self'"
-            else:
-                ancestors = ' '.join(self.allowed_iframe_hosts)
-                response['Content-Security-Policy'] = f"frame-ancestors {ancestors} 'self'"
+            response['Content-Security-Policy'] = f"frame-ancestors {ancestor} 'self'"
         else:
             # Для інших запитів використовуємо стандартну безпеку
             response['X-Frame-Options'] = 'SAMEORIGIN'

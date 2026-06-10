@@ -10,8 +10,13 @@ from Jeeves.agents.models import AgentLog
 logger = logging.getLogger(__name__)
 
 
-def _tool_timeout() -> int:
-    return getattr(settings, 'MCP_TOOL_TIMEOUT', 60)
+def _tool_timeout() -> float:
+    # Захист від 0/від'ємних значень з env — інакше кожен виклик одразу падав би
+    try:
+        timeout = float(getattr(settings, 'MCP_TOOL_TIMEOUT', 60))
+    except (TypeError, ValueError):
+        timeout = 60.0
+    return timeout if timeout > 0 else 60.0
 
 
 class MCPExecutor:
