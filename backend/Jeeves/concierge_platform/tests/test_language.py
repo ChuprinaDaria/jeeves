@@ -2,6 +2,8 @@ import pytest
 from Jeeves.concierge_platform.language import detect_language
 
 
+# detect_language ліниво будує детектор з PlatformDefaults.get() — потрібна БД
+@pytest.mark.django_db
 class TestLanguageDetection:
     def test_english(self):
         assert detect_language('Hello, how are you doing today?') == 'en'
