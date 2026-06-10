@@ -24,7 +24,7 @@
     "react-hook-form": "^7.76.1",
     "react-i18next": "^17.0.8",
     "react-markdown": "^10.1.0",
-    "react-router-dom": "^7.9.5",
+    "react-router-dom": "^7.17.0",
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
