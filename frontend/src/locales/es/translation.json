@@ -225,7 +225,12 @@
     "scanInstructions": "Abre WhatsApp en tu teléfono → Ajustes → Dispositivos vinculados → Vincular un dispositivo → Escanea este código QR",
     "whatsappDisabledByAdmin": "La integración de WhatsApp está deshabilitada por el administrador",
     "qrExpired": "Código QR expirado. Haz clic para actualizar.",
-    "connecting": "Conectando..."
+    "connecting": "Conectando...",
+    "telegramPersonalName": "Telegram (personal)",
+    "telegramPersonalDesc": "Tu cuenta personal a través del puente Matrix",
+    "telegramConnected": "Telegram conectado",
+    "startTelegramLogin": "Conectar Telegram",
+    "checkingState": "Comprobando el puente…"
   },
   "history": {
     "title": "Actividad",

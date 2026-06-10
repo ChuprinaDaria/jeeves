@@ -225,7 +225,12 @@
     "scanInstructions": "Åbn WhatsApp på din telefon → Indstillinger → Tilknyttede enheder → Tilknyt en enhed → Scan denne QR-kode",
     "whatsappDisabledByAdmin": "WhatsApp-integration er deaktiveret af administratoren",
     "qrExpired": "QR-kode udløbet. Klik for at opdatere.",
-    "connecting": "Forbinder..."
+    "connecting": "Forbinder...",
+    "telegramPersonalName": "Telegram (personlig)",
+    "telegramPersonalDesc": "Din personlige konto via Matrix-broen",
+    "telegramConnected": "Telegram forbundet",
+    "startTelegramLogin": "Forbind Telegram",
+    "checkingState": "Tjekker bro…"
   },
   "history": {
     "title": "Aktivitet",

@@ -231,7 +231,12 @@
     "scanInstructions": "Ouvrez WhatsApp sur votre téléphone → Paramètres → Appareils liés → Lier un appareil → Scannez ce QR code",
     "whatsappDisabledByAdmin": "L'intégration WhatsApp est désactivée par l'administrateur",
     "qrExpired": "QR code expiré. Cliquez pour actualiser.",
-    "connecting": "Connexion en cours..."
+    "connecting": "Connexion en cours...",
+    "telegramPersonalName": "Telegram (personnel)",
+    "telegramPersonalDesc": "Votre compte personnel via le bridge Matrix",
+    "telegramConnected": "Telegram connecté",
+    "startTelegramLogin": "Connecter Telegram",
+    "checkingState": "Vérification du bridge…"
   },
   "history": {
     "title": "Activité",

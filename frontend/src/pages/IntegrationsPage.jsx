@@ -34,6 +34,7 @@ import TelegramSetup from '../components/integrations/TelegramSetup';
 import ChromeExtensionSetup from '../components/integrations/ChromeExtensionSetup';
 import HITLSetup from '../components/integrations/HITLSetup';
 import WhatsAppSetup from '../components/integrations/WhatsAppSetup';
+import TelegramPersonalSetup from '../components/integrations/TelegramPersonalSetup';
 
 const ACCENT_BORDER = {
   rose:  'border-rose text-rose',
@@ -57,6 +58,7 @@ const IntegrationsPage = () => {
     web: true, // always "connected" for all clients
   });
   const [whatsappPhone, setWhatsappPhone] = useState('');
+  const [telegramPersonalHandle, setTelegramPersonalHandle] = useState('');
   const [modal, setModal] = useState(null); // 'whatsapp' | 'email' | 'telegram' | 'hitl' | 'extension' | 'webwidget' | 'web'
   const [webQR, setWebQR] = useState(null);
   const [loadingWebQR, setLoadingWebQR] = useState(false);
@@ -73,19 +75,22 @@ const IntegrationsPage = () => {
       api.get('/clients/email-smtp/config/').catch(() => ({ data: {} })),
       api.get('/clients/telegram/config/').catch(() => ({ data: {} })),
       api.get('/clients/hitl/config/').catch(() => ({ data: {} })),
+      api.get('/tools/matrix/bridges/telegram/state/').catch(() => ({ data: {} })),
     ])
-      .then(([wa, me, email, tg, hitl]) => {
+      .then(([wa, me, email, tg, hitl, tgPersonal]) => {
         if (!mounted) return;
         setClientInfo(me.data);
         setStatus({
-          whatsapp:  wa.data?.status === 'connected',
-          email:     !!email.data?.email_smtp_enabled,
-          telegram:  !!tg.data?.telegram_enabled,
-          hitl:      !!hitl.data?.hitl_enabled,
-          extension: !!me.data?.extension_enabled,
-          web:       true,
+          whatsapp:         wa.data?.status === 'connected',
+          email:            !!email.data?.email_smtp_enabled,
+          telegram:         !!tg.data?.telegram_enabled,
+          telegramPersonal: tgPersonal.data?.status === 'connected',
+          hitl:             !!hitl.data?.hitl_enabled,
+          extension:        !!me.data?.extension_enabled,
+          web:              true,
         });
         setWhatsappPhone(wa.data?.remote_handle || '');
+        setTelegramPersonalHandle(tgPersonal.data?.remote_handle || '');
       })
       .finally(() => mounted && setLoading(false));
     return () => { mounted = false; };
@@ -98,6 +103,14 @@ const IntegrationsPage = () => {
         .then((r) => {
           setStatus((s) => ({ ...s, whatsapp: r.data?.status === 'connected' }));
           setWhatsappPhone(r.data?.remote_handle || '');
+        })
+        .catch(() => {})
+    );
+    if (keys.includes('telegram-personal')) tasks.push(
+      api.get('/tools/matrix/bridges/telegram/state/')
+        .then((r) => {
+          setStatus((s) => ({ ...s, telegramPersonal: r.data?.status === 'connected' }));
+          setTelegramPersonalHandle(r.data?.remote_handle || '');
         })
         .catch(() => {})
     );
@@ -186,6 +199,14 @@ const IntegrationsPage = () => {
       desc: t('integrations.telegramDesc')    || 'Connect a Telegram bot',
       state: status.telegram ? 'connected' : 'notConnected',
       onClick: () => setModal('telegram'),
+    },
+    {
+      key: 'telegram-personal', icon: TelegramLogo, accent: 'sage',
+      name: t('integrations.telegramPersonalName') || 'Telegram (personal)',
+      desc: t('integrations.telegramPersonalDesc') || 'Your personal account via Matrix bridge',
+      state: status.telegramPersonal ? 'connected' : 'notConnected',
+      meta: status.telegramPersonal && telegramPersonalHandle ? `@${telegramPersonalHandle}` : null,
+      onClick: () => setModal('telegram-personal'),
     },
     {
       key: 'email',     icon: EnvelopeSimple, accent: 'rose',
@@ -335,6 +356,11 @@ const IntegrationsPage = () => {
       {modal === 'webwidget'  && <WebWidgetSetup      onClose={() => setModal(null)} />}
       {modal === 'email'      && <EmailSetup          onClose={() => { setModal(null); reload(['email']); }} />}
       {modal === 'telegram'   && <TelegramSetup       onClose={() => { setModal(null); reload(['telegram']); }} />}
+      {modal === 'telegram-personal' && (
+        <TelegramPersonalSetup
+          onClose={() => { setModal(null); reload(['telegram-personal']); }}
+        />
+      )}
       {modal === 'extension'  && <ChromeExtensionSetup onClose={() => setModal(null)} />}
       {modal === 'hitl'       && <HITLSetup           onClose={() => { setModal(null); reload(['hitl']); }} />}
 

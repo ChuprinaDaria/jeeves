@@ -281,7 +281,12 @@
     "linkLabel": "Посилання",
     "linkCopied": "Посилання скопійовано",
     "copy": "Копіювати",
-    "regenerate": "Перегенерувати"
+    "regenerate": "Перегенерувати",
+    "telegramPersonalName": "Telegram (особистий)",
+    "telegramPersonalDesc": "Твій особистий акаунт через Matrix-міст",
+    "telegramConnected": "Telegram підключено",
+    "startTelegramLogin": "Підключити Telegram",
+    "checkingState": "Перевіряю стан мосту…"
   },
   "settings": {
     "title": "Налаштування",

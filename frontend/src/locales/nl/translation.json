@@ -225,7 +225,12 @@
     "scanInstructions": "Open WhatsApp op je telefoon → Instellingen → Gekoppelde apparaten → Apparaat koppelen → Scan deze QR-code",
     "whatsappDisabledByAdmin": "WhatsApp-integratie is uitgeschakeld door de beheerder",
     "qrExpired": "QR-code verlopen. Klik om te vernieuwen.",
-    "connecting": "Verbinden..."
+    "connecting": "Verbinden...",
+    "telegramPersonalName": "Telegram (persoonlijk)",
+    "telegramPersonalDesc": "Je persoonlijke account via de Matrix-bridge",
+    "telegramConnected": "Telegram verbonden",
+    "startTelegramLogin": "Verbind Telegram",
+    "checkingState": "Bridge controleren…"
   },
   "history": {
     "title": "Activiteit",
