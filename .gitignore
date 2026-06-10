@@ -66,3 +66,7 @@ backend/chrome_extension/*.zip
 # Tooling scratch dirs (fartrun MCP reports, firecrawl research dumps)
 .fartrun/
 .firecrawl/
+
+# Local Synapse state (generated homeserver.yaml has secrets baked in)
+infra/matrix/synapse/
+infra/matrix/.bot-secret
