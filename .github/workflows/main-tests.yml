@@ -82,6 +82,8 @@ jobs:
           cd Jeeves
           python manage.py migrate --noinput
         env:
+          # Пакет Jeeves живе в backend/, а cwd — backend/Jeeves
+          PYTHONPATH: ${{ github.workspace }}/backend
           # settings.py читає DB_* змінні (не DATABASE_URL)
           DB_NAME: test_db
           DB_USER: test_user
@@ -107,6 +109,7 @@ jobs:
             --maxfail=5 \
             -n auto
         env:
+          PYTHONPATH: ${{ github.workspace }}/backend
           DB_NAME: test_db
           DB_USER: test_user
           DB_PASS: test_pass
