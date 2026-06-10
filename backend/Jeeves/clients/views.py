@@ -364,7 +364,7 @@ def _apply_prompt_vote(prompt, user, user_identifier, vote_type):
     PromptVote + F()-апдейти лічильників: без цього паралельні запити одного
     голосувальника розсинхронізовували лічильники зі збереженими голосами.
     """
-    from django.db import transaction
+    from django.db import IntegrityError, transaction
     from django.db.models.functions import Greatest
 
     likes_delta = 0
@@ -401,16 +401,24 @@ def _apply_prompt_vote(prompt, user, user_identifier, vote_type):
                 else:
                     dislikes_delta += 1
         else:
-            PromptVote.objects.create(
-                prompt=prompt,
-                user=user,
-                user_identifier=user_identifier,
-                vote=vote_type,
-            )
-            if vote_type == 'like':
-                likes_delta += 1
-            else:
-                dislikes_delta += 1
+            try:
+                # Savepoint: два паралельні перші голоси одного користувача
+                # обидва бачать "рядка немає" і другий create б'ється об
+                # unique_together (prompt, user_identifier)
+                with transaction.atomic():
+                    PromptVote.objects.create(
+                        prompt=prompt,
+                        user=user,
+                        user_identifier=user_identifier,
+                        vote=vote_type,
+                    )
+                if vote_type == 'like':
+                    likes_delta += 1
+                else:
+                    dislikes_delta += 1
+            except IntegrityError:
+                # Паралельний запит уже створив голос і врахував дельту
+                pass
 
         Prompt.objects.filter(pk=prompt.pk).update(
             likes_count=Greatest(F('likes_count') + likes_delta, 0),
