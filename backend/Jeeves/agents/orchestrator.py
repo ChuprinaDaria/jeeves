@@ -10,6 +10,7 @@ Every LLM call and tool invocation is logged to AgentLog.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -25,6 +26,15 @@ from mcp.client.stdio import stdio_client, StdioServerParameters
 logger = logging.getLogger(__name__)
 
 MAX_ITERATIONS = 10
+
+
+def _mcp_tool_timeout() -> float:
+    """Max seconds for a single MCP tool call (clamped to a positive value)."""
+    try:
+        timeout = float(getattr(settings, 'MCP_TOOL_TIMEOUT', 60))
+    except (TypeError, ValueError):
+        timeout = 60.0
+    return timeout if timeout > 0 else 60.0
 
 # Parameters that the orchestrator auto-injects (hidden from LLM).
 _AUTO_INJECT_PARAMS = frozenset({"client_id", "session_id", "user_id"})
@@ -813,7 +823,10 @@ class AgentOrchestrator:
                         "client_id": self.client.pk,
                         **config,
                     }
-                    result = await session.call_tool(tool.name, mw_args)
+                    result = await asyncio.wait_for(
+                        session.call_tool(tool.name, mw_args),
+                        timeout=_mcp_tool_timeout(),
+                    )
                     texts = [item.text for item in result.content if hasattr(item, "text")]
                     return "\n".join(texts) if texts else None
         logger.warning("Middleware skill '%s' not found in MCP servers", skill_slug)
@@ -844,7 +857,11 @@ class AgentOrchestrator:
         full_args["user_id"] = self._session.external_user_id or str(self._session.id)
 
         try:
-            result = await session.call_tool(tool_name, full_args)
+            # Завислий MCP-сервер не повинен вішати весь агентський запит
+            result = await asyncio.wait_for(
+                session.call_tool(tool_name, full_args),
+                timeout=_mcp_tool_timeout(),
+            )
 
             # CallToolResult.content is a list of content items
             texts = []
