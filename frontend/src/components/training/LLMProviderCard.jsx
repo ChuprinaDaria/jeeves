@@ -14,7 +14,7 @@ const LLMProviderCard = () => {
     llm: null, // null = checking, true = OK, false = error
     embedding: null,
   });
-  const [checkingStatus, setCheckingStatus] = useState(false);
+  const [, setCheckingStatus] = useState(false);
 
   useEffect(() => {
     loadPairs();

@@ -1,10 +1,17 @@
+import asyncio
 import importlib
 import logging
 import time
 
+from django.conf import settings
+
 from Jeeves.agents.models import AgentLog
 
 logger = logging.getLogger(__name__)
+
+
+def _tool_timeout() -> int:
+    return getattr(settings, 'MCP_TOOL_TIMEOUT', 60)
 
 
 class MCPExecutor:
@@ -24,9 +31,11 @@ class MCPExecutor:
         start = time.monotonic()
         try:
             if tool_card.transport_type == 'builtin':
-                result = await self._call_builtin(tool_card, tool_connection, tool_name, arguments)
+                call = self._call_builtin(tool_card, tool_connection, tool_name, arguments)
             else:
-                result = await self._call_mcp(tool_card, tool_connection, tool_name, arguments)
+                call = self._call_mcp(tool_card, tool_connection, tool_name, arguments)
+            # Завислий MCP-сервер не повинен вішати запит назавжди
+            result = await asyncio.wait_for(call, timeout=_tool_timeout())
 
             log.status = 'ok'
             log.output_data = result

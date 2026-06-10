@@ -352,7 +352,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     setContextMenu(null);
   }, [screenToCanvas]);
 
-  const handlePortPointerUp = useCallback((nodeId, portIndex) => {
+  const handlePortPointerUp = useCallback((nodeId) => {
     if (!edgeDrag) return;
 
     const { sourceNode } = edgeDrag;

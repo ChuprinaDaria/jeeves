@@ -52,7 +52,7 @@ services:
       - ../.env
     environment:
       DJANGO_SETTINGS_MODULE: Jeeves.settings
-      DEBUG: "${DEBUG:-1}"
+      DEBUG: "${DEBUG:-0}"
       SECRET_KEY: ${SECRET_KEY:-dev-secret}
       DB_NAME: ${DB_NAME:-admin_db}
       DB_USER: ${DB_USER:-admin_user}
@@ -93,7 +93,7 @@ services:
       - ../.env
     environment:
       DJANGO_SETTINGS_MODULE: Jeeves.settings
-      DEBUG: "${DEBUG:-1}"
+      DEBUG: "${DEBUG:-0}"
       SECRET_KEY: ${SECRET_KEY:-dev-secret}
       DB_NAME: ${DB_NAME:-admin_db}
       DB_USER: ${DB_USER:-admin_user}
@@ -108,11 +108,17 @@ services:
       redis:
         condition: service_healthy
       web:
-        condition: service_started
+        condition: service_healthy
     volumes:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
       - .:/app
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A Jeeves inspect ping --timeout 10 | grep -q pong"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 30s
     extra_hosts:
       - "ollama:host-gateway"
     networks: [jeeves_network]
@@ -129,7 +135,7 @@ services:
       - ../.env
     environment:
       DJANGO_SETTINGS_MODULE: Jeeves.settings
-      DEBUG: "${DEBUG:-1}"
+      DEBUG: "${DEBUG:-0}"
       SECRET_KEY: ${SECRET_KEY:-dev-secret}
       DB_NAME: ${DB_NAME:-admin_db}
       DB_USER: ${DB_USER:-admin_user}
@@ -144,7 +150,7 @@ services:
       redis:
         condition: service_healthy
       web:
-        condition: service_started
+        condition: service_healthy
     volumes:
       - static_volume:/app/staticfiles
       - media_volume:/app/media

@@ -8,7 +8,7 @@ const WhatsAppSetup = ({ onClose, bridgeConfig }) => {
   const [status, setStatus] = useState(bridgeConfig?.whatsapp_bridge_status || 'disconnected');
   const [phone, setPhone] = useState(bridgeConfig?.whatsapp_bridge_phone || '');
   const [qrData, setQrData] = useState(null);
-  const [loginId, setLoginId] = useState(null);
+  const [, setLoginId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [error, setError] = useState('');

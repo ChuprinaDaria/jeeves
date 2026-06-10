@@ -119,15 +119,17 @@ const FileList = ({ files, onDelete, loading }) => {
     // Сортування
     result.sort((a, b) => {
       switch (sortBy) {
-        case 'date_desc':
+        case 'date_desc': {
           const dateA = a.uploadedAt ? new Date(a.uploadedAt).getTime() : 0;
           const dateB = b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0;
           return dateB - dateA;
-        
-        case 'date_asc':
+        }
+
+        case 'date_asc': {
           const dateA2 = a.uploadedAt ? new Date(a.uploadedAt).getTime() : 0;
           const dateB2 = b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0;
           return dateA2 - dateB2;
+        }
         
         case 'name_asc':
           return (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' });

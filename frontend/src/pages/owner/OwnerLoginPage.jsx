@@ -32,7 +32,7 @@ const OwnerLoginPage = () => {
         return;
       }
       navigate('/owner/dashboard');
-    } catch (err) {
+    } catch {
       setError('Invalid email or password.');
       setLoading(false);
     }

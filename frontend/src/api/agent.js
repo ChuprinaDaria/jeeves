@@ -139,7 +139,7 @@ export const mcpAPI = {
                   console.log('[SSE]', eventType, data?.tool_name, data?.result?.substring?.(0, 80));
                   onToolEvent?.(eventType, data);
                 }
-              } catch (_) {}
+              } catch { /* ignore */ }
               eventType = '';
             }
           }

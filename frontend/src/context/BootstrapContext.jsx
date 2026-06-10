@@ -4,6 +4,7 @@ import { platformAPI } from '../api/owner';
 
 const BootstrapContext = createContext(null);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useBootstrap = () => {
   const ctx = useContext(BootstrapContext);
   if (!ctx) throw new Error('useBootstrap must be used inside BootstrapProvider');

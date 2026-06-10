@@ -2,6 +2,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from rest_framework.permissions import AllowAny
+from django.core.cache import cache as django_cache
+from django.db import transaction
 from django.db.models import Count, Sum
 from django.utils.timezone import now, timedelta
 from .serializers import RAGQuerySerializer, DocumentUploadSerializer
@@ -162,8 +164,8 @@ class PublicRAGChatView(APIView):
     - This endpoint does NOT save conversations - only WebChatPage calls /clients/web-conversations/ for that
     """
     permission_classes = [AllowAny]
-    # Простий кеш для результатів класифікації email-інтентів (у межах процесу)
-    _email_intent_cache: dict[str, dict] = {}
+    # TTL кешу результатів класифікації email-інтентів (Django cache, секунди)
+    EMAIL_INTENT_CACHE_TTL = 3600
     # Константи для промпту класифікації email-інтенту
     EMAIL_INTENT_JSON_SCHEMA: str = (
         "{\n"
@@ -681,11 +683,11 @@ class PublicRAGChatView(APIView):
 
         # Ключ для кешу (уникаємо збереження сирого тексту в ключі)
         cache_key_src = f"{lang}:{text}"
-        cache_key = hashlib.sha256(cache_key_src.encode('utf-8')).hexdigest()
-        cache = getattr(PublicRAGChatView, '_email_intent_cache', {})
-        if cache_key in cache:
+        cache_key = f"email_intent:{hashlib.sha256(cache_key_src.encode('utf-8')).hexdigest()}"
+        cached_result = django_cache.get(cache_key)
+        if cached_result is not None:
             logger.info(f"Email intent cache hit for key={cache_key}")
-            return cache[cache_key]
+            return cached_result
 
         # System-промпт: мультимовний, тільки JSON, описаний у константі класу
         system_prompt = self.EMAIL_INTENT_SYSTEM_PROMPT.replace(
@@ -830,10 +832,8 @@ class PublicRAGChatView(APIView):
                 'extracted_data': extracted_data,
             }
 
-            # Зберігаємо в кеш
-            cache = getattr(PublicRAGChatView, '_email_intent_cache', {})
-            cache[cache_key] = result
-            setattr(PublicRAGChatView, '_email_intent_cache', cache)
+            # Зберігаємо в кеш (з TTL — class-dict без ліміту тік пам'яті)
+            django_cache.set(cache_key, result, self.EMAIL_INTENT_CACHE_TTL)
 
             logger.info(
                 f"Email intent result: intent={intent}, confidence={confidence}, "
@@ -1521,6 +1521,7 @@ class BootstrapProvisionView(APIView):
     - Returns stable IDs and minimal credentials for follow-up integration
     """
 
+    @transaction.atomic
     def post(self, request, branch_slug: str, specialization_slug: str, client_token: str):
         User = AppUser
 

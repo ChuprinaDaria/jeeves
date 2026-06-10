@@ -27,9 +27,6 @@ export default class SpriteGenerator {
   }
 
   drawCharacter(ctx, color, state, frame) {
-    const w = CHARACTER_WIDTH;
-    const h = CHARACTER_HEIGHT;
-
     // Head (circle-ish)
     ctx.fillStyle = '#fdd';
     ctx.fillRect(5, 1, 6, 6);

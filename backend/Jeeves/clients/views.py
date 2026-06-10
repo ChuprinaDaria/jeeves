@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.renderers import JSONRenderer
-from django.db.models import Q
+from django.db.models import F, Q
 from urllib.parse import urlparse
 import logging
 import hashlib
@@ -463,30 +463,34 @@ class PromptViewSet(viewsets.ModelViewSet):
             user_identifier=user_identifier
         ).first()
         
+        # Лічильники оновлюємо атомарно через F() — інакше паралельні голоси
+        # перезаписують один одного (read-modify-write race)
+        likes_delta = 0
+        dislikes_delta = 0
+
         if existing_vote:
             # Якщо той самий голос - видаляємо
             if existing_vote.vote == vote_type:
                 if existing_vote.vote == 'like':
-                    prompt.likes_count = max(0, prompt.likes_count - 1)
+                    likes_delta -= 1
                 else:
-                    prompt.dislikes_count = max(0, prompt.dislikes_count - 1)
+                    dislikes_delta -= 1
                 existing_vote.delete()
             else:
                 # Якщо інший голос - змінюємо
                 old_vote = existing_vote.vote
                 existing_vote.vote = vote_type
                 existing_vote.save()
-                
-                # Оновлюємо лічильники
+
                 if old_vote == 'like':
-                    prompt.likes_count = max(0, prompt.likes_count - 1)
+                    likes_delta -= 1
                 else:
-                    prompt.dislikes_count = max(0, prompt.dislikes_count - 1)
-                
+                    dislikes_delta -= 1
+
                 if vote_type == 'like':
-                    prompt.likes_count += 1
+                    likes_delta += 1
                 else:
-                    prompt.dislikes_count += 1
+                    dislikes_delta += 1
         else:
             # Створюємо новий голос
             PromptVote.objects.create(
@@ -495,14 +499,18 @@ class PromptViewSet(viewsets.ModelViewSet):
                 user_identifier=user_identifier,
                 vote=vote_type
             )
-            
-            # Оновлюємо лічильники
+
             if vote_type == 'like':
-                prompt.likes_count += 1
+                likes_delta += 1
             else:
-                prompt.dislikes_count += 1
-        
-        prompt.save(update_fields=['likes_count', 'dislikes_count'])
+                dislikes_delta += 1
+
+        from django.db.models.functions import Greatest
+        Prompt.objects.filter(pk=prompt.pk).update(
+            likes_count=Greatest(F('likes_count') + likes_delta, 0),
+            dislikes_count=Greatest(F('dislikes_count') + dislikes_delta, 0),
+        )
+        prompt.refresh_from_db(fields=['likes_count', 'dislikes_count'])
         
         return Response({
             'likes_count': prompt.likes_count,
@@ -718,30 +726,34 @@ class PromptVoteView(APIView):
             user_identifier=user_identifier
         ).first()
         
+        # Лічильники оновлюємо атомарно через F() — інакше паралельні голоси
+        # перезаписують один одного (read-modify-write race)
+        likes_delta = 0
+        dislikes_delta = 0
+
         if existing_vote:
             # Якщо той самий голос - видаляємо
             if existing_vote.vote == vote_type:
                 if existing_vote.vote == 'like':
-                    prompt.likes_count = max(0, prompt.likes_count - 1)
+                    likes_delta -= 1
                 else:
-                    prompt.dislikes_count = max(0, prompt.dislikes_count - 1)
+                    dislikes_delta -= 1
                 existing_vote.delete()
             else:
                 # Якщо інший голос - змінюємо
                 old_vote = existing_vote.vote
                 existing_vote.vote = vote_type
                 existing_vote.save()
-                
-                # Оновлюємо лічильники
+
                 if old_vote == 'like':
-                    prompt.likes_count = max(0, prompt.likes_count - 1)
+                    likes_delta -= 1
                 else:
-                    prompt.dislikes_count = max(0, prompt.dislikes_count - 1)
-                
+                    dislikes_delta -= 1
+
                 if vote_type == 'like':
-                    prompt.likes_count += 1
+                    likes_delta += 1
                 else:
-                    prompt.dislikes_count += 1
+                    dislikes_delta += 1
         else:
             # Створюємо новий голос
             PromptVote.objects.create(
@@ -750,14 +762,18 @@ class PromptVoteView(APIView):
                 user_identifier=user_identifier,
                 vote=vote_type
             )
-            
-            # Оновлюємо лічильники
+
             if vote_type == 'like':
-                prompt.likes_count += 1
+                likes_delta += 1
             else:
-                prompt.dislikes_count += 1
-        
-        prompt.save(update_fields=['likes_count', 'dislikes_count'])
+                dislikes_delta += 1
+
+        from django.db.models.functions import Greatest
+        Prompt.objects.filter(pk=prompt.pk).update(
+            likes_count=Greatest(F('likes_count') + likes_delta, 0),
+            dislikes_count=Greatest(F('dislikes_count') + dislikes_delta, 0),
+        )
+        prompt.refresh_from_db(fields=['likes_count', 'dislikes_count'])
         
         return Response({
             'likes_count': prompt.likes_count,

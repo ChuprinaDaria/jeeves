@@ -1,3 +1,4 @@
+/* global chrome */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Eye, EyeSlash, ArrowClockwise } from '@phosphor-icons/react';

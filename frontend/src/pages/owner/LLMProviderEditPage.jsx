@@ -120,7 +120,7 @@ const LLMProviderEditPage = () => {
         data = resp.data;
       }
       setTestOutcome(data);
-    } catch (e) {
+    } catch {
       setTestOutcome({ outcome: 'network_error', message: 'Test failed' });
     } finally {
       setBusy(false);

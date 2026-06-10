@@ -214,7 +214,7 @@ Always use a warm and welcoming tone.`;
     return savedPrompt ? { content: savedPrompt.template, isEditable: false, prompt: savedPrompt } : { content: '', isEditable: true };
   };
 
-  const { content, isEditable, prompt: activePrompt } = getCurrentContent();
+  const { content, prompt: activePrompt } = getCurrentContent();
 
   return (
     <div className="card">

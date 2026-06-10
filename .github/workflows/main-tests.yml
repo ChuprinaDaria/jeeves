@@ -22,42 +22,16 @@ env:
   NODE_VERSION: '20'
 
 jobs:
-  # Check what changed
-  check-changes:
-    name: 🔍 Check Changes
-    runs-on: ubuntu-latest
-    outputs:
-      backend-changed: ${{ steps.filter.outputs.backend }}
-      frontend-changed: ${{ steps.filter.outputs.frontend }}
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 2
-
-      - name: 🔍 Check changed files
-        uses: dorny/paths-filter@v4
-        id: filter
-        with:
-          filters: |
-            backend:
-              - 'backend/**'
-              - '.github/workflows/main-tests.yml'
-            frontend:
-              - 'frontend/**'
-              - '.github/workflows/main-tests.yml'
-
-      - name: 📊 Show changes
-        run: |
-          echo "Backend changed: ${{ steps.filter.outputs.backend }}"
-          echo "Frontend changed: ${{ steps.filter.outputs.frontend }}"
+  # NOTE: the previous per-job paths-filter gating (dorny/paths-filter with
+  # fetch-depth: 2) silently evaluated to "false" on merge commits, so the
+  # backend/frontend jobs were SKIPPED even when code changed. The
+  # workflow-level `paths:` filter above already limits when this workflow
+  # runs, so both jobs now run unconditionally.
 
   # Backend Tests with Coverage
   backend-tests:
     name: Backend Tests & Coverage
     runs-on: ubuntu-latest
-    needs: check-changes
-    if: needs.check-changes.outputs.backend == 'true'
     defaults:
       run:
         working-directory: ./backend
@@ -108,9 +82,16 @@ jobs:
           cd Jeeves
           python manage.py migrate --noinput
         env:
-          DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/test_db
-          REDIS_URL: redis://localhost:6379/0
+          # settings.py читає DB_* змінні (не DATABASE_URL)
+          DB_NAME: test_db
+          DB_USER: test_user
+          DB_PASS: test_pass
+          DB_HOST: 127.0.0.1
+          DB_PORT: "5432"
+          CELERY_BROKER_URL: redis://localhost:6379/0
+          CELERY_RESULT_BACKEND: redis://localhost:6379/0
           SECRET_KEY: test-secret-key-for-ci
+          FIELD_ENCRYPTION_KEY: CnciAdzX7qRbq-xXxmvQwsN-XhDJ95FfpgMbE0wvoxw=
           DJANGO_SETTINGS_MODULE: ${{ env.DJANGO_SETTINGS_MODULE }}
 
       - name: 🧪 Run tests with coverage
@@ -124,14 +105,21 @@ jobs:
             --junitxml=junit.xml \
             -v \
             --maxfail=5 \
-            -n auto || true
+            -n auto
         env:
-          DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/test_db
-          REDIS_URL: redis://localhost:6379/0
+          DB_NAME: test_db
+          DB_USER: test_user
+          DB_PASS: test_pass
+          DB_HOST: 127.0.0.1
+          DB_PORT: "5432"
+          CELERY_BROKER_URL: redis://localhost:6379/0
+          CELERY_RESULT_BACKEND: redis://localhost:6379/0
           SECRET_KEY: test-secret-key-for-ci
+          FIELD_ENCRYPTION_KEY: CnciAdzX7qRbq-xXxmvQwsN-XhDJ95FfpgMbE0wvoxw=
           DJANGO_SETTINGS_MODULE: ${{ env.DJANGO_SETTINGS_MODULE }}
 
       - name: 📊 Upload coverage reports
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: backend-coverage-report
@@ -157,8 +145,6 @@ jobs:
   frontend-tests:
     name: Frontend Tests & Lint
     runs-on: ubuntu-latest
-    needs: check-changes
-    if: needs.check-changes.outputs.frontend == 'true'
     defaults:
       run:
         working-directory: ./frontend
@@ -178,8 +164,7 @@ jobs:
         run: npm ci
 
       - name: 🔍 Run ESLint
-        run: npm run lint || true
-        continue-on-error: true
+        run: npm run lint
 
       - name: 🏗️ Build frontend
         run: npm run build:prod
