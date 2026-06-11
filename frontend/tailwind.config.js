@@ -19,6 +19,12 @@ export default {
         rule:  '#E8E0D4',   // borders, dividers
         mist:  '#F3ECDD',   // hover surfaces
 
+        // Canvas stage — the flow canvas is a dark warm "stage" so edges,
+        // particles and node cards can glow against it
+        stage:        '#23201C',
+        'stage-deep': '#1C1916',
+        'stage-line': '#3B362E',
+
         // Semantic accents — use sparingly, only for meaning
         rose:  '#E8729A',   // alerts, count badges, attention
         sage:  '#7BC89F',   // success, connected, online

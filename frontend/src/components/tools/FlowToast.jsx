@@ -9,7 +9,7 @@ const FlowToast = ({ message, icon, visible, onHide }) => {
 
   return (
     <div
-      className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-lg
+      className={`fixed bottom-6 right-6 z-[70] flex items-center gap-3 px-5 py-3.5 rounded-lg
         bg-paper border-[1.5px] border-rule
         shadow-ink text-sm font-medium text-ink
         transition-all duration-400

@@ -556,6 +556,22 @@
       "bridge_meta": "Instagram- of Facebook-login",
       "field_homeserver_help": "bijv. https://matrix.example.com",
       "bridges_label": "Actieve bridges"
+    },
+    "flow": {
+      "headerHint": "mcp · sleep uit de catalogus · zet neer op het canvas",
+      "canvasHint": "scroll · sleep achtergrond om te pannen · sleep node · klik op lijn · del om te verwijderen",
+      "detachConfirm": "Deze verbinding loskoppelen?",
+      "removeConnection": "Verbinding verwijderen",
+      "cancel": "Annuleren",
+      "alreadyConnected": "Al verbonden met dit doel",
+      "connectError": "Er ging iets mis. Probeer het opnieuw.",
+      "disconnectError": "Loskoppelen mislukt. Probeer het opnieuw.",
+      "middlewareRemoved": "Vaardigheid verwijderd",
+      "middlewareAttached": "toegevoegd",
+      "attachFailed": "Vaardigheid toevoegen mislukt",
+      "scopeAssistant": "Beschikbaar voor Jeeves (jouw AI-assistent)",
+      "scopeManager": "Beschikbaar voor Concierge (klantgerichte agent)",
+      "scopeLeads": "Gebruikt voor leadregistratie"
     }
   }
 }

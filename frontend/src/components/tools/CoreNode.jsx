@@ -12,7 +12,7 @@ const VARIANTS = {
     tooltip: 'tools.flow.assistantTooltip',
     border: 'border-iris',
     iconTint: 'text-iris',
-    glow: 'shadow-[0_0_32px_rgba(155,126,216,0.12)]',
+    glow: 'shadow-[0_0_36px_rgba(155,126,216,0.30)]',
   },
   manager: {
     Icon: BellSimple,
@@ -21,7 +21,7 @@ const VARIANTS = {
     tooltip: 'tools.flow.managerTooltip',
     border: 'border-sage',
     iconTint: 'text-sage',
-    glow: 'shadow-[0_0_32px_rgba(123,200,159,0.12)]',
+    glow: 'shadow-[0_0_36px_rgba(123,200,159,0.30)]',
   },
   leads: {
     Icon: Target,
@@ -30,7 +30,7 @@ const VARIANTS = {
     tooltip: 'tools.flow.leadsTooltip',
     border: 'border-amber',
     iconTint: 'text-amber',
-    glow: 'shadow-[0_0_32px_rgba(232,168,109,0.12)]',
+    glow: 'shadow-[0_0_36px_rgba(232,168,109,0.30)]',
   },
 };
 
@@ -67,12 +67,13 @@ const CoreNode = forwardRef(
                 key={i}
                 data-port-index={i}
                 data-node-id={nodeId}
-                className={`flow-port w-3 h-3 rounded-full border-[2px] shrink-0 transition-all cursor-crosshair
+                className={`flow-port relative w-3 h-3 rounded-full border-[2px] shrink-0 transition-all cursor-crosshair
+                  after:content-[''] after:absolute after:-inset-2.5 after:rounded-full
                   ${isActive
-                    ? 'border-sage bg-sage shadow-[0_0_6px_rgba(123,200,159,0.55)]'
+                    ? 'border-sage bg-sage shadow-[0_0_8px_rgba(123,200,159,0.8)]'
                     : 'border-fog bg-paper'
                   }
-                  ${edgeDragging && isValid ? 'scale-150 ring-2 ring-iris ring-offset-1 ring-offset-cream' : ''}
+                  ${edgeDragging && isValid ? 'scale-150 ring-2 ring-iris' : ''}
                   ${edgeDragging && !isValid ? 'opacity-40' : ''}`}
                 onPointerDown={(e) => {
                   e.stopPropagation();

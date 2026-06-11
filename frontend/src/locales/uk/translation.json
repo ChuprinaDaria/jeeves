@@ -362,6 +362,22 @@
       "bridge_meta": "логін Instagram або Facebook",
       "field_homeserver_help": "напр. https://matrix.example.com",
       "bridges_label": "Активні мости"
+    },
+    "flow": {
+      "headerHint": "mcp · перетягніть з каталогу · киньте на канвас",
+      "canvasHint": "скрол · тягніть фон для панорами · тягніть ноду · клік по ребру · del — видалити",
+      "detachConfirm": "Від'єднати це з'єднання?",
+      "removeConnection": "Видалити з'єднання",
+      "cancel": "Скасувати",
+      "alreadyConnected": "Вже підключено до цієї цілі",
+      "connectError": "Щось пішло не так. Спробуйте ще раз.",
+      "disconnectError": "Не вдалося від'єднати. Спробуйте ще раз.",
+      "middlewareRemoved": "Навичку знято",
+      "middlewareAttached": "додано",
+      "attachFailed": "Не вдалося додати навичку",
+      "scopeAssistant": "Доступно Дживсу (ваш AI-асистент)",
+      "scopeManager": "Доступно Консьєржу (агент для клієнтів)",
+      "scopeLeads": "Використовується для збору лідів"
     }
   },
   "webChat": {

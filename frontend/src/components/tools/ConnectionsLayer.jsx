@@ -32,29 +32,29 @@ const ConnectionsLayer = ({
   dragOverEdgeId,
   isSkillDrag,
 }) => {
-  // Concierge palette as SVG gradients.
-  // Solid, warm, no electric neon — these are the same accents as the Dashboard.
+  // Concierge palette as SVG gradients — boosted opacities + glow so the
+  // edges read as light against the dark canvas stage.
   const gradients = useMemo(() => (
     <>
       {/* iris — assistant */}
       <linearGradient id="grad-assistant" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%"   stopColor="#9B7ED8" stopOpacity="0.75" />
-        <stop offset="100%" stopColor="#D4C5F0" stopOpacity="0.45" />
+        <stop offset="0%"   stopColor="#9B7ED8" stopOpacity="0.95" />
+        <stop offset="100%" stopColor="#D4C5F0" stopOpacity="0.65" />
       </linearGradient>
       {/* sage — manager / HITL */}
       <linearGradient id="grad-manager" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%"   stopColor="#7BC89F" stopOpacity="0.75" />
-        <stop offset="100%" stopColor="#C5E8D5" stopOpacity="0.45" />
+        <stop offset="0%"   stopColor="#7BC89F" stopOpacity="0.95" />
+        <stop offset="100%" stopColor="#C5E8D5" stopOpacity="0.65" />
       </linearGradient>
       {/* amber — leads */}
       <linearGradient id="grad-leads" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%"   stopColor="#E8A86D" stopOpacity="0.75" />
-        <stop offset="100%" stopColor="#F5DABC" stopOpacity="0.45" />
+        <stop offset="0%"   stopColor="#E8A86D" stopOpacity="0.95" />
+        <stop offset="100%" stopColor="#F5DABC" stopOpacity="0.65" />
       </linearGradient>
       {/* muted slate — escalation fallback */}
       <linearGradient id="grad-escalation" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%"   stopColor="#9E9790" stopOpacity="0.35" />
-        <stop offset="100%" stopColor="#9E9790" stopOpacity="0.12" />
+        <stop offset="0%"   stopColor="#9E9790" stopOpacity="0.55" />
+        <stop offset="100%" stopColor="#9E9790" stopOpacity="0.25" />
       </linearGradient>
       {/* iris ghost — drag preview */}
       <linearGradient id="grad-ghost" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -124,14 +124,15 @@ const ConnectionsLayer = ({
               className={isDragOver ? 'animate-pulse' : ''}
             />
 
-            {/* Main line */}
+            {/* Main line — glows against the dark stage */}
             <path
               id={`edge-path-${conn.id}`}
               d={conn.pathD}
               fill="none"
               stroke={`url(#${gradId})`}
               strokeWidth={isDragOver && isSkillDrag ? 5 : isSelected ? 3 : isDragOver ? 4 : isSkillTarget ? 2.5 : 2}
-              className="flow-line-animated"
+              className="flow-line-animated edge-glow"
+              style={{ '--edge-glow': `${dotColor}55` }}
             />
 
             {/* Selection indicator — iris dashed overlay */}
@@ -153,7 +154,7 @@ const ConnectionsLayer = ({
               if (!label) return null;
               return (
                 <text
-                  fill="#9E9790"
+                  fill="#B8B0A6"
                   fontSize="9"
                   fontFamily="'Ubuntu Mono', monospace"
                   fontWeight="400"
@@ -175,11 +176,12 @@ const ConnectionsLayer = ({
               supportsOffsetPath ? (
                 <circle
                   key={p}
-                  r="3"
+                  r="3.5"
                   fill={dotColor}
                   className="flow-particle"
                   style={{
                     offsetPath: `path("${conn.pathD}")`,
+                    filter: `drop-shadow(0 0 4px ${dotColor})`,
                     '--particle-duration': `${2 + Math.random() * 0.5}s`,
                     '--particle-delay': `${p * 0.8}s`,
                   }}

@@ -619,6 +619,22 @@
       "bridge_meta": "Instagram- oder Facebook-Login",
       "field_homeserver_help": "z. B. https://matrix.example.com",
       "bridges_label": "Aktive Bridges"
+    },
+    "flow": {
+      "headerHint": "mcp · aus dem Katalog ziehen · auf die Leinwand ablegen",
+      "canvasHint": "scrollen · Hintergrund ziehen zum Schwenken · Node ziehen · Kante klicken · Entf zum Entfernen",
+      "detachConfirm": "Diese Verbindung trennen?",
+      "removeConnection": "Verbindung entfernen",
+      "cancel": "Abbrechen",
+      "alreadyConnected": "Bereits mit diesem Ziel verbunden",
+      "connectError": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
+      "disconnectError": "Trennen fehlgeschlagen. Bitte erneut versuchen.",
+      "middlewareRemoved": "Skill entfernt",
+      "middlewareAttached": "hinzugefügt",
+      "attachFailed": "Skill konnte nicht hinzugefügt werden",
+      "scopeAssistant": "Verfügbar für Jeeves (Ihr KI-Assistent)",
+      "scopeManager": "Verfügbar für Concierge (kundenseitiger Agent)",
+      "scopeLeads": "Für Lead-Erfassung verwendet"
     }
   }
 }

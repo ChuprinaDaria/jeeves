@@ -538,6 +538,22 @@
       "bridge_meta": "connexion Instagram ou Facebook",
       "field_homeserver_help": "ex. https://matrix.example.com",
       "bridges_label": "Bridges activés"
+    },
+    "flow": {
+      "headerHint": "mcp · glissez depuis le catalogue · déposez sur le canevas",
+      "canvasHint": "défiler · glisser le fond pour déplacer · glisser un nœud · cliquer une liaison · suppr pour retirer",
+      "detachConfirm": "Détacher cette connexion ?",
+      "removeConnection": "Supprimer la connexion",
+      "cancel": "Annuler",
+      "alreadyConnected": "Déjà connecté à cette cible",
+      "connectError": "Une erreur est survenue. Veuillez réessayer.",
+      "disconnectError": "Déconnexion impossible. Veuillez réessayer.",
+      "middlewareRemoved": "Compétence retirée",
+      "middlewareAttached": "ajouté",
+      "attachFailed": "Impossible d'ajouter la compétence",
+      "scopeAssistant": "Disponible pour Jeeves (votre assistant IA)",
+      "scopeManager": "Disponible pour Concierge (agent client)",
+      "scopeLeads": "Utilisé pour la capture de leads"
     }
   }
 }

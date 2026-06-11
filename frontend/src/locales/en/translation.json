@@ -1070,7 +1070,21 @@
       "tabSkills": "Skills",
       "tabTools": "Tools",
       "emptyCategory": "No items in this category yet",
-      "disconnect": "Disconnect"
+      "disconnect": "Disconnect",
+      "headerHint": "mcp · drag from catalog · drop on canvas",
+      "canvasHint": "scroll · drag bg to pan · drag node to move · click edge · del to remove",
+      "detachConfirm": "Detach this connection?",
+      "removeConnection": "Remove connection",
+      "cancel": "Cancel",
+      "alreadyConnected": "Already connected to this target",
+      "connectError": "Something went wrong. Please try again.",
+      "disconnectError": "Could not disconnect. Please try again.",
+      "middlewareRemoved": "Skill removed",
+      "middlewareAttached": "attached",
+      "attachFailed": "Failed to attach skill",
+      "scopeAssistant": "Available to Jeeves (your AI assistant)",
+      "scopeManager": "Available to Concierge (customer-facing agent)",
+      "scopeLeads": "Used for lead capture"
     },
     "matrix": {
       "howto_title": "How to connect",

@@ -64,6 +64,7 @@ const ToolsPage = () => {
       loadTools();
     } catch (err) {
       console.error('Disconnect error:', err);
+      showToast('⚠️', t('tools.flow.disconnectError'));
     }
   }, [tools, showToast, t, multiConn]);
 
@@ -79,12 +80,13 @@ const ToolsPage = () => {
       }
       if (!connId) return;
       await toolsAPI.detachMiddleware(connId, middlewareId);
-      showToast('🔧', 'Middleware removed');
+      showToast('🔧', t('tools.flow.middlewareRemoved'));
       loadTools();
     } catch (err) {
       console.error('Remove middleware error:', err);
+      showToast('⚠️', t('tools.flow.connectError'));
     }
-  }, [tools, showToast, multiConn]);
+  }, [tools, showToast, t, multiConn]);
 
   const handleMiddlewareAttach = useCallback(async (conn, skillSlug) => {
     try {
@@ -99,13 +101,13 @@ const ToolsPage = () => {
       if (!connId) return;
       await toolsAPI.attachMiddleware(connId, skillSlug);
       const skill = tools.find(t => t.slug === skillSlug);
-      showToast('🧩', `${skill?.name || skillSlug} attached`);
+      showToast('🧩', `${skill?.name || skillSlug} ${t('tools.flow.middlewareAttached')}`);
       loadTools();
     } catch (err) {
       console.error('Attach middleware error:', err);
-      showToast('⚠️', err.response?.data?.error || 'Failed to attach skill');
+      showToast('⚠️', err.response?.data?.error || t('tools.flow.attachFailed'));
     }
-  }, [tools, showToast, multiConn]);
+  }, [tools, showToast, t, multiConn]);
 
   const handleConnect = useCallback(async (slug, target) => {
     const tool = tools.find(t => t.slug === slug);
@@ -116,7 +118,10 @@ const ToolsPage = () => {
         const existing = tool.connections.find(
           c => c.target === target && c.status === 'connected' && c.enabled
         );
-        if (existing) return;
+        if (existing) {
+          showToast('✓', t('tools.flow.alreadyConnected'));
+          return;
+        }
         const anyConn = tool.connections.find(c => c.status === 'connected');
         if (tool.auth_type === 'none' || anyConn) {
           await toolsAPI.createFlowConnection(slug, target);
@@ -139,6 +144,7 @@ const ToolsPage = () => {
       loadTools();
     } catch (err) {
       console.error('Connect error:', err);
+      showToast('⚠️', t('tools.flow.connectError'));
     }
   }, [tools, showToast, t, multiConn]);
 
@@ -155,11 +161,26 @@ const ToolsPage = () => {
         handleConnected(slug);
       } catch (err) {
         console.error('Drop-connect error:', err);
+        showToast('⚠️', t('tools.flow.connectError'));
       }
     } else {
       showToast('💡', t('tools.flow.clickToConnect'));
     }
   }, [tools, handleConnected, showToast, t, multiConn]);
+
+  const handlePositionSave = useCallback(async (slug, pos) => {
+    const tool = tools.find(t => t.slug === slug);
+    if (!tool) return;
+    const conns = (tool.connections?.length ? tool.connections : (tool.connection ? [tool.connection] : []))
+      .filter(c => c.id && c.status === 'connected');
+    try {
+      await Promise.all(conns.map(c =>
+        toolsAPI.updateFlowConnection(c.id, { position_x: pos.x, position_y: pos.y })
+      ));
+    } catch (err) {
+      console.error('Position save error:', err); // non-blocking — localStorage still has it
+    }
+  }, [tools]);
 
   const handleCanvasToolClick = useCallback((tool, e) => {
     const el = e?.currentTarget || document.getElementById(`canvas-tool-${tool.slug}`);
@@ -186,10 +207,10 @@ const ToolsPage = () => {
           ))}
         </div>
         {/* Skeleton canvas */}
-        <div className="relative w-full rounded-lg bg-linen border-[1.5px] border-rule overflow-hidden"
+        <div className="relative w-full rounded-lg bg-stage border-[1.5px] border-stage-line overflow-hidden"
              style={{ minHeight: 'max(60vh, 400px)' }}>
-          <div className="absolute top-1/2 left-[35%] -translate-x-1/2 -translate-y-1/2 w-[200px] h-[140px] rounded-xl bg-mist border-[1.5px] border-rule animate-pulse" />
-          <div className="absolute top-1/2 left-[65%] -translate-x-1/2 -translate-y-1/2 w-[200px] h-[140px] rounded-xl bg-mist border-[1.5px] border-rule animate-pulse" />
+          <div className="absolute top-1/2 left-[35%] -translate-x-1/2 -translate-y-1/2 w-[200px] h-[140px] rounded-xl bg-stage-deep border-[1.5px] border-stage-line animate-pulse" />
+          <div className="absolute top-1/2 left-[65%] -translate-x-1/2 -translate-y-1/2 w-[200px] h-[140px] rounded-xl bg-stage-deep border-[1.5px] border-stage-line animate-pulse" />
         </div>
       </div>
     );
@@ -205,7 +226,7 @@ const ToolsPage = () => {
             <span className="text-iris">{t('tools.flow.titleAccent')}</span>
           </h1>
           <div className="font-mono text-[13px] text-fog mt-1">
-            mcp · drag from catalog · drop on canvas
+            {t('tools.flow.headerHint')}
           </div>
         </div>
         <div className="flex gap-5 font-mono text-[11px] uppercase tracking-wider text-fog">
@@ -252,6 +273,7 @@ const ToolsPage = () => {
         onMiddlewareRemove={handleMiddlewareRemove}
         onMiddlewareAttach={handleMiddlewareAttach}
         onRefresh={loadTools}
+        onPositionSave={handlePositionSave}
       />
 
       {/* Popover */}

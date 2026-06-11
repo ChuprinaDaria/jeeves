@@ -17,9 +17,9 @@ const CAT_ACCENTS = {
 };
 
 const SCOPE_LABELS = {
-  assistant: { label: 'AI',    border: 'border-iris',  text: 'text-iris'  },
-  manager:   { label: 'HITL',  border: 'border-sage',  text: 'text-sage'  },
-  leads:     { label: 'LEADS', border: 'border-amber', text: 'text-amber' },
+  assistant: { label: 'AI',    tooltip: 'tools.flow.scopeAssistant', border: 'border-iris',  text: 'text-iris'  },
+  manager:   { label: 'HITL',  tooltip: 'tools.flow.scopeManager',   border: 'border-sage',  text: 'text-sage'  },
+  leads:     { label: 'LEADS', tooltip: 'tools.flow.scopeLeads',     border: 'border-amber', text: 'text-amber' },
 };
 
 const CanvasToolNode = ({
@@ -64,11 +64,12 @@ const CanvasToolNode = ({
         data-port-index={0}
         className={`flow-port absolute right-0 top-1/2 -translate-y-1/2 translate-x-[6px]
                     w-3 h-3 rounded-full border-[2px] transition-all cursor-crosshair
+                    after:content-[''] after:absolute after:-inset-2.5 after:rounded-full
                     ${isConnected
-                      ? 'border-sage bg-sage shadow-[0_0_6px_rgba(123,200,159,0.55)]'
+                      ? 'border-sage bg-sage shadow-[0_0_8px_rgba(123,200,159,0.8)]'
                       : 'border-fog bg-paper'
                     }
-                    ${edgeDragging && isValidDrop ? 'scale-150 ring-2 ring-iris ring-offset-1 ring-offset-cream' : ''}
+                    ${edgeDragging && isValidDrop ? 'scale-150 ring-2 ring-iris' : ''}
                     ${edgeDragging && !isValidDrop ? 'opacity-40' : ''}`}
         onPointerDown={(e) => {
           e.stopPropagation();
@@ -109,6 +110,7 @@ const CanvasToolNode = ({
             return (
               <span
                 key={target}
+                title={t(scope.tooltip)}
                 className={`inline-flex items-center px-1.5 py-0.5 rounded-[4px]
                             border-[1.5px] font-mono text-[9px] font-semibold tracking-wide uppercase
                             ${scope.border} ${scope.text}`}

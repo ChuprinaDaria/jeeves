@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   MagnifyingGlassPlus as ZoomIn,
   MagnifyingGlassMinus as ZoomOut,
@@ -67,7 +68,8 @@ const buildInitialPositions = (canvasW, canvasH, groups) => {
 };
 
 /* ── Component ─────────────────────────────────────── */
-const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconnect, onConnect, onMiddlewareRemove, onMiddlewareAttach, onRefresh }) => {
+const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconnect, onConnect, onMiddlewareRemove, onMiddlewareAttach, onRefresh, onPositionSave }) => {
+  const { t } = useTranslation();
   const containerRef = useRef(null);
   const innerRef = useRef(null);
 
@@ -112,32 +114,39 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
   const canvasH = Math.max(500, maxGroupSize * 100 + 200);
   const canvasW = 1200;
 
-  /* ── Node positions (persisted to localStorage) ── */
+  /* ── Node positions: layout < backend (ToolConnection.position_x/y) < localStorage ── */
+  const backendPositions = useMemo(() => {
+    const map = {};
+    connectedTools.forEach(tool => {
+      const conns = tool.connections?.length ? tool.connections : (tool.connection ? [tool.connection] : []);
+      const withPos = conns.find(c => c.position_x != null && c.position_y != null);
+      if (withPos) map[tool.slug] = { x: withPos.position_x, y: withPos.position_y };
+    });
+    return map;
+  }, [connectedTools]);
+
   const [positions, setPositions] = useState(() => {
-    const fresh = buildInitialPositions(canvasW, canvasH, groups);
+    const merged = { ...buildInitialPositions(canvasW, canvasH, groups), ...backendPositions };
     try {
       const saved = JSON.parse(localStorage.getItem(LS_POSITIONS_KEY));
       if (saved && typeof saved === 'object') {
-        const merged = { ...fresh };
         for (const key in saved) {
           if (key in merged) merged[key] = saved[key];
         }
-        return merged;
       }
     } catch { /* ignore */ }
-    return fresh;
+    return merged;
   });
 
   useEffect(() => {
     setPositions(prev => {
-      const fresh = buildInitialPositions(canvasW, canvasH, groups);
-      const merged = { ...fresh };
+      const merged = { ...buildInitialPositions(canvasW, canvasH, groups), ...backendPositions };
       for (const key in prev) {
         if (key in merged) merged[key] = prev[key];
       }
       return merged;
     });
-  }, [connectedTools.length, canvasW, canvasH, groups]);
+  }, [connectedTools.length, canvasW, canvasH, groups, backendPositions]);
 
   /* ── Viewport (pan & zoom, persisted) ──── */
   const [viewport, setViewport] = useState(() => {
@@ -437,12 +446,12 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     const conn = connections.find(c => c.id === edgeId);
     if (!conn || conn.target === 'escalation' || !conn.toolSlug) return;
 
-    if (window.confirm('Detach this edge?')) {
+    if (window.confirm(t('tools.flow.detachConfirm'))) {
       onDisconnect?.(conn.toolSlug, conn.target);
     }
     setSelectedEdge(null);
     setContextMenu(null);
-  }, [connections, onDisconnect]);
+  }, [connections, onDisconnect, t]);
 
   /* ── Node drag handlers ────────────────── */
   const handleNodePointerDown = useCallback((nodeId, e) => {
@@ -486,10 +495,14 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
       dragRef.current = null;
       setIsDragging(false);
 
-      // Persist positions after drag
+      // Persist positions after drag — localStorage + backend (durable)
       if (clickGuardRef.current) {
         setPositions(cur => {
           try { localStorage.setItem(LS_POSITIONS_KEY, JSON.stringify(cur)); } catch { /* ignore */ }
+          if (dragInfo && !dragInfo.nodeId.startsWith('__')) {
+            const pos = cur[dragInfo.nodeId];
+            if (pos) onPositionSave?.(dragInfo.nodeId, pos);
+          }
           return cur;
         });
       }
@@ -510,7 +523,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
       document.removeEventListener('pointermove', handleMove);
       document.removeEventListener('pointerup', handleUp);
     };
-  }, [isDragging, screenToCanvas, connectedTools, onToolClick]);
+  }, [isDragging, screenToCanvas, connectedTools, onToolClick, onPositionSave]);
 
   /* ── Canvas pan handlers ───────────────── */
   const handleCanvasPointerDown = useCallback((e) => {
@@ -556,6 +569,59 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
       document.removeEventListener('pointerup', handleUp);
     };
   }, [isPanning]);
+
+  /* ── Pinch zoom (touch) ────────────────── */
+  const pointersRef = useRef(new Map());
+  const pinchRef = useRef(null);
+
+  const handlePointerDownCapture = useCallback((e) => {
+    if (e.pointerType !== 'touch') return;
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointersRef.current.size === 2) {
+      // Second finger: cancel node drag / pan, start pinch
+      dragRef.current = null;
+      panRef.current = null;
+      setIsDragging(false);
+      setIsPanning(false);
+      const [p1, p2] = [...pointersRef.current.values()];
+      pinchRef.current = {
+        dist: Math.hypot(p2.x - p1.x, p2.y - p1.y),
+        zoom: viewport.zoom,
+        vpX: viewport.x,
+        vpY: viewport.y,
+      };
+    }
+  }, [viewport]);
+
+  const handlePointerMoveCapture = useCallback((e) => {
+    if (e.pointerType !== 'touch' || !pointersRef.current.has(e.pointerId)) return;
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (!pinchRef.current || pointersRef.current.size !== 2) return;
+    e.preventDefault();
+
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const [p1, p2] = [...pointersRef.current.values()];
+    const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    if (!dist || !pinchRef.current.dist) return;
+
+    const midX = (p1.x + p2.x) / 2 - rect.left;
+    const midY = (p1.y + p2.y) / 2 - rect.top;
+    const start = pinchRef.current;
+    const newZoom = clamp(start.zoom * (dist / start.dist), ZOOM_MIN, ZOOM_MAX);
+    const ratio = newZoom / start.zoom;
+    setViewport({
+      x: midX - (midX - start.vpX) * ratio,
+      y: midY - (midY - start.vpY) * ratio,
+      zoom: newZoom,
+    });
+  }, []);
+
+  const handlePointerEndCapture = useCallback((e) => {
+    if (e.pointerType !== 'touch') return;
+    pointersRef.current.delete(e.pointerId);
+    if (pointersRef.current.size < 2) pinchRef.current = null;
+  }, []);
 
   /* ── Zoom (wheel) ──────────────────────── */
   useEffect(() => {
@@ -751,7 +817,6 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     if (group === 'skills') {
       if (dragOverEdgeId) {
         const conn = connections.find(c => c.id === dragOverEdgeId);
-        console.log('[SkillDrop]', { slug, dragOverEdgeId, conn: conn ? { id: conn.id, toolSlug: conn.toolSlug, target: conn.target } : null });
         if (conn && conn.toolSlug) {
           onMiddlewareAttach?.(conn, slug);
         }
@@ -821,13 +886,17 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     <section
       ref={containerRef}
       aria-label="Flow diagram"
-      className={`flow-canvas relative w-full bg-linen border-[1.5px] border-rule rounded-lg overflow-hidden
+      className={`flow-canvas relative w-full bg-stage border-[1.5px] border-stage-line rounded-lg overflow-hidden
         ${isPanning ? 'panning' : ''}
-        ${dragOver && !isSkillDrag ? 'ring-2 ring-iris ring-inset bg-mist' : ''}
+        ${dragOver && !isSkillDrag ? 'ring-2 ring-iris ring-inset bg-stage-deep' : ''}
         ${isSkillDrag && dragOverEdgeId ? 'ring-2 ring-iris ring-inset' : ''}
-        ${isSkillDrag && !dragOverEdgeId ? 'ring-2 ring-rule ring-inset opacity-90' : ''}`}
-      style={{ minHeight: `max(60vh, 500px)`, cursor: isPanning ? 'grabbing' : edgeDrag ? 'crosshair' : 'default' }}
+        ${isSkillDrag && !dragOverEdgeId ? 'ring-2 ring-stage-line ring-inset opacity-90' : ''}`}
+      style={{ minHeight: `max(60vh, 500px)`, cursor: isPanning ? 'grabbing' : edgeDrag ? 'crosshair' : 'default', touchAction: 'none' }}
       onPointerDown={handleCanvasPointerDown}
+      onPointerDownCapture={handlePointerDownCapture}
+      onPointerMoveCapture={handlePointerMoveCapture}
+      onPointerUpCapture={handlePointerEndCapture}
+      onPointerCancelCapture={handlePointerEndCapture}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -846,7 +915,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
       >
         {/* Dot grid */}
         <div
-          className="absolute dot-grid"
+          className="absolute dot-grid-dark"
           style={{ inset: -2000, width: canvasW + 4000, height: canvasH + 4000 }}
         />
 
@@ -898,7 +967,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
         {/* Escalation label */}
         {escLabel && (
           <div
-            className="absolute font-mono text-[10px] text-fog tracking-wider uppercase pointer-events-none"
+            className="absolute font-mono text-[10px] text-fog/90 tracking-wider uppercase pointer-events-none"
             style={{ left: escLabel.x, top: escLabel.y, transform: 'translate(-50%, -50%)' }}
           >
             escalation
@@ -981,7 +1050,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
                          hover:bg-rose-soft/40 transition-colors cursor-pointer bg-transparent"
             >
               <Trash2 size={14} weight="light" />
-              Remove connection
+              {t('tools.flow.removeConnection')}
             </button>
           )}
           <button
@@ -989,7 +1058,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
             className="flex items-center gap-2 w-full px-3 py-2 text-[13px] text-slate
                        hover:bg-mist hover:text-ink transition-colors cursor-pointer bg-transparent"
           >
-            Cancel
+            {t('tools.flow.cancel')}
           </button>
         </div>
       )}
@@ -1011,7 +1080,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
                        shadow-ink-sm transition-all cursor-pointer"
             style={{ left: btnX, top: btnY, transform: 'translate(-50%, -50%)' }}
             onClick={() => handleDeleteEdge(selectedEdge)}
-            title="Delete connection"
+            title={t('tools.flow.removeConnection')}
           >
             <Trash2 size={13} weight="light" />
           </button>
@@ -1062,7 +1131,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
       {/* ── Keyboard hint ── */}
       {connectedTools.length > 0 && (
         <div className="absolute bottom-4 left-4 font-mono text-[10px] text-fog tracking-wide uppercase pointer-events-none select-none z-20">
-          scroll · drag bg to pan · drag node to move · click edge · del to remove
+          {t('tools.flow.canvasHint')}
         </div>
       )}
     </section>

@@ -556,6 +556,22 @@
       "bridge_meta": "Instagram- eller Facebook-login",
       "field_homeserver_help": "f.eks. https://matrix.example.com",
       "bridges_label": "Aktive bridges"
+    },
+    "flow": {
+      "headerHint": "mcp · træk fra kataloget · slip på lærredet",
+      "canvasHint": "scroll · træk baggrund for at panorere · træk node · klik på forbindelse · del for at fjerne",
+      "detachConfirm": "Frakobl denne forbindelse?",
+      "removeConnection": "Fjern forbindelse",
+      "cancel": "Annuller",
+      "alreadyConnected": "Allerede forbundet til dette mål",
+      "connectError": "Noget gik galt. Prøv igen.",
+      "disconnectError": "Kunne ikke frakoble. Prøv igen.",
+      "middlewareRemoved": "Færdighed fjernet",
+      "middlewareAttached": "tilføjet",
+      "attachFailed": "Kunne ikke tilføje færdighed",
+      "scopeAssistant": "Tilgængelig for Jeeves (din AI-assistent)",
+      "scopeManager": "Tilgængelig for Concierge (kundevendt agent)",
+      "scopeLeads": "Bruges til lead-indsamling"
     }
   }
 }
