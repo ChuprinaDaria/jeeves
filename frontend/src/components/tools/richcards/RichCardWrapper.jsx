@@ -22,4 +22,5 @@ const RichCardWrapper = ({ slug, clientId }) => {
 };
 
 export default RichCardWrapper;
+// eslint-disable-next-line react-refresh/only-export-components
 export const hasRichCard = (slug) => slug in RICH_CARDS;

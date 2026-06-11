@@ -19,9 +19,6 @@ export const clientAPI = {
   // Видалити логотип клієнта
   deleteLogo: () => api.delete('/clients/logo/'),
 
-  // Отримати статистику клієнта
-  getStats: (clientId) => api.get(`/clients/${clientId}/stats/`),
-
   // Список документів клієнта
   getDocuments: () => api.get('/clients/documents/'),
 

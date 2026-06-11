@@ -27,6 +27,7 @@ const FlowToast = ({ message, icon, visible, onHide }) => {
 
 export default FlowToast;
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useFlowToast = () => {
   const [toast, setToast] = useState({ message: '', icon: '', visible: false });
 

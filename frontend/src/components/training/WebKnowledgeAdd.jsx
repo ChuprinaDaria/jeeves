@@ -41,7 +41,7 @@ const WebKnowledgeAdd = () => {
 
     setSubmitting(true);
     try {
-      const response = await clientAPI.createWebParsingRequest({
+      await clientAPI.createWebParsingRequest({
         website_url: url.trim(),
         description: description.trim() || '',
       });

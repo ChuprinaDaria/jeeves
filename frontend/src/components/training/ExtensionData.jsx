@@ -25,7 +25,7 @@ const ExtensionData = () => {
   const [draftPhones, setDraftPhones] = useState('');
   const [draftAddresses, setDraftAddresses] = useState('');
   const [savingSite, setSavingSite] = useState(false);
-  const [deletingSite, setDeletingSite] = useState(false);
+  const [, setDeletingSite] = useState(false);
 
   const loadData = async (silent = false) => {
     if (!silent) {

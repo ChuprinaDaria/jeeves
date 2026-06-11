@@ -42,7 +42,7 @@ export const isValidEmail = (email) => {
 };
 
 export const isValidPhoneNumber = (phone) => {
-  const re = /^[\d\s\-\+\(\)]+$/;
+  const re = /^[\d\s\-+()]+$/;
   return re.test(phone) && phone.replace(/\D/g, '').length >= 10;
 };
 

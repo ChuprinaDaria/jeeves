@@ -6,6 +6,15 @@ Middleware для дозволу вбудовування фронтенду в 
 """
 
 import os
+from urllib.parse import urlparse
+
+
+def _origin_of(url: str) -> str:
+    """Нормалізує URL до origin (scheme://host[:port]) для точного порівняння."""
+    parsed = urlparse(url)
+    if not parsed.scheme or not parsed.netloc:
+        return ''
+    return f"{parsed.scheme}://{parsed.netloc}"
 
 
 class AllowIframeMiddleware:
@@ -35,21 +44,25 @@ class AllowIframeMiddleware:
         referer = request.META.get('HTTP_REFERER', '')
         origin = request.META.get('HTTP_ORIGIN', '')
 
-        # Якщо запит походить з дозволеного домену, дозволяємо iframe
-        allowed = any(
-            host in referer or host in origin
-            for host in self.allowed_iframe_hosts
+        # Точне порівняння origin: substring-перевірка ("host in referer")
+        # обходилась URL-ами виду http://evil.com/?x=http://localhost:3000
+        referer_origin = _origin_of(referer)
+        allowed = (
+            (origin and origin in self.allowed_iframe_hosts)
+            or (referer_origin and referer_origin in self.allowed_iframe_hosts)
         )
 
-        if allowed or origin in self.allowed_iframe_hosts:
-            # Дозволяємо вбудовування з конкретного origin
-            response['X-Frame-Options'] = f'ALLOW-FROM {origin}' if origin else 'SAMEORIGIN'
-            # Сучасний стандарт - Content-Security-Policy
-            if origin:
-                response['Content-Security-Policy'] = f"frame-ancestors {origin} 'self'"
+        if allowed:
+            # Беремо саме те значення, що пройшло перевірку за списком;
+            # Origin може бути порожнім (зокрема GET-навігація) — тоді
+            # використовуємо валідований referer_origin
+            if origin and origin in self.allowed_iframe_hosts:
+                ancestor = origin
             else:
-                ancestors = ' '.join(self.allowed_iframe_hosts)
-                response['Content-Security-Policy'] = f"frame-ancestors {ancestors} 'self'"
+                ancestor = referer_origin
+            response['X-Frame-Options'] = f'ALLOW-FROM {ancestor}'
+            # Сучасний стандарт - Content-Security-Policy
+            response['Content-Security-Policy'] = f"frame-ancestors {ancestor} 'self'"
         else:
             # Для інших запитів використовуємо стандартну безпеку
             response['X-Frame-Options'] = 'SAMEORIGIN'

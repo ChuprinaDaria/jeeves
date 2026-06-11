@@ -31,7 +31,7 @@ const EmailSetup = ({ onClose }) => {
       setLoading(true);
       const res = await api.get('/clients/email-smtp/config/');
       // Don't overwrite password with empty string from API (security measure)
-      const { email_smtp_password, ...safeData } = res.data;
+      const { email_smtp_password: _email_smtp_password, ...safeData } = res.data;
       setForm(prev => ({ 
         ...prev, 
         ...safeData,

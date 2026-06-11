@@ -1,3 +1,4 @@
+/* global chrome */
 import { useState, useCallback } from 'react';
 import { Loader2, CheckCircle2, XCircle, Wifi } from 'lucide-react';
 
@@ -40,7 +41,7 @@ function AuthPopupCard({ data, onComplete }) {
     }
 
     try {
-      const response = await new Promise((resolve, reject) => {
+      await new Promise((resolve, reject) => {
         chrome.runtime.sendMessage(
           EXTENSION_ID,
           {

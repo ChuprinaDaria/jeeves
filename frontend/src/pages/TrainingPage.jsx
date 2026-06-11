@@ -77,11 +77,15 @@ const TrainingPage = () => {
     loadPrompt();
   }, []);
 
+  // Булева залежність замість масиву files: кожен setFiles створює новий
+  // масив і перезапускав інтервал на кожному тіку polling-у
+  const hasUnprocessedFiles = files.some((f) => !f.is_processed);
+
   useEffect(() => {
-    if (!files.some((f) => !f.is_processed)) return;
+    if (!hasUnprocessedFiles) return;
     const iv = setInterval(() => loadDocuments(false), 5000);
     return () => clearInterval(iv);
-  }, [files]);
+  }, [hasUnprocessedFiles]);
 
   const loadDocuments = async (withLoader = true) => {
     try {

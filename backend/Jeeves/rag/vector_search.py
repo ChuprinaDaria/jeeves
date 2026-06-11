@@ -260,12 +260,12 @@ class VectorSearchService:
     def _set_pgvector_parameters(self) -> None:
         """Set pgvector ANN index parameters for better search quality."""
         with connection.cursor() as cursor:
-            # IVFFlat parameters
-            ivfflat_probes = self.config['ivfflat_probes']
+            # SET не підтримує bind-параметри, тому значення примусово приводяться
+            # до int — захист від SQL-ін'єкції через конфіг
+            ivfflat_probes = int(self.config['ivfflat_probes'])
             cursor.execute(f"SET ivfflat.probes = {ivfflat_probes}")
-            
-            # HNSW parameters
-            hnsw_ef_search = self.config['hnsw_ef_search']
+
+            hnsw_ef_search = int(self.config['hnsw_ef_search'])
             cursor.execute(f"SET hnsw.ef_search = {hnsw_ef_search}")
             
             # Optionally disable seq scan for debugging

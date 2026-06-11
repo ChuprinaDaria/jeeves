@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import { MessageSquare, Calendar, CheckCircle, Loader2, UserPlus, ExternalLink } from 'lucide-react';
 import { clientAPI } from '../../api/client';
 
 const ActivityFeed = () => {
-  const { t } = useTranslation();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
 

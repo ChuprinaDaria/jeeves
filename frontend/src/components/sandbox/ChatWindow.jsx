@@ -189,7 +189,7 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
             setDataCards(prev => [...prev, { type: 'file', data: { name: parsed.file_name || parsed.name, url: parsed.url, size: parsed.size } }]);
           }
         }
-      } catch (_) {
+      } catch {
         // Not JSON — no DataCard
       }
     }

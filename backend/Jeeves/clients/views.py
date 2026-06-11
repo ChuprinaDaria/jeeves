@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.renderers import JSONRenderer
-from django.db.models import Q
+from django.db.models import F, Q
 from urllib.parse import urlparse
 import logging
 import hashlib
@@ -357,6 +357,77 @@ class KnowledgeBlockViewSet(viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
 
+def _apply_prompt_vote(prompt, user, user_identifier, vote_type):
+    """Атомарно застосовує голос like/dislike до промпту.
+
+    Спільний для PromptViewSet.vote і PromptVoteView.post. Row-lock на
+    PromptVote + F()-апдейти лічильників: без цього паралельні запити одного
+    голосувальника розсинхронізовували лічильники зі збереженими голосами.
+    """
+    from django.db import IntegrityError, transaction
+    from django.db.models.functions import Greatest
+
+    likes_delta = 0
+    dislikes_delta = 0
+
+    with transaction.atomic():
+        existing_vote = (
+            PromptVote.objects.select_for_update()
+            .filter(prompt=prompt, user_identifier=user_identifier)
+            .first()
+        )
+
+        if existing_vote:
+            if existing_vote.vote == vote_type:
+                # Той самий голос — знімаємо; дельта лише якщо рядок справді видалено
+                deleted_count, _ = existing_vote.delete()
+                if deleted_count:
+                    if vote_type == 'like':
+                        likes_delta -= 1
+                    else:
+                        dislikes_delta -= 1
+            else:
+                old_vote = existing_vote.vote
+                existing_vote.vote = vote_type
+                existing_vote.save()
+
+                if old_vote == 'like':
+                    likes_delta -= 1
+                else:
+                    dislikes_delta -= 1
+
+                if vote_type == 'like':
+                    likes_delta += 1
+                else:
+                    dislikes_delta += 1
+        else:
+            try:
+                # Savepoint: два паралельні перші голоси одного користувача
+                # обидва бачать "рядка немає" і другий create б'ється об
+                # unique_together (prompt, user_identifier)
+                with transaction.atomic():
+                    PromptVote.objects.create(
+                        prompt=prompt,
+                        user=user,
+                        user_identifier=user_identifier,
+                        vote=vote_type,
+                    )
+                if vote_type == 'like':
+                    likes_delta += 1
+                else:
+                    dislikes_delta += 1
+            except IntegrityError:
+                # Паралельний запит уже створив голос і врахував дельту
+                pass
+
+        Prompt.objects.filter(pk=prompt.pk).update(
+            likes_count=Greatest(F('likes_count') + likes_delta, 0),
+            dislikes_count=Greatest(F('dislikes_count') + dislikes_delta, 0),
+        )
+
+    prompt.refresh_from_db(fields=['likes_count', 'dislikes_count'])
+
+
 class PromptViewSet(viewsets.ModelViewSet):
     """Public Prompt Library - доступний для всіх користувачів"""
     serializer_class = PromptSerializer
@@ -457,52 +528,7 @@ class PromptViewSet(viewsets.ModelViewSet):
             user_identifier = hashlib.md5(unique_string.encode(), usedforsecurity=False).hexdigest()
             user = None
         
-        # Перевіряємо чи вже є голос
-        existing_vote = PromptVote.objects.filter(
-            prompt=prompt,
-            user_identifier=user_identifier
-        ).first()
-        
-        if existing_vote:
-            # Якщо той самий голос - видаляємо
-            if existing_vote.vote == vote_type:
-                if existing_vote.vote == 'like':
-                    prompt.likes_count = max(0, prompt.likes_count - 1)
-                else:
-                    prompt.dislikes_count = max(0, prompt.dislikes_count - 1)
-                existing_vote.delete()
-            else:
-                # Якщо інший голос - змінюємо
-                old_vote = existing_vote.vote
-                existing_vote.vote = vote_type
-                existing_vote.save()
-                
-                # Оновлюємо лічильники
-                if old_vote == 'like':
-                    prompt.likes_count = max(0, prompt.likes_count - 1)
-                else:
-                    prompt.dislikes_count = max(0, prompt.dislikes_count - 1)
-                
-                if vote_type == 'like':
-                    prompt.likes_count += 1
-                else:
-                    prompt.dislikes_count += 1
-        else:
-            # Створюємо новий голос
-            PromptVote.objects.create(
-                prompt=prompt,
-                user=user,
-                user_identifier=user_identifier,
-                vote=vote_type
-            )
-            
-            # Оновлюємо лічильники
-            if vote_type == 'like':
-                prompt.likes_count += 1
-            else:
-                prompt.dislikes_count += 1
-        
-        prompt.save(update_fields=['likes_count', 'dislikes_count'])
+        _apply_prompt_vote(prompt, user, user_identifier, vote_type)
         
         return Response({
             'likes_count': prompt.likes_count,
@@ -712,52 +738,7 @@ class PromptVoteView(APIView):
             user_identifier = hashlib.md5(unique_string.encode(), usedforsecurity=False).hexdigest()
             user = None
         
-        # Перевіряємо чи вже є голос
-        existing_vote = PromptVote.objects.filter(
-            prompt=prompt,
-            user_identifier=user_identifier
-        ).first()
-        
-        if existing_vote:
-            # Якщо той самий голос - видаляємо
-            if existing_vote.vote == vote_type:
-                if existing_vote.vote == 'like':
-                    prompt.likes_count = max(0, prompt.likes_count - 1)
-                else:
-                    prompt.dislikes_count = max(0, prompt.dislikes_count - 1)
-                existing_vote.delete()
-            else:
-                # Якщо інший голос - змінюємо
-                old_vote = existing_vote.vote
-                existing_vote.vote = vote_type
-                existing_vote.save()
-                
-                # Оновлюємо лічильники
-                if old_vote == 'like':
-                    prompt.likes_count = max(0, prompt.likes_count - 1)
-                else:
-                    prompt.dislikes_count = max(0, prompt.dislikes_count - 1)
-                
-                if vote_type == 'like':
-                    prompt.likes_count += 1
-                else:
-                    prompt.dislikes_count += 1
-        else:
-            # Створюємо новий голос
-            PromptVote.objects.create(
-                prompt=prompt,
-                user=user,
-                user_identifier=user_identifier,
-                vote=vote_type
-            )
-            
-            # Оновлюємо лічильники
-            if vote_type == 'like':
-                prompt.likes_count += 1
-            else:
-                prompt.dislikes_count += 1
-        
-        prompt.save(update_fields=['likes_count', 'dislikes_count'])
+        _apply_prompt_vote(prompt, user, user_identifier, vote_type)
         
         return Response({
             'likes_count': prompt.likes_count,

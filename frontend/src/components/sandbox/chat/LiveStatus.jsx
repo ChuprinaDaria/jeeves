@@ -15,7 +15,7 @@ const LiveStatus = () => {
         setKbConnected(connected.some(c =>
           c.tool_card?.slug === 'rag-search' || c.tool_slug === 'rag-search'
         ));
-      } catch (_) {
+      } catch {
         // Silent fail — non-critical UI element
       }
     };

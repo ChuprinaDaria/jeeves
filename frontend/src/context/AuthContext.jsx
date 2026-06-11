@@ -5,6 +5,7 @@ import { MOCK_MODE } from '../api/axios';
 
 const AuthContext = createContext();
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) throw new Error('useAuth must be used within AuthProvider');
@@ -55,11 +56,11 @@ export const AuthProvider = ({ children }) => {
           setUser(data);
           setLoading(false);
           return;
-        } catch (_) {
+        } catch {
           // Якщо бекенд тимчасово недоступний — не ламаємось
         }
       }
-    } catch (_) {}
+    } catch { /* ignore */ }
 
     // JWT більше не обов'язковий — просто завершуємо завантаження
     setLoading(false);

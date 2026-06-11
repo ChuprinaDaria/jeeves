@@ -151,10 +151,24 @@ class MetaWhatsAppWebhookView(View):
             if client_for_secret and getattr(client_for_secret, 'meta_app_secret', ''):
                 meta_app_secret = client_for_secret.meta_app_secret
 
-            if x_hub_signature and meta_app_secret:
+            # Заголовок підпису обов'язковий завжди: справжні запити Meta його
+            # містять, а його відсутність раніше повністю обходила перевірку.
+            if not x_hub_signature:
+                logger.warning("Meta webhook rejected: missing X-Hub-Signature-256")
+                return HttpResponse(status=403)
+
+            if meta_app_secret:
                 if not verify_xhub_signature(raw_body, x_hub_signature, meta_app_secret):
                     logger.warning("Invalid Meta webhook signature")
                     return HttpResponse(status=403)
+            else:
+                # Без секрету підпис неможливо перевірити — обробляємо, але
+                # це небезпечна конфігурація: задайте META_APP_SECRET або
+                # client.meta_app_secret для цільового клієнта
+                logger.warning(
+                    "Meta webhook processed WITHOUT signature verification: "
+                    "no app secret configured (set META_APP_SECRET or client.meta_app_secret)"
+                )
             
             body = body_preview
             logger.info(f"Meta WhatsApp Webhook POST: {json.dumps(body, indent=2)}")

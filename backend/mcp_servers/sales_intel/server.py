@@ -3,14 +3,55 @@ MCP Sales Intel server — wraps Open Sales Stack tools for Concierge orchestrat
 
 Provides techstack detection and website data extraction for lead research.
 """
+import ipaddress
 import json
 import logging
 import os
+import socket
 import sys
+from urllib.parse import urlparse
 
 from mcp.server.fastmcp import FastMCP
 
 logger = logging.getLogger(__name__)
+
+
+async def _ssrf_check(hostname: str) -> str | None:
+    """Resolve hostname and reject private/loopback/link-local/reserved targets.
+
+    Returns an error message, or None if the host is safe to fetch.
+    LLM передає сюди довільні URL, тому без цієї перевірки інструмент може
+    сканувати внутрішні сервіси (redis, БД, cloud metadata 169.254.169.254).
+    DNS виноситься в thread + обмежується таймаутом, щоб повільний резолв
+    не блокував event loop MCP-сервера.
+    """
+    import asyncio
+
+    if not hostname:
+        return "URL has no hostname"
+    try:
+        infos = await asyncio.wait_for(
+            asyncio.to_thread(socket.getaddrinfo, hostname, None),
+            timeout=5.0,
+        )
+    except socket.gaierror:
+        return f"Cannot resolve hostname: {hostname}"
+    except asyncio.TimeoutError:
+        return f"DNS resolution timed out for: {hostname}"
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if (ip.is_private or ip.is_loopback or ip.is_link_local
+                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+            return f"Refusing to fetch internal/private address: {hostname} -> {ip}"
+    return None
+
+
+async def _validate_external_url(url: str) -> str | None:
+    """Return an error message if URL is not a safe external http(s) URL."""
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        return f"Only http/https URLs are allowed, got scheme: {parsed.scheme or '(none)'}"
+    return await _ssrf_check(parsed.hostname or "")
 
 # Path to open-sales-stack packages (mounted or copied into container)
 OSS_BASE = os.environ.get(
@@ -37,6 +78,10 @@ async def detect_techstack(
 
     if not domain:
         return json.dumps({"error": "domain is required, e.g. 'stripe.com'"})
+
+    ssrf_error = await _ssrf_check(domain.split("/")[0].split(":")[0])
+    if ssrf_error:
+        return json.dumps({"error": ssrf_error})
 
     pkg_dir = os.path.join(OSS_BASE, "techstack-intel")
     if pkg_dir not in sys.path:
@@ -80,6 +125,10 @@ async def website_extract(
         return json.dumps({"error": "schema is required (JSON Schema object)"})
     if not prompt:
         return json.dumps({"error": "prompt is required (what to extract)"})
+
+    ssrf_error = await _validate_external_url(url)
+    if ssrf_error:
+        return json.dumps({"error": ssrf_error})
 
     pkg_dir = os.path.join(OSS_BASE, "website-intel")
     if pkg_dir not in sys.path:

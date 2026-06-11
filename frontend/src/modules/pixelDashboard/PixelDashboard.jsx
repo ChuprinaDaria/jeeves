@@ -11,7 +11,7 @@ const PixelDashboard = ({ enabled }) => {
   const gameLoopRef = useRef(null);
   const { t } = useTranslation();
   const status = usePixelStatus(enabled);
-  const [ready, setReady] = useState(false);
+  const [, setReady] = useState(false);
 
   useEffect(() => {
     if (!enabled) return;

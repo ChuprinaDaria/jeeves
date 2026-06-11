@@ -117,7 +117,7 @@ const EmbeddingModelEditPage = () => {
             api_endpoint: form.api_endpoint,
           });
       setTestOutcome(resp.data);
-    } catch (e) {
+    } catch {
       setTestOutcome({ outcome: 'network_error', message: 'Test failed' });
     } finally {
       setBusy(false);

@@ -10,7 +10,7 @@ import { clientAPI } from '../api/client';
 import { updateBrandingFromClient } from '../utils/helpers';
 
 const WebChatPage = () => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const tag = searchParams.get('tag');
   const sessionParam = searchParams.get('session');
@@ -18,7 +18,7 @@ const WebChatPage = () => {
   const [inputMessage, setInputMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [conversationId, setConversationId] = useState(null);
-  const [conversationDbId, setConversationDbId] = useState(null);
+  const [, setConversationDbId] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
@@ -38,7 +38,7 @@ const WebChatPage = () => {
     const saved = localStorage.getItem('web_chat_auto_voice');
     return saved !== 'false'; // default ON
   });
-  const [lastInputWasVoice, setLastInputWasVoice] = useState(false);
+  const [, setLastInputWasVoice] = useState(false);
   const [playingMessageId, setPlayingMessageId] = useState(null);
   const [ttsLoading, setTtsLoading] = useState(null);
   const [ttsVoice, setTtsVoice] = useState(() => {
@@ -93,7 +93,7 @@ const WebChatPage = () => {
             timestamp: new Date().toISOString(),
           }]);
         }
-      } catch (e) {
+      } catch {
         document.title = 'AI Chat Assistant';
       }
     };
@@ -166,8 +166,10 @@ const WebChatPage = () => {
           
           setMessages(prev => [...prev, ...newMessages]);
           
-          if (response.data.conversation_id && !conversationDbId) {
-            setConversationDbId(response.data.conversation_id);
+          if (response.data.conversation_id) {
+            // Функціональний апдейт замість залежності від conversationDbId:
+            // інакше кожна його зміна перезапускала setInterval
+            setConversationDbId(prev => prev ?? response.data.conversation_id);
           }
         }
       } catch (error) {
@@ -176,7 +178,7 @@ const WebChatPage = () => {
     }, 5000);
 
     return () => clearInterval(pollInterval);
-  }, [conversationId, tag, conversationDbId]);
+  }, [conversationId, tag]);
 
   useEffect(() => {
     let resizeTimer;

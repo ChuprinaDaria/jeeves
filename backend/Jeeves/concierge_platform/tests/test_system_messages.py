@@ -13,16 +13,17 @@ def clear_cache():
 @pytest.mark.django_db
 class TestSystemMessage:
     def test_get_existing_key(self):
-        SystemMessage.objects.create(
+        # update_or_create: ключ chat.timeout вже засіяний data-міграцією
+        SystemMessage.objects.update_or_create(
             key='chat.timeout',
-            translations={'en': 'Session timed out', 'de': 'Sitzung abgelaufen'})
+            defaults={'translations': {'en': 'Session timed out', 'de': 'Sitzung abgelaufen'}})
         assert SystemMessage.get('chat.timeout', 'en') == 'Session timed out'
         assert SystemMessage.get('chat.timeout', 'de') == 'Sitzung abgelaufen'
 
     def test_get_fallback_to_english(self):
-        SystemMessage.objects.create(
+        SystemMessage.objects.update_or_create(
             key='chat.timeout',
-            translations={'en': 'Session timed out'})
+            defaults={'translations': {'en': 'Session timed out'}})
         assert SystemMessage.get('chat.timeout', 'fr') == 'Session timed out'
 
     def test_get_missing_key_returns_empty(self):

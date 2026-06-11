@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from datetime import timedelta
+from django.core.exceptions import ImproperlyConfigured
 from environ import Env
 from typing import Any
 import mimetypes
@@ -14,9 +15,17 @@ ROOT_URLCONF = "Jeeves.urls"
 WSGI_APPLICATION = "Jeeves.wsgi.application"
 
 # === SECURITY ===
-SECRET_KEY = env("SECRET_KEY", default="dev-secret")
-FIELD_ENCRYPTION_KEY = env('FIELD_ENCRYPTION_KEY')
 DEBUG = env.bool("DEBUG", default=False)
+
+_DEV_SECRET_KEY = "dev-secret"
+SECRET_KEY = env("SECRET_KEY", default=_DEV_SECRET_KEY)
+if not DEBUG and SECRET_KEY == _DEV_SECRET_KEY:
+    raise ImproperlyConfigured(
+        "SECRET_KEY is not set. Refusing to start with the insecure dev default while DEBUG=False. "
+        "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(50))\""
+    )
+
+FIELD_ENCRYPTION_KEY = env('FIELD_ENCRYPTION_KEY')
 
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[
     "localhost",
@@ -55,13 +64,17 @@ if CSRF_EXTRA_ORIGINS:
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-# Session та CSRF cookies для роботи в iframe
+# Session та CSRF cookies. За замовчуванням Lax — безпечно проти CSRF.
+# Чат-віджет автентифікується через X-Client-Token header, тому cross-site cookies
+# йому не потрібні. Якщо конкретному деплою потрібні сесії в iframe —
+# встановіть COOKIE_SAMESITE=None через env.
+_COOKIE_SAMESITE = env("COOKIE_SAMESITE", default="Lax")
 SESSION_COOKIE_SECURE = True
-SESSION_COOKIE_SAMESITE = 'None'  # Дозволяє cookies в iframe (cross-site)
+SESSION_COOKIE_SAMESITE = _COOKIE_SAMESITE
 SESSION_COOKIE_HTTPONLY = True
 
 CSRF_COOKIE_SECURE = True
-CSRF_COOKIE_SAMESITE = 'None'  # Дозволяє CSRF token в iframe (cross-site)
+CSRF_COOKIE_SAMESITE = _COOKIE_SAMESITE
 CSRF_COOKIE_HTTPONLY = True
 
 # === APPLICATIONS ===
@@ -117,12 +130,19 @@ WHITENOISE_AUTOREFRESH = True
 WHITENOISE_MANIFEST_STRICT = False
 
 # === DATABASE ===
+_DEV_DB_PASS = "admin_pass"
+_DB_PASS = env("DB_PASS", default=_DEV_DB_PASS)
+if not DEBUG and _DB_PASS == _DEV_DB_PASS:
+    raise ImproperlyConfigured(
+        "DB_PASS is not set. Refusing to start with the insecure dev default while DEBUG=False."
+    )
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": env("DB_NAME", default="admin_db"),
         "USER": env("DB_USER", default="admin_user"),
-        "PASSWORD": env("DB_PASS", default="admin_pass"),
+        "PASSWORD": _DB_PASS,
         "HOST": env("DB_HOST", default="127.0.0.1"),
         "PORT": env("DB_PORT", default="5432"),
         "OPTIONS": {
@@ -390,10 +410,17 @@ CORS_ALLOW_METHODS = [
     'PUT',
 ]
 
-# White-label domain support
-ALLOWED_HOSTS.append('*')  # Accept all domains for white-label clients
+# White-label domain support.
+# Wildcard вимкнено в проді: '*' відкриває Host-header injection (підробка
+# password-reset посилань, cache poisoning). Для white-label доменів додавайте
+# їх у ALLOWED_HOSTS через env (підтримуються суфікси виду ".example.com").
+if DEBUG:
+    ALLOWED_HOSTS.append('*')
 
 # ── MCP Server Configuration (STDIO subprocess) ─────────────
+# Максимальний час виконання одного MCP tool call (секунди)
+MCP_TOOL_TIMEOUT = env.int("MCP_TOOL_TIMEOUT", default=60)
+
 MCP_SERVERS = {
     'rag': {
         'command': 'python',

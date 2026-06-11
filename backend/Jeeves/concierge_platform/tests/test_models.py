@@ -6,13 +6,15 @@ from Jeeves.EmbeddingModel.models import EmbeddingModel, LLMProvider
 @pytest.mark.django_db
 class TestPlatformDefaults:
     def test_singleton_get_creates_if_missing(self):
+        # Data-міграція сідить singleton — прибираємо, щоб перевірити створення
+        PlatformDefaults.objects.all().delete()
         assert PlatformDefaults.objects.count() == 0
         defaults = PlatformDefaults.get()
         assert defaults.pk == 1
         assert PlatformDefaults.objects.count() == 1
 
     def test_singleton_get_returns_existing(self):
-        PlatformDefaults.objects.create(pk=1)
+        PlatformDefaults.objects.get_or_create(pk=1)
         defaults = PlatformDefaults.get()
         assert defaults.pk == 1
         assert PlatformDefaults.objects.count() == 1
