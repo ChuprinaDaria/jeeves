@@ -7,8 +7,11 @@ Handles:
 - Conversation management
 """
 
+import contextlib
 import json
 import logging
+import threading
+
 import requests
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -90,6 +93,38 @@ def get_rating_message(language: str, rating: str) -> tuple[str, str]:
     rating_text, confirmation_text = lang_translations.get(rating, lang_translations['positive'])
     
     return rating_text, confirmation_text
+
+
+def send_telegram_typing(bot_token: str, chat_id: int) -> None:
+    """Show the 'typing…' chat action (Telegram keeps it for ~5s)."""
+    if not bot_token:
+        return
+    try:
+        requests.post(
+            f"{TELEGRAM_API_URL}{bot_token}/sendChatAction",
+            json={"chat_id": chat_id, "action": "typing"},
+            timeout=5,
+        )
+    except Exception:
+        logger.debug("sendChatAction failed for chat_id=%s", chat_id, exc_info=True)
+
+
+@contextlib.contextmanager
+def telegram_typing(bot_token: str, chat_id: int):
+    """Keep the 'typing…' indicator alive while the agent generates a reply."""
+    stop = threading.Event()
+
+    def _keepalive():
+        while not stop.is_set():
+            send_telegram_typing(bot_token, chat_id)
+            stop.wait(4)  # Telegram drops the action after ~5s
+
+    thread = threading.Thread(target=_keepalive, daemon=True)
+    thread.start()
+    try:
+        yield
+    finally:
+        stop.set()
 
 
 def send_telegram_message(bot_token: str, chat_id: int, message_text: str) -> bool:
@@ -688,23 +723,23 @@ class TelegramWebhookView(View):
 
             # MCP dual-mode: route to orchestrator for flagged clients
             from Jeeves.concierge_platform.models import FeatureFlag
-            if FeatureFlag.is_enabled('mcp_real_agent', conversation.client):
-                from Jeeves.agents.dispatch import generate_response_dual
-                response_text = generate_response_dual(
-                    message=message_text,
-                    client=conversation.client,
-                    conversation=conversation.messages,
-                    channel='telegram',
-                    external_user_id=str(chat_id),
-                )
-            else:
-                # Використовуємо RAG для генерації відповіді
-                response_text = self.generate_rag_response(message_text, conversation, chat_id)
+            bot_token = conversation.client.telegram_bot_token
+            # Show 'typing…' in the chat while the agent works
+            with telegram_typing(bot_token, chat_id):
+                if FeatureFlag.is_enabled('mcp_real_agent', conversation.client):
+                    from Jeeves.agents.dispatch import generate_response_dual
+                    response_text = generate_response_dual(
+                        message=message_text,
+                        client=conversation.client,
+                        conversation=conversation.messages,
+                        channel='telegram',
+                        external_user_id=str(chat_id),
+                    )
+                else:
+                    # Використовуємо RAG для генерації відповіді
+                    response_text = self.generate_rag_response(message_text, conversation, chat_id)
             
             logger.info(f"Regular message processed: chat_id={chat_id}, message={message_text[:100]}")
-            
-            # Відправляємо повідомлення
-            bot_token = conversation.client.telegram_bot_token
             if bot_token:
                 send_telegram_message(bot_token, chat_id, response_text)
             

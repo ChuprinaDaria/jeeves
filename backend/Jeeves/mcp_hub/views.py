@@ -3,7 +3,9 @@ import logging
 import asyncio
 
 from django.http import JsonResponse, StreamingHttpResponse
+from django.utils.decorators import method_decorator
 from django.views import View
+from django.views.decorators.csrf import csrf_exempt
 
 from Jeeves.agents.models import AgentConfig, AgentSession
 from Jeeves.concierge_platform.models import FeatureFlag
@@ -13,6 +15,7 @@ from .executor import executor
 logger = logging.getLogger(__name__)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class ChatSSEView(View):
     """POST /api/mcp/chat/ — SSE streaming chat endpoint.
 
@@ -101,11 +104,21 @@ class ChatSSEView(View):
         yield self._sse('done', {'session_id': str(session.id)})
 
     async def _stream_mcp(self, request, client, data):
-        """MCP orchestrator path — returns full response as SSE events."""
+        """MCP orchestrator path — streams tokens + tool events via SSE."""
         from Jeeves.agents.orchestrator import AgentOrchestrator
 
         message = data.get('message', '').strip()
         channel = data.get('channel', 'api')
+
+        # Prior conversation: [{'role': 'user'|'assistant', 'content': ...}]
+        conversation = None
+        raw_context = data.get('context')
+        if isinstance(raw_context, list):
+            conversation = [
+                {'role': m.get('role', 'user'), 'content': m.get('content', '')}
+                for m in raw_context[-30:]
+                if isinstance(m, dict) and m.get('content')
+            ]
 
         try:
             agent_config = await AgentConfig.objects.select_related(
@@ -136,15 +149,16 @@ class ChatSSEView(View):
                 orchestrator.process(
                     message=message,
                     session=session,
-                    conversation=None,
+                    conversation=conversation,
                     channel=channel,
                     external_user_id='',
                     tool_event_cb=tool_event_cb,
                 )
             )
 
-            # Drain tool events while the orchestrator is running.
+            # Drain token/tool events while the orchestrator is running.
             result = ""
+            streamed_text = False
             while True:
                 get_task = asyncio.create_task(tool_event_queue.get())
                 done, pending = await asyncio.wait(
@@ -162,6 +176,8 @@ class ChatSSEView(View):
                 # Queue item wins first.
                 try:
                     event_type, event_data = get_task.result()
+                    if event_type == 'token':
+                        streamed_text = True
                     yield self._sse(event_type, event_data)
                 finally:
                     # Ensure task is cleaned up.
@@ -171,9 +187,14 @@ class ChatSSEView(View):
             # Drain anything that arrived after process finished.
             while not tool_event_queue.empty():
                 event_type, event_data = tool_event_queue.get_nowait()
+                if event_type == 'token':
+                    streamed_text = True
                 yield self._sse(event_type, event_data)
 
-            yield self._sse('token', {'text': result})
+            # Token deltas already carried the text; only emit the full
+            # response when the provider couldn't stream.
+            if not streamed_text:
+                yield self._sse('token', {'text': result})
         except Exception as e:
             logger.error(f'MCP orchestrator failed in SSE: {e}', exc_info=True)
             yield self._sse('error', {'step': 'generate', 'message': str(e)})
@@ -236,3 +257,39 @@ class ChatSSEView(View):
 
     def _sse(self, event: str, data: dict) -> str:
         return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class PublicChatSSEView(ChatSSEView):
+    """POST /api/mcp/public-chat/ — SSE streaming for the public web chat.
+
+    Same engine as the sandbox SSE endpoint, but always runs in the public
+    'web' channel (consultant agent, manager scope) and is not gated by the
+    'mcp_sse_streaming' flag — the blocking /rag/chat/ endpoint remains the
+    non-streaming fallback.
+    """
+
+    async def post(self, request):
+        client = getattr(request, 'client', None)
+        if not client:
+            return JsonResponse({'error': 'Client not found'}, status=401)
+
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+        message = data.get('message', '').strip()
+        if not message:
+            return JsonResponse({'error': 'Message is required'}, status=400)
+
+        # Public visitors always get the consultant agent.
+        data['channel'] = 'web'
+
+        response = StreamingHttpResponse(
+            self._stream(request, client, data),
+            content_type='text/event-stream',
+        )
+        response['Cache-Control'] = 'no-cache'
+        response['X-Accel-Buffering'] = 'no'
+        return response

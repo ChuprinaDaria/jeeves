@@ -216,3 +216,55 @@ class TestCatalogServers:
             assert 'fire_hook' in [t['function']['name'] for t in llm_tools]
         finally:
             async_to_sync(orch.disconnect)()
+
+
+class TestStreamingLLM:
+    """_stream_openai_with_tools: text deltas reach the callback; tool-call
+    deltas are accumulated into the non-streaming message shape."""
+
+    def test_stream_accumulates_text_and_tool_calls(self):
+        from types import SimpleNamespace as NS
+
+        config = MagicMock()
+        config.language = 'en'
+        config.temperature = 0.7
+        config.max_tokens = 100
+        orch = AgentOrchestrator(MagicMock(pk=1), config)
+
+        chunks = [
+            NS(model='gpt-test', usage=None,
+               choices=[NS(delta=NS(content='Hel', tool_calls=None))]),
+            NS(model='gpt-test', usage=None,
+               choices=[NS(delta=NS(content='lo', tool_calls=None))]),
+            NS(model='gpt-test', usage=None,
+               choices=[NS(delta=NS(content=None, tool_calls=[
+                   NS(index=0, id='c1', function=NS(name='echo', arguments='{"a"')),
+               ]))]),
+            NS(model='gpt-test', usage=None,
+               choices=[NS(delta=NS(content=None, tool_calls=[
+                   NS(index=0, id=None, function=NS(name=None, arguments=': 1}')),
+               ]))]),
+            NS(model='gpt-test', usage=NS(total_tokens=42), choices=[]),
+        ]
+        provider = MagicMock()
+        provider.model_name = 'gpt-test'
+        provider.client.chat.completions.create.return_value = iter(chunks)
+
+        received = []
+
+        async def token_cb(text):
+            received.append(text)
+
+        result = async_to_sync(orch._stream_openai_with_tools)(
+            provider, [], [], token_cb)
+
+        assert received == ['Hel', 'lo']
+        msg = result['message']
+        assert msg['content'] == 'Hello'
+        assert msg['tool_calls'] == [{
+            'id': 'c1',
+            'type': 'function',
+            'function': {'name': 'echo', 'arguments': '{"a": 1}'},
+        }]
+        assert result['tokens_used'] == 42
+        assert result['model'] == 'gpt-test'

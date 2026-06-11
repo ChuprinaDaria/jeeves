@@ -5,7 +5,7 @@ import { Send, Loader2, Image, Moon, Sun, Download, Trash2, Mic, Menu, X, Sparkl
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import api from '../api/axios';
-import { ragAPI } from '../api/agent';
+import { ragAPI, publicChatAPI } from '../api/agent';
 import { clientAPI } from '../api/client';
 import { updateBrandingFromClient } from '../utils/helpers';
 
@@ -17,6 +17,8 @@ const WebChatPage = () => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [agentActivity, setAgentActivity] = useState(null); // tool-status line while agent works
+  const [isStreamingReply, setIsStreamingReply] = useState(false);
   const [conversationId, setConversationId] = useState(null);
   const [, setConversationDbId] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -567,11 +569,53 @@ const WebChatPage = () => {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
       } else {
-        response = await api.post('/rag/chat/', {
-          message: messageText,
-          session_id: conversationId,
-          context: recentMessages,
+        // Stream the reply over SSE: tokens render as they arrive and tool
+        // activity shows live. Falls back to the blocking POST on error.
+        const streamedText = await new Promise((resolve) => {
+          let acc = '';
+          publicChatAPI.chatStream(messageText, recentMessages, {
+            onToken: (text) => {
+              acc += text;
+              setAgentActivity(null);
+              setIsStreamingReply(true);
+              setMessages(prev => {
+                const last = prev[prev.length - 1];
+                if (last?.role === 'assistant' && last?.streaming) {
+                  return [...prev.slice(0, -1), { ...last, content: last.content + text }];
+                }
+                return [...prev, {
+                  id: (Date.now() + 1).toString(),
+                  role: 'assistant',
+                  content: text,
+                  streaming: true,
+                  timestamp: new Date().toISOString(),
+                }];
+              });
+            },
+            onToolEvent: (eventType) => {
+              if (eventType === 'tool_start') {
+                setAgentActivity(t('webChat.agentWorking') || '\u2026');
+              } else {
+                setAgentActivity(null);
+              }
+            },
+            onError: () => resolve(acc || null),
+            onDone: () => resolve(acc || null),
+          });
         });
+        setAgentActivity(null);
+        setIsStreamingReply(false);
+
+        if (streamedText) {
+          response = { data: { response: streamedText } };
+        } else {
+          // SSE unavailable — blocking fallback
+          response = await api.post('/rag/chat/', {
+            message: messageText,
+            session_id: conversationId,
+            context: recentMessages,
+          });
+        }
       }
 
       if (response.data?.response) {
@@ -589,7 +633,10 @@ const WebChatPage = () => {
         };
         
         setMessages(prev => {
-          const updatedMessages = [...prev, assistantMessage];
+          // Replace the in-flight streamed message (if any) with the final one
+          const last = prev[prev.length - 1];
+          const base = last?.streaming ? prev.slice(0, -1) : prev;
+          const updatedMessages = [...base, assistantMessage];
           const historyKey = `web_chat_history_${conversationId}`;
           const messagesToSave = updatedMessages.map(msg => {
             const { image, ...msgWithoutImage } = msg;
@@ -638,6 +685,8 @@ const WebChatPage = () => {
       }
     } catch (error) {
       console.error('Failed to send message:', error);
+      setAgentActivity(null);
+      setIsStreamingReply(false);
         const errorMessage = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
@@ -1134,9 +1183,9 @@ const WebChatPage = () => {
             </div>
           </div>
         ))}
-        {loading && (
+        {loading && (!isStreamingReply || agentActivity) && (
           <div className="flex justify-start">
-            <div className={`rounded-2xl px-4 py-3 ${
+            <div className={`flex items-center gap-2 rounded-2xl px-4 py-3 ${
               darkMode
                 ? 'bg-gray-800 border border-gray-700'
                 : 'bg-white border border-gray-200'
@@ -1144,6 +1193,11 @@ const WebChatPage = () => {
               <Loader2 size={18} className={`animate-spin ${
                 darkMode ? 'text-blue-400' : 'text-primary-600'
               }`} />
+              {agentActivity && (
+                <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                  {agentActivity}
+                </span>
+              )}
             </div>
           </div>
         )}

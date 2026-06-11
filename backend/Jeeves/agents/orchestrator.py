@@ -398,11 +398,22 @@ class AgentOrchestrator:
                 self.client.pk, self._scope, channel,
             )
 
+        # Stream text deltas to SSE consumers through the same event channel
+        # as tool_start/tool_result, so the UI shows the answer as it's typed.
+        token_cb = None
+        if tool_event_cb is not None:
+            async def _emit_token(text: str) -> None:
+                try:
+                    await tool_event_cb("token", {"text": text})
+                except Exception:
+                    logger.exception("tool_event_cb(token) failed")
+            token_cb = _emit_token
+
         for iteration in range(MAX_ITERATIONS):
             # --- LLM call ---
             t0 = time.monotonic()
             try:
-                response = await self._call_llm(messages, llm_tools)
+                response = await self._call_llm(messages, llm_tools, token_cb=token_cb)
             except Exception as exc:
                 await self._log(
                     session,
@@ -525,6 +536,10 @@ class AgentOrchestrator:
                             )
                     except Exception:
                         logger.exception("tool_event_cb(tool_result/error) failed")
+
+            # Separate streamed pre-tool text from the next iteration's text.
+            if token_cb is not None and (assistant_msg.get("content") or "").strip():
+                await token_cb("\n\n")
 
         # Exhausted iterations
         logger.warning("Orchestrator hit MAX_ITERATIONS (%d)", MAX_ITERATIONS)
@@ -783,11 +798,14 @@ class AgentOrchestrator:
         self,
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None,
+        token_cb=None,
     ) -> dict[str, Any]:
         """Call the LLM provider. Returns dict with 'message' and 'tokens_used'.
 
-        Uses OpenAI-compatible chat completion with function calling.
-        Falls back to plain generation if the provider doesn't support tools.
+        Uses OpenAI-compatible chat completion with function calling. When
+        ``token_cb`` is provided, text deltas are streamed to it as they
+        arrive. Falls back to plain generation if the provider doesn't
+        support tools.
         """
         import asyncio
         from asgiref.sync import sync_to_async
@@ -809,6 +827,15 @@ class AgentOrchestrator:
         from Jeeves.rag.providers.llm import OpenAILLMProvider
 
         if isinstance(provider, OpenAILLMProvider) and tools:
+            if token_cb is not None:
+                try:
+                    return await self._stream_openai_with_tools(
+                        provider, messages, tools, token_cb,
+                    )
+                except Exception:
+                    # Some OpenAI-compatible providers reject streaming params —
+                    # fall back to the non-streaming call.
+                    logger.exception("Streaming LLM call failed — retrying without stream")
             return await self._call_openai_with_tools(provider, messages, tools)
 
         # Fallback: plain text generation (no tool calling)
@@ -886,6 +913,105 @@ class AgentOrchestrator:
             "message": assistant_msg,
             "tokens_used": tokens_used,
             "model": response.model,
+        }
+
+    async def _stream_openai_with_tools(
+        self,
+        provider: Any,  # OpenAILLMProvider
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        token_cb,
+    ) -> dict[str, Any]:
+        """Streaming OpenAI chat completion with tool definitions.
+
+        Text deltas go to ``token_cb`` as they arrive; tool-call deltas are
+        accumulated into the same message shape the non-streaming path
+        returns, so the agentic loop is unaffected.
+        """
+        loop = asyncio.get_running_loop()
+        queue: asyncio.Queue = asyncio.Queue()
+
+        def _sync_stream():
+            """Iterate the sync OpenAI stream in a thread, feed the loop."""
+            model = provider.model_name
+            model_lower = (model or "").lower()
+            no_temp = model_lower.startswith(("o1", "o3", "gpt-5.1"))
+
+            params = {
+                "model": model,
+                "messages": messages,
+                "tools": tools,
+                "max_completion_tokens": self._max_tokens,
+                "stream": True,
+                "stream_options": {"include_usage": True},
+            }
+            if not no_temp:
+                params["temperature"] = self._temperature
+
+            try:
+                for chunk in provider.client.chat.completions.create(**params):
+                    loop.call_soon_threadsafe(queue.put_nowait, chunk)
+                loop.call_soon_threadsafe(queue.put_nowait, None)
+            except BaseException as exc:  # surfaced to the awaiting side
+                loop.call_soon_threadsafe(queue.put_nowait, exc)
+
+        stream_task = asyncio.create_task(asyncio.to_thread(_sync_stream))
+
+        content_parts: list[str] = []
+        tool_calls_acc: dict[int, dict] = {}  # index -> accumulated tool call
+        tokens_used = None
+        model_name = ""
+        try:
+            while True:
+                chunk = await queue.get()
+                if chunk is None:
+                    break
+                if isinstance(chunk, BaseException):
+                    raise chunk
+
+                model_name = getattr(chunk, "model", "") or model_name
+                if getattr(chunk, "usage", None):
+                    tokens_used = chunk.usage.total_tokens
+                if not chunk.choices:
+                    continue
+
+                delta = chunk.choices[0].delta
+                if delta is None:
+                    continue
+
+                if delta.content:
+                    content_parts.append(delta.content)
+                    await token_cb(delta.content)
+
+                for tc in delta.tool_calls or []:
+                    acc = tool_calls_acc.setdefault(tc.index, {
+                        "id": "",
+                        "type": "function",
+                        "function": {"name": "", "arguments": ""},
+                    })
+                    if tc.id:
+                        acc["id"] = tc.id
+                    if tc.function:
+                        if tc.function.name:
+                            acc["function"]["name"] += tc.function.name
+                        if tc.function.arguments:
+                            acc["function"]["arguments"] += tc.function.arguments
+        finally:
+            await stream_task
+
+        assistant_msg: dict[str, Any] = {
+            "role": "assistant",
+            "content": "".join(content_parts),
+        }
+        if tool_calls_acc:
+            assistant_msg["tool_calls"] = [
+                tool_calls_acc[idx] for idx in sorted(tool_calls_acc)
+            ]
+
+        return {
+            "message": assistant_msg,
+            "tokens_used": tokens_used,
+            "model": model_name,
         }
 
     async def _execute_tool_with_middleware(

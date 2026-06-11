@@ -26,21 +26,54 @@ def verify_xhub_signature(raw_body: bytes, x_hub_signature_256: str, app_secret:
         logger.error("Signature verification error: %s", e, exc_info=True)
         return False
 
+def _meta_credentials(client=None):
+    """Пер-клієнтні креди Meta з fallback до глобальних налаштувань."""
+    phone_number_id = None
+    access_token = None
+    if client is not None:
+        phone_number_id = getattr(client, 'meta_phone_number_id', '') or None
+        access_token = getattr(client, 'meta_access_token', '') or None
+    if not phone_number_id:
+        phone_number_id = getattr(settings, 'META_PHONE_NUMBER_ID', '')
+    if not access_token:
+        access_token = getattr(settings, 'META_ACCESS_TOKEN', '')
+    return phone_number_id, access_token
+
+
+def send_whatsapp_typing(message_id: str, *, client=None) -> bool:
+    """Показує typing-індикатор у чаті (і позначає повідомлення прочитаним).
+
+    WhatsApp Cloud API тримає індикатор до ~25 секунд або до відправки
+    відповіді — достатньо, поки агент генерує.
+    """
+    if not message_id:
+        return False
+    try:
+        phone_number_id, access_token = _meta_credentials(client)
+        if not phone_number_id or not access_token:
+            return False
+        url = f"{GRAPH_URL}/{phone_number_id}/messages"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "messaging_product": "whatsapp",
+            "status": "read",
+            "message_id": message_id,
+            "typing_indicator": {"type": "text"},
+        }
+        requests.post(url, headers=headers, json=payload, timeout=10)
+        return True
+    except Exception:
+        logger.debug("WhatsApp typing indicator failed", exc_info=True)
+        return False
+
+
 def send_whatsapp_text(to_number: str, body: str, *, client=None) -> bool:
     """Відправляє повідомлення через Meta WhatsApp API (пер-клієнтно)"""
     try:
-        phone_number_id = None
-        access_token = None
-
-        if client is not None:
-            phone_number_id = getattr(client, 'meta_phone_number_id', '') or None
-            access_token = getattr(client, 'meta_access_token', '') or None
-
-        # Backward fallback до глобальних налаштувань, якщо не задані у клієнта
-        if not phone_number_id:
-            phone_number_id = getattr(settings, 'META_PHONE_NUMBER_ID', '')
-        if not access_token:
-            access_token = getattr(settings, 'META_ACCESS_TOKEN', '')
+        phone_number_id, access_token = _meta_credentials(client)
 
         if not phone_number_id or not access_token:
             logger.warning("Meta WhatsApp credentials are not configured")
@@ -233,7 +266,7 @@ class MetaWhatsAppWebhookView(View):
             if message_body.strip().upper().startswith('START2'):
                 self.handle_start2_command(from_number, message_body)
             else:
-                self.handle_regular_message(from_number, message_body, client)
+                self.handle_regular_message(from_number, message_body, client, message_id=message_id)
                 
         except Exception as e:
             logger.error(f"Error handling Meta message: {str(e)}", exc_info=True)
@@ -370,7 +403,7 @@ class MetaWhatsAppWebhookView(View):
             logger.error(f"Error processing START2 command: {str(e)}", exc_info=True)
             send_whatsapp_text(from_number, "Вибачте, виникла помилка. Спробуйте пізніше.")
     
-    def handle_regular_message(self, from_number, message_body, client):
+    def handle_regular_message(self, from_number, message_body, client, message_id=''):
         """Обробляє звичайні повідомлення з RAG логікою"""
         try:
             # Якщо клієнт не визначений метаданими, спробуємо знайти за активною розмовою
@@ -382,6 +415,8 @@ class MetaWhatsAppWebhookView(View):
             # MCP dual-mode: route to orchestrator for flagged clients
             from Jeeves.concierge_platform.models import FeatureFlag
             _conv_client = conversation.client if conversation else client
+            # Show typing while the agent generates the reply
+            send_whatsapp_typing(message_id, client=_conv_client)
             if _conv_client and FeatureFlag.is_enabled('mcp_real_agent', _conv_client):
                 from Jeeves.agents.dispatch import generate_response_dual
                 response_text = generate_response_dual(
