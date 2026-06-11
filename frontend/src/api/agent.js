@@ -88,67 +88,77 @@ export const ragAPI = {
   },
 };
 
+// Shared SSE chat transport: POST + fetch ReadableStream parsing.
+// Events: token, status, done, error, tool_start, tool_result, tool_error.
+const streamChatSSE = (path, payload, { onToken, onDone, onError, onStatus, onToolEvent } = {}) => {
+  const urlTag = new URLSearchParams(window.location.search).get('tag');
+  const tag = urlTag || localStorage.getItem('client_tag');
+  const baseURL = api.defaults.baseURL || '';
+
+  fetch(`${baseURL}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      // Middleware reads X-Client-Token; keep X-Client-Tag for compat.
+      ...(tag ? { 'X-Client-Token': tag, 'X-Client-Tag': tag } : {}),
+      ...api.defaults.headers.common,
+    },
+    body: JSON.stringify(payload),
+  }).then(response => {
+    if (!response.ok) {
+      onError?.(`HTTP ${response.status}`);
+      return;
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    function read() {
+      reader.read().then(({ done, value }) => {
+        if (done) {
+          onDone?.();
+          return;
+        }
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        let eventType = '';
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            eventType = line.slice(7).trim();
+          } else if (line.startsWith('data: ') && eventType) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (eventType === 'token') onToken?.(data.text);
+              else if (eventType === 'status') onStatus?.(data);
+              else if (eventType === 'done') onDone?.(data);
+              else if (eventType === 'error') onError?.(data.message);
+              else if (eventType === 'tool_start' || eventType === 'tool_result' || eventType === 'tool_error') {
+                onToolEvent?.(eventType, data);
+              }
+            } catch { /* ignore */ }
+            eventType = '';
+          }
+        }
+        read();
+      });
+    }
+    read();
+  }).catch(err => onError?.(err.message));
+};
+
 // MCP SSE Chat (used when mcp_real_agent flag is enabled)
 export const mcpAPI = {
-  chatSSE: (message, channel = 'sandbox', onToken, onDone, onError, onStatus, onToolEvent) => {
-    const tag = localStorage.getItem('client_tag');
-    const baseURL = api.defaults.baseURL || '';
-    const url = `${baseURL}/mcp/chat/`;
+  chatSSE: (message, channel = 'sandbox', onToken, onDone, onError, onStatus, onToolEvent) =>
+    streamChatSSE('/mcp/chat/', { message, channel }, { onToken, onDone, onError, onStatus, onToolEvent }),
+};
 
-    const body = JSON.stringify({ message, channel });
-
-    fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(tag ? { 'X-Client-Tag': tag } : {}),
-        ...api.defaults.headers.common,
-      },
-      body,
-    }).then(response => {
-      if (!response.ok) {
-        onError?.(`HTTP ${response.status}`);
-        return;
-      }
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      function read() {
-        reader.read().then(({ done, value }) => {
-          if (done) {
-            onDone?.();
-            return;
-          }
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-
-          let eventType = '';
-          for (const line of lines) {
-            if (line.startsWith('event: ')) {
-              eventType = line.slice(7).trim();
-            } else if (line.startsWith('data: ') && eventType) {
-              try {
-                const data = JSON.parse(line.slice(6));
-                if (eventType === 'token') onToken?.(data.text);
-                else if (eventType === 'status') onStatus?.(data);
-                else if (eventType === 'done') onDone?.(data);
-                else if (eventType === 'error') onError?.(data.message);
-                else if (eventType === 'tool_start' || eventType === 'tool_result' || eventType === 'tool_error') {
-                  console.log('[SSE]', eventType, data?.tool_name, data?.result?.substring?.(0, 80));
-                  onToolEvent?.(eventType, data);
-                }
-              } catch { /* ignore */ }
-              eventType = '';
-            }
-          }
-          read();
-        });
-      }
-      read();
-    }).catch(err => onError?.(err.message));
-  },
+// Public web-chat streaming (consultant agent, 'web' channel).
+// context: [{ role, content }] — last messages of the dialog.
+export const publicChatAPI = {
+  chatStream: (message, context, handlers) =>
+    streamChatSSE('/mcp/public-chat/', { message, context: context || [] }, handlers),
 };
 
 // Legacy agentAPI для сумісності - перенаправляємо на нові RAG ендпоінти

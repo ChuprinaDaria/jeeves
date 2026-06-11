@@ -496,7 +496,8 @@
     "ratePositive": "👍 Positiv",
     "rateNegative": "👎 Negativ",
     "ratingThankYouPositive": "Tak for din positive vurdering! 👍",
-    "ratingThankYouNegative": "Tak for din feedback! 👎"
+    "ratingThankYouNegative": "Tak for din feedback! 👎",
+    "agentWorking": "Arbejder på det…"
   },
   "extensionData": {
     "loading": "Indlæser udvidelsesdata...",

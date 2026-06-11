@@ -615,9 +615,11 @@ class PublicRAGChatView(APIView):
             except AgentConfig.DoesNotExist:
                 agent_config = await AgentConfig.objects.acreate(client=client)
 
+            # Public visitors must get the consultant agent (manager scope),
+            # never the owner's sandbox assistant.
             session = await AgentSession.objects.acreate(
                 agent_config=agent_config,
-                channel='sandbox',
+                channel='web',
                 metadata={'source': 'PublicRAGChatView_mcp'},
             )
 
@@ -628,7 +630,7 @@ class PublicRAGChatView(APIView):
                     message=message,
                     session=session,
                     conversation=conversation,
-                    channel='sandbox',
+                    channel='web',
                 )
                 return result
             finally:

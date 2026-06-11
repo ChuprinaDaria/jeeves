@@ -952,7 +952,8 @@
     "settings": "Settings",
     "fontSize": "Font Size",
     "voiceSelect": "AI Voice",
-    "autoVoiceReply": "Auto voice reply"
+    "autoVoiceReply": "Auto voice reply",
+    "agentWorking": "Working on it…"
   },
   "extensionData": {
     "loading": "Loading extension data...",

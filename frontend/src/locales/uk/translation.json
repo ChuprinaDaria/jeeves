@@ -363,5 +363,9 @@
       "field_homeserver_help": "напр. https://matrix.example.com",
       "bridges_label": "Активні мости"
     }
+  },
+  "webChat": {
+    "agentWorking": "Працюю над цим…",
+    "errorOccurred": "Вибачте, сталася помилка. Спробуйте ще раз."
   }
 }

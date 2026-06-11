@@ -39,6 +39,17 @@ def _mcp_tool_timeout() -> float:
 # Parameters that the orchestrator auto-injects (hidden from LLM).
 _AUTO_INJECT_PARAMS = frozenset({"client_id", "session_id", "user_id"})
 
+
+class _SchemaTool:
+    """Adapter: stored ``ToolCard.tools_schema`` entry → MCP Tool-like object."""
+
+    __slots__ = ("name", "description", "inputSchema")
+
+    def __init__(self, entry: dict):
+        self.name = entry.get("name", "")
+        self.description = entry.get("description", "")
+        self.inputSchema = entry.get("inputSchema") or {}
+
 DEFAULT_ASSISTANT_PROMPT = (
     "You are Jeeves, the AI business assistant. You help the business owner "
     "manage their business, analyze data, and grow.\n\n"
@@ -148,10 +159,17 @@ class AgentOrchestrator:
         self._max_tokens = agent_config.max_tokens if agent_config.max_tokens is not None else 4096
 
         # Filled by ``connect()``
+        self._pool = None  # shared MCPSessionPool when MCP_POOL_ENABLED
         self._exit_stack: AsyncExitStack | None = None
         self._sessions: dict[str, ClientSession] = {}  # server_name -> session
         self._tools: list[dict[str, Any]] = []  # MCP Tool dicts
         self._tool_to_server: dict[str, str] = {}  # tool_name -> server_name
+
+        # Catalog (DB-defined) MCP servers — owner-installed stdio packages
+        # and remote SSE/HTTP servers. Opt-in per client via ToolConnection.
+        self._dynamic_servers: set[str] = set()  # server_name (= ToolCard.slug)
+        self._remote_cards: dict[str, Any] = {}  # slug -> ToolCard (sse/http)
+        self._dynamic_descriptions: dict[str, tuple[str, str]] = {}
 
         # Scope filtering (set in process())
         self._scope = 'manager'  # default, set in process()
@@ -161,56 +179,172 @@ class AgentOrchestrator:
         self._tool_scopes: dict[str, list[str]] = getattr(settings, 'MCP_TOOL_SCOPES', {})
 
     async def connect(self) -> None:
-        """Spawn enabled MCP servers and discover their tools."""
+        """Attach to the shared MCP session pool (or spawn private servers).
+
+        The pool spawns every server once per worker process; per-request
+        spawning (the old behavior, ~seconds of latency per message) remains
+        available via ``MCP_POOL_ENABLED=False`` as a fallback.
+        """
+        if getattr(settings, "MCP_POOL_ENABLED", True):
+            from Jeeves.agents.mcp_pool import MCPSessionPool
+
+            pool = MCPSessionPool.instance()
+            try:
+                # ensure_started blocks on first use — keep the loop free.
+                await asyncio.to_thread(
+                    pool.ensure_started, self._build_subprocess_env(),
+                )
+            except Exception:
+                logger.exception(
+                    "MCP pool failed to start — falling back to per-request spawn"
+                )
+            else:
+                self._pool = pool
+                self._sessions = dict(pool.sessions)
+                self._tools = list(pool.tools)
+                self._tool_to_server = dict(pool.tool_to_server)
+
+        if self._pool is None:
+            await self._connect_private()
+
+        await self._attach_catalog_servers()
+
+    async def _connect_private(self) -> None:
+        """Spawn enabled MCP servers for this request only."""
         server_defs: dict[str, dict] = getattr(settings, "MCP_SERVERS", {})
         if not server_defs:
             logger.warning("settings.MCP_SERVERS is empty — no MCP tools available")
             return
-
-        self._exit_stack = AsyncExitStack()
-        await self._exit_stack.__aenter__()
 
         env = self._build_subprocess_env()
 
         for name, cfg in server_defs.items():
             if not cfg.get("enabled", True):
                 continue
+            await self._spawn_private_server(name, {**cfg, "env": cfg.get("env") or env})
 
-            params = StdioServerParameters(
-                command=cfg["command"],
-                args=cfg.get("args", []),
-                env=env,
+        logger.info(
+            "MCP connect complete — %d server(s) up, %d tool(s) discovered",
+            len(self._sessions),
+            len(self._tools),
+        )
+        if not self._tools:
+            logger.warning(
+                "No MCP tools discovered — agent will run without tools "
+                "(check 'Failed to connect MCP server' errors above)"
             )
 
-            try:
-                transport = await self._exit_stack.enter_async_context(
-                    stdio_client(params),
-                )
-                read_stream, write_stream = transport
-                session = await self._exit_stack.enter_async_context(
-                    ClientSession(read_stream, write_stream),
-                )
-                await session.initialize()
-                self._sessions[name] = session
+    async def _spawn_private_server(self, name: str, cfg: dict) -> None:
+        """Spawn one stdio MCP server for this request only (non-pool mode)."""
+        if self._exit_stack is None:
+            self._exit_stack = AsyncExitStack()
+            await self._exit_stack.__aenter__()
 
-                # Discover tools
-                result = await session.list_tools()
-                for tool in result.tools:
-                    self._tools.append(tool)
-                    self._tool_to_server[tool.name] = name
+        params = StdioServerParameters(
+            command=cfg["command"],
+            args=cfg.get("args", []),
+            env=cfg.get("env"),
+        )
 
-                logger.info(
-                    "MCP server '%s' connected — %d tool(s): %s",
-                    name,
-                    len(result.tools),
-                    [t.name for t in result.tools],
-                )
+        try:
+            transport = await self._exit_stack.enter_async_context(
+                stdio_client(params),
+            )
+            read_stream, write_stream = transport
+            session = await self._exit_stack.enter_async_context(
+                ClientSession(read_stream, write_stream),
+            )
+            await session.initialize()
+            self._sessions[name] = session
 
-            except Exception:
-                logger.exception("Failed to connect MCP server '%s'", name)
+            # Discover tools
+            result = await session.list_tools()
+            for tool in result.tools:
+                self._tools.append(tool)
+                self._tool_to_server[tool.name] = name
+
+            logger.info(
+                "MCP server '%s' connected — %d tool(s): %s",
+                name,
+                len(result.tools),
+                [t.name for t in result.tools],
+            )
+
+        except Exception:
+            logger.exception("Failed to connect MCP server '%s'", name)
+
+    async def _attach_catalog_servers(self) -> None:
+        """Expose owner-added MCP servers from the tool catalog (DB).
+
+        Two kinds, neither defined in ``settings.MCP_SERVERS``:
+        - stdio packages (``InstalledMCPServer``) — spawned through the shared
+          pool (or privately in non-pool mode) like platform servers;
+        - remote SSE / streamable-HTTP servers — their tools come from the
+          schema stored at install time (``ToolCard.tools_schema``) and each
+          call opens a connection with the client's credentials.
+
+        Unlike platform servers these are opt-in: only clients with an enabled
+        ``ToolConnection`` for the card see the tools (``_build_scope_filter``).
+        """
+        from Jeeves.tools.models import ToolCard
+
+        # --- Owner-installed stdio packages ---
+        base_env = self._build_subprocess_env()
+        stdio_defs: dict[str, dict] = {}
+        async for card in ToolCard.objects.filter(
+            is_active=True,
+            transport_type='stdio',
+            installed_server__status='installed',
+        ).select_related('installed_server'):
+            inst = card.installed_server
+            stdio_defs[card.slug] = {
+                "command": inst.run_command,
+                "args": inst.run_args or [],
+                "env": {**base_env, **(inst.env_config or {})},
+            }
+            self._dynamic_descriptions[card.slug] = (card.name, card.tagline)
+
+        if stdio_defs:
+            if self._pool is not None:
+                try:
+                    await asyncio.to_thread(
+                        self._pool.ensure_extra_servers, stdio_defs,
+                    )
+                except Exception:
+                    logger.exception("Failed to start catalog stdio MCP servers")
+                # Refresh local views — pool may have new servers/tools now.
+                self._sessions = dict(self._pool.sessions)
+                self._tools = list(self._pool.tools)
+                self._tool_to_server = dict(self._pool.tool_to_server)
+            else:
+                for name, cfg in stdio_defs.items():
+                    await self._spawn_private_server(name, cfg)
+            self._dynamic_servers |= set(stdio_defs)
+
+        # --- Remote SSE / streamable-HTTP servers ---
+        async for card in ToolCard.objects.filter(
+            is_active=True,
+            transport_type__in=('sse', 'streamable_http'),
+        ).exclude(mcp_server_url=''):
+            if not card.tools_schema:
+                continue
+            self._remote_cards[card.slug] = card
+            self._dynamic_servers.add(card.slug)
+            self._dynamic_descriptions[card.slug] = (card.name, card.tagline)
+            for entry in card.tools_schema:
+                tool = _SchemaTool(entry)
+                if not tool.name or tool.name in self._tool_to_server:
+                    continue
+                self._tools.append(tool)
+                self._tool_to_server[tool.name] = card.slug
 
     async def disconnect(self) -> None:
-        """Tear down all MCP sessions and subprocesses."""
+        """Detach from the pool / tear down private MCP subprocesses.
+
+        Pooled sessions stay alive for the next request — only privately
+        spawned servers (non-pool fallback) are terminated here.
+        """
+        self._pool = None
         if self._exit_stack:
             try:
                 await self._exit_stack.aclose()
@@ -221,6 +355,8 @@ class AgentOrchestrator:
                 self._sessions.clear()
                 self._tools.clear()
                 self._tool_to_server.clear()
+        self._dynamic_servers.clear()
+        self._remote_cards.clear()
 
     # ------------------------------------------------------------------
     # Main entry-point
@@ -256,12 +392,28 @@ class AgentOrchestrator:
         system_prompt = self._build_system_prompt(channel)
         messages = self._build_messages(system_prompt, conversation, message)
         llm_tools = self._tools_to_llm_format()
+        if not llm_tools:
+            logger.warning(
+                "No MCP tools available for client %s (scope=%s, channel=%s)",
+                self.client.pk, self._scope, channel,
+            )
+
+        # Stream text deltas to SSE consumers through the same event channel
+        # as tool_start/tool_result, so the UI shows the answer as it's typed.
+        token_cb = None
+        if tool_event_cb is not None:
+            async def _emit_token(text: str) -> None:
+                try:
+                    await tool_event_cb("token", {"text": text})
+                except Exception:
+                    logger.exception("tool_event_cb(token) failed")
+            token_cb = _emit_token
 
         for iteration in range(MAX_ITERATIONS):
             # --- LLM call ---
             t0 = time.monotonic()
             try:
-                response = await self._call_llm(messages, llm_tools)
+                response = await self._call_llm(messages, llm_tools, token_cb=token_cb)
             except Exception as exc:
                 await self._log(
                     session,
@@ -384,6 +536,10 @@ class AgentOrchestrator:
                             )
                     except Exception:
                         logger.exception("tool_event_cb(tool_result/error) failed")
+
+            # Separate streamed pre-tool text from the next iteration's text.
+            if token_cb is not None and (assistant_msg.get("content") or "").strip():
+                await token_cb("\n\n")
 
         # Exhausted iterations
         logger.warning("Orchestrator hit MAX_ITERATIONS (%d)", MAX_ITERATIONS)
@@ -518,41 +674,36 @@ class AgentOrchestrator:
         return messages
 
     async def _build_scope_filter(self):
-        """Build mapping of server_name -> ToolConnection for current scope."""
-        from Jeeves.tools.models import ToolCard, ToolConnection
+        """Resolve which MCP servers the current scope may use.
 
-        connections = ToolConnection.objects.filter(
-            client=self.client, enabled=True, status='connected',
-            target=self._scope,
-        ).select_related('tool_card')
+        Platform servers (``settings.MCP_SERVERS``) are available by default
+        (per-tool scope rules from ``MCP_TOOL_SCOPES`` still apply); a
+        ``ToolConnection`` for this client/scope can opt one out
+        (``enabled=False``) or attach per-client credentials and middleware
+        (``status='connected'``). Catalog servers (owner-added, DB-defined)
+        are the opposite — opt-in: they require an enabled ToolConnection.
+        """
+        from Jeeves.tools.models import ToolConnection
 
         self._tool_to_connection = {}
-        self._connected_server_names = set()
+        known_servers = set(self._sessions) | self._dynamic_servers
+        self._connected_server_names = set(self._sessions) - self._dynamic_servers
+
+        connections = ToolConnection.objects.filter(
+            client=self.client, target=self._scope,
+        ).select_related('tool_card')
+
         async for conn in connections:
             slug = conn.tool_card.slug
-            for server_name in self._sessions:
+            for server_name in known_servers:
                 if slug == server_name or slug.startswith(server_name + '-'):
-                    self._tool_to_connection[server_name] = conn
-                    self._connected_server_names.add(server_name)
+                    if not conn.enabled:
+                        self._connected_server_names.discard(server_name)
+                    else:
+                        self._connected_server_names.add(server_name)
+                        if conn.status == 'connected':
+                            self._tool_to_connection[server_name] = conn
                     break
-
-        # System tools are always available regardless of ToolConnection
-        system_slugs = set()
-        async for card in ToolCard.objects.filter(is_system=True, is_active=True):
-            scopes = card.skill_scopes.get('scopes', ['assistant', 'manager'])
-            if self._scope in scopes:
-                system_slugs.add(card.slug)
-        for server_name in self._sessions:
-            if server_name in self._connected_server_names:
-                continue
-            for slug in system_slugs:
-                if slug == server_name or slug.startswith(server_name + '-'):
-                    self._connected_server_names.add(server_name)
-                    break
-
-        # Bridge management tools are always available in sandbox scope
-        if self._scope == 'assistant' and 'bridge' in self._sessions:
-            self._connected_server_names.add('bridge')
 
     def _get_scope_tool_names(self) -> list[str]:
         """Tool names visible to current scope."""
@@ -590,6 +741,8 @@ class AgentOrchestrator:
             seen.add(server_name)
             if server_name in self._SERVER_DESCRIPTIONS:
                 result.append(self._SERVER_DESCRIPTIONS[server_name])
+            elif server_name in self._dynamic_descriptions:
+                result.append(self._dynamic_descriptions[server_name])
         return result
 
     def _has_leads_tool(self) -> bool:
@@ -645,11 +798,14 @@ class AgentOrchestrator:
         self,
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None,
+        token_cb=None,
     ) -> dict[str, Any]:
         """Call the LLM provider. Returns dict with 'message' and 'tokens_used'.
 
-        Uses OpenAI-compatible chat completion with function calling.
-        Falls back to plain generation if the provider doesn't support tools.
+        Uses OpenAI-compatible chat completion with function calling. When
+        ``token_cb`` is provided, text deltas are streamed to it as they
+        arrive. Falls back to plain generation if the provider doesn't
+        support tools.
         """
         import asyncio
         from asgiref.sync import sync_to_async
@@ -671,6 +827,15 @@ class AgentOrchestrator:
         from Jeeves.rag.providers.llm import OpenAILLMProvider
 
         if isinstance(provider, OpenAILLMProvider) and tools:
+            if token_cb is not None:
+                try:
+                    return await self._stream_openai_with_tools(
+                        provider, messages, tools, token_cb,
+                    )
+                except Exception:
+                    # Some OpenAI-compatible providers reject streaming params —
+                    # fall back to the non-streaming call.
+                    logger.exception("Streaming LLM call failed — retrying without stream")
             return await self._call_openai_with_tools(provider, messages, tools)
 
         # Fallback: plain text generation (no tool calling)
@@ -748,6 +913,105 @@ class AgentOrchestrator:
             "message": assistant_msg,
             "tokens_used": tokens_used,
             "model": response.model,
+        }
+
+    async def _stream_openai_with_tools(
+        self,
+        provider: Any,  # OpenAILLMProvider
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        token_cb,
+    ) -> dict[str, Any]:
+        """Streaming OpenAI chat completion with tool definitions.
+
+        Text deltas go to ``token_cb`` as they arrive; tool-call deltas are
+        accumulated into the same message shape the non-streaming path
+        returns, so the agentic loop is unaffected.
+        """
+        loop = asyncio.get_running_loop()
+        queue: asyncio.Queue = asyncio.Queue()
+
+        def _sync_stream():
+            """Iterate the sync OpenAI stream in a thread, feed the loop."""
+            model = provider.model_name
+            model_lower = (model or "").lower()
+            no_temp = model_lower.startswith(("o1", "o3", "gpt-5.1"))
+
+            params = {
+                "model": model,
+                "messages": messages,
+                "tools": tools,
+                "max_completion_tokens": self._max_tokens,
+                "stream": True,
+                "stream_options": {"include_usage": True},
+            }
+            if not no_temp:
+                params["temperature"] = self._temperature
+
+            try:
+                for chunk in provider.client.chat.completions.create(**params):
+                    loop.call_soon_threadsafe(queue.put_nowait, chunk)
+                loop.call_soon_threadsafe(queue.put_nowait, None)
+            except BaseException as exc:  # surfaced to the awaiting side
+                loop.call_soon_threadsafe(queue.put_nowait, exc)
+
+        stream_task = asyncio.create_task(asyncio.to_thread(_sync_stream))
+
+        content_parts: list[str] = []
+        tool_calls_acc: dict[int, dict] = {}  # index -> accumulated tool call
+        tokens_used = None
+        model_name = ""
+        try:
+            while True:
+                chunk = await queue.get()
+                if chunk is None:
+                    break
+                if isinstance(chunk, BaseException):
+                    raise chunk
+
+                model_name = getattr(chunk, "model", "") or model_name
+                if getattr(chunk, "usage", None):
+                    tokens_used = chunk.usage.total_tokens
+                if not chunk.choices:
+                    continue
+
+                delta = chunk.choices[0].delta
+                if delta is None:
+                    continue
+
+                if delta.content:
+                    content_parts.append(delta.content)
+                    await token_cb(delta.content)
+
+                for tc in delta.tool_calls or []:
+                    acc = tool_calls_acc.setdefault(tc.index, {
+                        "id": "",
+                        "type": "function",
+                        "function": {"name": "", "arguments": ""},
+                    })
+                    if tc.id:
+                        acc["id"] = tc.id
+                    if tc.function:
+                        if tc.function.name:
+                            acc["function"]["name"] += tc.function.name
+                        if tc.function.arguments:
+                            acc["function"]["arguments"] += tc.function.arguments
+        finally:
+            await stream_task
+
+        assistant_msg: dict[str, Any] = {
+            "role": "assistant",
+            "content": "".join(content_parts),
+        }
+        if tool_calls_acc:
+            assistant_msg["tool_calls"] = [
+                tool_calls_acc[idx] for idx in sorted(tool_calls_acc)
+            ]
+
+        return {
+            "message": assistant_msg,
+            "tokens_used": tokens_used,
+            "model": model_name,
         }
 
     async def _execute_tool_with_middleware(
@@ -846,22 +1110,30 @@ class AgentOrchestrator:
         if not server_name:
             return json.dumps({"error": f"Unknown tool: {tool_name}"}), "error"
 
-        session = self._sessions.get(server_name)
-        if not session:
-            return json.dumps({"error": f"MCP server '{server_name}' not connected"}), "error"
-
         # Auto-inject client_id and session_id
         full_args = dict(arguments)
         full_args["client_id"] = self.client.pk
         full_args["session_id"] = str(self._session.id)
         full_args["user_id"] = self._session.external_user_id or str(self._session.id)
 
+        # Remote (SSE / streamable HTTP) catalog servers connect per call.
+        if server_name in self._remote_cards:
+            return await self._execute_remote_tool(server_name, tool_name, full_args)
+
+        if self._pool is None and not self._sessions.get(server_name):
+            return json.dumps({"error": f"MCP server '{server_name}' not connected"}), "error"
+
         try:
             # Завислий MCP-сервер не повинен вішати весь агентський запит
-            result = await asyncio.wait_for(
-                session.call_tool(tool_name, full_args),
-                timeout=_mcp_tool_timeout(),
-            )
+            if self._pool is not None:
+                result = await self._pool.call_tool(
+                    server_name, tool_name, full_args, timeout=_mcp_tool_timeout(),
+                )
+            else:
+                result = await asyncio.wait_for(
+                    self._sessions[server_name].call_tool(tool_name, full_args),
+                    timeout=_mcp_tool_timeout(),
+                )
 
             # CallToolResult.content is a list of content items
             texts = []
@@ -878,6 +1150,64 @@ class AgentOrchestrator:
         except Exception as exc:
             logger.exception("MCP tool '%s' execution failed", tool_name)
             return json.dumps({"error": str(exc)}), "error"
+
+    async def _execute_remote_tool(
+        self,
+        server_name: str,
+        tool_name: str,
+        arguments: dict[str, Any],
+    ) -> tuple[str, str]:
+        """Call a remote catalog MCP server (SSE / streamable HTTP).
+
+        Credentials come from the client's ToolConnection when present
+        (``access_token``/``api_key`` → Bearer header).
+        """
+        card = self._remote_cards[server_name]
+        connection = self._tool_to_connection.get(server_name)
+        credentials = (connection.credentials or {}) if connection else {}
+
+        headers = {}
+        token = credentials.get("access_token") or credentials.get("api_key")
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
+        try:
+            result = await asyncio.wait_for(
+                self._call_remote_server(card, tool_name, arguments, headers),
+                timeout=_mcp_tool_timeout(),
+            )
+        except Exception as exc:
+            logger.exception(
+                "Remote MCP tool '%s' on '%s' failed", tool_name, server_name,
+            )
+            return json.dumps({"error": str(exc)}), "error"
+
+        texts = [item.text for item in result.content if hasattr(item, "text")]
+        result_text = "\n".join(texts)
+        if result.isError:
+            return result_text or "Tool returned an error", "error"
+        return result_text, "ok"
+
+    @staticmethod
+    async def _call_remote_server(card, tool_name, arguments, headers):
+        if card.transport_type == "streamable_http":
+            from mcp.client.streamable_http import streamablehttp_client
+
+            async with streamablehttp_client(
+                card.mcp_server_url, headers=headers,
+            ) as (read_stream, write_stream, _):
+                async with ClientSession(read_stream, write_stream) as session:
+                    await session.initialize()
+                    return await session.call_tool(tool_name, arguments)
+
+        from mcp.client.sse import sse_client
+
+        async with sse_client(
+            card.mcp_server_url, headers=headers,
+        ) as (read_stream, write_stream):
+            async with ClientSession(read_stream, write_stream) as session:
+                await session.initialize()
+                return await session.call_tool(tool_name, arguments)
 
     # ------------------------------------------------------------------
     # Logging

@@ -496,7 +496,8 @@
     "ratePositive": "👍 Positivo",
     "rateNegative": "👎 Negativo",
     "ratingThankYouPositive": "¡Gracias por su evaluación positiva! 👍",
-    "ratingThankYouNegative": "¡Gracias por sus comentarios! 👎"
+    "ratingThankYouNegative": "¡Gracias por sus comentarios! 👎",
+    "agentWorking": "Trabajando en ello…"
   },
   "extensionData": {
     "loading": "Cargando datos de extensión...",
