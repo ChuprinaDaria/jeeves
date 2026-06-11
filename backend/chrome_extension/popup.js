@@ -67,26 +67,82 @@ function updateCurrentDomainLabel() {
 
 function renderMessages(container, messages) {
   if (!container) return;
-  container.innerHTML = '';
+  while (container.firstChild) container.removeChild(container.firstChild);
   if (!Array.isArray(messages) || messages.length === 0) {
     const emptyEl = document.createElement('div');
-    emptyEl.className = 'secondary-text';
-    emptyEl.textContent = 'No messages yet. Start a conversation with your assistant.';
+    emptyEl.style.color = 'var(--fog)';
+    emptyEl.style.fontSize = '11px';
+    emptyEl.textContent = 'No messages yet. Ask anything about this page.';
     container.appendChild(emptyEl);
     return;
   }
 
   messages.forEach((msg) => {
     const row = document.createElement('div');
-    row.style.marginBottom = '6px';
+    row.className = 'chat-msg';
+    const roleClass = msg.role === 'assistant' ? 'assistant' : 'user';
     const roleLabel = msg.role === 'assistant' ? 'Assistant' : 'You';
-    const roleColor = msg.role === 'assistant' ? '#93c5fd' : '#bbf7d0';
-    row.innerHTML = `<div style="font-size:11px;color:${roleColor};font-weight:500;margin-bottom:1px;">${roleLabel}</div>
-      <div style="white-space:pre-wrap;">${msg.content}</div>`;
+    const roleEl = document.createElement('div');
+    roleEl.className = `chat-role ${roleClass}`;
+    roleEl.textContent = roleLabel;
+    const contentEl = document.createElement('div');
+    contentEl.className = 'chat-content';
+    contentEl.textContent = msg.content;
+    row.appendChild(roleEl);
+    row.appendChild(contentEl);
     container.appendChild(row);
   });
 
   container.scrollTop = container.scrollHeight;
+}
+
+const DEFAULT_API_BASE = 'http://localhost:8000/api';
+const DEFAULT_PORTAL_BASE = 'http://localhost:5174';
+
+function setBridgeProgress(visible, text = 'Working…') {
+  const el = document.getElementById('bridgeProgress');
+  const txt = document.getElementById('bridgeProgressText');
+  if (!el) return;
+  if (visible) {
+    el.classList.remove('hidden');
+    if (txt) txt.textContent = text;
+  } else {
+    el.classList.add('hidden');
+  }
+}
+
+function setBridgeStatus(message, type = 'ok') {
+  const el = document.getElementById('bridgeStatus');
+  if (!el) return;
+  el.textContent = message || '';
+  el.classList.remove('ok', 'error');
+  if (message) el.classList.add(type === 'error' ? 'error' : 'ok');
+}
+
+function setBridgeSub(network, text, color) {
+  const el = document.getElementById(network === 'instagram' ? 'igSub' : 'fbSub');
+  if (!el) return;
+  el.textContent = text;
+  if (color) el.style.color = color;
+}
+
+async function refreshBridgeState(network, clientToken) {
+  if (!clientToken) return;
+  chrome.runtime.sendMessage(
+    {
+      type: 'BRIDGE_STATE',
+      bridgeType: network,
+      apiBaseUrl: DEFAULT_API_BASE,
+      clientToken,
+    },
+    (resp) => {
+      if (chrome.runtime.lastError || !resp) return;
+      if (resp.status === 'connected') {
+        const handle = resp.remote_handle ? `@${resp.remote_handle}` : 'connected';
+        setBridgeSub(network, handle, 'var(--sage)');
+      }
+    },
+  );
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -187,6 +243,74 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   scrapBtn?.addEventListener('click', () => sendAction('SCRAP_TEXT'));
   collectBtn?.addEventListener('click', () => sendAction('COLLECT_MAILS'));
+
+  // --- Bridge connect (Instagram / Facebook) ---
+  const igBtn = document.getElementById('connectInstagram');
+  const fbBtn = document.getElementById('connectFacebook');
+  const openPortalBtn = document.getElementById('openPortal');
+
+  openPortalBtn?.addEventListener('click', () => {
+    const token = (tokenInput?.value || '').trim();
+    const url = token
+      ? `${DEFAULT_PORTAL_BASE}/l/${encodeURIComponent(token)}/integrations`
+      : DEFAULT_PORTAL_BASE;
+    chrome.tabs.create({ url });
+  });
+
+  function connectBridge(network, btn) {
+    const token = (tokenInput?.value || '').trim();
+    if (!token) {
+      setBridgeStatus('Save your client token first.', 'error');
+      return;
+    }
+    setBridgeStatus('');
+    setBridgeProgress(true, `Opening ${network} login tab…`);
+    if (btn) btn.disabled = true;
+
+    chrome.runtime.sendMessage(
+      {
+        type: 'BRIDGE_CONNECT',
+        bridgeType: network,
+        apiBaseUrl: DEFAULT_API_BASE,
+        clientToken: token,
+      },
+      (resp) => {
+        setBridgeProgress(false);
+        if (btn) btn.disabled = false;
+        if (chrome.runtime.lastError) {
+          setBridgeStatus(chrome.runtime.lastError.message || 'Background error', 'error');
+          return;
+        }
+        if (!resp) {
+          setBridgeStatus('No response from background.', 'error');
+          return;
+        }
+        if (resp.error) {
+          const missing = resp.missing?.length ? ` (missing: ${resp.missing.join(', ')})` : '';
+          setBridgeStatus(`${resp.error}${missing}`, 'error');
+          return;
+        }
+        if (resp.success || resp.status === 'connected') {
+          const handle = resp.remote_handle ? ` as @${resp.remote_handle}` : '';
+          setBridgeStatus(`Connected${handle}.`, 'ok');
+          setBridgeSub(network, resp.remote_handle ? `@${resp.remote_handle}` : 'connected', 'var(--sage)');
+        } else {
+          setBridgeStatus(resp.message || 'Login did not complete. Try again.', 'error');
+        }
+      },
+    );
+  }
+
+  igBtn?.addEventListener('click', () => connectBridge('instagram', igBtn));
+  fbBtn?.addEventListener('click', () => connectBridge('facebook', fbBtn));
+
+  // Refresh bridge state on open if token is saved
+  chrome.storage.sync.get(['clientToken'], (res) => {
+    if (res.clientToken) {
+      refreshBridgeState('instagram', res.clientToken);
+      refreshBridgeState('facebook', res.clientToken);
+    }
+  });
 
   // --- Chat logic ---
   let currentSessionId = await getOrCreateSessionId();

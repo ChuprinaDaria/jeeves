@@ -3,290 +3,348 @@
   <head>
     <meta charset="UTF-8" />
     <title>Concierge Web Agent</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&family=Ubuntu+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
+      :root {
+        --cream: #FDF8F0;
+        --linen: #F9F3E8;
+        --paper: #FFFCF7;
+        --mist:  #F3ECDD;
+        --ink:   #2D2A26;
+        --slate: #6B6560;
+        --fog:   #9E9790;
+        --rule:  #E8E0D4;
+        --rose:  #E8729A;
+        --sage:  #7BC89F;
+        --iris:  #9B7ED8;
+        --iris-soft: #D4C5F0;
+        --sage-soft: #C5E8D5;
+        --rose-soft: #F5C6D8;
+      }
+      * { box-sizing: border-box; }
       body {
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-family: 'Ubuntu', ui-sans-serif, system-ui, sans-serif;
         margin: 0;
-        padding: 14px 16px;
+        padding: 16px;
         width: 100%;
         min-height: 100vh;
-        box-sizing: border-box;
-        background: #020617;
-        color: #e5e7eb;
+        background: var(--cream);
+        color: var(--ink);
+        font-size: 13px;
+        line-height: 1.5;
         overflow-y: auto;
       }
       h1 {
-        font-size: 18px;
-        margin: 0 0 4px;
-        font-weight: 600;
+        font-size: 16px;
+        margin: 0;
+        font-weight: 700;
+        letter-spacing: -0.3px;
       }
       .subtitle {
-        font-size: 12px;
-        color: #9ca3af;
-        margin-bottom: 12px;
+        font-size: 11px;
+        color: var(--slate);
+        margin: 2px 0 0;
       }
-      .small {
-        font-size: 12px;
-        color: #9ca3af;
+      .mono {
+        font-family: 'Ubuntu Mono', ui-monospace, monospace;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-size: 10px;
+      }
+      .card {
+        background: var(--paper);
+        border: 1.5px solid var(--rule);
+        border-radius: 14px;
+        padding: 14px;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 12px rgba(45, 42, 38, 0.06);
+      }
+      .card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+      .section-title {
+        font-family: 'Ubuntu Mono', monospace;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        color: var(--slate);
+        margin: 0 0 8px;
       }
       label {
-        font-size: 12px;
+        font-size: 11px;
+        color: var(--slate);
         display: block;
         margin-bottom: 4px;
       }
-      input[type='text'] {
+      input[type='text'], textarea {
         width: 100%;
-        padding: 6px 8px;
-        border-radius: 6px;
-        border: 1px solid #4b5563;
-        background: #020617;
-        color: #e5e7eb;
-        font-size: 13px;
-        box-sizing: border-box;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1.5px solid var(--rule);
+        background: var(--cream);
+        color: var(--ink);
+        font-size: 12px;
+        font-family: inherit;
+        outline: none;
+        transition: border-color 0.15s ease;
+      }
+      input[type='text']:focus, textarea:focus {
+        border-color: var(--iris);
       }
       .btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 6px;
-        padding: 8px 10px;
-        border-radius: 9999px;
-        border: none;
+        padding: 8px 12px;
+        border-radius: 8px;
         cursor: pointer;
-        font-size: 12px;
-        font-weight: 500;
-        transition: background 0.15s ease, transform 0.1s ease;
+        font-family: 'Ubuntu Mono', monospace;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        transition: all 0.15s ease;
+        border: 1.5px solid var(--iris);
+        background: transparent;
+        color: var(--iris);
+        white-space: nowrap;
+      }
+      .btn:not(:disabled):hover {
+        background: var(--iris-soft);
       }
       .btn-primary {
-        background: linear-gradient(to right, #fb923c, #f97316, #ea580c);
-        color: #0b1120;
-        box-shadow: 0 0 0 1px rgba(248, 250, 252, 0.06), 0 8px 18px rgba(249, 115, 22, 0.5);
+        background: var(--iris);
+        color: var(--paper);
       }
-      .btn-secondary {
-        background: #020617;
-        color: #e5e7eb;
-        border: 1px solid #374151;
+      .btn-primary:not(:disabled):hover {
+        background: #8463CC;
+      }
+      .btn-ghost {
+        border-color: var(--rule);
+        color: var(--slate);
+      }
+      .btn-ghost:not(:disabled):hover {
+        background: var(--mist);
+        color: var(--ink);
       }
       .btn:disabled {
-        opacity: 0.6;
-        cursor: default;
-        transform: none;
+        opacity: 0.5;
+        cursor: not-allowed;
       }
-      .btn:not(:disabled):active {
-        transform: translateY(1px);
+      .btn-full {
+        width: 100%;
       }
       .row {
-        margin-bottom: 10px;
-      }
-      .buttons {
         display: flex;
         gap: 8px;
-        margin-top: 8px;
-      }
-      .status {
-        margin-top: 8px;
-        font-size: 12px;
-        min-height: 16px;
-      }
-      .status.ok {
-        color: #6ee7b7;
-      }
-      .status.error {
-        color: #fca5a5;
-      }
-      .header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
         margin-bottom: 8px;
       }
       .badge {
-        padding: 2px 8px;
+        padding: 3px 10px;
         border-radius: 9999px;
-        font-size: 10px;
-        font-weight: 600;
-        background: linear-gradient(90deg, #22c55e, #4ade80);
-        color: #022c22;
+        font-family: 'Ubuntu Mono', monospace;
+        font-size: 9px;
+        font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.04em;
+        letter-spacing: 1.5px;
       }
-      .card {
-        border-radius: 16px;
-        border: 1px solid rgba(249, 115, 22, 0.35);
-        background:
-          radial-gradient(circle at top left, rgba(249, 115, 22, 0.38), transparent 55%),
-          radial-gradient(circle at top right, rgba(79, 70, 229, 0.42), transparent 55%),
-          #020617;
-        padding: 14px 16px;
-        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.9);
+      .badge-ready { background: var(--sage-soft); color: #1F6B43; }
+      .badge-warn  { background: var(--rose-soft); color: #8B2549; }
+      .domain {
+        font-family: 'Ubuntu Mono', monospace;
+        font-size: 11px;
+        color: var(--iris);
       }
+      .status {
+        margin-top: 8px;
+        font-size: 11px;
+        min-height: 14px;
+      }
+      .status.ok    { color: #1F6B43; }
+      .status.error { color: #8B2549; }
       .toggle-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 8px;
-        margin-top: 6px;
+        margin-top: 10px;
+        padding: 8px 10px;
+        background: var(--linen);
+        border-radius: 8px;
       }
       .toggle-row label {
         margin: 0;
+        color: var(--ink);
+        font-size: 11px;
       }
       .toggle-row input[type='checkbox'] {
-        width: 32px;
-        height: 18px;
-        accent-color: #4f46e5;
+        width: 30px;
+        height: 16px;
+        accent-color: var(--iris);
       }
+      .bridge-list { display: flex; flex-direction: column; gap: 6px; }
+      .bridge-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px;
+        background: var(--linen);
+        border: 1.5px solid var(--rule);
+        border-radius: 10px;
+      }
+      .bridge-info { display: flex; align-items: center; gap: 10px; }
+      .bridge-icon {
+        width: 28px; height: 28px;
+        border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 700;
+        font-size: 13px;
+      }
+      .ig-icon { background: linear-gradient(135deg, #E8729A, #E8A86D); color: white; }
+      .fb-icon { background: #4A6FB8; color: white; }
+      .bridge-name { font-size: 12px; font-weight: 500; color: var(--ink); }
+      .bridge-sub  { font-size: 10px; color: var(--fog); }
       .progress {
         margin-top: 8px;
         display: flex;
         align-items: center;
-        gap: 6px;
-        font-size: 12px;
-        color: #e5e7eb;
+        gap: 8px;
+        font-size: 11px;
+        color: var(--slate);
       }
       .spinner {
-        width: 14px;
-        height: 14px;
+        width: 12px; height: 12px;
         border-radius: 9999px;
-        border: 2px solid rgba(148, 163, 184, 0.4);
-        border-top-color: #4f46e5;
+        border: 2px solid var(--rule);
+        border-top-color: var(--iris);
         animation: spin 0.7s linear infinite;
       }
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
+      @keyframes spin { to { transform: rotate(360deg); } }
       .muted {
-        font-size: 11px;
-        color: #6b7280;
-      }
-      .section-title {
-        font-size: 13px;
-        font-weight: 500;
-        margin-bottom: 4px;
+        font-size: 10px;
+        color: var(--fog);
+        margin-top: 4px;
       }
       .divider {
-        height: 1px;
-        background: linear-gradient(
-          to right,
-          transparent,
-          rgba(249, 115, 22, 0.4),
-          rgba(249, 115, 22, 0.2),
-          transparent
-        );
-        margin: 10px 0;
+        height: 1.5px;
+        background: var(--rule);
+        margin: 12px -14px;
       }
-      .secondary-text {
+      #chatMessages {
+        max-height: 200px;
+        overflow-y: auto;
+        padding: 10px;
+        border-radius: 10px;
+        border: 1.5px solid var(--rule);
+        background: var(--cream);
         font-size: 12px;
-        color: #9ca3af;
+        line-height: 1.5;
       }
-      .domain {
-        font-size: 12px;
-        color: #fed7aa;
+      .chat-msg { margin-bottom: 8px; }
+      .chat-role {
+        font-family: 'Ubuntu Mono', monospace;
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 2px;
       }
-      .hidden {
-        display: none;
-      }
+      .chat-role.user      { color: var(--iris); }
+      .chat-role.assistant { color: var(--slate); }
+      .chat-content { color: var(--ink); white-space: pre-wrap; }
+      .hidden { display: none; }
     </style>
   </head>
   <body>
     <div class="card">
-      <div class="header">
+      <div class="card-header">
         <div>
-          <h1>Concierge Web Agent</h1>
-          <p class="subtitle">Scrape page content & collect contacts into Concierge.</p>
+          <h1>Concierge</h1>
+          <p class="subtitle">Web agent · page intelligence</p>
         </div>
-        <span class="badge" id="connectionStatus">READY</span>
+        <span class="badge badge-ready" id="connectionStatus">READY</span>
       </div>
 
-      <div class="row">
-        <label for="clientToken">Client token (tag)</label>
-        <input id="clientToken" type="text" placeholder="Paste value from Concierge portal" />
-        <p class="muted">Copy your tag from Concierge Integrations → Google Chrome Extension.</p>
-      </div>
-      <div class="row">
-        <button id="saveToken" class="btn btn-secondary">Save token</button>
-      </div>
+      <label for="clientToken">Client token</label>
+      <input id="clientToken" type="text" placeholder="paste tag from /integrations" />
+      <p class="muted">Concierge Portal → Integrations → Chrome Extension</p>
 
-      <div class="divider"></div>
-
-      <div class="row">
-        <div class="section-title">Actions for current tab</div>
-        <p class="secondary-text" id="currentDomain">Current page: detecting...</p>
-        <div class="buttons">
-          <button id="scrapText" class="btn btn-primary">Scrap text</button>
-          <button id="collectMails" class="btn btn-secondary">Collect mails</button>
-        </div>
-        <div class="toggle-row">
-          <label class="small">Auto mode: scrap & collect on every page automatically</label>
-          <input type="checkbox" id="autoMode" />
-        </div>
+      <div class="row" style="margin-top: 10px;">
+        <button id="saveToken" class="btn btn-primary">Save token</button>
+        <button id="openPortal" class="btn btn-ghost">Open portal</button>
       </div>
 
-      <div id="progress" class="progress hidden">
-        <div class="spinner"></div>
-        <div>
-          <div id="progressText">Working...</div>
-          <div class="muted">Please keep the page open, this may take a few seconds.</div>
-        </div>
-      </div>
-
-      <div id="status" class="status small"></div>
+      <div id="status" class="status"></div>
     </div>
 
-    <div class="card" style="margin-top: 12px;">
-      <div class="section-title">Assistant chat</div>
-      <p class="secondary-text">
-        Ask your Concierge AI assistant about the current page, products, prices or forms. The assistant uses your
-        existing client prompt and knowledge.
-      </p>
-
-      <div
-        id="chatMessages"
-        style="
-          margin-top: 8px;
-          max-height: 400px;
-          overflow-y: auto;
-          padding: 8px 10px;
-          border-radius: 10px;
-          border: 1px solid rgba(55, 65, 81, 0.9);
-          background: rgba(15, 23, 42, 0.85);
-          font-size: 12px;
-          line-height: 1.4;
-        "
-      ></div>
-
-      <div style="margin-top: 8px;">
-        <label for="chatInput" class="small">Message</label>
-        <textarea
-          id="chatInput"
-          rows="2"
-          placeholder="Ask anything about this page, your data or tasks…"
-          style="
-            width: 100%;
-            box-sizing: border-box;
-            padding: 6px 8px;
-            border-radius: 8px;
-            border: 1px solid #4b5563;
-            background: #020617;
-            color: #e5e7eb;
-            font-size: 12px;
-            resize: vertical;
-          "
-        ></textarea>
+    <div class="card">
+      <p class="section-title">Connect networks</p>
+      <div class="bridge-list">
+        <div class="bridge-item">
+          <div class="bridge-info">
+            <div class="bridge-icon ig-icon">IG</div>
+            <div>
+              <div class="bridge-name">Instagram DM</div>
+              <div class="bridge-sub" id="igSub">via Matrix bridge</div>
+            </div>
+          </div>
+          <button id="connectInstagram" class="btn">Connect</button>
+        </div>
+        <div class="bridge-item">
+          <div class="bridge-info">
+            <div class="bridge-icon fb-icon">FB</div>
+            <div>
+              <div class="bridge-name">Facebook Messenger</div>
+              <div class="bridge-sub" id="fbSub">via Matrix bridge</div>
+            </div>
+          </div>
+          <button id="connectFacebook" class="btn">Connect</button>
+        </div>
       </div>
 
-      <div class="buttons" style="margin-top: 8px;">
+      <div id="bridgeProgress" class="progress hidden">
+        <div class="spinner"></div>
+        <div id="bridgeProgressText">Opening login tab…</div>
+      </div>
+      <div id="bridgeStatus" class="status"></div>
+    </div>
+
+    <div class="card">
+      <p class="section-title">Current tab</p>
+      <p class="domain" id="currentDomain">detecting…</p>
+      <div class="row" style="margin-top: 10px;">
+        <button id="scrapText" class="btn btn-primary">Scrap text</button>
+        <button id="collectMails" class="btn">Collect mails</button>
+      </div>
+      <div class="toggle-row">
+        <label for="autoMode">Auto mode · run on every page</label>
+        <input type="checkbox" id="autoMode" />
+      </div>
+      <div id="progress" class="progress hidden">
+        <div class="spinner"></div>
+        <div id="progressText">Working…</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="section-title">Assistant chat</p>
+      <div id="chatMessages"></div>
+      <label for="chatInput" style="margin-top: 10px;">Message</label>
+      <textarea
+        id="chatInput"
+        rows="2"
+        placeholder="Ask about this page, your data, or tasks…"
+      ></textarea>
+      <div class="row" style="margin-top: 8px;">
         <button id="chatSend" class="btn btn-primary">Send</button>
-        <button id="chatMic" class="btn btn-secondary">
-          <span id="chatMicLabel">Voice</span>
-        </button>
-        <button id="chatSpeak" class="btn btn-secondary">Read last</button>
+        <button id="chatMic" class="btn btn-ghost"><span id="chatMicLabel">Voice</span></button>
+        <button id="chatSpeak" class="btn btn-ghost">Read last</button>
       </div>
-
-      <p class="muted" style="margin-top: 6px;" id="chatHints">
-        The extension remembers your chat for this browser and can later suggest similar actions automatically.
-      </p>
     </div>
 
     <script type="module" src="popup.js"></script>

@@ -10,6 +10,8 @@ export const toolsAPI = {
     api.post(`/tools/matrix/bridges/${network}/login/start/`, stepData ? { step_data: stepData } : {}),
   bridgeLoginStatus: (network, loginId) =>
     api.get(`/tools/matrix/bridges/${network}/login/status/`, { params: { login_id: loginId } }),
+  bridgeLoginCookies: (network, cookies) =>
+    api.post(`/tools/matrix/bridges/${network}/login/cookies/`, { cookies }),
   disconnect: (slug, target) => api.post(`/tools/${slug}/disconnect/`, target ? { target } : {}),
   getStatus: (slug) => api.get(`/tools/${slug}/status/`),
   getMyTools: () => api.get('/tools/my/'),

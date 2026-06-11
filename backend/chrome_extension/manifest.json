@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Concierge Web Agent",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Concierge Chrome extension: page intelligence, RAG chat assistant, semantic data collection, and bridge cookie extraction.",
   "permissions": ["storage", "activeTab", "scripting", "cookies", "sidePanel"],
   "host_permissions": [

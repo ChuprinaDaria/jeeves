@@ -1,8 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Loader2, Check, AlertCircle } from 'lucide-react';
+import { X, Loader2, Check, AlertCircle, Puzzle } from 'lucide-react';
 import api from '../../api/axios';
 import { toolsAPI } from '../../api/tools';
+
+// Networks whose login is driven by the Puzzle extension (cookie capture)
+// instead of the Telegram-style phone/code prompts.
+const EXTENSION_NETWORKS = {
+  instagram: 'meta-instagram',
+  facebook: 'meta-facebook',
+};
 
 /**
  * Generic Matrix bridge login modal. Drives the step-based prompt flow for
@@ -67,6 +74,56 @@ const BridgeSetup = ({ network, title, onClose }) => {
     }
   };
 
+  const startExtensionLogin = async () => {
+    setError('');
+    const extensionId = import.meta.env.VITE_CONCIERGE_EXTENSION_ID;
+    if (!extensionId) {
+      setError('Concierge Puzzle extension is required. Install it from the Integrations page.');
+      return;
+    }
+    if (typeof chrome === 'undefined' || !chrome.runtime?.sendMessage) {
+      setError('Open this page in Puzzle with the Concierge extension installed.');
+      return;
+    }
+    setLoading(true);
+    setState({ step: 'extension', prompt: 'Sign in via the popup that just opened…' });
+    try {
+      const response = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(
+          extensionId,
+          {
+            action: 'concierge_bridge_auth',
+            bridgeType: EXTENSION_NETWORKS[network],
+            apiBaseUrl: import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || '',
+            authToken: localStorage.getItem('access_token') || '',
+            clientToken: localStorage.getItem('client_token') || '',
+          },
+          (resp) => {
+            if (chrome.runtime.lastError) {
+              reject(new Error('Extension not responding. Make sure it is installed and enabled.'));
+            } else if (resp?.error) {
+              reject(new Error(resp.error));
+            } else {
+              resolve(resp);
+            }
+          }
+        );
+      });
+      if (response?.status === 'connected' || response?.success) {
+        setState({ step: 'connected', prompt: response.message });
+        setRemoteHandle(response.remote_handle || '');
+      } else {
+        setError(response?.message || 'Login did not complete. Try again.');
+        setState(null);
+      }
+    } catch (e) {
+      setError(e.message);
+      setState(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const submitStep = async () => {
     if (!input.trim()) return;
     setError('');
@@ -85,6 +142,7 @@ const BridgeSetup = ({ network, title, onClose }) => {
   };
 
   const isConnected = state?.step === 'connected';
+  const isExtensionFlow = network in EXTENSION_NETWORKS;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 backdrop-blur-[2px] p-4">
@@ -141,13 +199,37 @@ const BridgeSetup = ({ network, title, onClose }) => {
             </div>
           )}
 
-          {!isConnected && !state && !loading && (
+          {!isConnected && !state && !loading && !isExtensionFlow && (
             <button
               onClick={startLogin}
               className="w-full px-3 py-2 border-[1.5px] border-iris text-iris rounded font-mono text-xs uppercase tracking-wider hover:bg-iris-soft/40"
             >
               {t('integrations.startBridgeLogin') || 'Start login'}
             </button>
+          )}
+
+          {!isConnected && isExtensionFlow && state?.step !== 'extension' && (
+            <div className="space-y-2">
+              <p className="text-xs text-slate">
+                {t('integrations.bridgeExtensionHint')
+                  || 'A new tab will open. Sign in, and the extension will sync your cookies back here.'}
+              </p>
+              <button
+                onClick={startExtensionLogin}
+                disabled={loading}
+                className="w-full px-3 py-2 border-[1.5px] border-iris text-iris rounded font-mono text-xs uppercase tracking-wider hover:bg-iris-soft/40 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <Puzzle size={14} />
+                {t('integrations.signInViaExtension') || 'Sign in via Puzzle extension'}
+              </button>
+            </div>
+          )}
+
+          {state?.step === 'extension' && !isConnected && (
+            <div className="flex items-center gap-2 text-sm text-fog">
+              <Loader2 size={14} className="animate-spin" />
+              {state.prompt || 'Waiting for the extension…'}
+            </div>
           )}
 
           {state?.prompt && !isConnected && !state?.qr && (

@@ -7,6 +7,8 @@ urlpatterns = [
          bridge_views.BridgeLoginStartView.as_view(), name='matrix-bridge-login-start'),
     path('matrix/bridges/<str:network>/login/status/',
          bridge_views.BridgeLoginStatusView.as_view(), name='matrix-bridge-login-status'),
+    path('matrix/bridges/<str:network>/login/cookies/',
+         bridge_views.BridgeLoginCookiesView.as_view(), name='matrix-bridge-login-cookies'),
     path('matrix/bridges/<str:network>/state/',
          bridge_views.BridgeStateView.as_view(), name='matrix-bridge-state'),
 

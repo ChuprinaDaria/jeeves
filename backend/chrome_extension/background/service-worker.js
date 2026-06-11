@@ -23,9 +23,90 @@ chrome.action.onClicked.addListener((tab) => {
   chrome.sidePanel.open({ tabId: tab.id });
 });
 
+const DEFAULT_API_BASE = 'http://localhost:8000/api';
+
+// Map extension-internal bridge slugs to the matrix bridge network names
+// expected by /api/tools/matrix/bridges/<network>/...
+const BRIDGE_NETWORK_MAP = {
+  'meta-instagram': 'instagram',
+  'meta-facebook': 'facebook',
+  'instagram': 'instagram',
+  'facebook': 'facebook',
+  // LinkedIn isn't a Matrix bridge yet — left here for the future endpoint.
+  'linkedin': 'linkedin',
+};
+
+async function runBridgeAuth({ bridgeType, apiBaseUrl, clientToken }) {
+  const tabId = await openLoginPopup(bridgeType);
+  if (!tabId) return { error: 'Failed to open login tab' };
+
+  const result = await pollForCookies(bridgeType, tabId);
+  if (!result.complete) {
+    return {
+      error: result.error || 'Cookie extraction failed. Sign in fully and try again.',
+      missing: result.missing,
+    };
+  }
+
+  const network = BRIDGE_NETWORK_MAP[bridgeType] || bridgeType;
+  const base = (apiBaseUrl || DEFAULT_API_BASE).replace(/\/$/, '');
+  const headers = { 'Content-Type': 'application/json' };
+  if (clientToken) headers['X-Client-Token'] = clientToken;
+
+  const resp = await fetch(`${base}/tools/matrix/bridges/${network}/login/cookies/`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ cookies: result.cookies }),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) return { error: data.error || `HTTP ${resp.status}` };
+
+  return {
+    success: data.status === 'connected',
+    status: data.status,
+    message: data.message,
+    remote_handle: data.remote_handle,
+  };
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message || !message.type) {
     return;
+  }
+
+  if (message.type === 'BRIDGE_CONNECT') {
+    const { bridgeType, apiBaseUrl, clientToken } = message;
+    (async () => {
+      try {
+        const r = await runBridgeAuth({ bridgeType, apiBaseUrl, clientToken });
+        sendResponse(r);
+      } catch (e) {
+        sendResponse({ error: e.message || 'Unknown error' });
+      }
+    })();
+    return true;
+  }
+
+  if (message.type === 'BRIDGE_STATE') {
+    const { bridgeType, apiBaseUrl, clientToken } = message;
+    (async () => {
+      try {
+        const network = BRIDGE_NETWORK_MAP[bridgeType] || bridgeType;
+        const base = (apiBaseUrl || DEFAULT_API_BASE).replace(/\/$/, '');
+        const headers = {};
+        if (clientToken) headers['X-Client-Token'] = clientToken;
+        const resp = await fetch(`${base}/tools/matrix/bridges/${network}/state/`, { headers });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          sendResponse({ error: data.error || `HTTP ${resp.status}` });
+          return;
+        }
+        sendResponse(data);
+      } catch (e) {
+        sendResponse({ error: e.message || 'Unknown error' });
+      }
+    })();
+    return true;
   }
 
   if (message.type === 'BEHAVIOUR_EVENT') {
@@ -53,12 +134,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return undefined;
 });
 
-// ===== Bridge Cookie Extraction =====
+// ===== Bridge Cookie Extraction (external trigger from /integrations page) =====
 
 chrome.runtime.onMessageExternal.addListener(
   (message, sender, sendResponse) => {
     if (message.action === 'concierge_bridge_auth') {
-      const { bridgeType, apiBaseUrl, authToken } = message;
+      const { bridgeType, apiBaseUrl, authToken, clientToken } = message;
 
       (async () => {
         try {
@@ -71,17 +152,32 @@ chrome.runtime.onMessageExternal.addListener(
           const result = await pollForCookies(bridgeType, tabId);
 
           if (result.complete) {
-            const resp = await fetch(`${apiBaseUrl}/clients/bridges/${bridgeType}/login/cookies/`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`,
-              },
-              body: JSON.stringify({ cookies: result.cookies }),
-            });
+            const network = BRIDGE_NETWORK_MAP[bridgeType] || bridgeType;
+            const base = (apiBaseUrl || '').replace(/\/$/, '');
+            const headers = { 'Content-Type': 'application/json' };
+            if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+            if (clientToken) headers['X-Client-Token'] = clientToken;
 
-            const data = await resp.json();
-            sendResponse({ success: true, status: data.status });
+            const resp = await fetch(
+              `${base}/tools/matrix/bridges/${network}/login/cookies/`,
+              {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ cookies: result.cookies }),
+              }
+            );
+
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok) {
+              sendResponse({ error: data.error || `HTTP ${resp.status}` });
+              return;
+            }
+            sendResponse({
+              success: data.status === 'connected',
+              status: data.status,
+              message: data.message,
+              remote_handle: data.remote_handle,
+            });
           } else {
             sendResponse({ error: result.error || 'Cookie extraction failed', missing: result.missing });
           }

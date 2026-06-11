@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import json
 import time
 import urllib.parse
 
@@ -22,6 +23,8 @@ from django.conf import settings
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from Jeeves.clients.views import get_client_from_request
 
 
 SUPPORTED_NETWORKS = {
@@ -36,16 +39,18 @@ SUPPORTED_NETWORKS = {
         'qr_message_type': None,  # phone+code flow, no QR
     },
     'instagram': {
-        # mautrix-meta in `instagram` mode — bot is still @metabot.
+        # mautrix-meta in `instagram` mode — the bridge mode is fixed via
+        # config.yaml (`network.mode`), so the command is just `login`. The
+        # bridge then prompts for browser cookies as JSON in the next message.
         'bot': 'metabot',
-        'login_command': 'login instagram',
+        'login_command': 'login',
         'qr_message_type': None,
     },
     'facebook': {
-        # mautrix-meta in `facebook`/`messenger` mode — separate instance,
-        # bot also @metabot (one bridge per mode in this deployment).
+        # Separate mautrix-meta instance in `facebook`/`messenger` mode.
+        # Same plain `login` command — mode is server-side.
         'bot': 'metabot',
-        'login_command': 'login facebook',
+        'login_command': 'login',
         'qr_message_type': None,
     },
 }
@@ -208,7 +213,7 @@ class BridgeLoginStartView(APIView):
     """
 
     def post(self, request, network):
-        client = getattr(request, 'client', None)
+        client = getattr(request, 'client', None) or get_client_from_request(request)
         if client is None:
             return Response({'error': 'Client not found'}, status=status.HTTP_401_UNAUTHORIZED)
         if network not in SUPPORTED_NETWORKS:
@@ -294,7 +299,7 @@ class BridgeStateView(APIView):
     """
 
     def get(self, request, network):
-        client = getattr(request, 'client', None)
+        client = getattr(request, 'client', None) or get_client_from_request(request)
         if client is None:
             return Response({'error': 'Client not found'}, status=status.HTTP_401_UNAUTHORIZED)
         if network not in SUPPORTED_NETWORKS:
@@ -335,6 +340,87 @@ class BridgeStateView(APIView):
         return Response({'status': 'disconnected', 'message': last})
 
 
+class BridgeLoginCookiesView(APIView):
+    """POST /api/tools/matrix/bridges/<network>/login/cookies/
+
+    Cookie-based login flow for mautrix-meta (Instagram / Facebook). The
+    Chrome extension extracts the browser session cookies and posts them
+    here; this view DMs ``@metabot``, fires ``login <network>``, then drops
+    the cookies as a JSON message — mirroring what the bridge expects from a
+    user pasting them in Matrix.
+
+    Body: ``{"cookies": {"sessionid": "...", "csrftoken": "...", ...}}``
+
+    Returns ``{"status": "connected|pending|failed", "message": "...",
+    "remote_handle": "...", "room_id": "..."}``.
+    """
+
+    COOKIE_NETWORKS = ('instagram', 'facebook')
+
+    def post(self, request, network):
+        client = getattr(request, 'client', None) or get_client_from_request(request)
+        if client is None:
+            return Response({'error': 'Client not found'}, status=status.HTTP_401_UNAUTHORIZED)
+        if network not in self.COOKIE_NETWORKS:
+            return Response(
+                {'error': 'Network does not support cookie login'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        cookies = request.data.get('cookies')
+        if not isinstance(cookies, dict) or not cookies:
+            return Response(
+                {'error': 'cookies object required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            with httpx.Client(timeout=25.0) as http:
+                room_id = _find_or_create_management_room(http, _bridge_mxid(network))
+                _send_text(http, room_id, SUPPORTED_NETWORKS[network]['login_command'])
+                # mautrix-meta needs a moment to acknowledge `login` before
+                # it will parse the cookie JSON in the next message.
+                time.sleep(2.0)
+                _send_text(http, room_id, json.dumps(cookies))
+                final_state = self._await_outcome(http, room_id, network)
+        except Exception as exc:
+            return Response(
+                {'error': f'{type(exc).__name__}: {exc}'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        last = final_state.get('last_bridge_message') or ''
+        if final_state.get('is_connected'):
+            handle = ''
+            after = last.split(' as ', 1)
+            if len(after) == 2:
+                handle = after[1].split('(', 1)[0].strip().rstrip('.,').strip('`')
+            return Response({
+                'status': 'connected',
+                'message': last,
+                'remote_handle': handle,
+                'room_id': room_id,
+            })
+        lower = last.lower()
+        if any(kw in lower for kw in ('failed', 'invalid', 'expired', 'error')):
+            return Response({'status': 'failed', 'message': last, 'room_id': room_id})
+        return Response({'status': 'pending', 'message': last, 'room_id': room_id})
+
+    @staticmethod
+    def _await_outcome(http: httpx.Client, room_id: str, network: str) -> dict:
+        deadline = time.time() + 20.0
+        state = _bridge_state(http, room_id, network)
+        while time.time() < deadline:
+            state = _bridge_state(http, room_id, network)
+            if state.get('is_connected'):
+                return state
+            last = (state.get('last_bridge_message') or '').lower()
+            if any(kw in last for kw in ('failed', 'invalid cookies', 'expired', 'error')):
+                return state
+            time.sleep(2.0)
+        return state
+
+
 class BridgeLoginStatusView(APIView):
     """GET /api/tools/matrix/bridges/<network>/login/status?login_id=<room_id>
 
@@ -343,7 +429,7 @@ class BridgeLoginStatusView(APIView):
     """
 
     def get(self, request, network):
-        client = getattr(request, 'client', None)
+        client = getattr(request, 'client', None) or get_client_from_request(request)
         if client is None:
             return Response({'error': 'Client not found'}, status=status.HTTP_401_UNAUTHORIZED)
         if network not in SUPPORTED_NETWORKS:
