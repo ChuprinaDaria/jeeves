@@ -53,3 +53,14 @@ class TestFeatureFlag:
         flag.rollout = 'off'
         flag.save()
         assert FeatureFlag.is_enabled('test_flag', client_obj) is False
+
+    def test_default_on_flag_without_row(self, client_obj):
+        FeatureFlag.objects.filter(key='mcp_real_agent').delete()
+        cache.clear()
+        assert FeatureFlag.is_enabled('mcp_real_agent', client_obj) is True
+
+    def test_default_on_flag_explicit_opt_out(self, client_obj):
+        FeatureFlag.objects.update_or_create(
+            key='mcp_real_agent', defaults={'rollout': 'off'})
+        cache.clear()
+        assert FeatureFlag.is_enabled('mcp_real_agent', client_obj) is False

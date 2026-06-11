@@ -7,7 +7,11 @@ logger = logging.getLogger(__name__)
 
 
 def generate_response_dual(message, client, conversation=None, channel='web', external_user_id=''):
-    """Route to MCP orchestrator or legacy pipeline based on FeatureFlag.
+    """Route to the MCP (A2A) orchestrator — the default for all clients.
+
+    The 'mcp_real_agent' flag is on by default (FeatureFlag.DEFAULT_ON); the
+    legacy pipeline is reached only via an explicit opt-out flag or as a
+    runtime fallback when the orchestrator errors.
 
     Drop-in replacement for generate_response / ResponseGenerator.generate().
     Returns response text string.

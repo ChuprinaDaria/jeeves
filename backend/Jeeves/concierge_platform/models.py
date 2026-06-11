@@ -56,6 +56,11 @@ class FeatureFlag(models.Model):
         ('all', 'On for everyone'),
     ]
 
+    # Flags that are ON for everyone when no DB row exists. The MCP (A2A)
+    # agent architecture is the platform default — a DB row with
+    # rollout='off'/'selected' remains available as an explicit opt-out.
+    DEFAULT_ON = frozenset({'mcp_real_agent'})
+
     key = models.CharField(max_length=100, unique=True, db_index=True)
     description = models.TextField(blank=True)
     rollout = models.CharField(max_length=10, choices=ROLLOUT_CHOICES, default='off')
@@ -78,7 +83,7 @@ class FeatureFlag(models.Model):
             return cached
         flag = cls.objects.filter(key=key).first()
         if not flag:
-            result = False
+            result = key in cls.DEFAULT_ON
         elif flag.rollout == 'all':
             result = True
         elif flag.rollout == 'selected' and client:

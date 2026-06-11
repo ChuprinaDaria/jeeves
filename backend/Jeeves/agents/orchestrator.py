@@ -209,6 +209,17 @@ class AgentOrchestrator:
             except Exception:
                 logger.exception("Failed to connect MCP server '%s'", name)
 
+        logger.info(
+            "MCP connect complete — %d server(s) up, %d tool(s) discovered",
+            len(self._sessions),
+            len(self._tools),
+        )
+        if not self._tools:
+            logger.warning(
+                "No MCP tools discovered — agent will run without tools "
+                "(check 'Failed to connect MCP server' errors above)"
+            )
+
     async def disconnect(self) -> None:
         """Tear down all MCP sessions and subprocesses."""
         if self._exit_stack:
@@ -256,6 +267,11 @@ class AgentOrchestrator:
         system_prompt = self._build_system_prompt(channel)
         messages = self._build_messages(system_prompt, conversation, message)
         llm_tools = self._tools_to_llm_format()
+        if not llm_tools:
+            logger.warning(
+                "No MCP tools available for client %s (scope=%s, channel=%s)",
+                self.client.pk, self._scope, channel,
+            )
 
         for iteration in range(MAX_ITERATIONS):
             # --- LLM call ---
@@ -518,41 +534,31 @@ class AgentOrchestrator:
         return messages
 
     async def _build_scope_filter(self):
-        """Build mapping of server_name -> ToolConnection for current scope."""
-        from Jeeves.tools.models import ToolCard, ToolConnection
+        """Resolve which spawned MCP servers the current scope may use.
 
-        connections = ToolConnection.objects.filter(
-            client=self.client, enabled=True, status='connected',
-            target=self._scope,
-        ).select_related('tool_card')
+        Every spawned server is available by default (per-tool scope rules
+        from ``MCP_TOOL_SCOPES`` still apply). A ``ToolConnection`` for this
+        client/scope can opt a server out (``enabled=False``) or attach
+        per-client credentials and middleware (``status='connected'``).
+        """
+        from Jeeves.tools.models import ToolConnection
 
         self._tool_to_connection = {}
-        self._connected_server_names = set()
+        self._connected_server_names = set(self._sessions)
+
+        connections = ToolConnection.objects.filter(
+            client=self.client, target=self._scope,
+        ).select_related('tool_card')
+
         async for conn in connections:
             slug = conn.tool_card.slug
             for server_name in self._sessions:
                 if slug == server_name or slug.startswith(server_name + '-'):
-                    self._tool_to_connection[server_name] = conn
-                    self._connected_server_names.add(server_name)
+                    if not conn.enabled:
+                        self._connected_server_names.discard(server_name)
+                    elif conn.status == 'connected':
+                        self._tool_to_connection[server_name] = conn
                     break
-
-        # System tools are always available regardless of ToolConnection
-        system_slugs = set()
-        async for card in ToolCard.objects.filter(is_system=True, is_active=True):
-            scopes = card.skill_scopes.get('scopes', ['assistant', 'manager'])
-            if self._scope in scopes:
-                system_slugs.add(card.slug)
-        for server_name in self._sessions:
-            if server_name in self._connected_server_names:
-                continue
-            for slug in system_slugs:
-                if slug == server_name or slug.startswith(server_name + '-'):
-                    self._connected_server_names.add(server_name)
-                    break
-
-        # Bridge management tools are always available in sandbox scope
-        if self._scope == 'assistant' and 'bridge' in self._sessions:
-            self._connected_server_names.add('bridge')
 
     def _get_scope_tool_names(self) -> list[str]:
         """Tool names visible to current scope."""
