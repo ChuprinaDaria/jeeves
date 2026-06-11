@@ -421,6 +421,11 @@ if DEBUG:
 # Максимальний час виконання одного MCP tool call (секунди)
 MCP_TOOL_TIMEOUT = env.int("MCP_TOOL_TIMEOUT", default=60)
 
+# Спільний пул MCP-сесій: сервери піднімаються один раз на воркер і
+# перевикористовуються всіма запитами. False — старий режим зі спавном
+# сабпроцесів на кожне повідомлення (повільно, лише для дебагу).
+MCP_POOL_ENABLED = env.bool("MCP_POOL_ENABLED", default=True)
+
 MCP_SERVERS = {
     'rag': {
         'command': 'python',

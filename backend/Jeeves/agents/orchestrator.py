@@ -148,6 +148,7 @@ class AgentOrchestrator:
         self._max_tokens = agent_config.max_tokens if agent_config.max_tokens is not None else 4096
 
         # Filled by ``connect()``
+        self._pool = None  # shared MCPSessionPool when MCP_POOL_ENABLED
         self._exit_stack: AsyncExitStack | None = None
         self._sessions: dict[str, ClientSession] = {}  # server_name -> session
         self._tools: list[dict[str, Any]] = []  # MCP Tool dicts
@@ -161,7 +162,36 @@ class AgentOrchestrator:
         self._tool_scopes: dict[str, list[str]] = getattr(settings, 'MCP_TOOL_SCOPES', {})
 
     async def connect(self) -> None:
-        """Spawn enabled MCP servers and discover their tools."""
+        """Attach to the shared MCP session pool (or spawn private servers).
+
+        The pool spawns every server once per worker process; per-request
+        spawning (the old behavior, ~seconds of latency per message) remains
+        available via ``MCP_POOL_ENABLED=False`` as a fallback.
+        """
+        if getattr(settings, "MCP_POOL_ENABLED", True):
+            from Jeeves.agents.mcp_pool import MCPSessionPool
+
+            pool = MCPSessionPool.instance()
+            try:
+                # ensure_started blocks on first use — keep the loop free.
+                await asyncio.to_thread(
+                    pool.ensure_started, self._build_subprocess_env(),
+                )
+            except Exception:
+                logger.exception(
+                    "MCP pool failed to start — falling back to per-request spawn"
+                )
+            else:
+                self._pool = pool
+                self._sessions = dict(pool.sessions)
+                self._tools = list(pool.tools)
+                self._tool_to_server = dict(pool.tool_to_server)
+                return
+
+        await self._connect_private()
+
+    async def _connect_private(self) -> None:
+        """Spawn enabled MCP servers for this request only."""
         server_defs: dict[str, dict] = getattr(settings, "MCP_SERVERS", {})
         if not server_defs:
             logger.warning("settings.MCP_SERVERS is empty — no MCP tools available")
@@ -221,7 +251,12 @@ class AgentOrchestrator:
             )
 
     async def disconnect(self) -> None:
-        """Tear down all MCP sessions and subprocesses."""
+        """Detach from the pool / tear down private MCP subprocesses.
+
+        Pooled sessions stay alive for the next request — only privately
+        spawned servers (non-pool fallback) are terminated here.
+        """
+        self._pool = None
         if self._exit_stack:
             try:
                 await self._exit_stack.aclose()
@@ -852,8 +887,7 @@ class AgentOrchestrator:
         if not server_name:
             return json.dumps({"error": f"Unknown tool: {tool_name}"}), "error"
 
-        session = self._sessions.get(server_name)
-        if not session:
+        if self._pool is None and not self._sessions.get(server_name):
             return json.dumps({"error": f"MCP server '{server_name}' not connected"}), "error"
 
         # Auto-inject client_id and session_id
@@ -864,10 +898,15 @@ class AgentOrchestrator:
 
         try:
             # Завислий MCP-сервер не повинен вішати весь агентський запит
-            result = await asyncio.wait_for(
-                session.call_tool(tool_name, full_args),
-                timeout=_mcp_tool_timeout(),
-            )
+            if self._pool is not None:
+                result = await self._pool.call_tool(
+                    server_name, tool_name, full_args, timeout=_mcp_tool_timeout(),
+                )
+            else:
+                result = await asyncio.wait_for(
+                    self._sessions[server_name].call_tool(tool_name, full_args),
+                    timeout=_mcp_tool_timeout(),
+                )
 
             # CallToolResult.content is a list of content items
             texts = []
