@@ -1,3 +1,4 @@
+import sys
 from unittest.mock import MagicMock
 
 import pytest
@@ -118,3 +119,100 @@ class TestScopeFilterDefaults:
         async_to_sync(orch._build_scope_filter)()
         assert orch._connected_server_names == {'beta'}
         assert 'beta' not in orch._tool_to_connection
+
+
+@pytest.mark.django_db
+class TestCatalogServers:
+    """Owner-added MCP servers from the tool catalog (DB) reach the agent.
+
+    Catalog servers are opt-in: a client needs an enabled ToolConnection."""
+
+    @pytest.fixture
+    def client_obj(self):
+        from Jeeves.clients.models import Client
+        return Client.objects.create(
+            user='test', description='test', api_key='rag_test_key_cat',
+            tag='cat-client')
+
+    def _make_orchestrator(self, client_obj):
+        config = MagicMock()
+        config.language = 'en'
+        config.temperature = 0.7
+        config.max_tokens = 1024
+        return AgentOrchestrator(client_obj, config)
+
+    def _make_stdio_card(self):
+        from Jeeves.agents.tests.test_mcp_pool import DUMMY_SERVER
+        from Jeeves.tools.models import InstalledMCPServer, ToolCard
+        card = ToolCard.objects.create(
+            name='Outlook Assistant', slug='outlook-assistant', tagline='Email helper',
+            description='d', icon='i', color='#000000', category='custom',
+            transport_type='stdio', auth_type='none')
+        InstalledMCPServer.objects.create(
+            tool_card=card, package_name='outlook-test-pkg', package_type='pypi',
+            run_command=sys.executable, run_args=['-c', DUMMY_SERVER])
+        return card
+
+    def test_installed_stdio_server_tools_reach_agent(self, settings, client_obj):
+        settings.MCP_POOL_ENABLED = False
+        settings.MCP_SERVERS = {}
+        self._make_stdio_card()
+        orch = self._make_orchestrator(client_obj)
+        try:
+            async_to_sync(orch.connect)()
+            assert 'outlook-assistant' in orch._sessions
+            assert orch._tool_to_server.get('echo') == 'outlook-assistant'
+            assert 'outlook-assistant' in orch._dynamic_servers
+        finally:
+            async_to_sync(orch.disconnect)()
+
+    def test_catalog_server_requires_enabled_connection(self, settings, client_obj):
+        from Jeeves.tools.models import ToolConnection
+        settings.MCP_POOL_ENABLED = False
+        settings.MCP_SERVERS = {}
+        card = self._make_stdio_card()
+        orch = self._make_orchestrator(client_obj)
+        try:
+            async_to_sync(orch.connect)()
+            orch._scope = 'manager'
+
+            async_to_sync(orch._build_scope_filter)()
+            assert 'outlook-assistant' not in orch._connected_server_names
+
+            ToolConnection.objects.create(
+                client=client_obj, tool_card=card, target='manager', enabled=True)
+            async_to_sync(orch._build_scope_filter)()
+            assert 'outlook-assistant' in orch._connected_server_names
+        finally:
+            async_to_sync(orch.disconnect)()
+
+    def test_remote_card_tools_from_stored_schema(self, settings, client_obj):
+        from Jeeves.tools.models import ToolCard, ToolConnection
+        settings.MCP_POOL_ENABLED = False
+        settings.MCP_SERVERS = {}
+        card = ToolCard.objects.create(
+            name='HookLayer', slug='hooklayer', tagline='Webhooks',
+            description='d', icon='i', color='#000000', category='custom',
+            transport_type='streamable_http', auth_type='api_key',
+            mcp_server_url='https://hooks.example.com/mcp',
+            tools_schema=[{
+                'name': 'fire_hook',
+                'description': 'Fire a webhook',
+                'inputSchema': {'type': 'object', 'properties': {'url': {'type': 'string'}}},
+            }])
+        ToolConnection.objects.create(
+            client=client_obj, tool_card=card, target='manager',
+            enabled=True, status='connected')
+        orch = self._make_orchestrator(client_obj)
+        try:
+            async_to_sync(orch.connect)()
+            assert orch._tool_to_server.get('fire_hook') == 'hooklayer'
+
+            orch._scope = 'manager'
+            async_to_sync(orch._build_scope_filter)()
+            assert 'hooklayer' in orch._connected_server_names
+
+            llm_tools = orch._tools_to_llm_format()
+            assert 'fire_hook' in [t['function']['name'] for t in llm_tools]
+        finally:
+            async_to_sync(orch.disconnect)()

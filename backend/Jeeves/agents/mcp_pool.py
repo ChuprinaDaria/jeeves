@@ -17,6 +17,7 @@ import asyncio
 import atexit
 import logging
 import threading
+import time
 from contextlib import AsyncExitStack
 from typing import Any
 
@@ -28,6 +29,10 @@ logger = logging.getLogger(__name__)
 
 # How long the first request may wait for all servers to boot.
 _POOL_START_TIMEOUT = 180.0
+
+# Don't retry spawning a failed server more often than this (seconds),
+# so a broken catalog server doesn't add spawn latency to every message.
+_FAILED_RETRY_COOLDOWN = 120.0
 
 
 class MCPSessionPool:
@@ -55,6 +60,8 @@ class MCPSessionPool:
         self.tool_to_server: dict[str, str] = {}  # tool_name -> server_name
         self._server_tools: dict[str, list[Any]] = {}  # server_name -> MCP Tools
         self._stacks: dict[str, AsyncExitStack] = {}
+        self._configs: dict[str, dict] = {}  # server_name -> spawn config
+        self._failed_at: dict[str, float] = {}  # server_name -> monotonic ts
         self._respawn_locks: dict[str, asyncio.Lock] = {}
         self._env: dict[str, str] = {}
         self._started = False
@@ -120,7 +127,7 @@ class MCPSessionPool:
             params = StdioServerParameters(
                 command=cfg["command"],
                 args=cfg.get("args", []),
-                env=self._env,
+                env=cfg.get("env") or self._env,
             )
             read_stream, write_stream = await stack.enter_async_context(
                 stdio_client(params),
@@ -132,12 +139,15 @@ class MCPSessionPool:
             result = await session.list_tools()
         except Exception:
             logger.exception("MCP pool: failed to start server '%s'", name)
+            self._failed_at[name] = time.monotonic()
             try:
                 await stack.aclose()
             except Exception:
                 logger.exception("MCP pool: cleanup after failed start of '%s'", name)
             return
 
+        self._failed_at.pop(name, None)
+        self._configs[name] = cfg
         self._stacks[name] = stack
         self.sessions[name] = session
         self._server_tools[name] = list(result.tools)
@@ -149,6 +159,33 @@ class MCPSessionPool:
             len(result.tools),
             [t.name for t in result.tools],
         )
+
+    def ensure_extra_servers(self, defs: dict[str, dict]) -> None:
+        """Spawn additional (catalog/DB-defined) servers not yet running.
+
+        Blocking — call via ``asyncio.to_thread`` from async code. Recently
+        failed servers are skipped until the retry cooldown expires.
+        """
+        now = time.monotonic()
+        missing = {
+            name: cfg for name, cfg in defs.items()
+            if name not in self.sessions
+            and now - self._failed_at.get(name, -_FAILED_RETRY_COOLDOWN) >= _FAILED_RETRY_COOLDOWN
+        }
+        if not missing:
+            return
+        future = asyncio.run_coroutine_threadsafe(
+            self._connect_extra(missing),
+            self._loop,
+        )
+        future.result(timeout=_POOL_START_TIMEOUT)
+
+    async def _connect_extra(self, defs: dict[str, dict]) -> None:
+        for name, cfg in defs.items():
+            lock = self._respawn_locks.setdefault(name, asyncio.Lock())
+            async with lock:
+                if name not in self.sessions:
+                    await self._connect_one(name, cfg)
 
     async def _teardown_one(self, name: str) -> None:
         self.sessions.pop(name, None)
@@ -235,6 +272,7 @@ class MCPSessionPool:
             return
         async with lock:
             await self._teardown_one(name)
-            cfg = getattr(settings, "MCP_SERVERS", {}).get(name)
+            # Catalog servers aren't in settings — use the stored spawn config.
+            cfg = self._configs.get(name) or getattr(settings, "MCP_SERVERS", {}).get(name)
             if cfg and cfg.get("enabled", True):
                 await self._connect_one(name, cfg)

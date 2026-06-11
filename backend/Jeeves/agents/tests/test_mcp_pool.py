@@ -90,3 +90,18 @@ class TestMCPSessionPool:
 
         with pytest.raises(RuntimeError, match="not running"):
             async_to_sync(_call)()
+
+    def test_ensure_extra_servers(self, pool):
+        pool.ensure_started(env={})
+        extra_server = DUMMY_SERVER.replace("echo", "ping").replace("dummy", "extra")
+        pool.ensure_extra_servers({
+            "extra": {"command": sys.executable, "args": ["-c", extra_server]},
+        })
+        assert "extra" in pool.sessions
+        assert pool.tool_to_server["ping"] == "extra"
+
+        session = pool.sessions["extra"]
+        pool.ensure_extra_servers({
+            "extra": {"command": sys.executable, "args": ["-c", extra_server]},
+        })
+        assert pool.sessions["extra"] is session  # already running — no respawn
