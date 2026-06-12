@@ -31,5 +31,8 @@ urlpatterns = [
     path('flow/activity/', views.FlowActivityView.as_view(), name='flow-activity'),
     path('flow/channels/', views.FlowChannelsView.as_view(), name='flow-channels'),
 
+    path('skills/', views.SkillsView.as_view(), name='skills-list'),
+    path('skills/<slug:slug>/<str:action>/', views.SkillActionView.as_view(), name='skill-action'),
+
     path('word-cloud/', views.WordCloudView.as_view(), name='tool-word-cloud'),
 ]

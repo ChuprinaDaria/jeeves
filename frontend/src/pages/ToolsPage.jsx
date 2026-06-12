@@ -21,6 +21,7 @@ const ToolsPage = () => {
   const [popover, setPopover] = useState(null); // { tool, rect }
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [channels, setChannels] = useState([]);
+  const [skillsByTarget, setSkillsByTarget] = useState({});
   const { toast, showToast, hideToast } = useFlowToast();
 
   const loadTools = async () => {
@@ -39,6 +40,17 @@ const ToolsPage = () => {
     loadTools();
     toolsAPI.getFlowChannels()
       .then(res => setChannels(res.data?.channels || []))
+      .catch(() => {});
+    toolsAPI.getSkills()
+      .then(res => {
+        const map = {};
+        (res.data?.skills || []).forEach(sk => {
+          sk.attached_to.forEach(target => {
+            (map[target] = map[target] || []).push(sk.name);
+          });
+        });
+        setSkillsByTarget(map);
+      })
       .catch(() => {});
   }, []);
 
@@ -287,6 +299,7 @@ const ToolsPage = () => {
       <FlowCanvas
         tools={tools}
         channels={channels}
+        skillsByTarget={skillsByTarget}
         onToolClick={handleCanvasToolClick}
         highlightedTool={highlightedTool}
         onToolDrop={handleToolDrop}

@@ -30,7 +30,8 @@
     "setup": "Kennisbank",
     "settings": "Instellingen",
     "billing": "Facturatie",
-    "leads": "Leads"
+    "leads": "Leads",
+    "skills": "Skills"
   },
   "auth": {
     "welcomeBack": "Welcome Back",
@@ -593,7 +594,8 @@
       "legendTitle": "twee agenten",
       "legendJeeves": "Jeeves — jouw privé-assistent. Alleen jij praat met hem (sandbox, Telegram-directlijn).",
       "legendConcierge": "Concierge — praat met je klanten in de kanalen rechts.",
-      "legendLeads": "Leads — verzamelt contacten uit klantgesprekken."
+      "legendLeads": "Leads — verzamelt contacten uit klantgesprekken.",
+      "skillBadgeTooltip": "Gekoppelde skill — bepaalt hoe deze agent communiceert"
     },
     "copilot": {
       "title": "Jeeves",
@@ -609,5 +611,19 @@
       "suggestion2": "Stel leadregistratie in voor alle kanalen",
       "suggestion3": "Wat is er nu verbonden?"
     }
+  },
+  "skills": {
+    "title": "Agent-",
+    "titleAccent": "skills",
+    "subtitle": "markdown-modules · bepalen hoe je agenten communiceren",
+    "explainer": "Skills zijn herbruikbare gedragsmodules. Koppel Marketing Pro aan de consultant en elk antwoord in Telegram, WhatsApp en webchat volgt direct die stijl. Of vraag het gewoon aan Jeeves.",
+    "targetAssistant": "Jeeves",
+    "targetManager": "Consultant",
+    "targetLeads": "Leads",
+    "attached": "gekoppeld",
+    "detached": "ontkoppeld",
+    "error": "Er ging iets mis. Probeer het opnieuw.",
+    "loadError": "Skills laden mislukt.",
+    "empty": "Nog geen skills in de catalogus."
   }
 }

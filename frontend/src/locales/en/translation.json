@@ -33,7 +33,8 @@
     "billing": "Billing",
     "leads": "Leads",
     "tools": "Tools",
-    "assistant": "Assistant"
+    "assistant": "Assistant",
+    "skills": "Skills"
   },
   "auth": {
     "welcomeBack": "Welcome Back",
@@ -1106,7 +1107,8 @@
       "legendTitle": "two agents",
       "legendJeeves": "Jeeves — your private assistant. Only you talk to him (sandbox, Telegram direct line).",
       "legendConcierge": "Concierge — talks to your customers in the channels on the right.",
-      "legendLeads": "Leads — captures contacts from customer conversations."
+      "legendLeads": "Leads — captures contacts from customer conversations.",
+      "skillBadgeTooltip": "Attached skill — shapes how this agent communicates"
     },
     "matrix": {
       "howto_title": "How to connect",
@@ -1133,5 +1135,19 @@
       "suggestion2": "Set up lead capture from all channels",
       "suggestion3": "What is connected right now?"
     }
+  },
+  "skills": {
+    "title": "Agent",
+    "titleAccent": "Skills",
+    "subtitle": "markdown modules · shape how your agents communicate",
+    "explainer": "Skills are reusable behavior modules. Attach Marketing Pro to the consultant and every reply in Telegram, WhatsApp and web chat follows that style — instantly. You can also just ask Jeeves: \"make my consultant sell better\".",
+    "targetAssistant": "Jeeves",
+    "targetManager": "Consultant",
+    "targetLeads": "Leads",
+    "attached": "attached",
+    "detached": "detached",
+    "error": "Something went wrong. Please try again.",
+    "loadError": "Failed to load skills.",
+    "empty": "No skills in the catalog yet."
   }
 }

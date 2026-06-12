@@ -31,7 +31,8 @@
     "promptBook": "Prompt Book",
     "settings": "Einstellungen",
     "billing": "Abrechnung",
-    "leads": "Leads"
+    "leads": "Leads",
+    "skills": "Skills"
   },
   "auth": {
     "welcomeBack": "Willkommen zurück",
@@ -656,7 +657,8 @@
       "legendTitle": "zwei agenten",
       "legendJeeves": "Jeeves — Ihr privater Assistent. Nur Sie sprechen mit ihm (Sandbox, Telegram-Direktleitung).",
       "legendConcierge": "Concierge — spricht mit Ihren Kunden in den Kanälen rechts.",
-      "legendLeads": "Leads — erfasst Kontakte aus Kundengesprächen."
+      "legendLeads": "Leads — erfasst Kontakte aus Kundengesprächen.",
+      "skillBadgeTooltip": "Verbundener Skill — prägt die Kommunikation dieses Agenten"
     },
     "copilot": {
       "title": "Jeeves",
@@ -672,5 +674,19 @@
       "suggestion2": "Richte Lead-Erfassung für alle Kanäle ein",
       "suggestion3": "Was ist gerade verbunden?"
     }
+  },
+  "skills": {
+    "title": "Agenten-",
+    "titleAccent": "Skills",
+    "subtitle": "markdown-module · prägen, wie Ihre Agenten kommunizieren",
+    "explainer": "Skills sind wiederverwendbare Verhaltensmodule. Hängen Sie Marketing Pro an den Berater — und jede Antwort in Telegram, WhatsApp und Web-Chat folgt sofort diesem Stil. Oder bitten Sie einfach Jeeves darum.",
+    "targetAssistant": "Jeeves",
+    "targetManager": "Berater",
+    "targetLeads": "Leads",
+    "attached": "verbunden",
+    "detached": "getrennt",
+    "error": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
+    "loadError": "Skills konnten nicht geladen werden.",
+    "empty": "Noch keine Skills im Katalog."
   }
 }

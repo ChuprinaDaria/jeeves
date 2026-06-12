@@ -30,7 +30,8 @@
     "setup": "Videnbase",
     "settings": "Indstillinger",
     "billing": "Fakturering",
-    "leads": "Leads"
+    "leads": "Leads",
+    "skills": "Skills"
   },
   "auth": {
     "welcomeBack": "Welcome Back",
@@ -593,7 +594,8 @@
       "legendTitle": "to agenter",
       "legendJeeves": "Jeeves — din private assistent. Kun du taler med ham (sandbox, Telegram-direkte linje).",
       "legendConcierge": "Concierge — taler med dine kunder i kanalerne til højre.",
-      "legendLeads": "Leads — opsamler kontakter fra kundesamtaler."
+      "legendLeads": "Leads — opsamler kontakter fra kundesamtaler.",
+      "skillBadgeTooltip": "Tilknyttet skill — former hvordan denne agent kommunikerer"
     },
     "copilot": {
       "title": "Jeeves",
@@ -609,5 +611,19 @@
       "suggestion2": "Opsæt lead-indsamling fra alle kanaler",
       "suggestion3": "Hvad er forbundet lige nu?"
     }
+  },
+  "skills": {
+    "title": "Agent-",
+    "titleAccent": "skills",
+    "subtitle": "markdown-moduler · former hvordan dine agenter kommunikerer",
+    "explainer": "Skills er genanvendelige adfærdsmoduler. Tilknyt Marketing Pro til konsulenten, og hvert svar i Telegram, WhatsApp og webchat følger straks den stil. Eller bed bare Jeeves om det.",
+    "targetAssistant": "Jeeves",
+    "targetManager": "Konsulent",
+    "targetLeads": "Leads",
+    "attached": "tilknyttet",
+    "detached": "frakoblet",
+    "error": "Noget gik galt. Prøv igen.",
+    "loadError": "Kunne ikke indlæse skills.",
+    "empty": "Ingen skills i kataloget endnu."
   }
 }

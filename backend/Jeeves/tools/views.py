@@ -584,3 +584,37 @@ class FlowChannelsView(APIView):
                             or getattr(client, 'meta_phone_number_id', ''))},
             {'id': 'webchat', 'name': 'Web chat', 'active': True},
         ]})
+
+
+class SkillsView(APIView):
+    """GET /api/tools/skills/ — skill catalog + where each is attached.
+
+    Same data Jeeves sees via the canvas MCP server's skill_list.
+    """
+
+    def get(self, request):
+        from mcp_servers.canvas.server import list_skills_sync
+
+        client = getattr(request, 'client', None)
+        if not client:
+            return Response({'error': 'Client not found'},
+                            status=status.HTTP_401_UNAUTHORIZED)
+        return Response(list_skills_sync(client.pk))
+
+
+class SkillActionView(APIView):
+    """POST /api/tools/skills/<slug>/attach/ | /detach/  body: {target}."""
+
+    def post(self, request, slug, action):
+        from mcp_servers.canvas.server import attach_skill_sync, detach_skill_sync
+
+        client = getattr(request, 'client', None)
+        if not client:
+            return Response({'error': 'Client not found'},
+                            status=status.HTTP_401_UNAUTHORIZED)
+        target = (request.data.get('target') or '').strip()
+        handler = attach_skill_sync if action == 'attach' else detach_skill_sync
+        result = handler(client.pk, slug, target)
+        if 'error' in result:
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+        return Response(result)

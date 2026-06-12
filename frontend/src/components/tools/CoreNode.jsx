@@ -35,7 +35,7 @@ const VARIANTS = {
 };
 
 const CoreNode = forwardRef(
-  ({ variant, ports, onPortPointerDown, onPortPointerUp, validDropPorts, edgeDragging }, ref) => {
+  ({ variant, ports, skills, onPortPointerDown, onPortPointerUp, validDropPorts, edgeDragging }, ref) => {
     const { t } = useTranslation();
     const v = VARIANTS[variant];
     const { Icon } = v;
@@ -103,6 +103,25 @@ const CoreNode = forwardRef(
         <div className="font-mono text-[10px] uppercase tracking-wider text-fog">
           {t(v.subtitle)}
         </div>
+
+        {/* Attached skills (markdown prompt modules) */}
+        {skills?.length > 0 && (
+          <div className="flex flex-wrap gap-1 justify-center mt-2.5">
+            {skills.slice(0, 3).map(name => (
+              <span
+                key={name}
+                title={t('tools.flow.skillBadgeTooltip')}
+                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] border-[1.5px]
+                            font-mono text-[9px] tracking-wide ${v.border} ${v.iconTint}`}
+              >
+                ✦ {name}
+              </span>
+            ))}
+            {skills.length > 3 && (
+              <span className="font-mono text-[9px] text-fog self-center">+{skills.length - 3}</span>
+            )}
+          </div>
+        )}
       </div>
     );
   }

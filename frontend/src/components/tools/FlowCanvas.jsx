@@ -88,7 +88,7 @@ const buildInitialPositions = (canvasW, canvasH, groups) => {
 };
 
 /* ── Component ─────────────────────────────────────── */
-const FlowCanvas = ({ tools, channels, onToolClick, highlightedTool, onToolDrop, onDisconnect, onConnect, onMiddlewareRemove, onMiddlewareAttach, onRefresh, onPositionSave }) => {
+const FlowCanvas = ({ tools, channels, skillsByTarget, onToolClick, highlightedTool, onToolDrop, onDisconnect, onConnect, onMiddlewareRemove, onMiddlewareAttach, onRefresh, onPositionSave }) => {
   const { t } = useTranslation();
   const containerRef = useRef(null);
   const innerRef = useRef(null);
@@ -1120,6 +1120,7 @@ const FlowCanvas = ({ tools, channels, onToolClick, highlightedTool, onToolDrop,
             >
               <CoreNode
                 variant={variant}
+                skills={skillsByTarget?.[variant]}
                 ports={{ left: makeSide('left'), right: makeSide('right') }}
                 onPortPointerDown={handlePortPointerDown}
                 onPortPointerUp={handlePortPointerUp}

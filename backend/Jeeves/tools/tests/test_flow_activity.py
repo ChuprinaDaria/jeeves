@@ -64,3 +64,33 @@ class TestFlowActivity:
         _log_tool_call(other)
         res = self._get(client, client_obj)
         assert res.json()['events'] == []
+
+
+@pytest.mark.django_db
+class TestSkillsAPI:
+    LIST = '/api/tools/skills/'
+
+    def test_list_and_attach_detach(self, client, client_obj):
+        res = client.get(self.LIST, HTTP_X_CLIENT_TOKEN=client_obj.tag)
+        skills = {s['skill'] for s in res.json()['skills']}
+        assert 'marketing-pro' in skills  # seeded
+
+        res = client.post('/api/tools/skills/marketing-pro/attach/',
+                          {'target': 'manager'}, content_type='application/json',
+                          HTTP_X_CLIENT_TOKEN=client_obj.tag)
+        assert res.status_code == 200 and res.json()['attached']
+
+        res = client.get(self.LIST, HTTP_X_CLIENT_TOKEN=client_obj.tag)
+        by_slug = {s['skill']: s for s in res.json()['skills']}
+        assert by_slug['marketing-pro']['attached_to'] == ['manager']
+
+        res = client.post('/api/tools/skills/marketing-pro/detach/',
+                          {'target': 'manager'}, content_type='application/json',
+                          HTTP_X_CLIENT_TOKEN=client_obj.tag)
+        assert res.json()['detached']
+
+    def test_invalid_target_rejected(self, client, client_obj):
+        res = client.post('/api/tools/skills/marketing-pro/attach/',
+                          {'target': 'nope'}, content_type='application/json',
+                          HTTP_X_CLIENT_TOKEN=client_obj.tag)
+        assert res.status_code == 400

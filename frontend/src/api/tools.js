@@ -34,5 +34,10 @@ export const toolsAPI = {
   getFlowActivity: (since) =>
     api.get('/tools/flow/activity/', { params: since ? { since } : {} }),
 
+  // Skills — markdown prompt modules attached per agent target
+  getSkills: () => api.get('/tools/skills/'),
+  attachSkill: (slug, target) => api.post(`/tools/skills/${slug}/attach/`, { target }),
+  detachSkill: (slug, target) => api.post(`/tools/skills/${slug}/detach/`, { target }),
+
   getWordCloud: () => api.get('/tools/word-cloud/'),
 };

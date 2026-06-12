@@ -116,6 +116,10 @@ const Preview = () => {
             { id: 'whatsapp', name: 'WhatsApp', active: true },
             { id: 'webchat', name: 'Web chat', active: true },
           ]}
+          skillsByTarget={{
+            manager: ['Marketing Pro', 'Sales Pro'],
+            leads: ['Lead Qualifier'],
+          }}
           onToolClick={noop}
           highlightedTool={null}
           onToolDrop={noop}
