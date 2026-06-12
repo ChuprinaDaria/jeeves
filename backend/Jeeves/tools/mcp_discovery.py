@@ -9,7 +9,7 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-DISCOVERY_TIMEOUT = 10  # seconds
+DISCOVERY_TIMEOUT = 30  # seconds (remote MCP servers can be slow to cold-start)
 
 
 @dataclass
@@ -152,47 +152,49 @@ def _parse_catalog_page(html: str, source_url: str) -> PageParseResult:
     return result
 
 
-async def _discover_sse(url: str) -> DiscoveryResult:
+def _auth_headers(api_key: str | None) -> dict:
+    return {"Authorization": f"Bearer {api_key}"} if api_key else {}
+
+
+def _tools_from_result(result) -> list:
+    return [
+        {
+            "name": t.name,
+            "description": t.description or "",
+            "inputSchema": t.inputSchema if hasattr(t, "inputSchema") else {},
+        }
+        for t in result.tools
+    ]
+
+
+async def _discover_sse(url: str, api_key: str | None = None) -> DiscoveryResult:
     from mcp import ClientSession
     from mcp.client.sse import sse_client
 
-    async with sse_client(url) as (read, write):
+    async with sse_client(url, headers=_auth_headers(api_key)) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
             result = await session.list_tools()
-            tools = [
-                {
-                    "name": t.name,
-                    "description": t.description or "",
-                    "inputSchema": t.inputSchema if hasattr(t, "inputSchema") else {},
-                }
-                for t in result.tools
-            ]
             server_name = getattr(session, "server_name", "") or ""
-            return DiscoveryResult(server_name=server_name, tools=tools, transport="sse")
+            return DiscoveryResult(
+                server_name=server_name, tools=_tools_from_result(result), transport="sse")
 
 
-async def _discover_streamable_http(url: str) -> DiscoveryResult:
+async def _discover_streamable_http(url: str, api_key: str | None = None) -> DiscoveryResult:
     from mcp import ClientSession
     from mcp.client.streamable_http import streamablehttp_client
 
-    async with streamablehttp_client(url) as (read, write, _):
+    async with streamablehttp_client(url, headers=_auth_headers(api_key)) as (read, write, _):
         async with ClientSession(read, write) as session:
             await session.initialize()
             result = await session.list_tools()
-            tools = [
-                {
-                    "name": t.name,
-                    "description": t.description or "",
-                    "inputSchema": t.inputSchema if hasattr(t, "inputSchema") else {},
-                }
-                for t in result.tools
-            ]
             server_name = getattr(session, "server_name", "") or ""
-            return DiscoveryResult(server_name=server_name, tools=tools, transport="streamable_http")
+            return DiscoveryResult(
+                server_name=server_name, tools=_tools_from_result(result),
+                transport="streamable_http")
 
 
-def _discover_live(url: str) -> DiscoveryResult:
+def _discover_live(url: str, api_key: str | None = None) -> DiscoveryResult:
     """Try to connect to a live MCP endpoint via Streamable HTTP, then SSE."""
     errors = []
     for transport_name, coro_fn in [
@@ -201,7 +203,7 @@ def _discover_live(url: str) -> DiscoveryResult:
     ]:
         try:
             result = asyncio.run(
-                asyncio.wait_for(coro_fn(url), timeout=DISCOVERY_TIMEOUT)
+                asyncio.wait_for(coro_fn(url, api_key), timeout=DISCOVERY_TIMEOUT)
             )
             if not result.tools:
                 raise DiscoveryError("Server returned zero tools.")
@@ -376,14 +378,14 @@ def install_pip_package(package_name: str) -> str:
         raise DiscoveryError("pip install timed out (120s).")
 
 
-def discover_or_parse(url: str):
+def discover_or_parse(url: str, api_key: str | None = None):
     """Smart discovery: if URL is a live MCP endpoint, discover tools.
     If it's an HTML page, parse it for server info.
 
     Returns either DiscoveryResult or PageParseResult.
     """
     if not _is_html(url):
-        return _discover_live(url)
+        return _discover_live(url, api_key)
 
     # It's a catalog page — parse for install info
     try:
@@ -396,7 +398,7 @@ def discover_or_parse(url: str):
     # If page has a remote endpoint, try to connect to it
     if parsed.sse_endpoint:
         try:
-            result = _discover_live(parsed.sse_endpoint)
+            result = _discover_live(parsed.sse_endpoint, api_key)
             result.server_name = result.server_name or parsed.server_name
             return result
         except DiscoveryError:
