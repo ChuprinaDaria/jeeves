@@ -89,7 +89,8 @@ class TestOwnerTelegramWebhook:
         client_obj.owner_telegram_chat_id = '777'
         client_obj.save()
         res = client.post(self.URL, json.dumps(_tg_message(777, 'покажи звіт за тиждень')),
-                          content_type='application/json')
+                          content_type='application/json',
+                          HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN=client_obj.tag)
         assert res.status_code == 200
         assert mock_gen.called
         kwargs = mock_gen.call_args.kwargs
@@ -101,11 +102,32 @@ class TestOwnerTelegramWebhook:
 
     @patch('Jeeves.clients.views_telegram.send_telegram_message')
     @patch('Jeeves.agents.dispatch.generate_response_dual', return_value='pong')
+    def test_other_tenant_cannot_reach_owner_jeeves(self, mock_gen, mock_send, client, client_obj):
+        # Client B links chat 777 to ITS owner assistant.
+        Client.objects.create(
+            user='b', description='d', api_key='rag_test_key_tg2',
+            tag='tg-client-b', telegram_bot_token='999:xyz',
+            owner_telegram_chat_id='777')
+        # A message arrives on Client A's bot (resolved via A's secret_token),
+        # from a chat that happens to equal B's linked owner chat_id.
+        client.post(
+            self.URL, json.dumps(_tg_message(777, 'leak my data')),
+            content_type='application/json',
+            HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN=client_obj.tag)
+        # B's private Jeeves (assistant scope) must NOT be invoked for A's bot
+        # traffic — no call may use the owner_telegram channel.
+        owner_calls = [c for c in mock_gen.call_args_list
+                       if c.kwargs.get('channel') == 'owner_telegram']
+        assert owner_calls == []
+
+    @patch('Jeeves.clients.views_telegram.send_telegram_message')
+    @patch('Jeeves.agents.dispatch.generate_response_dual', return_value='pong')
     def test_owner_unlink_command(self, mock_gen, mock_send, client, client_obj):
         client_obj.owner_telegram_chat_id = '777'
         client_obj.save()
         client.post(self.URL, json.dumps(_tg_message(777, '/unlink')),
-                    content_type='application/json')
+                    content_type='application/json',
+                    HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN=client_obj.tag)
         client_obj.refresh_from_db()
         assert client_obj.owner_telegram_chat_id == ''
         assert not mock_gen.called

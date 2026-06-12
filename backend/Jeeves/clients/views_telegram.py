@@ -374,11 +374,17 @@ class TelegramWebhookView(View):
             return HttpResponse("Internal server error", status=500)
     
     def _get_owner_client(self, chat_id, client_hint):
-        """Client whose owner linked this chat to Jeeves (or None)."""
-        if client_hint is not None:
-            return client_hint if client_hint.owner_telegram_chat_id == str(chat_id) else None
-        return Client.objects.filter(
-            owner_telegram_chat_id=str(chat_id), is_active=True).first()
+        """Client whose owner linked THIS bot's chat to Jeeves (or None).
+
+        Strictly scoped to the bot that received the message (client_hint,
+        resolved from the webhook secret_token). We never do a global
+        owner_telegram_chat_id lookup: on a misconfigured webhook without a
+        secret_token, a known chat_id could otherwise route a message into a
+        different tenant's private assistant (full assistant scope).
+        """
+        if client_hint is None or not client_hint.owner_telegram_chat_id:
+            return None
+        return client_hint if client_hint.owner_telegram_chat_id == str(chat_id) else None
 
     def handle_jeeves_link(self, chat_id: int, message_text: str, client_hint=None):
         """`/jeeves <code>` — bind this chat to the owner's private assistant.

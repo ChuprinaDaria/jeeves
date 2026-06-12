@@ -44,6 +44,15 @@ def _mcp_tool_timeout() -> float:
 _AUTO_INJECT_PARAMS = frozenset({"client_id", "session_id", "user_id"})
 
 
+def _safe_label(text: str, limit: int = 80) -> str:
+    """Sanitize a DB-sourced name before interpolating it into the system
+    prompt: collapse whitespace/newlines and truncate. Tool/skill names can
+    come from third-party package metadata (marketplace installs), so a name
+    like ``Email\\n[SYSTEM]:`` must not break the prompt structure."""
+    cleaned = " ".join(str(text or "").split())
+    return cleaned[:limit]
+
+
 class _SchemaTool:
     """Adapter: stored ``ToolCard.tools_schema`` entry → MCP Tool-like object."""
 
@@ -751,7 +760,7 @@ class AgentOrchestrator:
         async for conn in ToolConnection.objects.filter(
             client=self.client, enabled=True, status='connected',
         ).select_related('tool_card'):
-            wiring.setdefault(conn.tool_card.name, set()).add(conn.target)
+            wiring.setdefault(_safe_label(conn.tool_card.name), set()).add(conn.target)
         channels = []
         if getattr(self.client, 'telegram_bot_token', ''):
             channels.append('Telegram')
@@ -769,7 +778,7 @@ class AgentOrchestrator:
             client=self.client, enabled=True, skill__is_active=True,
             target__in=skill_targets,
         ).select_related('skill').order_by('skill__name'):
-            self._skills.append((assignment.skill.name, assignment.target, assignment.skill.content))
+            self._skills.append((_safe_label(assignment.skill.name), assignment.target, assignment.skill.content))
 
     def _get_scope_tool_names(self) -> list[str]:
         """Tool names visible to current scope."""
