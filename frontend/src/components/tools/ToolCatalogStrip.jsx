@@ -161,7 +161,27 @@ const ServerChip = ({ tool, onConnected, onMouseEnter, onMouseLeave, onOpenAuth 
   );
 };
 
-const ToolCatalogStrip = ({ tools, onConnected, onToolHover, onToolHoverEnd }) => {
+const AddToolChip = () => {
+  const { t } = useTranslation();
+  return (
+    <a
+      href="/owner/mcp-servers/new"
+      className="w-[160px] shrink-0 rounded-lg p-3 border-[1.5px] border-dashed border-iris/50
+                 flex flex-col items-center justify-center gap-1.5 min-h-[100px]
+                 text-iris hover:bg-iris-soft/20 hover:border-iris transition-all no-underline"
+    >
+      <span className="text-[22px] leading-none">+</span>
+      <span className="text-[12px] font-medium text-center leading-tight">
+        {t('tools.flow.addCustomTool')}
+      </span>
+      <span className="font-mono text-[9px] uppercase tracking-wider text-fog text-center">
+        {t('tools.flow.addCustomToolHint')}
+      </span>
+    </a>
+  );
+};
+
+const ToolCatalogStrip = ({ tools, onConnected, onToolHover, onToolHoverEnd, canInstall }) => {
   const { t } = useTranslation();
   const scrollRef = useRef(null);
   const [showLeftFade, setShowLeftFade] = useState(false);
@@ -288,7 +308,7 @@ const ToolCatalogStrip = ({ tools, onConnected, onToolHover, onToolHoverEnd }) =
                   onMouseLeave={onToolHoverEnd}
                 />
               );
-            })
+            }).concat(canInstall ? [<AddToolChip key="__add-tool" />] : [])
           ) : (
             <div className="w-full py-6 text-center text-sm text-fog">
               {t('tools.flow.emptyCategory', { defaultValue: 'No tools in this category yet' })}

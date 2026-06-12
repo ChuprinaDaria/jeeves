@@ -12,7 +12,7 @@ import { useAuth } from '../context/AuthContext';
 
 const ToolsPage = () => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, isOwner } = useAuth();
   const multiConn = user?.feature_flags?.mcp_tools_multi_connection;
   const [tools, setTools] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -273,6 +273,7 @@ const ToolsPage = () => {
           onConnected={handleConnected}
           onToolHover={setHighlightedTool}
           onToolHoverEnd={() => setHighlightedTool(null)}
+          canInstall={isOwner}
         />
       )}
 

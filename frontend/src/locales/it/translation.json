@@ -573,7 +573,9 @@
       "scopeManager": "Disponibile per Concierge (agente clienti)",
       "scopeLeads": "Usato per la raccolta lead",
       "heatmapToggle": "Heatmap di utilizzo (7 giorni)",
-      "liveToggle": "Attività dal vivo"
+      "liveToggle": "Attività dal vivo",
+      "addCustomTool": "Aggiungi strumento",
+      "addCustomToolHint": "marketplace mcp"
     },
     "copilot": {
       "title": "Jeeves",

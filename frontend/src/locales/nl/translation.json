@@ -573,7 +573,9 @@
       "scopeManager": "Beschikbaar voor Concierge (klantgerichte agent)",
       "scopeLeads": "Gebruikt voor leadregistratie",
       "heatmapToggle": "Gebruiks-heatmap (7 dagen)",
-      "liveToggle": "Live activiteit"
+      "liveToggle": "Live activiteit",
+      "addCustomTool": "Eigen tool toevoegen",
+      "addCustomToolHint": "mcp-marktplaats"
     },
     "copilot": {
       "title": "Jeeves",

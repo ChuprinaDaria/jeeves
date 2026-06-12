@@ -379,7 +379,9 @@
       "scopeManager": "Доступно Консьєржу (агент для клієнтів)",
       "scopeLeads": "Використовується для збору лідів",
       "heatmapToggle": "Теплокарта використання (7 днів)",
-      "liveToggle": "Жива активність"
+      "liveToggle": "Жива активність",
+      "addCustomTool": "Додати свій інструмент",
+      "addCustomToolHint": "маркетплейс mcp"
     },
     "copilot": {
       "title": "Jeeves",

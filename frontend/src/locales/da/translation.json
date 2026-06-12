@@ -573,7 +573,9 @@
       "scopeManager": "Tilgængelig for Concierge (kundevendt agent)",
       "scopeLeads": "Bruges til lead-indsamling",
       "heatmapToggle": "Brugs-heatmap (7 dage)",
-      "liveToggle": "Live aktivitet"
+      "liveToggle": "Live aktivitet",
+      "addCustomTool": "Tilføj eget værktøj",
+      "addCustomToolHint": "mcp-markedsplads"
     },
     "copilot": {
       "title": "Jeeves",

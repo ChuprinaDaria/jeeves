@@ -1086,7 +1086,9 @@
       "scopeManager": "Available to Concierge (customer-facing agent)",
       "scopeLeads": "Used for lead capture",
       "heatmapToggle": "Show usage heatmap (7 days)",
-      "liveToggle": "Show live activity"
+      "liveToggle": "Show live activity",
+      "addCustomTool": "Add custom tool",
+      "addCustomToolHint": "mcp marketplace"
     },
     "matrix": {
       "howto_title": "How to connect",
