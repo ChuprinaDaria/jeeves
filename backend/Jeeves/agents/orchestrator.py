@@ -95,6 +95,12 @@ DEFAULT_ASSISTANT_PROMPT = (
     "tools and confirm what changed. If a tool needs credentials, wire it and "
     "tell the owner to authorize it on the Tools page. "
     "WhatsApp is connected via QR code on the Integrations page — not via canvas tools.\n\n"
+    "## Custom integrations\n"
+    "When the owner describes an external API to connect ('integrate with our "
+    "CRM', 'call this webhook'), use canvas_create_http_integration. First ask "
+    "what each action does, when it should be used, which agent should have it, "
+    "and the auth (API key/header). Only https public APIs are allowed. The new "
+    "integration appears on the canvas and its endpoints become callable.\n\n"
     "## Skills\n"
     "Skills are reusable prompt modules (e.g. 'Marketing Pro', 'Sales Pro', "
     "'Lead Qualifier') that change HOW an agent communicates:\n"
@@ -339,12 +345,19 @@ class AgentOrchestrator:
                     await self._spawn_private_server(name, cfg)
             self._dynamic_servers |= set(stdio_defs)
 
-        # --- Remote SSE / streamable-HTTP servers ---
+        # --- Remote SSE / streamable-HTTP servers + custom REST integrations ---
+        # Tenancy: global cards (owner_client is NULL) plus this client's own
+        # private custom integrations. Never another tenant's.
+        from django.db.models import Q
+
         async for card in ToolCard.objects.filter(
+            Q(owner_client__isnull=True) | Q(owner_client=self.client),
             is_active=True,
-            transport_type__in=('sse', 'streamable_http'),
-        ).exclude(mcp_server_url=''):
+            transport_type__in=('sse', 'streamable_http', 'http_rest'),
+        ):
             if not card.tools_schema:
+                continue
+            if card.transport_type != 'http_rest' and not card.mcp_server_url:
                 continue
             self._remote_cards[card.slug] = card
             self._dynamic_servers.add(card.slug)
@@ -1241,6 +1254,22 @@ class AgentOrchestrator:
         """
         card = self._remote_cards[server_name]
         connection = self._tool_to_connection.get(server_name)
+
+        # Custom REST integrations use a plain-HTTP executor (with SSRF guard),
+        # not the MCP protocol.
+        if card.transport_type == "http_rest":
+            from Jeeves.tools.http_rest import call_http_rest
+            try:
+                text = await asyncio.wait_for(
+                    call_http_rest(card, connection, tool_name, arguments),
+                    timeout=_mcp_tool_timeout(),
+                )
+            except Exception as exc:
+                logger.exception(
+                    "Custom REST tool '%s' on '%s' failed", tool_name, server_name)
+                return json.dumps({"error": str(exc)}), "error"
+            return text, "ok"
+
         credentials = (connection.credentials or {}) if connection else {}
 
         headers = {}

@@ -19,6 +19,7 @@ class ToolCard(models.Model):
         ('sse', 'SSE (Server-Sent Events)'),
         ('streamable_http', 'Streamable HTTP'),
         ('stdio', 'Stdio (local subprocess)'),
+        ('http_rest', 'Custom REST API'),
     ]
 
     AUTH_TYPE_CHOICES = [
@@ -54,6 +55,14 @@ class ToolCard(models.Model):
     scope_schema = models.JSONField(
         default=dict, blank=True,
         help_text='Available scope options for UI rendering')
+
+    # Per-client custom integrations: a card created by a client's own agent
+    # (Jeeves) is owned by and visible only to that client. NULL = global /
+    # system card (the default for all built-in and owner-installed tools).
+    owner_client = models.ForeignKey(
+        'clients.Client', on_delete=models.CASCADE, null=True, blank=True,
+        related_name='owned_tool_cards',
+        help_text='If set, this card is a private custom integration for one client')
 
     is_active = models.BooleanField(default=True)
     is_featured = models.BooleanField(default=False)

@@ -292,6 +292,164 @@ async def canvas_remove_tool_connection(
     return json.dumps(result, ensure_ascii=False)
 
 
+def _build_endpoint_schema(endpoints):
+    """Turn the LLM-friendly endpoint spec into ToolCard.tools_schema entries.
+
+    Each endpoint: {name, description, method, path, params: [
+        {name, type, location: 'path'|'query'|'body', required, description}]}
+    """
+    schema = []
+    for ep in endpoints or []:
+        name = (ep.get('name') or '').strip()
+        if not name:
+            continue
+        props, required, query, body = {}, [], [], []
+        for p in ep.get('params', []):
+            pname = (p.get('name') or '').strip()
+            if not pname:
+                continue
+            props[pname] = {
+                'type': p.get('type', 'string'),
+                'description': p.get('description', ''),
+            }
+            if p.get('required'):
+                required.append(pname)
+            loc = p.get('location', 'body')
+            if loc == 'query':
+                query.append(pname)
+            elif loc == 'body':
+                body.append(pname)
+            # 'path' params are substituted into the path template by name
+        entry = {
+            'name': name,
+            'description': ep.get('description', ''),
+            'inputSchema': {'type': 'object', 'properties': props, 'required': required},
+            'request': {
+                'method': (ep.get('method') or 'GET').upper(),
+                'path': ep.get('path') or '/',
+                'query': query,
+                'body': body,
+            },
+        }
+        schema.append(entry)
+    return schema
+
+
+def create_http_integration_sync(client_id, name, base_url, endpoints,
+                                 auth=None, api_key='', targets=None):
+    """Create a per-client custom REST integration card + wire it.
+
+    Owner-scope only (enforced by MCP_TOOL_SCOPES). The card is private to
+    this client (owner_client). Secrets go into the encrypted ToolConnection.
+    """
+    from django.utils.text import slugify
+
+    from Jeeves.tools.http_rest import validate_url_shallow, RestError
+    from Jeeves.tools.models import ToolCard, ToolConnection
+
+    client = _get_client(client_id)
+    if client is None:
+        return {"error": f"Client {client_id} not found"}
+
+    name = (name or '').strip()
+    base_url = (base_url or '').strip().rstrip('/')
+    if not name or not base_url:
+        return {"error": "name and base_url are required"}
+    try:
+        validate_url_shallow(base_url + '/')
+    except RestError as exc:
+        return {"error": str(exc)}
+
+    targets = [t.strip().lower() for t in (targets or ['assistant']) if t]
+    invalid = [t for t in targets if t not in VALID_TARGETS]
+    if invalid:
+        return {"error": f"targets must be a subset of {list(VALID_TARGETS)}"}
+
+    schema = _build_endpoint_schema(endpoints)
+    if not schema:
+        return {"error": "at least one endpoint with a name is required"}
+
+    auth = auth or {}
+    auth_type = 'api_key' if (api_key or auth.get('type', 'none') != 'none') else 'none'
+
+    # Namespaced, globally-unique slug for the per-client card.
+    base_slug = f"ci-{client.pk}-{slugify(name) or 'integration'}"
+    slug = base_slug
+    n = 2
+    while ToolCard.objects.filter(slug=slug).exists():
+        slug = f"{base_slug}-{n}"
+        n += 1
+
+    card = ToolCard.objects.create(
+        name=name, slug=slug,
+        tagline=f"Custom REST integration ({len(schema)} endpoint(s))",
+        description=', '.join(e['name'] for e in schema),
+        icon='puzzle', color='#6366f1', category='custom',
+        transport_type='http_rest',
+        mcp_server_url=base_url,
+        tools_schema=schema,
+        auth_type=auth_type,
+        auth_config={'base_url': base_url, 'auth': auth, 'fields': []},
+        owner_client=client,
+        is_active=True,
+        skill_scopes={'scopes': targets},
+    )
+
+    creds = {auth.get('credential_key', 'api_key'): api_key} if api_key else {}
+    status = 'connected' if (auth_type == 'none' or api_key) else 'pending'
+    for target in targets:
+        ToolConnection.objects.update_or_create(
+            client=client, tool_card=card, target=target,
+            defaults={'enabled': True, 'status': status, 'credentials': creds})
+
+    out = {
+        "integration": card.slug, "name": card.name,
+        "endpoints": [e['name'] for e in schema],
+        "targets": targets, "status": status,
+    }
+    if status == 'pending':
+        out["note"] = ("Wired on the canvas but needs an API key — ask the owner "
+                       "to authorize it on the Tools page, or provide the key.")
+    return out
+
+
+@mcp.tool()
+async def canvas_create_http_integration(
+    client_id: int,
+    name: str,
+    base_url: str,
+    endpoints: list,
+    auth: dict = None,
+    api_key: str = "",
+    targets: list = None,
+    session_id: str = "",
+    user_id: str = "",
+) -> str:
+    """Create a CUSTOM REST API integration and put it on the canvas.
+
+    Use this when the owner describes an external API to connect. Gather:
+    - name: a short human name (e.g. 'Acme CRM')
+    - base_url: the API root, https only (e.g. 'https://api.acme.com')
+    - endpoints: list of actions the agent can call, each:
+        {"name": "create_contact", "description": "...", "method": "POST",
+         "path": "/v1/contacts", "params": [
+            {"name": "email", "type": "string", "location": "body",
+             "required": true, "description": "..."}]}
+      'location' is 'path' (use {name} in path), 'query', or 'body'.
+    - auth: {"type": "bearer"|"header"|"query"|"none", "credential_key": "api_key",
+             "header": "...", "prefix": "...", "param": "..."}
+    - api_key: the secret value, if the owner gave one (stored encrypted)
+    - targets: which agents get it — ['assistant'] (you), ['manager'] (the
+      customer consultant), ['leads']. Default ['assistant'].
+
+    Ask the owner what each endpoint does, when it should be used, and which
+    agent should have it BEFORE creating. The node appears on the canvas
+    immediately and you can call its endpoints right after."""
+    result = await sync_to_async(create_http_integration_sync)(
+        client_id, name, base_url, endpoints, auth, api_key, targets)
+    return json.dumps(result, ensure_ascii=False)
+
+
 @mcp.tool()
 async def skill_list(client_id: int, session_id: str = "", user_id: str = "") -> str:
     """List markdown skills (prompt modules like 'Marketing Pro' or 'Lead
