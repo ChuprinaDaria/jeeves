@@ -78,6 +78,7 @@ mcpAPI.chatSSE = (message, channel, onToken, onDone, onError, onStatus, onToolEv
 
 const noop = () => {};
 
+// eslint-disable-next-line react-refresh/only-export-components
 const Preview = () => {
   const [tools, setTools] = useState(TOOL_DEFS.map(withLegacy));
   const [copilotOpen, setCopilotOpen] = useState(false);

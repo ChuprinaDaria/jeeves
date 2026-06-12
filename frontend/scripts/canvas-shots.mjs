@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 /* Visual check for the Tools canvas. Not part of the build/CI.
    Usage:
      npm i -D puppeteer          # one-off, not committed
