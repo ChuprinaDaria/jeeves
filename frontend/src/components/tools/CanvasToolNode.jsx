@@ -134,6 +134,17 @@ const CanvasToolNode = ({
         </div>
       )}
 
+      {tool.is_custom && (
+        <span
+          title={t('tools.flow.customIntegration')}
+          className="inline-flex items-center gap-1 px-1.5 py-0.5 mb-1 rounded-[4px]
+                     border-[1.5px] border-iris text-iris font-mono text-[9px]
+                     uppercase tracking-wide"
+        >
+          ✦ {t('tools.flow.customBadge')}
+        </span>
+      )}
+
       {tool.is_system ? (
         <div className="flex items-center gap-1 font-mono text-[10px] text-fog uppercase tracking-wider">
           <Lock size={10} weight="light" />
