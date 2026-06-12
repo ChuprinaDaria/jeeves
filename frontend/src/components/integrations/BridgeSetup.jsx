@@ -145,8 +145,8 @@ const BridgeSetup = ({ network, title, onClose }) => {
   const isExtensionFlow = network in EXTENSION_NETWORKS;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 backdrop-blur-[2px] p-4">
-      <div className="bg-paper border-[1.5px] border-rule rounded-xl shadow-ink-lg w-full max-w-md">
+    <div className="fixed inset-0 z-50 flex justify-end bg-ink/30 backdrop-blur-[2px]">
+      <div className="settings-drawer bg-paper border-l-[1.5px] border-rule shadow-ink-lg h-full overflow-y-auto w-[440px] max-w-[94vw]">
         <div className="flex items-center justify-between p-5 border-b-[1.5px] border-rule">
           <div>
             <h2 className="text-lg font-semibold text-ink">{title}</h2>

@@ -31,7 +31,8 @@
     "promptBook": "Prompt Book",
     "settings": "Einstellungen",
     "billing": "Abrechnung",
-    "leads": "Leads"
+    "leads": "Leads",
+    "skills": "Skills"
   },
   "auth": {
     "welcomeBack": "Willkommen zurück",
@@ -185,7 +186,8 @@
     "ttsError": "Sprache konnte nicht generiert werden",
     "playVoice": "Stimme abspielen",
     "startRecording": "Aufnahme starten",
-    "stopRecording": "Aufnahme stoppen"
+    "stopRecording": "Aufnahme stoppen",
+    "agentBadge": "Jeeves — Ihr privater Assistent. Kunden sehen diesen Chat nie."
   },
   "integrations": {
     "title": "Integrationen",
@@ -244,7 +246,19 @@
     "scanQrInstructions": "QR-Code mit der App scannen",
     "startBridgeLogin": "Anmelden",
     "extensionDescPrereq": "Erforderlich für Instagram / Facebook / LinkedIn — überträgt Cookies an die Bridge",
-    "instagramDesc3": "Installiere zuerst die Chrome-Erweiterung — sie überträgt deine IG-Cookies"
+    "instagramDesc3": "Installiere zuerst die Chrome-Erweiterung — sie überträgt deine IG-Cookies",
+    "jeevesTg": {
+      "title": "Jeeves in Telegram",
+      "linked": "verknüpft",
+      "description": "Direkter Draht zu Ihrem Assistenten: Verknüpfen Sie Ihren Chat mit dem Bot und steuern Sie das Geschäft aus Telegram. Kunden sprechen weiterhin mit dem Berater.",
+      "needsBot": "zuerst den Telegram-Bot konfigurieren",
+      "generate": "Meinen Chat verknüpfen",
+      "regenerate": "Neuer Code",
+      "unlink": "Trennen",
+      "copy": "Kopieren",
+      "copied": "Kopiert!",
+      "sendHint": "innerhalb von 10 Minuten an Ihren Bot senden"
+    }
   },
   "history": {
     "title": "Aktivität",
@@ -619,6 +633,60 @@
       "bridge_meta": "Instagram- oder Facebook-Login",
       "field_homeserver_help": "z. B. https://matrix.example.com",
       "bridges_label": "Aktive Bridges"
+    },
+    "flow": {
+      "headerHint": "mcp · aus dem Katalog ziehen · auf die Leinwand ablegen",
+      "canvasHint": "scrollen · Hintergrund ziehen zum Schwenken · Node ziehen · Kante klicken · Entf zum Entfernen",
+      "detachConfirm": "Diese Verbindung trennen?",
+      "removeConnection": "Verbindung entfernen",
+      "cancel": "Abbrechen",
+      "alreadyConnected": "Bereits mit diesem Ziel verbunden",
+      "connectError": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
+      "disconnectError": "Trennen fehlgeschlagen. Bitte erneut versuchen.",
+      "middlewareRemoved": "Skill entfernt",
+      "middlewareAttached": "hinzugefügt",
+      "attachFailed": "Skill konnte nicht hinzugefügt werden",
+      "scopeAssistant": "Verfügbar für Jeeves (Ihr KI-Assistent)",
+      "scopeManager": "Verfügbar für Concierge (kundenseitiger Agent)",
+      "scopeLeads": "Für Lead-Erfassung verwendet",
+      "heatmapToggle": "Nutzungs-Heatmap (7 Tage)",
+      "liveToggle": "Live-Aktivität",
+      "addCustomTool": "Eigenes Tool hinzufügen",
+      "addCustomToolHint": "mcp-marktplatz",
+      "channelLabel": "kanal",
+      "legendTitle": "zwei agenten",
+      "legendJeeves": "Jeeves — Ihr privater Assistent. Nur Sie sprechen mit ihm (Sandbox, Telegram-Direktleitung).",
+      "legendConcierge": "Concierge — spricht mit Ihren Kunden in den Kanälen rechts.",
+      "legendLeads": "Leads — erfasst Kontakte aus Kundengesprächen.",
+      "skillBadgeTooltip": "Verbundener Skill — prägt die Kommunikation dieses Agenten"
+    },
+    "copilot": {
+      "title": "Jeeves",
+      "subtitle": "canvas-copilot",
+      "open": "Mit Jeeves bauen",
+      "placeholder": "Sagen Sie Jeeves, was verbunden werden soll…",
+      "empty": "Beschreiben Sie einfach, was Sie brauchen — Jeeves verdrahtet die Leinwand für Sie, und die Nodes erscheinen live.",
+      "working": "arbeite…",
+      "editingCanvas": "aktualisiere Leinwand…",
+      "error": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
+      "send": "Senden",
+      "suggestion1": "Verbinde Instagram und leite Nachrichten an den Berater",
+      "suggestion2": "Richte Lead-Erfassung für alle Kanäle ein",
+      "suggestion3": "Was ist gerade verbunden?"
     }
+  },
+  "skills": {
+    "title": "Agenten-",
+    "titleAccent": "Skills",
+    "subtitle": "markdown-module · prägen, wie Ihre Agenten kommunizieren",
+    "explainer": "Skills sind wiederverwendbare Verhaltensmodule. Hängen Sie Marketing Pro an den Berater — und jede Antwort in Telegram, WhatsApp und Web-Chat folgt sofort diesem Stil. Oder bitten Sie einfach Jeeves darum.",
+    "targetAssistant": "Jeeves",
+    "targetManager": "Berater",
+    "targetLeads": "Leads",
+    "attached": "verbunden",
+    "detached": "getrennt",
+    "error": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
+    "loadError": "Skills konnten nicht geladen werden.",
+    "empty": "Noch keine Skills im Katalog."
   }
 }

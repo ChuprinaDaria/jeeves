@@ -6,6 +6,7 @@ import {
   Robot,
   PlugsConnected,
   PuzzlePiece,
+  Sparkle,
   ChatDots,
   GearSix,
   UsersThree,
@@ -97,6 +98,7 @@ const Sidebar = () => {
 
   const configureNav = [
     { to: '/tools',        icon: PuzzlePiece,    label: t('nav.tools') || 'Tools' },
+    { to: '/skills',       icon: Sparkle,        label: t('nav.skills') || 'Skills' },
     { to: '/integrations', icon: PlugsConnected, label: t('nav.integrations') },
     { to: '/settings',     icon: GearSix,        label: t('nav.settings') || 'Settings' },
   ];

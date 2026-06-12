@@ -31,30 +31,32 @@ const ConnectionsLayer = ({
   ghostEdge,
   dragOverEdgeId,
   isSkillDrag,
+  liveEdges,
+  heatCounts,
 }) => {
-  // Concierge palette as SVG gradients.
-  // Solid, warm, no electric neon — these are the same accents as the Dashboard.
+  // Concierge palette as SVG gradients — boosted opacities + glow so the
+  // edges read as light against the dark canvas stage.
   const gradients = useMemo(() => (
     <>
       {/* iris — assistant */}
       <linearGradient id="grad-assistant" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%"   stopColor="#9B7ED8" stopOpacity="0.75" />
-        <stop offset="100%" stopColor="#D4C5F0" stopOpacity="0.45" />
+        <stop offset="0%"   stopColor="#9B7ED8" stopOpacity="0.95" />
+        <stop offset="100%" stopColor="#D4C5F0" stopOpacity="0.65" />
       </linearGradient>
       {/* sage — manager / HITL */}
       <linearGradient id="grad-manager" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%"   stopColor="#7BC89F" stopOpacity="0.75" />
-        <stop offset="100%" stopColor="#C5E8D5" stopOpacity="0.45" />
+        <stop offset="0%"   stopColor="#7BC89F" stopOpacity="0.95" />
+        <stop offset="100%" stopColor="#C5E8D5" stopOpacity="0.65" />
       </linearGradient>
       {/* amber — leads */}
       <linearGradient id="grad-leads" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%"   stopColor="#E8A86D" stopOpacity="0.75" />
-        <stop offset="100%" stopColor="#F5DABC" stopOpacity="0.45" />
+        <stop offset="0%"   stopColor="#E8A86D" stopOpacity="0.95" />
+        <stop offset="100%" stopColor="#F5DABC" stopOpacity="0.65" />
       </linearGradient>
       {/* muted slate — escalation fallback */}
       <linearGradient id="grad-escalation" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%"   stopColor="#9E9790" stopOpacity="0.35" />
-        <stop offset="100%" stopColor="#9E9790" stopOpacity="0.12" />
+        <stop offset="0%"   stopColor="#9E9790" stopOpacity="0.55" />
+        <stop offset="100%" stopColor="#9E9790" stopOpacity="0.25" />
       </linearGradient>
       {/* iris ghost — drag preview */}
       <linearGradient id="grad-ghost" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -76,6 +78,7 @@ const ConnectionsLayer = ({
         const gradId = conn.target === 'escalation' ? 'grad-escalation'
           : conn.target === 'leads' ? 'grad-leads'
           : conn.target === 'assistant' ? 'grad-assistant' : 'grad-manager';
+        const isChannel = conn.target === 'channel';
         // Solid dot colours from the Concierge palette
         const dotColor = conn.target === 'assistant' ? '#9B7ED8'
           : conn.target === 'leads' ? '#E8A86D' : '#7BC89F';
@@ -86,9 +89,18 @@ const ConnectionsLayer = ({
         const isSelected = selectedEdge === conn.id;
         const isDragOver = dragOverEdgeId === conn.id;
         const isSkillTarget = isSkillDrag && conn.target !== 'escalation';
-        const opacity = isSkillDrag
+        const isLive = liveEdges?.has(conn.id);
+        const heatCount = heatCounts ? (heatCounts[conn.id] || 0) : null;
+        // Heatmap: edge weight = real 7-day usage; unused edges fade out
+        const heatWidth = heatCount !== null
+          ? 1.5 + Math.min(6, Math.log2(1 + heatCount) * 1.4)
+          : null;
+        const baseOpacity = isSkillDrag
           ? (isDragOver ? 1 : 0.25)
           : (isHighlighted ? 1 : 0.08);
+        const opacity = heatCount !== null && heatCount === 0 && conn.target !== 'escalation'
+          ? Math.min(baseOpacity, 0.2)
+          : baseOpacity;
 
         return (
           <g
@@ -102,13 +114,14 @@ const ConnectionsLayer = ({
               fill="none"
               stroke="transparent"
               strokeWidth="20"
-              style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+              style={{ pointerEvents: isChannel ? 'none' : 'stroke', cursor: 'pointer' }}
               onClick={(e) => {
+                if (isChannel) return;
                 e.stopPropagation();
                 onEdgeClick?.(conn.id, e);
               }}
               onPointerDown={(e) => {
-                if (e.button !== 0) return;
+                if (isChannel || e.button !== 0) return;
                 e.stopPropagation();
                 onEdgePointerDown?.(conn.id, e);
               }}
@@ -124,15 +137,46 @@ const ConnectionsLayer = ({
               className={isDragOver ? 'animate-pulse' : ''}
             />
 
-            {/* Main line */}
+            {/* Main line — glows against the dark stage */}
             <path
               id={`edge-path-${conn.id}`}
               d={conn.pathD}
               fill="none"
               stroke={`url(#${gradId})`}
-              strokeWidth={isDragOver && isSkillDrag ? 5 : isSelected ? 3 : isDragOver ? 4 : isSkillTarget ? 2.5 : 2}
-              className="flow-line-animated"
+              strokeWidth={heatWidth ?? (isDragOver && isSkillDrag ? 5 : isSelected ? 3 : isDragOver ? 4 : isSkillTarget ? 2.5 : isLive ? 3.5 : 2)}
+              className="flow-line-animated edge-glow"
+              style={{ '--edge-glow': isLive ? dotColor : `${dotColor}55` }}
             />
+
+            {/* Live pulse — the agent used this tool just now */}
+            {isLive && (
+              <path
+                d={conn.pathD}
+                fill="none"
+                stroke={dotColor}
+                strokeWidth="4"
+                strokeLinecap="round"
+                className="edge-live"
+                style={{ filter: `drop-shadow(0 0 8px ${dotColor})` }}
+              />
+            )}
+
+            {/* Heatmap count label */}
+            {heatCount !== null && heatCount > 0 && conn.target !== 'escalation' && (
+              <text
+                fill={dotColor}
+                fontSize="10"
+                fontFamily="'Ubuntu Mono', monospace"
+                fontWeight="700"
+                textAnchor="middle"
+                dy="14"
+                style={{ pointerEvents: 'none' }}
+              >
+                <textPath href={`#edge-path-${conn.id}`} startOffset="50%">
+                  {heatCount}×
+                </textPath>
+              </text>
+            )}
 
             {/* Selection indicator — iris dashed overlay */}
             {isSelected && (
@@ -153,7 +197,7 @@ const ConnectionsLayer = ({
               if (!label) return null;
               return (
                 <text
-                  fill="#9E9790"
+                  fill="#B8B0A6"
                   fontSize="9"
                   fontFamily="'Ubuntu Mono', monospace"
                   fontWeight="400"
@@ -171,17 +215,18 @@ const ConnectionsLayer = ({
             })()}
 
             {/* Animated particles */}
-            {conn.target !== 'escalation' && [0, 1, 2].map(p => (
+            {conn.target !== 'escalation' && (isChannel ? [0] : [0, 1, 2]).map(p => (
               supportsOffsetPath ? (
                 <circle
                   key={p}
-                  r="3"
+                  r="3.5"
                   fill={dotColor}
                   className="flow-particle"
                   style={{
                     offsetPath: `path("${conn.pathD}")`,
-                    '--particle-duration': `${2 + Math.random() * 0.5}s`,
-                    '--particle-delay': `${p * 0.8}s`,
+                    filter: `drop-shadow(0 0 4px ${dotColor})`,
+                    '--particle-duration': isLive ? '0.8s' : `${2 + Math.random() * 0.5}s`,
+                    '--particle-delay': `${p * (isLive ? 0.25 : 0.8)}s`,
                   }}
                 />
               ) : (

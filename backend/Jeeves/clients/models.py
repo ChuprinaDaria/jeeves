@@ -186,6 +186,9 @@ class Client(models.Model):
     # Telegram Bot per-client configuration
     telegram_enabled = models.BooleanField(default=False, help_text="Enable Telegram Bot for this client")
     telegram_bot_token = models.CharField(max_length=255, blank=True, help_text="Telegram Bot Token from @BotFather")
+    owner_telegram_chat_id = models.CharField(
+        max_length=32, blank=True, default='',
+        help_text="Linked owner chat: messages from this chat_id talk to Jeeves (assistant), not the consultant")
     telegram_webhook_url = models.URLField(blank=True, help_text="Telegram webhook URL (auto-generated)")
     telegram_welcome_message = models.TextField(
         blank=True,

@@ -12,6 +12,7 @@ import {
   MessageSquare,
   Plug2,
   Puzzle,
+  Sparkles,
   Settings,
   Menu,
   X,
@@ -134,6 +135,7 @@ const ClientLayout = () => {
     ...(user?.leads_enabled ? [{ to: `${basePath}/leads`, icon: Users, label: t('nav.leads') || 'Leads' }] : []),
     { to: `${basePath}/integrations`, icon: Plug2,           label: t('nav.integrations') },
     { to: `${basePath}/tools`,        icon: Puzzle,          label: t('nav.tools') || 'Tools' },
+    { to: `${basePath}/skills`,       icon: Sparkles,        label: t('nav.skills') || 'Skills' },
     { to: `${basePath}/settings`,     icon: Settings,        label: t('nav.settings') || 'Settings' },
   ];
 

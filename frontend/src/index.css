@@ -121,6 +121,35 @@
     background-size: 30px 30px;
   }
 
+  /* Unified right-side settings drawer (all integration setups) */
+  @keyframes drawer-in {
+    from { transform: translateX(48px); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+  }
+  .settings-drawer {
+    animation: drawer-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* Dark canvas stage — faint warm dots */
+  .dot-grid-dark {
+    background-image: radial-gradient(circle, rgba(253, 248, 240, 0.09) 1px, transparent 1px);
+    background-size: 30px 30px;
+  }
+
+  /* Edge glow on the dark stage */
+  .edge-glow {
+    filter: drop-shadow(0 0 5px var(--edge-glow, rgba(155, 126, 216, 0.45)));
+  }
+
+  /* Live pulse: an edge flashes when the agent actually used the tool */
+  @keyframes edge-live-pulse {
+    0%   { stroke-opacity: 1; stroke-width: 5; }
+    100% { stroke-opacity: 0; stroke-width: 2; }
+  }
+  .edge-live {
+    animation: edge-live-pulse 1.6s ease-out infinite;
+  }
+
   .flow-draggable {
     cursor: grab;
     touch-action: none;

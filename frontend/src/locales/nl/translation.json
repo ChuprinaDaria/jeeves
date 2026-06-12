@@ -30,7 +30,8 @@
     "setup": "Kennisbank",
     "settings": "Instellingen",
     "billing": "Facturatie",
-    "leads": "Leads"
+    "leads": "Leads",
+    "skills": "Skills"
   },
   "auth": {
     "welcomeBack": "Welcome Back",
@@ -178,7 +179,8 @@
     "ttsError": "Kon spraak niet genereren",
     "playVoice": "Stem afspelen",
     "startRecording": "Opname starten",
-    "stopRecording": "Opname stoppen"
+    "stopRecording": "Opname stoppen",
+    "agentBadge": "Jeeves — jouw privé-assistent. Klanten zien deze chat nooit."
   },
   "integrations": {
     "title": "Integrations",
@@ -237,7 +239,19 @@
     "scanQrInstructions": "Scan de QR met de app",
     "startBridgeLogin": "Verbinden",
     "extensionDescPrereq": "Vereist voor Instagram / Facebook / LinkedIn — geeft cookies door aan de bridge",
-    "instagramDesc3": "Installeer eerst de Chrome-extensie — die geeft je IG-cookies door"
+    "instagramDesc3": "Installeer eerst de Chrome-extensie — die geeft je IG-cookies door",
+    "jeevesTg": {
+      "title": "Jeeves in Telegram",
+      "linked": "gekoppeld",
+      "description": "Directe lijn naar je assistent: koppel je chat aan de bot en beheer je bedrijf vanuit Telegram. Klanten praten gewoon verder met de consultant.",
+      "needsBot": "configureer eerst de Telegram-bot",
+      "generate": "Mijn chat koppelen",
+      "regenerate": "Nieuwe code",
+      "unlink": "Ontkoppelen",
+      "copy": "Kopiëren",
+      "copied": "Gekopieerd!",
+      "sendHint": "stuur dit binnen 10 minuten naar je bot"
+    }
   },
   "history": {
     "title": "Activiteit",
@@ -556,6 +570,60 @@
       "bridge_meta": "Instagram- of Facebook-login",
       "field_homeserver_help": "bijv. https://matrix.example.com",
       "bridges_label": "Actieve bridges"
+    },
+    "flow": {
+      "headerHint": "mcp · sleep uit de catalogus · zet neer op het canvas",
+      "canvasHint": "scroll · sleep achtergrond om te pannen · sleep node · klik op lijn · del om te verwijderen",
+      "detachConfirm": "Deze verbinding loskoppelen?",
+      "removeConnection": "Verbinding verwijderen",
+      "cancel": "Annuleren",
+      "alreadyConnected": "Al verbonden met dit doel",
+      "connectError": "Er ging iets mis. Probeer het opnieuw.",
+      "disconnectError": "Loskoppelen mislukt. Probeer het opnieuw.",
+      "middlewareRemoved": "Vaardigheid verwijderd",
+      "middlewareAttached": "toegevoegd",
+      "attachFailed": "Vaardigheid toevoegen mislukt",
+      "scopeAssistant": "Beschikbaar voor Jeeves (jouw AI-assistent)",
+      "scopeManager": "Beschikbaar voor Concierge (klantgerichte agent)",
+      "scopeLeads": "Gebruikt voor leadregistratie",
+      "heatmapToggle": "Gebruiks-heatmap (7 dagen)",
+      "liveToggle": "Live activiteit",
+      "addCustomTool": "Eigen tool toevoegen",
+      "addCustomToolHint": "mcp-marktplaats",
+      "channelLabel": "kanaal",
+      "legendTitle": "twee agenten",
+      "legendJeeves": "Jeeves — jouw privé-assistent. Alleen jij praat met hem (sandbox, Telegram-directlijn).",
+      "legendConcierge": "Concierge — praat met je klanten in de kanalen rechts.",
+      "legendLeads": "Leads — verzamelt contacten uit klantgesprekken.",
+      "skillBadgeTooltip": "Gekoppelde skill — bepaalt hoe deze agent communiceert"
+    },
+    "copilot": {
+      "title": "Jeeves",
+      "subtitle": "canvas-copiloot",
+      "open": "Bouwen met Jeeves",
+      "placeholder": "Vertel Jeeves wat hij moet verbinden…",
+      "empty": "Beschrijf in gewone taal wat je nodig hebt — Jeeves bedraadt het canvas voor je en je ziet de nodes live verschijnen.",
+      "working": "bezig…",
+      "editingCanvas": "canvas bijwerken…",
+      "error": "Er ging iets mis. Probeer het opnieuw.",
+      "send": "Versturen",
+      "suggestion1": "Verbind Instagram en stuur berichten naar de consultant",
+      "suggestion2": "Stel leadregistratie in voor alle kanalen",
+      "suggestion3": "Wat is er nu verbonden?"
     }
+  },
+  "skills": {
+    "title": "Agent-",
+    "titleAccent": "skills",
+    "subtitle": "markdown-modules · bepalen hoe je agenten communiceren",
+    "explainer": "Skills zijn herbruikbare gedragsmodules. Koppel Marketing Pro aan de consultant en elk antwoord in Telegram, WhatsApp en webchat volgt direct die stijl. Of vraag het gewoon aan Jeeves.",
+    "targetAssistant": "Jeeves",
+    "targetManager": "Consultant",
+    "targetLeads": "Leads",
+    "attached": "gekoppeld",
+    "detached": "ontkoppeld",
+    "error": "Er ging iets mis. Probeer het opnieuw.",
+    "loadError": "Skills laden mislukt.",
+    "empty": "Nog geen skills in de catalogus."
   }
 }

@@ -27,5 +27,17 @@ export const toolsAPI = {
   attachMiddleware: (connectionId, skillSlug) => api.post(`/tools/flow/edges/${connectionId}/middleware/`, { skill_slug: skillSlug }),
   detachMiddleware: (connectionId, middlewareId) => api.delete(`/tools/flow/edges/${connectionId}/middleware/${middlewareId}/`),
 
+  // Customer channels rendered as consultant outputs on the canvas
+  getFlowChannels: () => api.get('/tools/flow/channels/'),
+
+  // Living canvas: recent tool calls + 7-day usage aggregates
+  getFlowActivity: (since) =>
+    api.get('/tools/flow/activity/', { params: since ? { since } : {} }),
+
+  // Skills — markdown prompt modules attached per agent target
+  getSkills: () => api.get('/tools/skills/'),
+  attachSkill: (slug, target) => api.post(`/tools/skills/${slug}/attach/`, { target }),
+  detachSkill: (slug, target) => api.post(`/tools/skills/${slug}/detach/`, { target }),
+
   getWordCloud: () => api.get('/tools/word-cloud/'),
 };

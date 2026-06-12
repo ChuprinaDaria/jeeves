@@ -204,11 +204,13 @@ const FlipToolCard = ({ tool, onConnected, onMouseEnter, onMouseLeave }) => {
   }, []);
 
   useEffect(() => {
-    if (flipped) {
-      // Small delay to allow DOM to render
-      const raf = requestAnimationFrame(measureBack);
-      return () => cancelAnimationFrame(raf);
-    }
+    if (!flipped || !backRef.current) return;
+    // Track the back side as it renders/changes (QR arrives, errors show) —
+    // a single rAF raced the DOM and clipped the form on first flip.
+    measureBack();
+    const observer = new ResizeObserver(measureBack);
+    observer.observe(backRef.current);
+    return () => observer.disconnect();
   }, [flipped, qrData, error, measureBack]);
 
   const isConnected = tool.connection?.status === 'connected' && tool.connection?.enabled;

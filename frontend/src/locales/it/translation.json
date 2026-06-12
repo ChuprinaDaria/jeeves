@@ -30,7 +30,8 @@
     "setup": "Base di conoscenza",
     "settings": "Impostazioni",
     "billing": "Fatturazione",
-    "leads": "Lead"
+    "leads": "Lead",
+    "skills": "Skill"
   },
   "auth": {
     "welcomeBack": "Welcome Back",
@@ -178,7 +179,8 @@
     "ttsError": "Impossibile generare il parlato",
     "playVoice": "Riproduci voce",
     "startRecording": "Avvia registrazione",
-    "stopRecording": "Ferma registrazione"
+    "stopRecording": "Ferma registrazione",
+    "agentBadge": "Jeeves — il tuo assistente privato. I clienti non vedono mai questa chat."
   },
   "integrations": {
     "title": "Integrations",
@@ -237,7 +239,19 @@
     "scanQrInstructions": "Scansiona il QR con l'app",
     "startBridgeLogin": "Accedi",
     "extensionDescPrereq": "Necessaria per Instagram / Facebook / LinkedIn — passa i cookie al bridge",
-    "instagramDesc3": "Installa prima l'estensione Chrome — passa i cookie IG al bridge"
+    "instagramDesc3": "Installa prima l'estensione Chrome — passa i cookie IG al bridge",
+    "jeevesTg": {
+      "title": "Jeeves su Telegram",
+      "linked": "collegato",
+      "description": "Linea diretta col tuo assistente: collega la tua chat al bot e gestisci il business da Telegram. I clienti continuano a parlare col consulente.",
+      "needsBot": "configura prima il bot Telegram",
+      "generate": "Collega la mia chat",
+      "regenerate": "Nuovo codice",
+      "unlink": "Scollega",
+      "copy": "Copia",
+      "copied": "Copiato!",
+      "sendHint": "invialo al tuo bot entro 10 minuti"
+    }
   },
   "history": {
     "title": "Attività",
@@ -556,6 +570,60 @@
       "bridge_meta": "accesso a Instagram o Facebook",
       "field_homeserver_help": "es. https://matrix.example.com",
       "bridges_label": "Bridge attivi"
+    },
+    "flow": {
+      "headerHint": "mcp · trascina dal catalogo · rilascia sulla tela",
+      "canvasHint": "scroll · trascina lo sfondo per spostare · trascina un nodo · clicca una connessione · canc per rimuovere",
+      "detachConfirm": "Scollegare questa connessione?",
+      "removeConnection": "Rimuovi connessione",
+      "cancel": "Annulla",
+      "alreadyConnected": "Già connesso a questa destinazione",
+      "connectError": "Qualcosa è andato storto. Riprova.",
+      "disconnectError": "Impossibile disconnettere. Riprova.",
+      "middlewareRemoved": "Abilità rimossa",
+      "middlewareAttached": "aggiunto",
+      "attachFailed": "Impossibile aggiungere l'abilità",
+      "scopeAssistant": "Disponibile per Jeeves (il tuo assistente IA)",
+      "scopeManager": "Disponibile per Concierge (agente clienti)",
+      "scopeLeads": "Usato per la raccolta lead",
+      "heatmapToggle": "Heatmap di utilizzo (7 giorni)",
+      "liveToggle": "Attività dal vivo",
+      "addCustomTool": "Aggiungi strumento",
+      "addCustomToolHint": "marketplace mcp",
+      "channelLabel": "canale",
+      "legendTitle": "due agenti",
+      "legendJeeves": "Jeeves — il tuo assistente privato. Solo tu parli con lui (sandbox, linea diretta Telegram).",
+      "legendConcierge": "Concierge — parla con i tuoi clienti nei canali a destra.",
+      "legendLeads": "Leads — raccoglie contatti dalle conversazioni con i clienti.",
+      "skillBadgeTooltip": "Skill collegato — definisce come comunica questo agente"
+    },
+    "copilot": {
+      "title": "Jeeves",
+      "subtitle": "copilota della tela",
+      "open": "Costruisci con Jeeves",
+      "placeholder": "Dì a Jeeves cosa collegare…",
+      "empty": "Descrivi ciò che ti serve in linguaggio naturale: Jeeves cablerà la tela per te e vedrai i nodi apparire dal vivo.",
+      "working": "al lavoro…",
+      "editingCanvas": "aggiorno la tela…",
+      "error": "Qualcosa è andato storto. Riprova.",
+      "send": "Invia",
+      "suggestion1": "Collega Instagram e instrada i messaggi al consulente",
+      "suggestion2": "Configura la raccolta lead da tutti i canali",
+      "suggestion3": "Cosa è collegato in questo momento?"
     }
+  },
+  "skills": {
+    "title": "Skill",
+    "titleAccent": "degli agenti",
+    "subtitle": "moduli markdown · definiscono come comunicano i tuoi agenti",
+    "explainer": "Gli skill sono moduli di comportamento riutilizzabili. Collega Marketing Pro al consulente e ogni risposta in Telegram, WhatsApp e chat web seguirà subito quello stile. Oppure chiedilo a Jeeves.",
+    "targetAssistant": "Jeeves",
+    "targetManager": "Consulente",
+    "targetLeads": "Lead",
+    "attached": "collegato",
+    "detached": "scollegato",
+    "error": "Qualcosa è andato storto. Riprova.",
+    "loadError": "Impossibile caricare gli skill.",
+    "empty": "Nessuno skill a catalogo."
   }
 }

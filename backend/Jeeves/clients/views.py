@@ -3976,3 +3976,50 @@ class AnalyticsEscalationsView(APIView):
         result = {'period': period, 'data': data}
         cache.set(cache_key, result, 300)
         return Response(result)
+
+
+class OwnerTelegramLinkView(APIView):
+    """Link the owner's personal Telegram chat to Jeeves (assistant).
+
+    GET    — link status
+    POST   — generate a one-time code (10 min TTL); the owner sends
+             `/jeeves <code>` to their client bot to bind the chat
+    DELETE — unlink
+    """
+
+    def _client(self, request):
+        return getattr(request, 'client', None)
+
+    def get(self, request):
+        client = self._client(request)
+        if not client:
+            return Response({'error': 'Client not found'}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response({
+            'linked': bool(client.owner_telegram_chat_id),
+            'bot_configured': bool(client.telegram_bot_token),
+        })
+
+    def post(self, request):
+        import secrets
+
+        from django.core.cache import cache
+
+        client = self._client(request)
+        if not client:
+            return Response({'error': 'Client not found'}, status=status.HTTP_401_UNAUTHORIZED)
+        if not client.telegram_bot_token:
+            return Response(
+                {'error': 'Telegram bot is not configured for this client.'},
+                status=status.HTTP_400_BAD_REQUEST)
+
+        code = secrets.token_hex(3).upper()  # 6 hex chars
+        cache.set(f'tg-owner-code:{code}', client.pk, 600)
+        return Response({'code': code, 'command': f'/jeeves {code}', 'expires_in': 600})
+
+    def delete(self, request):
+        client = self._client(request)
+        if not client:
+            return Response({'error': 'Client not found'}, status=status.HTTP_401_UNAUTHORIZED)
+        client.owner_telegram_chat_id = ''
+        client.save(update_fields=['owner_telegram_chat_id'])
+        return Response({'linked': False})

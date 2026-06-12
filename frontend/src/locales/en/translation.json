@@ -33,7 +33,8 @@
     "billing": "Billing",
     "leads": "Leads",
     "tools": "Tools",
-    "assistant": "Assistant"
+    "assistant": "Assistant",
+    "skills": "Skills"
   },
   "auth": {
     "welcomeBack": "Welcome Back",
@@ -338,7 +339,8 @@
     "newLocationDescription": "For your convenience, you can now test your AI assistant directly on the Train AI page, right after configuring the AI behavior prompt.",
     "goToTraining": "Go to Train AI",
     "assistantTitle": "Jeeves",
-    "assistantSubtitle": "Chat with Jeeves, your AI assistant"
+    "assistantSubtitle": "Chat with Jeeves, your AI assistant",
+    "agentBadge": "Jeeves — your private assistant. Customers never see this chat."
   },
   "integrations": {
     "title": "Integrations",
@@ -483,7 +485,19 @@
     "scanQrInstructions": "Scan QR with the app on your phone",
     "startBridgeLogin": "Start login",
     "extensionDescPrereq": "Required for Instagram / Facebook / LinkedIn — collects cookies & syncs them to the bridge",
-    "instagramDesc3": "Install the Chrome extension first — it bridges your IG cookies"
+    "instagramDesc3": "Install the Chrome extension first — it bridges your IG cookies",
+    "jeevesTg": {
+      "title": "Jeeves in Telegram",
+      "linked": "linked",
+      "description": "A private line to your assistant: link your personal chat with the bot and manage the business from Telegram — reports, leads, knowledge base, tool wiring. Customers keep talking to the consultant.",
+      "needsBot": "configure the Telegram bot first",
+      "generate": "Link my chat",
+      "regenerate": "New code",
+      "unlink": "Unlink",
+      "copy": "Copy",
+      "copied": "Copied!",
+      "sendHint": "send this to your bot within 10 minutes"
+    }
   },
   "history": {
     "title": "Activity",
@@ -1070,7 +1084,31 @@
       "tabSkills": "Skills",
       "tabTools": "Tools",
       "emptyCategory": "No items in this category yet",
-      "disconnect": "Disconnect"
+      "disconnect": "Disconnect",
+      "headerHint": "mcp · drag from catalog · drop on canvas",
+      "canvasHint": "scroll · drag bg to pan · drag node to move · click edge · del to remove",
+      "detachConfirm": "Detach this connection?",
+      "removeConnection": "Remove connection",
+      "cancel": "Cancel",
+      "alreadyConnected": "Already connected to this target",
+      "connectError": "Something went wrong. Please try again.",
+      "disconnectError": "Could not disconnect. Please try again.",
+      "middlewareRemoved": "Skill removed",
+      "middlewareAttached": "attached",
+      "attachFailed": "Failed to attach skill",
+      "scopeAssistant": "Available to Jeeves (your AI assistant)",
+      "scopeManager": "Available to Concierge (customer-facing agent)",
+      "scopeLeads": "Used for lead capture",
+      "heatmapToggle": "Show usage heatmap (7 days)",
+      "liveToggle": "Show live activity",
+      "addCustomTool": "Add custom tool",
+      "addCustomToolHint": "mcp marketplace",
+      "channelLabel": "channel",
+      "legendTitle": "two agents",
+      "legendJeeves": "Jeeves — your private assistant. Only you talk to him (sandbox, Telegram direct line).",
+      "legendConcierge": "Concierge — talks to your customers in the channels on the right.",
+      "legendLeads": "Leads — captures contacts from customer conversations.",
+      "skillBadgeTooltip": "Attached skill — shapes how this agent communicates"
     },
     "matrix": {
       "howto_title": "How to connect",
@@ -1082,6 +1120,34 @@
       "bridge_meta": "Instagram or Facebook login",
       "field_homeserver_help": "e.g. https://matrix.example.com",
       "bridges_label": "Enabled bridges"
+    },
+    "copilot": {
+      "title": "Jeeves",
+      "subtitle": "canvas copilot",
+      "open": "Build with Jeeves",
+      "placeholder": "Tell Jeeves what to connect…",
+      "empty": "Describe what you want in plain language — Jeeves will wire up the canvas for you and you will see the nodes appear live.",
+      "working": "working…",
+      "editingCanvas": "updating canvas…",
+      "error": "Something went wrong. Please try again.",
+      "send": "Send",
+      "suggestion1": "Connect Instagram and route messages to the consultant",
+      "suggestion2": "Set up lead capture from all channels",
+      "suggestion3": "What is connected right now?"
     }
+  },
+  "skills": {
+    "title": "Agent",
+    "titleAccent": "Skills",
+    "subtitle": "markdown modules · shape how your agents communicate",
+    "explainer": "Skills are reusable behavior modules. Attach Marketing Pro to the consultant and every reply in Telegram, WhatsApp and web chat follows that style — instantly. You can also just ask Jeeves: \"make my consultant sell better\".",
+    "targetAssistant": "Jeeves",
+    "targetManager": "Consultant",
+    "targetLeads": "Leads",
+    "attached": "attached",
+    "detached": "detached",
+    "error": "Something went wrong. Please try again.",
+    "loadError": "Failed to load skills.",
+    "empty": "No skills in the catalog yet."
   }
 }

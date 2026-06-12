@@ -492,6 +492,11 @@ MCP_SERVERS = {
         'args': ['-m', 'mcp_servers.content_planner.server'],
         'enabled': True,
     },
+    'canvas': {
+        'command': 'python',
+        'args': ['-m', 'mcp_servers.canvas.server'],
+        'enabled': True,
+    },
 }
 
 # Matrix homeserver service-account (used when ToolConnection.credentials is missing)
@@ -511,6 +516,10 @@ MCP_TOOL_SCOPES = {
     'canvas_add_tool_connection': ['assistant'],
     'canvas_remove_tool_connection': ['assistant'],
     'canvas_list_connections': ['assistant'],
+    'canvas_list_available_tools': ['assistant'],
+    'skill_list': ['assistant'],
+    'skill_attach': ['assistant'],
+    'skill_detach': ['assistant'],
     # Matrix (cross-platform DM via mautrix bridges)
     'matrix_list_rooms': ['assistant', 'manager'],
     'matrix_read_room_history': ['assistant', 'manager'],

@@ -35,7 +35,8 @@
     "tools": "Інструменти",
     "assistant": "Асистент",
     "sectionMain": "Головне",
-    "sectionConfigure": "Конфігурація"
+    "sectionConfigure": "Конфігурація",
+    "skills": "Скіли"
   },
   "dashboard": {
     "title": "Огляд",
@@ -212,7 +213,8 @@
     "goToTraining": "До бази знань",
     "assistantTitle": "Jeeves",
     "assistantSubtitle": "Спілкуйтеся з Jeeves — вашим AI асистентом",
-    "testResponse": "Це тестова відповідь від вашого AI-асистента."
+    "testResponse": "Це тестова відповідь від вашого AI-асистента.",
+    "agentBadge": "Jeeves — ваш приватний асистент. Клієнти цей чат не бачать."
   },
   "integrations": {
     "title": "Інтеграції",
@@ -293,7 +295,19 @@
     "scanQrInstructions": "Скануй QR у застосунку на телефоні",
     "startBridgeLogin": "Підключити",
     "extensionDescPrereq": "Потрібне для Instagram / Facebook / LinkedIn — збирає кукіси й передає в міст",
-    "instagramDesc3": "Спершу постав розширення — воно проброшує кукіси IG в міст"
+    "instagramDesc3": "Спершу постав розширення — воно проброшує кукіси IG в міст",
+    "jeevesTg": {
+      "title": "Jeeves у Telegram",
+      "linked": "підключено",
+      "description": "Прямий канал до асистента: привʼяжіть свій чат із ботом і керуйте бізнесом із Telegram — звіти, ліди, база знань, підключення тулів. Клієнти й далі говорять із консультантом.",
+      "needsBot": "спершу налаштуйте Telegram-бота",
+      "generate": "Привʼязати мій чат",
+      "regenerate": "Новий код",
+      "unlink": "Відвʼязати",
+      "copy": "Копіювати",
+      "copied": "Скопійовано!",
+      "sendHint": "надішліть це вашому боту протягом 10 хвилин"
+    }
   },
   "settings": {
     "title": "Налаштування",
@@ -362,10 +376,64 @@
       "bridge_meta": "логін Instagram або Facebook",
       "field_homeserver_help": "напр. https://matrix.example.com",
       "bridges_label": "Активні мости"
+    },
+    "flow": {
+      "headerHint": "mcp · перетягніть з каталогу · киньте на канвас",
+      "canvasHint": "скрол · тягніть фон для панорами · тягніть ноду · клік по ребру · del — видалити",
+      "detachConfirm": "Від'єднати це з'єднання?",
+      "removeConnection": "Видалити з'єднання",
+      "cancel": "Скасувати",
+      "alreadyConnected": "Вже підключено до цієї цілі",
+      "connectError": "Щось пішло не так. Спробуйте ще раз.",
+      "disconnectError": "Не вдалося від'єднати. Спробуйте ще раз.",
+      "middlewareRemoved": "Навичку знято",
+      "middlewareAttached": "додано",
+      "attachFailed": "Не вдалося додати навичку",
+      "scopeAssistant": "Доступно Дживсу (ваш AI-асистент)",
+      "scopeManager": "Доступно Консьєржу (агент для клієнтів)",
+      "scopeLeads": "Використовується для збору лідів",
+      "heatmapToggle": "Теплокарта використання (7 днів)",
+      "liveToggle": "Жива активність",
+      "addCustomTool": "Додати свій інструмент",
+      "addCustomToolHint": "маркетплейс mcp",
+      "channelLabel": "канал",
+      "legendTitle": "два агенти",
+      "legendJeeves": "Jeeves — ваш приватний асистент. З ним говорите тільки ви (sandbox, прямий канал у Telegram).",
+      "legendConcierge": "Консьєрж — спілкується з вашими клієнтами в каналах праворуч.",
+      "legendLeads": "Leads — збирає контакти з клієнтських розмов.",
+      "skillBadgeTooltip": "Підключений скіл — визначає, як цей агент спілкується"
+    },
+    "copilot": {
+      "title": "Jeeves",
+      "subtitle": "копайлот канвасу",
+      "open": "Будувати з Jeeves",
+      "placeholder": "Скажіть Jeeves, що підключити…",
+      "empty": "Опишіть, що вам потрібно, звичайною мовою — Jeeves сам збере канвас, і ви побачите, як ноди з’являються наживо.",
+      "working": "працюю…",
+      "editingCanvas": "оновлюю канвас…",
+      "error": "Щось пішло не так. Спробуйте ще раз.",
+      "send": "Надіслати",
+      "suggestion1": "Підключи Instagram і направ повідомлення консультанту",
+      "suggestion2": "Налаштуй збір лідів з усіх каналів",
+      "suggestion3": "Що зараз підключено?"
     }
   },
   "webChat": {
     "agentWorking": "Працюю над цим…",
     "errorOccurred": "Вибачте, сталася помилка. Спробуйте ще раз."
+  },
+  "skills": {
+    "title": "Скіли",
+    "titleAccent": "агентів",
+    "subtitle": "markdown-модулі · визначають, як спілкуються ваші агенти",
+    "explainer": "Скіли — багаторазові модулі поведінки. Підключіть Marketing Pro консультанту — і кожна відповідь у Telegram, WhatsApp та веб-чаті одразу слідує цьому стилю. Можна й просто попросити Jeeves: «зроби, щоб мій консультант краще продавав».",
+    "targetAssistant": "Jeeves",
+    "targetManager": "Консультант",
+    "targetLeads": "Ліди",
+    "attached": "підключено",
+    "detached": "відключено",
+    "error": "Щось пішло не так. Спробуйте ще раз.",
+    "loadError": "Не вдалося завантажити скіли.",
+    "empty": "У каталозі поки немає скілів."
   }
 }

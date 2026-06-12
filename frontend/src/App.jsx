@@ -20,6 +20,7 @@ const SandboxPage = lazy(() => import('./pages/SandboxPage'));
 const HistoryPage = lazy(() => import('./pages/HistoryPage'));
 const IntegrationsPage = lazy(() => import('./pages/IntegrationsPage'));
 const ToolsPage = lazy(() => import('./pages/ToolsPage'));
+const SkillsPage = lazy(() => import('./pages/SkillsPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const LeadsPage = lazy(() => import('./pages/LeadsPage'));
 const ClientLoginPage = lazy(() => import('./pages/ClientLoginPage'));
@@ -124,6 +125,7 @@ function App() {
                     <Route path="sandbox" element={<SandboxPage />} />
                     <Route path="integrations" element={<IntegrationsPage />} />
                     <Route path="tools" element={<ToolsPage />} />
+                    <Route path="skills" element={<SkillsPage />} />
                     <Route path="history" element={<HistoryPage />} />
                     <Route path="settings" element={<SettingsPage />} />
                     <Route path="leads" element={<LeadsPage />} />
@@ -140,6 +142,7 @@ function App() {
                     <Route path="/sandbox" element={<SandboxPage />} />
                     <Route path="/integrations" element={<IntegrationsPage />} />
                     <Route path="/tools" element={<ToolsPage />} />
+                    <Route path="/skills" element={<SkillsPage />} />
                     <Route path="/history" element={<HistoryPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
                     <Route path="/leads" element={<LeadsPage />} />

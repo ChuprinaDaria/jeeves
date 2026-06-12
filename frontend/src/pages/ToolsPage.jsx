@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowClockwise } from '@phosphor-icons/react';
+import { ArrowClockwise, Sparkle } from '@phosphor-icons/react';
+import CanvasCopilot from '../components/tools/CanvasCopilot';
 import { toolsAPI } from '../api/tools';
 import ToolCatalogStrip from '../components/tools/ToolCatalogStrip';
 import FlowCanvas from '../components/tools/FlowCanvas';
@@ -11,13 +12,16 @@ import { useAuth } from '../context/AuthContext';
 
 const ToolsPage = () => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, isOwner } = useAuth();
   const multiConn = user?.feature_flags?.mcp_tools_multi_connection;
   const [tools, setTools] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [highlightedTool, setHighlightedTool] = useState(null);
   const [popover, setPopover] = useState(null); // { tool, rect }
+  const [copilotOpen, setCopilotOpen] = useState(false);
+  const [channels, setChannels] = useState([]);
+  const [skillsByTarget, setSkillsByTarget] = useState({});
   const { toast, showToast, hideToast } = useFlowToast();
 
   const loadTools = async () => {
@@ -32,7 +36,23 @@ const ToolsPage = () => {
     }
   };
 
-  useEffect(() => { loadTools(); }, []);
+  useEffect(() => {
+    loadTools();
+    toolsAPI.getFlowChannels()
+      .then(res => setChannels(res.data?.channels || []))
+      .catch(() => {});
+    toolsAPI.getSkills()
+      .then(res => {
+        const map = {};
+        (res.data?.skills || []).forEach(sk => {
+          sk.attached_to.forEach(target => {
+            (map[target] = map[target] || []).push(sk.name);
+          });
+        });
+        setSkillsByTarget(map);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleConnected = useCallback((slug) => {
     const tool = tools.find(t => t.slug === slug);
@@ -64,6 +84,7 @@ const ToolsPage = () => {
       loadTools();
     } catch (err) {
       console.error('Disconnect error:', err);
+      showToast('⚠️', t('tools.flow.disconnectError'));
     }
   }, [tools, showToast, t, multiConn]);
 
@@ -79,12 +100,13 @@ const ToolsPage = () => {
       }
       if (!connId) return;
       await toolsAPI.detachMiddleware(connId, middlewareId);
-      showToast('🔧', 'Middleware removed');
+      showToast('🔧', t('tools.flow.middlewareRemoved'));
       loadTools();
     } catch (err) {
       console.error('Remove middleware error:', err);
+      showToast('⚠️', t('tools.flow.connectError'));
     }
-  }, [tools, showToast, multiConn]);
+  }, [tools, showToast, t, multiConn]);
 
   const handleMiddlewareAttach = useCallback(async (conn, skillSlug) => {
     try {
@@ -99,13 +121,13 @@ const ToolsPage = () => {
       if (!connId) return;
       await toolsAPI.attachMiddleware(connId, skillSlug);
       const skill = tools.find(t => t.slug === skillSlug);
-      showToast('🧩', `${skill?.name || skillSlug} attached`);
+      showToast('🧩', `${skill?.name || skillSlug} ${t('tools.flow.middlewareAttached')}`);
       loadTools();
     } catch (err) {
       console.error('Attach middleware error:', err);
-      showToast('⚠️', err.response?.data?.error || 'Failed to attach skill');
+      showToast('⚠️', err.response?.data?.error || t('tools.flow.attachFailed'));
     }
-  }, [tools, showToast, multiConn]);
+  }, [tools, showToast, t, multiConn]);
 
   const handleConnect = useCallback(async (slug, target) => {
     const tool = tools.find(t => t.slug === slug);
@@ -116,7 +138,10 @@ const ToolsPage = () => {
         const existing = tool.connections.find(
           c => c.target === target && c.status === 'connected' && c.enabled
         );
-        if (existing) return;
+        if (existing) {
+          showToast('✓', t('tools.flow.alreadyConnected'));
+          return;
+        }
         const anyConn = tool.connections.find(c => c.status === 'connected');
         if (tool.auth_type === 'none' || anyConn) {
           await toolsAPI.createFlowConnection(slug, target);
@@ -139,6 +164,7 @@ const ToolsPage = () => {
       loadTools();
     } catch (err) {
       console.error('Connect error:', err);
+      showToast('⚠️', t('tools.flow.connectError'));
     }
   }, [tools, showToast, t, multiConn]);
 
@@ -155,11 +181,26 @@ const ToolsPage = () => {
         handleConnected(slug);
       } catch (err) {
         console.error('Drop-connect error:', err);
+        showToast('⚠️', t('tools.flow.connectError'));
       }
     } else {
       showToast('💡', t('tools.flow.clickToConnect'));
     }
   }, [tools, handleConnected, showToast, t, multiConn]);
+
+  const handlePositionSave = useCallback(async (slug, pos) => {
+    const tool = tools.find(t => t.slug === slug);
+    if (!tool) return;
+    const conns = (tool.connections?.length ? tool.connections : (tool.connection ? [tool.connection] : []))
+      .filter(c => c.id && c.status === 'connected');
+    try {
+      await Promise.all(conns.map(c =>
+        toolsAPI.updateFlowConnection(c.id, { position_x: pos.x, position_y: pos.y })
+      ));
+    } catch (err) {
+      console.error('Position save error:', err); // non-blocking — localStorage still has it
+    }
+  }, [tools]);
 
   const handleCanvasToolClick = useCallback((tool, e) => {
     const el = e?.currentTarget || document.getElementById(`canvas-tool-${tool.slug}`);
@@ -186,10 +227,10 @@ const ToolsPage = () => {
           ))}
         </div>
         {/* Skeleton canvas */}
-        <div className="relative w-full rounded-lg bg-linen border-[1.5px] border-rule overflow-hidden"
+        <div className="relative w-full rounded-lg bg-stage border-[1.5px] border-stage-line overflow-hidden"
              style={{ minHeight: 'max(60vh, 400px)' }}>
-          <div className="absolute top-1/2 left-[35%] -translate-x-1/2 -translate-y-1/2 w-[200px] h-[140px] rounded-xl bg-mist border-[1.5px] border-rule animate-pulse" />
-          <div className="absolute top-1/2 left-[65%] -translate-x-1/2 -translate-y-1/2 w-[200px] h-[140px] rounded-xl bg-mist border-[1.5px] border-rule animate-pulse" />
+          <div className="absolute top-1/2 left-[35%] -translate-x-1/2 -translate-y-1/2 w-[200px] h-[140px] rounded-xl bg-stage-deep border-[1.5px] border-stage-line animate-pulse" />
+          <div className="absolute top-1/2 left-[65%] -translate-x-1/2 -translate-y-1/2 w-[200px] h-[140px] rounded-xl bg-stage-deep border-[1.5px] border-stage-line animate-pulse" />
         </div>
       </div>
     );
@@ -205,18 +246,30 @@ const ToolsPage = () => {
             <span className="text-iris">{t('tools.flow.titleAccent')}</span>
           </h1>
           <div className="font-mono text-[13px] text-fog mt-1">
-            mcp · drag from catalog · drop on canvas
+            {t('tools.flow.headerHint')}
           </div>
         </div>
-        <div className="flex gap-5 font-mono text-[11px] uppercase tracking-wider text-fog">
-          <span className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-sage shadow-[0_0_4px_rgba(123,200,159,0.55)]" />
-            <span className="text-sage">{connectedCount}</span> {t('tools.flow.statsConnected')}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-fog" />
-            {availableCount} {t('tools.flow.statsAvailable')}
-          </span>
+        <div className="flex items-center gap-5">
+          <div className="flex gap-5 font-mono text-[11px] uppercase tracking-wider text-fog">
+            <span className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-sage shadow-[0_0_4px_rgba(123,200,159,0.55)]" />
+              <span className="text-sage">{connectedCount}</span> {t('tools.flow.statsConnected')}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-fog" />
+              {availableCount} {t('tools.flow.statsAvailable')}
+            </span>
+          </div>
+          <button
+            onClick={() => setCopilotOpen(o => !o)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border-[1.5px] text-[12px] font-medium
+                        transition-all ${copilotOpen
+                          ? 'border-iris bg-iris text-paper'
+                          : 'border-iris text-iris bg-transparent hover:bg-iris-soft/30'}`}
+          >
+            <Sparkle size={14} weight="light" />
+            {t('tools.copilot.open')}
+          </button>
         </div>
       </div>
 
@@ -238,12 +291,15 @@ const ToolsPage = () => {
           onConnected={handleConnected}
           onToolHover={setHighlightedTool}
           onToolHoverEnd={() => setHighlightedTool(null)}
+          canInstall={isOwner}
         />
       )}
 
       {/* Flow Canvas */}
       <FlowCanvas
         tools={tools}
+        channels={channels}
+        skillsByTarget={skillsByTarget}
         onToolClick={handleCanvasToolClick}
         highlightedTool={highlightedTool}
         onToolDrop={handleToolDrop}
@@ -252,6 +308,7 @@ const ToolsPage = () => {
         onMiddlewareRemove={handleMiddlewareRemove}
         onMiddlewareAttach={handleMiddlewareAttach}
         onRefresh={loadTools}
+        onPositionSave={handlePositionSave}
       />
 
       {/* Popover */}
@@ -263,6 +320,13 @@ const ToolsPage = () => {
           onClose={() => setPopover(null)}
         />
       )}
+
+      {/* Jeeves canvas copilot */}
+      <CanvasCopilot
+        open={copilotOpen}
+        onClose={() => setCopilotOpen(false)}
+        onCanvasChanged={loadTools}
+      />
 
       {/* Toast */}
       <FlowToast
