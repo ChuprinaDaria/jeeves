@@ -45,10 +45,19 @@ class ToolCatalogView(APIView):
     """GET /api/tools/catalog/ — all available tools with connection status."""
 
     def get(self, request):
+        from django.db.models import Q
+
         client = getattr(request, 'client', None)
         lang = request.query_params.get('lang') or request.headers.get(
             'Accept-Language', '')[:2] or 'en'
-        tools = ToolCard.objects.filter(is_active=True).order_by('sort_order', 'name')
+        # Tenancy: global/system cards (owner_client is NULL) plus this
+        # client's own custom integrations. Never another tenant's private card.
+        tools = ToolCard.objects.filter(is_active=True)
+        if client:
+            tools = tools.filter(Q(owner_client__isnull=True) | Q(owner_client=client))
+        else:
+            tools = tools.filter(owner_client__isnull=True)
+        tools = tools.order_by('sort_order', 'name')
 
         connections = defaultdict(list)
         if client:
@@ -80,6 +89,7 @@ class ToolCatalogView(APIView):
                 'category': tool.category,
                 'is_featured': tool.is_featured,
                 'is_system': tool.is_system,
+                'is_custom': tool.owner_client_id is not None,
                 'auth_type': tool.auth_type,
                 'auth_config': tool.auth_config,
                 'skill_scopes': tool.skill_scopes,

@@ -401,7 +401,9 @@
       "legendJeeves": "Jeeves — ваш приватний асистент. З ним говорите тільки ви (sandbox, прямий канал у Telegram).",
       "legendConcierge": "Консьєрж — спілкується з вашими клієнтами в каналах праворуч.",
       "legendLeads": "Leads — збирає контакти з клієнтських розмов.",
-      "skillBadgeTooltip": "Підключений скіл — визначає, як цей агент спілкується"
+      "skillBadgeTooltip": "Підключений скіл — визначає, як цей агент спілкується",
+      "customBadge": "Кастом",
+      "customIntegration": "Кастомна інтеграція, створена Jeeves"
     },
     "copilot": {
       "title": "Jeeves",

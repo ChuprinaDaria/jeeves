@@ -1108,7 +1108,9 @@
       "legendJeeves": "Jeeves — your private assistant. Only you talk to him (sandbox, Telegram direct line).",
       "legendConcierge": "Concierge — talks to your customers in the channels on the right.",
       "legendLeads": "Leads — captures contacts from customer conversations.",
-      "skillBadgeTooltip": "Attached skill — shapes how this agent communicates"
+      "skillBadgeTooltip": "Attached skill — shapes how this agent communicates",
+      "customBadge": "Custom",
+      "customIntegration": "Custom integration created by Jeeves"
     },
     "matrix": {
       "howto_title": "How to connect",

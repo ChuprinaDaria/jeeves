@@ -595,7 +595,9 @@
       "legendJeeves": "Jeeves — tu asistente privado. Solo tú hablas con él (sandbox, línea directa de Telegram).",
       "legendConcierge": "Concierge — habla con tus clientes en los canales de la derecha.",
       "legendLeads": "Leads — captura contactos de las conversaciones con clientes.",
-      "skillBadgeTooltip": "Skill conectado — define cómo se comunica este agente"
+      "skillBadgeTooltip": "Skill conectado — define cómo se comunica este agente",
+      "customBadge": "Custom",
+      "customIntegration": "Integración personalizada creada por Jeeves"
     },
     "copilot": {
       "title": "Jeeves",

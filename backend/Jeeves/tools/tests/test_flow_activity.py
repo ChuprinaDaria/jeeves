@@ -121,3 +121,33 @@ class TestSkillsAPI:
                           {'target': 'nope'}, content_type='application/json',
                           HTTP_X_CLIENT_TOKEN=client_obj.tag)
         assert res.status_code == 400
+
+
+@pytest.mark.django_db
+class TestCatalogTenancy:
+    """Custom (owner_client) cards are visible only to their owner."""
+
+    CATALOG = '/api/tools/catalog/'
+
+    def _custom_card(self, owner):
+        from Jeeves.tools.models import ToolCard
+        return ToolCard.objects.create(
+            name='Acme CRM', slug=f'ci-{owner.pk}-acme', tagline='t',
+            description='d', icon='puzzle', color='#000000', category='custom',
+            transport_type='http_rest', auth_type='none', owner_client=owner)
+
+    def test_owner_sees_own_custom_card(self, client, client_obj):
+        self._custom_card(client_obj)
+        res = client.get(self.CATALOG, HTTP_X_CLIENT_TOKEN=client_obj.tag)
+        slugs = {t['slug']: t for t in res.json()}
+        assert f'ci-{client_obj.pk}-acme' in slugs
+        assert slugs[f'ci-{client_obj.pk}-acme']['is_custom'] is True
+
+    def test_other_tenant_does_not_see_custom_card(self, client, client_obj):
+        from Jeeves.clients.models import Client
+        other = Client.objects.create(
+            user='o', description='d', api_key='rag_test_key_cat2', tag='other-cat')
+        self._custom_card(other)  # belongs to `other`
+        res = client.get(self.CATALOG, HTTP_X_CLIENT_TOKEN=client_obj.tag)
+        slugs = {t['slug'] for t in res.json()}
+        assert f'ci-{other.pk}-acme' not in slugs
