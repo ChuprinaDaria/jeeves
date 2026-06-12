@@ -178,7 +178,8 @@
     "ttsError": "Impossibile generare il parlato",
     "playVoice": "Riproduci voce",
     "startRecording": "Avvia registrazione",
-    "stopRecording": "Ferma registrazione"
+    "stopRecording": "Ferma registrazione",
+    "agentBadge": "Jeeves — il tuo assistente privato. I clienti non vedono mai questa chat."
   },
   "integrations": {
     "title": "Integrations",
@@ -237,7 +238,19 @@
     "scanQrInstructions": "Scansiona il QR con l'app",
     "startBridgeLogin": "Accedi",
     "extensionDescPrereq": "Necessaria per Instagram / Facebook / LinkedIn — passa i cookie al bridge",
-    "instagramDesc3": "Installa prima l'estensione Chrome — passa i cookie IG al bridge"
+    "instagramDesc3": "Installa prima l'estensione Chrome — passa i cookie IG al bridge",
+    "jeevesTg": {
+      "title": "Jeeves su Telegram",
+      "linked": "collegato",
+      "description": "Linea diretta col tuo assistente: collega la tua chat al bot e gestisci il business da Telegram. I clienti continuano a parlare col consulente.",
+      "needsBot": "configura prima il bot Telegram",
+      "generate": "Collega la mia chat",
+      "regenerate": "Nuovo codice",
+      "unlink": "Scollega",
+      "copy": "Copia",
+      "copied": "Copiato!",
+      "sendHint": "invialo al tuo bot entro 10 minuti"
+    }
   },
   "history": {
     "title": "Attività",
@@ -575,7 +588,12 @@
       "heatmapToggle": "Heatmap di utilizzo (7 giorni)",
       "liveToggle": "Attività dal vivo",
       "addCustomTool": "Aggiungi strumento",
-      "addCustomToolHint": "marketplace mcp"
+      "addCustomToolHint": "marketplace mcp",
+      "channelLabel": "canale",
+      "legendTitle": "due agenti",
+      "legendJeeves": "Jeeves — il tuo assistente privato. Solo tu parli con lui (sandbox, linea diretta Telegram).",
+      "legendConcierge": "Concierge — parla con i tuoi clienti nei canali a destra.",
+      "legendLeads": "Leads — raccoglie contatti dalle conversazioni con i clienti."
     },
     "copilot": {
       "title": "Jeeves",

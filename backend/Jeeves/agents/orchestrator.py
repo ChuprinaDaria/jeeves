@@ -27,6 +27,10 @@ logger = logging.getLogger(__name__)
 
 MAX_ITERATIONS = 10
 
+# Channels where the OWNER talks to Jeeves (assistant scope, full power).
+# Everything else is customer-facing → consultant (manager scope).
+OWNER_CHANNELS = ('sandbox', 'owner_telegram')
+
 
 def _mcp_tool_timeout() -> float:
     """Max seconds for a single MCP tool call (clamped to a positive value)."""
@@ -74,19 +78,16 @@ DEFAULT_ASSISTANT_PROMPT = (
     "search memories for the current user to recall past interactions. When you learn "
     "something important about a user (preferences, needs, context), save it to memory.\n\n"
 
-    "## Bridge Management Tools\n"
-    "You have tools for connecting messaging platforms:\n"
-    "- bridge_start_connection: Start connecting a platform (meta-facebook, meta-instagram, linkedin)\n"
-    "- bridge_check_status: Check if a bridge is connected\n"
-    "- canvas_add_tool_connection: Add a connected bridge to the flow canvas with chosen targets\n"
-    "- canvas_remove_tool_connection: Remove a bridge from the canvas\n"
-    "- canvas_list_connections: List all current connections\n\n"
-    "Supported bridge_type values: meta-facebook, meta-instagram, linkedin.\n"
-    "WhatsApp is connected separately via QR code on the Integrations page — do NOT use bridge tools for WhatsApp.\n\n"
-    "When a user asks to connect a platform, use bridge_start_connection first. "
-    "After successful auth, ask which targets (assistant, manager, leads) to connect to, "
-    "then use canvas_add_tool_connection. "
-    "Default targets: LinkedIn -> leads, Facebook/Instagram -> assistant + manager."
+    "## Canvas Tools\n"
+    "You can edit the flow canvas (the tool → agent wiring) yourself:\n"
+    "- canvas_list_connections: Current wiring — which tools serve which agent\n"
+    "- canvas_list_available_tools: Everything that can be connected\n"
+    "- canvas_add_tool_connection: Wire a tool to assistant / manager / leads\n"
+    "- canvas_remove_tool_connection: Detach a tool from a target\n\n"
+    "When the owner asks to connect or disconnect something, do it with these "
+    "tools and confirm what changed. If a tool needs credentials, wire it and "
+    "tell the owner to authorize it on the Tools page. "
+    "WhatsApp is connected via QR code on the Integrations page — not via canvas tools."
 )
 
 DEFAULT_CONSULTANT_PROMPT = (
@@ -173,6 +174,7 @@ class AgentOrchestrator:
 
         # Scope filtering (set in process())
         self._scope = 'manager'  # default, set in process()
+        self._deployment = None  # live topology snapshot, set in _build_scope_filter
         self._tool_to_connection = {}  # server_name -> ToolConnection
         self._connected_server_names = set()
         self._session = None  # set in process()
@@ -384,7 +386,7 @@ class AgentOrchestrator:
         Returns:
             Final assistant text response.
         """
-        self._scope = 'assistant' if channel == 'sandbox' else 'manager'
+        self._scope = 'assistant' if channel in OWNER_CHANNELS else 'manager'
         self._session = session
 
         await self._build_scope_filter()
@@ -573,7 +575,8 @@ class AgentOrchestrator:
     def _build_system_prompt(self, channel: str) -> str:
         """Build the full system prompt from AgentConfig + channel routing."""
         client_custom = (getattr(self.client, 'custom_system_prompt', '') or '').strip()
-        if channel == 'sandbox':
+        is_owner_channel = channel in OWNER_CHANNELS
+        if is_owner_channel:
             default = DEFAULT_ASSISTANT_PROMPT
             custom = self.agent_config.assistant_prompt
             description = self.agent_config.assistant_description
@@ -611,7 +614,31 @@ class AgentOrchestrator:
                     "If a tool fails or is unavailable, say so honestly — never invent data."
                 )
 
-        if channel == 'sandbox':
+        if self._deployment is not None:
+            wiring_lines = [
+                f"- {name} → {', '.join(sorted(targets))}"
+                for name, targets in sorted(self._deployment['wiring'].items())
+            ]
+            channels_str = ', '.join(self._deployment['channels'])
+            if is_owner_channel:
+                parts.append(
+                    "\n\n## Your deployment (live)\n"
+                    "- You are Jeeves — the owner's PRIVATE assistant. The owner reaches you "
+                    "in the sandbox and, if linked, their private Telegram chat. Customers never talk to you.\n"
+                    f"- Concierge (the customer-facing consultant agent) talks to customers on: {channels_str}.\n"
+                    + ("- Canvas wiring (tool → agents):\n" + "\n".join(wiring_lines)
+                       if wiring_lines else "- The canvas is empty — no tools wired yet.")
+                )
+            else:
+                parts.append(
+                    "\n\n## Your deployment (live)\n"
+                    f"- You are the customer-facing consultant. Right now you are talking on the '{channel}' channel.\n"
+                    "- Jeeves, the owner's private assistant, manages tools and configuration — you cannot "
+                    "reconfigure anything. If asked about setup, say the owner handles it with Jeeves.\n"
+                    f"- Customer channels connected: {channels_str}."
+                )
+
+        if is_owner_channel:
             # Assistant detects user language and responds in it
             parts.append(
                 "\nDetect the language of the user's message and respond in that same language. "
@@ -637,13 +664,13 @@ class AgentOrchestrator:
         else:
             parts.append("\nDo NOT use markdown formatting. Respond in plain text only.")
 
-        if channel != 'sandbox' and self._has_leads_tool():
+        if not is_owner_channel and self._has_leads_tool():
             parts.append(
                 "\n\nWhen you have contact info or understand the visitor's need, "
                 "call save_lead to record it. Update as you learn more."
             )
 
-        if channel == 'sandbox' and self._has_coaching_tool():
+        if is_owner_channel and self._has_coaching_tool():
             parts.append(
                 "\n\nCOACHING: You can review Concierge's (concierge AI) recent conversations "
                 "to find knowledge gaps. When you notice Concierge struggled with a topic, "
@@ -704,6 +731,21 @@ class AgentOrchestrator:
                         if conn.status == 'connected':
                             self._tool_to_connection[server_name] = conn
                     break
+
+        # Live topology snapshot → "## Your deployment" prompt section,
+        # so both agents know who works where and what's wired to whom.
+        wiring = {}
+        async for conn in ToolConnection.objects.filter(
+            client=self.client, enabled=True, status='connected',
+        ).select_related('tool_card'):
+            wiring.setdefault(conn.tool_card.name, set()).add(conn.target)
+        channels = []
+        if getattr(self.client, 'telegram_bot_token', ''):
+            channels.append('Telegram')
+        if getattr(self.client, 'whatsapp_meta_enabled', False) or getattr(self.client, 'meta_phone_number_id', ''):
+            channels.append('WhatsApp')
+        channels.append('Web chat')
+        self._deployment = {'wiring': wiring, 'channels': channels}
 
     def _get_scope_tool_names(self) -> list[str]:
         """Tool names visible to current scope."""

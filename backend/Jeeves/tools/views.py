@@ -562,3 +562,25 @@ class FlowActivityView(APIView):
                 for (slug, target), agg in aggregates.items()
             ],
         })
+
+
+class FlowChannelsView(APIView):
+    """GET /api/tools/flow/channels/ — customer channels for the canvas.
+
+    Channels are where the CONSULTANT talks to customers; the canvas renders
+    them as outgoing nodes to make the two-agent topology obvious.
+    """
+
+    def get(self, request):
+        client = getattr(request, 'client', None)
+        if not client:
+            return Response({'error': 'Client not found'},
+                            status=status.HTTP_401_UNAUTHORIZED)
+        return Response({'channels': [
+            {'id': 'telegram', 'name': 'Telegram',
+             'active': bool(getattr(client, 'telegram_bot_token', ''))},
+            {'id': 'whatsapp', 'name': 'WhatsApp',
+             'active': bool(getattr(client, 'whatsapp_meta_enabled', False)
+                            or getattr(client, 'meta_phone_number_id', ''))},
+            {'id': 'webchat', 'name': 'Web chat', 'active': True},
+        ]})

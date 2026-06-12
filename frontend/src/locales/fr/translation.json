@@ -184,7 +184,8 @@
     "ttsError": "Échec de la génération de la parole",
     "playVoice": "Lire la voix",
     "startRecording": "Démarrer l'enregistrement",
-    "stopRecording": "Arrêter l'enregistrement"
+    "stopRecording": "Arrêter l'enregistrement",
+    "agentBadge": "Jeeves — votre assistant privé. Les clients ne voient jamais ce chat."
   },
   "integrations": {
     "title": "Integrations",
@@ -243,7 +244,19 @@
     "scanQrInstructions": "Scannez le QR avec l'application",
     "startBridgeLogin": "Connexion",
     "extensionDescPrereq": "Nécessaire pour Instagram / Facebook / LinkedIn — transmet les cookies au bridge",
-    "instagramDesc3": "Installez d'abord l'extension Chrome — elle transmet vos cookies IG"
+    "instagramDesc3": "Installez d'abord l'extension Chrome — elle transmet vos cookies IG",
+    "jeevesTg": {
+      "title": "Jeeves dans Telegram",
+      "linked": "lié",
+      "description": "Ligne directe vers votre assistant : liez votre chat au bot et pilotez votre activité depuis Telegram. Les clients continuent de parler au consultant.",
+      "needsBot": "configurez d'abord le bot Telegram",
+      "generate": "Lier mon chat",
+      "regenerate": "Nouveau code",
+      "unlink": "Délier",
+      "copy": "Copier",
+      "copied": "Copié !",
+      "sendHint": "envoyez ceci à votre bot sous 10 minutes"
+    }
   },
   "history": {
     "title": "Activité",
@@ -557,7 +570,12 @@
       "heatmapToggle": "Heatmap d’utilisation (7 jours)",
       "liveToggle": "Activité en direct",
       "addCustomTool": "Ajouter un outil",
-      "addCustomToolHint": "marketplace mcp"
+      "addCustomToolHint": "marketplace mcp",
+      "channelLabel": "canal",
+      "legendTitle": "deux agents",
+      "legendJeeves": "Jeeves — votre assistant privé. Vous seul lui parlez (sandbox, ligne directe Telegram).",
+      "legendConcierge": "Concierge — parle à vos clients dans les canaux à droite.",
+      "legendLeads": "Leads — capture les contacts des conversations clients."
     },
     "copilot": {
       "title": "Jeeves",

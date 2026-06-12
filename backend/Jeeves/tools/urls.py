@@ -29,6 +29,7 @@ urlpatterns = [
          views.EdgeMiddlewareDetailView.as_view(), name='edge-middleware-detail'),
 
     path('flow/activity/', views.FlowActivityView.as_view(), name='flow-activity'),
+    path('flow/channels/', views.FlowChannelsView.as_view(), name='flow-channels'),
 
     path('word-cloud/', views.WordCloudView.as_view(), name='tool-word-cloud'),
 ]

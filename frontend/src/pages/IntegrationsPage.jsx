@@ -31,6 +31,7 @@ import StatCard from '../components/ui/StatCard';
 import WebWidgetSetup from '../components/integrations/WebWidgetSetup';
 import EmailSetup from '../components/integrations/EmailSetup';
 import TelegramSetup from '../components/integrations/TelegramSetup';
+import JeevesTelegramLink from '../components/integrations/JeevesTelegramLink';
 import ChromeExtensionSetup from '../components/integrations/ChromeExtensionSetup';
 import HITLSetup from '../components/integrations/HITLSetup';
 import WhatsAppSetup from '../components/integrations/WhatsAppSetup';
@@ -339,6 +340,9 @@ const IntegrationsPage = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {stats.map((s) => <StatCard key={s.label} {...s} />)}
       </div>
+
+      {/* ── Jeeves in Telegram (owner direct line) ── */}
+      <JeevesTelegramLink />
 
       {/* ── Catalog grid ── */}
       {loading ? (

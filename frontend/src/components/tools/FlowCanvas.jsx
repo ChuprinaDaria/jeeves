@@ -88,7 +88,7 @@ const buildInitialPositions = (canvasW, canvasH, groups) => {
 };
 
 /* ── Component ─────────────────────────────────────── */
-const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconnect, onConnect, onMiddlewareRemove, onMiddlewareAttach, onRefresh, onPositionSave }) => {
+const FlowCanvas = ({ tools, channels, onToolClick, highlightedTool, onToolDrop, onDisconnect, onConnect, onMiddlewareRemove, onMiddlewareAttach, onRefresh, onPositionSave }) => {
   const { t } = useTranslation();
   const containerRef = useRef(null);
   const innerRef = useRef(null);
@@ -308,6 +308,28 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     };
   }, [positions, getCorePortPos, getNodeSize]);
 
+  /* ── Customer channel pills — consultant outputs ─────────────── */
+  const CHANNEL_W = 132, CHANNEL_H = 38, CHANNEL_V = 84;
+  const channelNodes = useMemo(() => {
+    const mPos = positions['__manager'];
+    if (!mPos) return [];
+    const active = (channels || []).filter(c => c.active);
+    if (!active.length) return [];
+    const mSize = getNodeSize('__manager');
+    let rightmost = mPos.x + mSize.w;
+    (portLayout['__manager']?.right || []).forEach(slug => {
+      const tp = positions[slug];
+      if (tp) rightmost = Math.max(rightmost, tp.x + getNodeSize(slug).w);
+    });
+    const x = rightmost + 90;
+    const cy = mPos.y + mSize.h / 2;
+    return active.map((ch, i) => ({
+      ...ch,
+      x,
+      y: cy + (i - (active.length - 1) / 2) * CHANNEL_V - CHANNEL_H / 2,
+    }));
+  }, [channels, positions, portLayout, getNodeSize]);
+
   /* ── Compute connections from positions ── */
   const connections = useMemo(() => {
     const aPos = positions['__assistant'];
@@ -368,8 +390,24 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
       });
     });
 
+    // Consultant → customer channels (read-only edges)
+    const mSizeForCh = getNodeSize('__manager');
+    channelNodes.forEach(ch => {
+      conns.push({
+        id: `channel-${ch.id}`,
+        pathD: calcPath(
+          mPos.x + mSizeForCh.w, mPos.y + mSizeForCh.h / 2,
+          ch.x, ch.y + 19, 1, -1,
+        ),
+        target: 'channel',
+        toolSlug: '',
+        source: '__manager',
+        targetNode: `channel-${ch.id}`,
+      });
+    });
+
     return conns;
-  }, [positions, portLayout, getCorePortPos, getNodeSize]);
+  }, [positions, portLayout, getCorePortPos, getNodeSize, channelNodes]);
 
   /* -- Middleware on edges -- */
   const middlewareByEdge = useMemo(() => {
@@ -794,6 +832,15 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     return () => clearInterval(interval);
   }, [onRefresh]);
 
+  /* ── Two-agents legend (dismissible) ── */
+  const [showLegend, setShowLegend] = useState(() => {
+    try { return !localStorage.getItem('flow-legend-dismissed'); } catch { return true; }
+  });
+  const dismissLegend = () => {
+    setShowLegend(false);
+    try { localStorage.setItem('flow-legend-dismissed', '1'); } catch { /* ignore */ }
+  };
+
   /* ── Living canvas: live pulses + usage heatmap ── */
   const [viewMode, setViewMode] = useState('live'); // 'live' | 'heatmap'
   const [liveEdges, setLiveEdges] = useState({});   // edgeId -> expiry ts
@@ -844,7 +891,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
   const edgeSamples = useMemo(() => {
     const SAMPLES = 16;
     return connections
-      .filter(c => c.target !== 'escalation')
+      .filter(c => c.target !== 'escalation' && c.target !== 'channel')
       .map(conn => {
         const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         pathEl.setAttribute('d', conn.pathD);
@@ -1124,6 +1171,24 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
           );
         })}
 
+        {/* Customer channels — where the consultant talks to customers */}
+        {channelNodes.map(ch => (
+          <div
+            key={ch.id}
+            className="absolute pointer-events-none flow-node-enter"
+            style={{ left: ch.x, top: ch.y, width: CHANNEL_W }}
+          >
+            <div className="px-3 py-2 rounded-lg bg-paper/95 border-[1.5px] border-sage
+                            flex items-center gap-2 shadow-[0_0_18px_rgba(123,200,159,0.25)]">
+              <span className="w-1.5 h-1.5 rounded-full bg-sage shrink-0" />
+              <span className="text-[12px] font-medium text-ink truncate">{ch.name}</span>
+            </div>
+            <div className="font-mono text-[9px] uppercase tracking-wider text-fog mt-1 text-center">
+              {t('tools.flow.channelLabel')}
+            </div>
+          </div>
+        ))}
+
         {/* Middleware badges on edges */}
         {connections.map(conn => {
           const mws = middlewareByEdge[conn.id];
@@ -1262,6 +1327,37 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
           <RotateCcw size={16} weight="light" />
         </button>
       </div>
+
+      {/* ── Two-agents legend ── */}
+      {showLegend && (
+        <div className="absolute top-4 left-4 z-20 max-w-[300px] bg-paper/95 border-[1.5px] border-rule
+                        rounded-lg p-3.5 shadow-ink-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-[10px] uppercase tracking-wider text-fog">
+              {t('tools.flow.legendTitle')}
+            </span>
+            <button
+              onClick={dismissLegend}
+              className="text-fog hover:text-ink text-[14px] leading-none bg-transparent px-1"
+              aria-label={t('tools.flow.cancel')}
+            >
+              ×
+            </button>
+          </div>
+          <div className="flex items-start gap-2 text-[12px] text-ink leading-snug">
+            <span className="w-2 h-2 rounded-full bg-iris mt-1 shrink-0" />
+            {t('tools.flow.legendJeeves')}
+          </div>
+          <div className="flex items-start gap-2 text-[12px] text-ink leading-snug">
+            <span className="w-2 h-2 rounded-full bg-sage mt-1 shrink-0" />
+            {t('tools.flow.legendConcierge')}
+          </div>
+          <div className="flex items-start gap-2 text-[12px] text-ink leading-snug">
+            <span className="w-2 h-2 rounded-full bg-amber mt-1 shrink-0" />
+            {t('tools.flow.legendLeads')}
+          </div>
+        </div>
+      )}
 
       {/* ── Keyboard hint ── */}
       {connectedTools.length > 0 && (

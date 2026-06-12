@@ -178,7 +178,8 @@
     "ttsError": "Kon spraak niet genereren",
     "playVoice": "Stem afspelen",
     "startRecording": "Opname starten",
-    "stopRecording": "Opname stoppen"
+    "stopRecording": "Opname stoppen",
+    "agentBadge": "Jeeves — jouw privé-assistent. Klanten zien deze chat nooit."
   },
   "integrations": {
     "title": "Integrations",
@@ -237,7 +238,19 @@
     "scanQrInstructions": "Scan de QR met de app",
     "startBridgeLogin": "Verbinden",
     "extensionDescPrereq": "Vereist voor Instagram / Facebook / LinkedIn — geeft cookies door aan de bridge",
-    "instagramDesc3": "Installeer eerst de Chrome-extensie — die geeft je IG-cookies door"
+    "instagramDesc3": "Installeer eerst de Chrome-extensie — die geeft je IG-cookies door",
+    "jeevesTg": {
+      "title": "Jeeves in Telegram",
+      "linked": "gekoppeld",
+      "description": "Directe lijn naar je assistent: koppel je chat aan de bot en beheer je bedrijf vanuit Telegram. Klanten praten gewoon verder met de consultant.",
+      "needsBot": "configureer eerst de Telegram-bot",
+      "generate": "Mijn chat koppelen",
+      "regenerate": "Nieuwe code",
+      "unlink": "Ontkoppelen",
+      "copy": "Kopiëren",
+      "copied": "Gekopieerd!",
+      "sendHint": "stuur dit binnen 10 minuten naar je bot"
+    }
   },
   "history": {
     "title": "Activiteit",
@@ -575,7 +588,12 @@
       "heatmapToggle": "Gebruiks-heatmap (7 dagen)",
       "liveToggle": "Live activiteit",
       "addCustomTool": "Eigen tool toevoegen",
-      "addCustomToolHint": "mcp-marktplaats"
+      "addCustomToolHint": "mcp-marktplaats",
+      "channelLabel": "kanaal",
+      "legendTitle": "twee agenten",
+      "legendJeeves": "Jeeves — jouw privé-assistent. Alleen jij praat met hem (sandbox, Telegram-directlijn).",
+      "legendConcierge": "Concierge — praat met je klanten in de kanalen rechts.",
+      "legendLeads": "Leads — verzamelt contacten uit klantgesprekken."
     },
     "copilot": {
       "title": "Jeeves",

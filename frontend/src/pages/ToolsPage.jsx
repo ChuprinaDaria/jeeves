@@ -20,6 +20,7 @@ const ToolsPage = () => {
   const [highlightedTool, setHighlightedTool] = useState(null);
   const [popover, setPopover] = useState(null); // { tool, rect }
   const [copilotOpen, setCopilotOpen] = useState(false);
+  const [channels, setChannels] = useState([]);
   const { toast, showToast, hideToast } = useFlowToast();
 
   const loadTools = async () => {
@@ -34,7 +35,12 @@ const ToolsPage = () => {
     }
   };
 
-  useEffect(() => { loadTools(); }, []);
+  useEffect(() => {
+    loadTools();
+    toolsAPI.getFlowChannels()
+      .then(res => setChannels(res.data?.channels || []))
+      .catch(() => {});
+  }, []);
 
   const handleConnected = useCallback((slug) => {
     const tool = tools.find(t => t.slug === slug);
@@ -280,6 +286,7 @@ const ToolsPage = () => {
       {/* Flow Canvas */}
       <FlowCanvas
         tools={tools}
+        channels={channels}
         onToolClick={handleCanvasToolClick}
         highlightedTool={highlightedTool}
         onToolDrop={handleToolDrop}

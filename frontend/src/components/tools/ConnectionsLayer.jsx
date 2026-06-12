@@ -78,6 +78,7 @@ const ConnectionsLayer = ({
         const gradId = conn.target === 'escalation' ? 'grad-escalation'
           : conn.target === 'leads' ? 'grad-leads'
           : conn.target === 'assistant' ? 'grad-assistant' : 'grad-manager';
+        const isChannel = conn.target === 'channel';
         // Solid dot colours from the Concierge palette
         const dotColor = conn.target === 'assistant' ? '#9B7ED8'
           : conn.target === 'leads' ? '#E8A86D' : '#7BC89F';
@@ -113,13 +114,14 @@ const ConnectionsLayer = ({
               fill="none"
               stroke="transparent"
               strokeWidth="20"
-              style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+              style={{ pointerEvents: isChannel ? 'none' : 'stroke', cursor: 'pointer' }}
               onClick={(e) => {
+                if (isChannel) return;
                 e.stopPropagation();
                 onEdgeClick?.(conn.id, e);
               }}
               onPointerDown={(e) => {
-                if (e.button !== 0) return;
+                if (isChannel || e.button !== 0) return;
                 e.stopPropagation();
                 onEdgePointerDown?.(conn.id, e);
               }}
@@ -213,7 +215,7 @@ const ConnectionsLayer = ({
             })()}
 
             {/* Animated particles */}
-            {conn.target !== 'escalation' && [0, 1, 2].map(p => (
+            {conn.target !== 'escalation' && (isChannel ? [0] : [0, 1, 2]).map(p => (
               supportsOffsetPath ? (
                 <circle
                   key={p}

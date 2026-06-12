@@ -347,7 +347,22 @@ class TelegramWebhookView(View):
             # Обробляємо START2 команду
             if message_text.startswith('START2'):
                 return self.handle_start2_command(chat_id, message_text, username, first_name, client_hint)
-            
+
+            # Owner ↔ Jeeves direct line: /jeeves <code> links this chat to the
+            # owner's private assistant; linked chats bypass the consultant.
+            if message_text.strip().lower().startswith('/jeeves'):
+                return self.handle_jeeves_link(chat_id, message_text, client_hint)
+            owner_client = self._get_owner_client(chat_id, client_hint)
+            if owner_client:
+                if message_text.strip().lower() == '/unlink':
+                    owner_client.owner_telegram_chat_id = ''
+                    owner_client.save(update_fields=['owner_telegram_chat_id'])
+                    send_telegram_message(
+                        owner_client.telegram_bot_token, chat_id,
+                        '🔌 Jeeves disconnected from this chat. Customers talk to the consultant as usual.')
+                    return HttpResponse("OK")
+                return self.handle_owner_message(owner_client, chat_id, message_text)
+
             # Обробляємо звичайні повідомлення
             return self.handle_regular_message(chat_id, message_text, username, first_name, client_hint)
             
@@ -358,6 +373,84 @@ class TelegramWebhookView(View):
             logger.error(f"Telegram webhook error: {str(e)}", exc_info=True)
             return HttpResponse("Internal server error", status=500)
     
+    def _get_owner_client(self, chat_id, client_hint):
+        """Client whose owner linked this chat to Jeeves (or None)."""
+        if client_hint is not None:
+            return client_hint if client_hint.owner_telegram_chat_id == str(chat_id) else None
+        return Client.objects.filter(
+            owner_telegram_chat_id=str(chat_id), is_active=True).first()
+
+    def handle_jeeves_link(self, chat_id: int, message_text: str, client_hint=None):
+        """`/jeeves <code>` — bind this chat to the owner's private assistant.
+
+        The one-time code is generated in the portal (Integrations page) and
+        lives in cache for 10 minutes.
+        """
+        from django.core.cache import cache
+
+        parts = message_text.strip().split()
+        code = parts[1].strip().upper() if len(parts) > 1 else ''
+        bot_token = client_hint.telegram_bot_token if client_hint else self._get_bot_token_for_chat(chat_id)
+
+        if not code:
+            send_telegram_message(
+                bot_token, chat_id,
+                'To link Jeeves: open the portal → Integrations → "Jeeves in Telegram", '
+                'then send me /jeeves <code>.')
+            return HttpResponse("OK")
+
+        client_id = cache.get(f'tg-owner-code:{code}')
+        client = Client.objects.filter(pk=client_id, is_active=True).first() if client_id else None
+        if client is None or (client_hint is not None and client.pk != client_hint.pk):
+            send_telegram_message(
+                bot_token, chat_id,
+                '❌ Invalid or expired code. Generate a new one in the portal (it lives 10 minutes).')
+            return HttpResponse("OK")
+
+        cache.delete(f'tg-owner-code:{code}')
+        client.owner_telegram_chat_id = str(chat_id)
+        client.save(update_fields=['owner_telegram_chat_id'])
+        logger.info(f"Owner Telegram chat linked: client={client.pk}, chat_id={chat_id}")
+        send_telegram_message(
+            client.telegram_bot_token or bot_token, chat_id,
+            "🎩 Jeeves here. This chat is now your private line — ask me anything about the "
+            "business: reports, leads, knowledge base, tool wiring. Customers still talk to "
+            "the consultant. Send /unlink to disconnect.")
+        return HttpResponse("OK")
+
+    def handle_owner_message(self, client, chat_id: int, message_text: str):
+        """Route an owner-chat message to Jeeves (assistant scope) with rolling history."""
+        from django.core.cache import cache
+
+        bot_token = client.telegram_bot_token
+        history_key = f'tg-owner-history:{client.pk}'
+        history = cache.get(history_key) or []
+
+        try:
+            from Jeeves.agents.dispatch import generate_response_dual
+            with telegram_typing(bot_token, chat_id):
+                response_text = generate_response_dual(
+                    message=message_text,
+                    client=client,
+                    conversation=history,
+                    channel='owner_telegram',
+                    external_user_id=f'owner-{chat_id}',
+                )
+        except Exception as e:
+            logger.error(f"Owner Jeeves chat failed: client={client.pk}: {e}", exc_info=True)
+            send_telegram_message(bot_token, chat_id, '⚠️ Something went wrong. Please try again.')
+            return HttpResponse("OK")
+
+        history = (history + [
+            {'role': 'user', 'content': message_text},
+            {'role': 'assistant', 'content': response_text},
+        ])[-30:]
+        cache.set(history_key, history, 7 * 24 * 3600)
+
+        if bot_token and response_text:
+            send_telegram_message(bot_token, chat_id, response_text)
+        return HttpResponse("OK")
+
     def handle_start_command(self, chat_id: int, username: str, first_name: str, client_hint=None):
         """
         Обробляє /start команду

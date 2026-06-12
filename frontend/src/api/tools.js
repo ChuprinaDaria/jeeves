@@ -27,6 +27,9 @@ export const toolsAPI = {
   attachMiddleware: (connectionId, skillSlug) => api.post(`/tools/flow/edges/${connectionId}/middleware/`, { skill_slug: skillSlug }),
   detachMiddleware: (connectionId, middlewareId) => api.delete(`/tools/flow/edges/${connectionId}/middleware/${middlewareId}/`),
 
+  // Customer channels rendered as consultant outputs on the canvas
+  getFlowChannels: () => api.get('/tools/flow/channels/'),
+
   // Living canvas: recent tool calls + 7-day usage aggregates
   getFlowActivity: (since) =>
     api.get('/tools/flow/activity/', { params: since ? { since } : {} }),

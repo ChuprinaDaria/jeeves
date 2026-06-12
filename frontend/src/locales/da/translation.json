@@ -178,7 +178,8 @@
     "ttsError": "Kunne ikke generere tale",
     "playVoice": "Afspil stemme",
     "startRecording": "Start optagelse",
-    "stopRecording": "Stop optagelse"
+    "stopRecording": "Stop optagelse",
+    "agentBadge": "Jeeves — din private assistent. Kunder ser aldrig denne chat."
   },
   "integrations": {
     "title": "Integrations",
@@ -237,7 +238,19 @@
     "scanQrInstructions": "Scan QR med appen",
     "startBridgeLogin": "Log ind",
     "extensionDescPrereq": "Påkrævet for Instagram / Facebook / LinkedIn — videresender cookies til bridge",
-    "instagramDesc3": "Installer Chrome-udvidelsen først — den videresender dine IG-cookies"
+    "instagramDesc3": "Installer Chrome-udvidelsen først — den videresender dine IG-cookies",
+    "jeevesTg": {
+      "title": "Jeeves i Telegram",
+      "linked": "forbundet",
+      "description": "Direkte linje til din assistent: forbind din chat med botten og styr forretningen fra Telegram. Kunderne taler stadig med konsulenten.",
+      "needsBot": "konfigurer Telegram-botten først",
+      "generate": "Forbind min chat",
+      "regenerate": "Ny kode",
+      "unlink": "Afbryd",
+      "copy": "Kopiér",
+      "copied": "Kopieret!",
+      "sendHint": "send dette til din bot inden for 10 minutter"
+    }
   },
   "history": {
     "title": "Aktivitet",
@@ -575,7 +588,12 @@
       "heatmapToggle": "Brugs-heatmap (7 dage)",
       "liveToggle": "Live aktivitet",
       "addCustomTool": "Tilføj eget værktøj",
-      "addCustomToolHint": "mcp-markedsplads"
+      "addCustomToolHint": "mcp-markedsplads",
+      "channelLabel": "kanal",
+      "legendTitle": "to agenter",
+      "legendJeeves": "Jeeves — din private assistent. Kun du taler med ham (sandbox, Telegram-direkte linje).",
+      "legendConcierge": "Concierge — taler med dine kunder i kanalerne til højre.",
+      "legendLeads": "Leads — opsamler kontakter fra kundesamtaler."
     },
     "copilot": {
       "title": "Jeeves",

@@ -33,6 +33,7 @@ urlpatterns = [
     path('top-questions/', views.ClientTopQuestionsView.as_view(), name='client-top-questions'),
     path('recent-activity/', views.ClientRecentActivityView.as_view(), name='client-recent-activity'),
     path('stats/', views.ClientStatsView.as_view(), name='client-stats'),
+    path('owner-telegram/', views.OwnerTelegramLinkView.as_view(), name='owner-telegram-link'),
     path('embeddings-stats/', views.ClientEmbeddingsStatsView.as_view(), name='client-embeddings-stats'),
     path('model-status/', views.ClientModelStatusView.as_view(), name='client-model-status'),
     path('pixel-status/', views.PixelDashboardStatusView.as_view(), name='client-pixel-status'),

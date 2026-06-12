@@ -212,7 +212,8 @@
     "goToTraining": "До бази знань",
     "assistantTitle": "Jeeves",
     "assistantSubtitle": "Спілкуйтеся з Jeeves — вашим AI асистентом",
-    "testResponse": "Це тестова відповідь від вашого AI-асистента."
+    "testResponse": "Це тестова відповідь від вашого AI-асистента.",
+    "agentBadge": "Jeeves — ваш приватний асистент. Клієнти цей чат не бачать."
   },
   "integrations": {
     "title": "Інтеграції",
@@ -293,7 +294,19 @@
     "scanQrInstructions": "Скануй QR у застосунку на телефоні",
     "startBridgeLogin": "Підключити",
     "extensionDescPrereq": "Потрібне для Instagram / Facebook / LinkedIn — збирає кукіси й передає в міст",
-    "instagramDesc3": "Спершу постав розширення — воно проброшує кукіси IG в міст"
+    "instagramDesc3": "Спершу постав розширення — воно проброшує кукіси IG в міст",
+    "jeevesTg": {
+      "title": "Jeeves у Telegram",
+      "linked": "підключено",
+      "description": "Прямий канал до асистента: привʼяжіть свій чат із ботом і керуйте бізнесом із Telegram — звіти, ліди, база знань, підключення тулів. Клієнти й далі говорять із консультантом.",
+      "needsBot": "спершу налаштуйте Telegram-бота",
+      "generate": "Привʼязати мій чат",
+      "regenerate": "Новий код",
+      "unlink": "Відвʼязати",
+      "copy": "Копіювати",
+      "copied": "Скопійовано!",
+      "sendHint": "надішліть це вашому боту протягом 10 хвилин"
+    }
   },
   "settings": {
     "title": "Налаштування",
@@ -381,7 +394,12 @@
       "heatmapToggle": "Теплокарта використання (7 днів)",
       "liveToggle": "Жива активність",
       "addCustomTool": "Додати свій інструмент",
-      "addCustomToolHint": "маркетплейс mcp"
+      "addCustomToolHint": "маркетплейс mcp",
+      "channelLabel": "канал",
+      "legendTitle": "два агенти",
+      "legendJeeves": "Jeeves — ваш приватний асистент. З ним говорите тільки ви (sandbox, прямий канал у Telegram).",
+      "legendConcierge": "Консьєрж — спілкується з вашими клієнтами в каналах праворуч.",
+      "legendLeads": "Leads — збирає контакти з клієнтських розмов."
     },
     "copilot": {
       "title": "Jeeves",

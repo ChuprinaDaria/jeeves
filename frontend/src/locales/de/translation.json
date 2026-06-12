@@ -185,7 +185,8 @@
     "ttsError": "Sprache konnte nicht generiert werden",
     "playVoice": "Stimme abspielen",
     "startRecording": "Aufnahme starten",
-    "stopRecording": "Aufnahme stoppen"
+    "stopRecording": "Aufnahme stoppen",
+    "agentBadge": "Jeeves — Ihr privater Assistent. Kunden sehen diesen Chat nie."
   },
   "integrations": {
     "title": "Integrationen",
@@ -244,7 +245,19 @@
     "scanQrInstructions": "QR-Code mit der App scannen",
     "startBridgeLogin": "Anmelden",
     "extensionDescPrereq": "Erforderlich für Instagram / Facebook / LinkedIn — überträgt Cookies an die Bridge",
-    "instagramDesc3": "Installiere zuerst die Chrome-Erweiterung — sie überträgt deine IG-Cookies"
+    "instagramDesc3": "Installiere zuerst die Chrome-Erweiterung — sie überträgt deine IG-Cookies",
+    "jeevesTg": {
+      "title": "Jeeves in Telegram",
+      "linked": "verknüpft",
+      "description": "Direkter Draht zu Ihrem Assistenten: Verknüpfen Sie Ihren Chat mit dem Bot und steuern Sie das Geschäft aus Telegram. Kunden sprechen weiterhin mit dem Berater.",
+      "needsBot": "zuerst den Telegram-Bot konfigurieren",
+      "generate": "Meinen Chat verknüpfen",
+      "regenerate": "Neuer Code",
+      "unlink": "Trennen",
+      "copy": "Kopieren",
+      "copied": "Kopiert!",
+      "sendHint": "innerhalb von 10 Minuten an Ihren Bot senden"
+    }
   },
   "history": {
     "title": "Aktivität",
@@ -638,7 +651,12 @@
       "heatmapToggle": "Nutzungs-Heatmap (7 Tage)",
       "liveToggle": "Live-Aktivität",
       "addCustomTool": "Eigenes Tool hinzufügen",
-      "addCustomToolHint": "mcp-marktplatz"
+      "addCustomToolHint": "mcp-marktplatz",
+      "channelLabel": "kanal",
+      "legendTitle": "zwei agenten",
+      "legendJeeves": "Jeeves — Ihr privater Assistent. Nur Sie sprechen mit ihm (Sandbox, Telegram-Direktleitung).",
+      "legendConcierge": "Concierge — spricht mit Ihren Kunden in den Kanälen rechts.",
+      "legendLeads": "Leads — erfasst Kontakte aus Kundengesprächen."
     },
     "copilot": {
       "title": "Jeeves",

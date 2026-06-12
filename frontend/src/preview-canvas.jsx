@@ -11,7 +11,7 @@ import { toolsAPI } from './api/tools';
 import { mcpAPI } from './api/agent';
 
 i18n.changeLanguage('uk');
-try { localStorage.removeItem('flow-canvas-positions'); localStorage.removeItem('flow-canvas-viewport'); } catch { /* ignore */ }
+try { localStorage.removeItem('flow-canvas-positions'); localStorage.removeItem('flow-canvas-viewport'); localStorage.removeItem('flow-legend-dismissed'); } catch { /* ignore */ }
 
 const conn = (id, target, extra = {}) => ({
   id, target, status: 'connected', enabled: true, middlewares: [], ...extra,
@@ -110,6 +110,11 @@ const Preview = () => {
 
         <FlowCanvas
           tools={tools}
+          channels={[
+            { id: 'telegram', name: 'Telegram', active: true },
+            { id: 'whatsapp', name: 'WhatsApp', active: true },
+            { id: 'webchat', name: 'Web chat', active: true },
+          ]}
           onToolClick={noop}
           highlightedTool={null}
           onToolDrop={noop}

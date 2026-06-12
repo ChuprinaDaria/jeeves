@@ -178,7 +178,8 @@
     "ttsError": "No se pudo generar el habla",
     "playVoice": "Reproducir voz",
     "startRecording": "Iniciar grabación",
-    "stopRecording": "Detener grabación"
+    "stopRecording": "Detener grabación",
+    "agentBadge": "Jeeves — tu asistente privado. Los clientes nunca ven este chat."
   },
   "integrations": {
     "title": "Integrations",
@@ -237,7 +238,19 @@
     "scanQrInstructions": "Escanea el QR con la app",
     "startBridgeLogin": "Iniciar sesión",
     "extensionDescPrereq": "Requerida para Instagram / Facebook / LinkedIn — envía cookies al puente",
-    "instagramDesc3": "Instala primero la extensión de Chrome — envía tus cookies de IG al puente"
+    "instagramDesc3": "Instala primero la extensión de Chrome — envía tus cookies de IG al puente",
+    "jeevesTg": {
+      "title": "Jeeves en Telegram",
+      "linked": "vinculado",
+      "description": "Línea directa con tu asistente: vincula tu chat con el bot y gestiona el negocio desde Telegram. Los clientes siguen hablando con el consultor.",
+      "needsBot": "configura primero el bot de Telegram",
+      "generate": "Vincular mi chat",
+      "regenerate": "Nuevo código",
+      "unlink": "Desvincular",
+      "copy": "Copiar",
+      "copied": "¡Copiado!",
+      "sendHint": "envíalo a tu bot en 10 minutos"
+    }
   },
   "history": {
     "title": "Actividad",
@@ -575,7 +588,12 @@
       "heatmapToggle": "Mapa de calor de uso (7 días)",
       "liveToggle": "Actividad en vivo",
       "addCustomTool": "Añadir herramienta",
-      "addCustomToolHint": "marketplace mcp"
+      "addCustomToolHint": "marketplace mcp",
+      "channelLabel": "canal",
+      "legendTitle": "dos agentes",
+      "legendJeeves": "Jeeves — tu asistente privado. Solo tú hablas con él (sandbox, línea directa de Telegram).",
+      "legendConcierge": "Concierge — habla con tus clientes en los canales de la derecha.",
+      "legendLeads": "Leads — captura contactos de las conversaciones con clientes."
     },
     "copilot": {
       "title": "Jeeves",

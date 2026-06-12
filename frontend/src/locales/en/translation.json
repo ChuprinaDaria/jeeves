@@ -338,7 +338,8 @@
     "newLocationDescription": "For your convenience, you can now test your AI assistant directly on the Train AI page, right after configuring the AI behavior prompt.",
     "goToTraining": "Go to Train AI",
     "assistantTitle": "Jeeves",
-    "assistantSubtitle": "Chat with Jeeves, your AI assistant"
+    "assistantSubtitle": "Chat with Jeeves, your AI assistant",
+    "agentBadge": "Jeeves — your private assistant. Customers never see this chat."
   },
   "integrations": {
     "title": "Integrations",
@@ -483,7 +484,19 @@
     "scanQrInstructions": "Scan QR with the app on your phone",
     "startBridgeLogin": "Start login",
     "extensionDescPrereq": "Required for Instagram / Facebook / LinkedIn — collects cookies & syncs them to the bridge",
-    "instagramDesc3": "Install the Chrome extension first — it bridges your IG cookies"
+    "instagramDesc3": "Install the Chrome extension first — it bridges your IG cookies",
+    "jeevesTg": {
+      "title": "Jeeves in Telegram",
+      "linked": "linked",
+      "description": "A private line to your assistant: link your personal chat with the bot and manage the business from Telegram — reports, leads, knowledge base, tool wiring. Customers keep talking to the consultant.",
+      "needsBot": "configure the Telegram bot first",
+      "generate": "Link my chat",
+      "regenerate": "New code",
+      "unlink": "Unlink",
+      "copy": "Copy",
+      "copied": "Copied!",
+      "sendHint": "send this to your bot within 10 minutes"
+    }
   },
   "history": {
     "title": "Activity",
@@ -1088,7 +1101,12 @@
       "heatmapToggle": "Show usage heatmap (7 days)",
       "liveToggle": "Show live activity",
       "addCustomTool": "Add custom tool",
-      "addCustomToolHint": "mcp marketplace"
+      "addCustomToolHint": "mcp marketplace",
+      "channelLabel": "channel",
+      "legendTitle": "two agents",
+      "legendJeeves": "Jeeves — your private assistant. Only you talk to him (sandbox, Telegram direct line).",
+      "legendConcierge": "Concierge — talks to your customers in the channels on the right.",
+      "legendLeads": "Leads — captures contacts from customer conversations."
     },
     "matrix": {
       "howto_title": "How to connect",

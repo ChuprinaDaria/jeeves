@@ -555,7 +555,12 @@ const ChatWindow = ({ fullHeight = false, channel = 'sandbox' }) => {
     <div className={`card flex flex-col ${fullHeight ? 'h-full' : 'h-[600px]'}`}>
       {/* Header with Clear History Button */}
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('sandbox.chatTest')}</h3>
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('sandbox.chatTest')}</h3>
+          <div className="text-[11px] font-mono uppercase tracking-wider text-iris mt-0.5">
+            {t('sandbox.agentBadge')}
+          </div>
+        </div>
         <button
           onClick={handleClearHistory}
           className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-red-100 dark:hover:bg-red-900 hover:text-red-600 dark:hover:text-red-400 transition"
