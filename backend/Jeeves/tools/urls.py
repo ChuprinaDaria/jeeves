@@ -31,6 +31,8 @@ urlpatterns = [
     path('flow/activity/', views.FlowActivityView.as_view(), name='flow-activity'),
     path('flow/channels/', views.FlowChannelsView.as_view(), name='flow-channels'),
 
+    path('triggers/webhook/<str:token>/', views.TriggerWebhookView.as_view(), name='trigger-webhook'),
+
     path('skills/', views.SkillsView.as_view(), name='skills-list'),
     path('skills/<slug:slug>/<str:action>/', views.SkillActionView.as_view(), name='skill-action'),
 

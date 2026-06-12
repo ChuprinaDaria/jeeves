@@ -278,3 +278,71 @@ class SkillAssignment(models.Model):
 
     def __str__(self):
         return f'{self.client} — {self.skill.name} ({self.target})'
+
+
+class IntegrationTrigger(models.Model):
+    """A trigger that runs the owner's agent when an external event fires.
+
+    Two kinds:
+    - 'webhook': an external system POSTs to a secret per-trigger URL; the
+      payload is handed to the agent.
+    - 'schedule': a periodic dispatcher fires the agent on an interval.
+
+    When a trigger fires, the assistant (Jeeves) is run with a synthesized
+    message describing the event, so it can react using its tools (including
+    custom integrations). Per-client (owner_client-style isolation via the
+    tool_card / client FK).
+    """
+
+    KIND_CHOICES = [
+        ('webhook', 'Inbound webhook'),
+        ('schedule', 'Scheduled'),
+    ]
+    TARGET_CHOICES = [
+        ('assistant', 'AI Assistant (Jeeves)'),
+        ('manager', 'Consultant'),
+    ]
+
+    client = models.ForeignKey('clients.Client', on_delete=models.CASCADE,
+        related_name='integration_triggers')
+    name = models.CharField(max_length=120)
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES)
+    target = models.CharField(max_length=20, choices=TARGET_CHOICES, default='assistant')
+
+    # Optional link to a custom integration this trigger is "about" (for the
+    # canvas wiring / prompt context). Not required.
+    tool_card = models.ForeignKey(ToolCard, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='triggers')
+
+    # Instruction the agent receives when the trigger fires (what to do).
+    instruction = models.TextField(
+        help_text='What the agent should do when this fires; the event payload is appended')
+
+    # --- webhook ---
+    token = models.CharField(max_length=64, unique=True, db_index=True,
+        null=True, blank=True,
+        help_text='Unguessable URL path component for the inbound webhook')
+    secret = EncryptedJSONField(default=dict, blank=True,
+        help_text='{"header": "X-Webhook-Secret", "value": "..."} verified on each call')
+
+    # --- schedule ---
+    interval_seconds = models.IntegerField(null=True, blank=True,
+        help_text='For kind=schedule: how often to fire (seconds, min 60)')
+    next_run_at = models.DateTimeField(null=True, blank=True)
+    last_run_at = models.DateTimeField(null=True, blank=True)
+
+    enabled = models.BooleanField(default=True)
+    fire_count = models.IntegerField(default=0)
+    last_error = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['kind', 'enabled', 'next_run_at']),
+            models.Index(fields=['client', 'enabled']),
+        ]
+
+    def __str__(self):
+        return f'{self.client} — {self.name} ({self.kind})'

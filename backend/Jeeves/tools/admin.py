@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ToolCard, ToolConnection, EdgeMiddleware, Skill, SkillAssignment
+from .models import ToolCard, ToolConnection, EdgeMiddleware, Skill, SkillAssignment, IntegrationTrigger
 
 
 @admin.register(ToolCard)
@@ -97,3 +97,11 @@ class SkillAssignmentAdmin(admin.ModelAdmin):
     list_display = ['client', 'skill', 'target', 'enabled', 'created_at']
     list_filter = ['target', 'enabled', 'skill']
     search_fields = ['client__user', 'client__tag', 'skill__name']
+
+
+@admin.register(IntegrationTrigger)
+class IntegrationTriggerAdmin(admin.ModelAdmin):
+    list_display = ['name', 'client', 'kind', 'target', 'enabled', 'fire_count', 'last_run_at']
+    list_filter = ['kind', 'enabled', 'target']
+    search_fields = ['name', 'client__tag', 'client__user']
+    readonly_fields = ['token', 'fire_count', 'last_run_at', 'next_run_at', 'last_error']

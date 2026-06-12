@@ -450,6 +450,129 @@ async def canvas_create_http_integration(
     return json.dumps(result, ensure_ascii=False)
 
 
+def list_triggers_sync(client_id):
+    from Jeeves.tools.models import IntegrationTrigger
+
+    client = _get_client(client_id)
+    if client is None:
+        return {"error": f"Client {client_id} not found"}
+    return {"triggers": [
+        {
+            "id": t.pk, "name": t.name, "kind": t.kind, "target": t.target,
+            "enabled": t.enabled, "interval_seconds": t.interval_seconds,
+            "webhook_url": (f"/api/tools/triggers/webhook/{t.token}/"
+                            if t.kind == 'webhook' else None),
+            "fire_count": t.fire_count,
+        }
+        for t in IntegrationTrigger.objects.filter(client=client)
+    ]}
+
+
+def create_trigger_sync(client_id, name, kind, instruction,
+                        target='assistant', interval_seconds=None, secret_value=''):
+    import secrets
+
+    from django.utils import timezone
+
+    from Jeeves.tools.models import IntegrationTrigger
+    from Jeeves.tools.triggers import MIN_INTERVAL
+
+    client = _get_client(client_id)
+    if client is None:
+        return {"error": f"Client {client_id} not found"}
+
+    name = (name or '').strip()
+    instruction = (instruction or '').strip()
+    if not name or not instruction:
+        return {"error": "name and instruction are required"}
+    if kind not in ('webhook', 'schedule'):
+        return {"error": "kind must be 'webhook' or 'schedule'"}
+    if target not in ('assistant', 'manager'):
+        return {"error": "target must be 'assistant' or 'manager'"}
+
+    fields = dict(client=client, name=name, kind=kind, target=target,
+                  instruction=instruction)
+    if kind == 'webhook':
+        fields['token'] = secrets.token_urlsafe(24)
+        if secret_value:
+            fields['secret'] = {'header': 'X-Webhook-Secret', 'value': secret_value}
+    else:
+        interval = max(int(interval_seconds or MIN_INTERVAL), MIN_INTERVAL)
+        fields['interval_seconds'] = interval
+        fields['next_run_at'] = timezone.now() + timezone.timedelta(seconds=interval)
+
+    trigger = IntegrationTrigger.objects.create(**fields)
+    out = {"id": trigger.pk, "name": trigger.name, "kind": trigger.kind,
+           "target": trigger.target}
+    if kind == 'webhook':
+        out["webhook_url"] = f"/api/tools/triggers/webhook/{trigger.token}/"
+        out["note"] = ("Give this URL to the external system. POST events to it; "
+                       "the agent runs on each call."
+                       + (" Send the secret in the X-Webhook-Secret header."
+                          if secret_value else ""))
+    else:
+        out["interval_seconds"] = trigger.interval_seconds
+        out["note"] = f"The agent will run every {trigger.interval_seconds}s."
+    return out
+
+
+def remove_trigger_sync(client_id, trigger_id):
+    from Jeeves.tools.models import IntegrationTrigger
+
+    client = _get_client(client_id)
+    if client is None:
+        return {"error": f"Client {client_id} not found"}
+    deleted, _ = IntegrationTrigger.objects.filter(
+        client=client, pk=trigger_id).delete()
+    if not deleted:
+        return {"error": f"Trigger {trigger_id} not found"}
+    return {"removed": True, "id": trigger_id}
+
+
+@mcp.tool()
+async def canvas_create_trigger(
+    client_id: int,
+    name: str,
+    kind: str,
+    instruction: str,
+    target: str = "assistant",
+    interval_seconds: int = None,
+    secret_value: str = "",
+    session_id: str = "",
+    user_id: str = "",
+) -> str:
+    """Create an automation trigger that runs the agent on an external event.
+
+    kind:
+    - 'webhook': returns a secret URL; when an external system POSTs to it,
+      the agent runs with the request body as the event. Optionally set
+      secret_value to require an X-Webhook-Secret header.
+    - 'schedule': the agent runs every interval_seconds (min 60).
+    instruction: what the agent should DO when it fires (the event payload is
+    appended automatically). target: 'assistant' (Jeeves) or 'manager'.
+
+    Ask the owner WHEN it should fire, WHAT it should do, and WHICH agent
+    before creating."""
+    result = await sync_to_async(create_trigger_sync)(
+        client_id, name, kind, instruction, target, interval_seconds, secret_value)
+    return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
+async def canvas_list_triggers(client_id: int, session_id: str = "", user_id: str = "") -> str:
+    """List the client's automation triggers (webhook URLs + schedules)."""
+    result = await sync_to_async(list_triggers_sync)(client_id)
+    return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
+async def canvas_remove_trigger(client_id: int, trigger_id: int,
+                                session_id: str = "", user_id: str = "") -> str:
+    """Delete an automation trigger by id."""
+    result = await sync_to_async(remove_trigger_sync)(client_id, trigger_id)
+    return json.dumps(result, ensure_ascii=False)
+
+
 @mcp.tool()
 async def skill_list(client_id: int, session_id: str = "", user_id: str = "") -> str:
     """List markdown skills (prompt modules like 'Marketing Pro' or 'Lead

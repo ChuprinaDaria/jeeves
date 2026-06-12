@@ -589,3 +589,46 @@ class SkillActionView(APIView):
         if 'error' in result:
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
         return Response(result)
+
+
+class TriggerWebhookView(APIView):
+    """POST /api/tools/triggers/webhook/<token>/ — fire an inbound trigger.
+
+    The token is the unguessable per-trigger path component. If the trigger
+    declares a secret, the matching header must be present (constant-time
+    compare). The request body is handed to the agent as the event payload.
+    Returns 202 immediately; the agent runs in a Celery task.
+    """
+
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request, token):
+        import hmac
+        import json as _json
+
+        from Jeeves.tools.models import IntegrationTrigger
+        from Jeeves.tools.triggers import run_trigger
+
+        trigger = IntegrationTrigger.objects.filter(
+            token=token, kind='webhook', enabled=True).first()
+        if trigger is None:
+            return Response({'error': 'Unknown or disabled trigger'},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        secret = trigger.secret or {}
+        if secret.get('value'):
+            header = secret.get('header', 'X-Webhook-Secret')
+            provided = request.headers.get(header, '')
+            if not hmac.compare_digest(str(provided), str(secret['value'])):
+                return Response({'error': 'Invalid secret'},
+                                status=status.HTTP_401_UNAUTHORIZED)
+
+        raw = request.body[:50_000]
+        try:
+            event = _json.loads(raw) if raw else {}
+        except (ValueError, TypeError):
+            event = {'raw': raw.decode('utf-8', 'replace')}
+
+        run_trigger.delay(trigger.pk, event)
+        return Response({'accepted': True}, status=status.HTTP_202_ACCEPTED)

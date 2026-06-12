@@ -258,6 +258,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'agents.matrix_listener_bootstrap',
         'schedule': 60.0,  # No-op if already running; self-respawns after crashes
     },
+    'dispatch-due-triggers': {
+        'task': 'Jeeves.tools.triggers.dispatch_due_triggers',
+        'schedule': 60.0,  # Fire scheduled integration triggers that are due
+    },
 }
 
 # === RAG CONFIGS (SHORTENED) ===
@@ -521,6 +525,9 @@ MCP_TOOL_SCOPES = {
     'skill_attach': ['assistant'],
     'skill_detach': ['assistant'],
     'canvas_create_http_integration': ['assistant'],
+    'canvas_create_trigger': ['assistant'],
+    'canvas_list_triggers': ['assistant'],
+    'canvas_remove_trigger': ['assistant'],
     # Matrix (cross-platform DM via mautrix bridges)
     'matrix_list_rooms': ['assistant', 'manager'],
     'matrix_read_room_history': ['assistant', 'manager'],
