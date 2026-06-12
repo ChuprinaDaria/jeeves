@@ -143,16 +143,21 @@ class TestSkills:
         config.consultant_description = ''
         orch = AgentOrchestrator(client_obj, config)
 
+        async def _load(orch):
+            await orch._build_scope_filter()
+            await orch._load_deployment_context()
+            await orch._load_scope_skills()
+
         # consultant scope (telegram) sees the skill
         orch._scope = 'manager'
-        async_to_sync(orch._build_scope_filter)()
+        async_to_sync(_load)(orch)
         prompt = orch._build_system_prompt('telegram')
         assert 'Be great at test-style' in prompt
         assert '## Skill: test-style' in prompt
 
         # assistant scope does not (skill attached to manager only)
         orch._scope = 'assistant'
-        async_to_sync(orch._build_scope_filter)()
+        async_to_sync(_load)(orch)
         config.assistant_prompt = ''
         config.assistant_description = ''
         prompt = orch._build_system_prompt('sandbox')

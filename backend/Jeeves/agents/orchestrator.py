@@ -23,13 +23,11 @@ from django.conf import settings
 from mcp import ClientSession
 from mcp.client.stdio import stdio_client, StdioServerParameters
 
+from Jeeves.agents.channels import channel_scope, customer_channels, is_owner_channel
+
 logger = logging.getLogger(__name__)
 
 MAX_ITERATIONS = 10
-
-# Channels where the OWNER talks to Jeeves (assistant scope, full power).
-# Everything else is customer-facing → consultant (manager scope).
-OWNER_CHANNELS = ('sandbox', 'owner_telegram')
 
 
 def _mcp_tool_timeout() -> float:
@@ -404,10 +402,12 @@ class AgentOrchestrator:
         Returns:
             Final assistant text response.
         """
-        self._scope = 'assistant' if channel in OWNER_CHANNELS else 'manager'
+        self._scope = channel_scope(channel)
         self._session = session
 
         await self._build_scope_filter()
+        await self._load_deployment_context()
+        await self._load_scope_skills()
 
         system_prompt = self._build_system_prompt(channel)
         messages = self._build_messages(system_prompt, conversation, message)
@@ -593,8 +593,8 @@ class AgentOrchestrator:
     def _build_system_prompt(self, channel: str) -> str:
         """Build the full system prompt from AgentConfig + channel routing."""
         client_custom = (getattr(self.client, 'custom_system_prompt', '') or '').strip()
-        is_owner_channel = channel in OWNER_CHANNELS
-        if is_owner_channel:
+        owner_channel = is_owner_channel(channel)
+        if owner_channel:
             default = DEFAULT_ASSISTANT_PROMPT
             custom = self.agent_config.assistant_prompt
             description = self.agent_config.assistant_description
@@ -638,7 +638,7 @@ class AgentOrchestrator:
                 for name, targets in sorted(self._deployment['wiring'].items())
             ]
             channels_str = ', '.join(self._deployment['channels'])
-            if is_owner_channel:
+            if owner_channel:
                 parts.append(
                     "\n\n## Your deployment (live)\n"
                     "- You are Jeeves — the owner's PRIVATE assistant. The owner reaches you "
@@ -660,7 +660,7 @@ class AgentOrchestrator:
             suffix = " (lead handling)" if skill_target == 'leads' else ""
             parts.append(f"\n\n## Skill: {skill_name}{suffix}\n{skill_content.strip()}")
 
-        if is_owner_channel:
+        if owner_channel:
             # Assistant detects user language and responds in it
             parts.append(
                 "\nDetect the language of the user's message and respond in that same language. "
@@ -686,13 +686,13 @@ class AgentOrchestrator:
         else:
             parts.append("\nDo NOT use markdown formatting. Respond in plain text only.")
 
-        if not is_owner_channel and self._has_leads_tool():
+        if not owner_channel and self._has_leads_tool():
             parts.append(
                 "\n\nWhen you have contact info or understand the visitor's need, "
                 "call save_lead to record it. Update as you learn more."
             )
 
-        if is_owner_channel and self._has_coaching_tool():
+        if owner_channel and self._has_coaching_tool():
             parts.append(
                 "\n\nCOACHING: You can review Concierge's (concierge AI) recent conversations "
                 "to find knowledge gaps. When you notice Concierge struggled with a topic, "
@@ -754,24 +754,26 @@ class AgentOrchestrator:
                             self._tool_to_connection[server_name] = conn
                     break
 
-        # Live topology snapshot → "## Your deployment" prompt section,
-        # so both agents know who works where and what's wired to whom.
+    async def _load_deployment_context(self):
+        """Build the live topology snapshot for the "## Your deployment"
+        prompt section, so both agents know who works where and what's
+        wired to whom."""
+        from Jeeves.tools.models import ToolConnection
+
         wiring = {}
         async for conn in ToolConnection.objects.filter(
             client=self.client, enabled=True, status='connected',
         ).select_related('tool_card'):
             wiring.setdefault(_safe_label(conn.tool_card.name), set()).add(conn.target)
-        channels = []
-        if getattr(self.client, 'telegram_bot_token', ''):
-            channels.append('Telegram')
-        if getattr(self.client, 'whatsapp_meta_enabled', False) or getattr(self.client, 'meta_phone_number_id', ''):
-            channels.append('WhatsApp')
-        channels.append('Web chat')
+        channels = [c['name'] for c in customer_channels(self.client) if c['active']]
         self._deployment = {'wiring': wiring, 'channels': channels}
 
-        # Assigned markdown skills (prompt modules) for the current scope.
-        # Lead-handling skills ride with the consultant, who captures leads.
+    async def _load_scope_skills(self):
+        """Load assigned markdown skills (prompt modules) for the current
+        scope. Lead-handling skills ride with the consultant, who captures
+        leads."""
         from Jeeves.tools.models import SkillAssignment
+
         skill_targets = ['assistant'] if self._scope == 'assistant' else ['manager', 'leads']
         self._skills = []
         async for assignment in SkillAssignment.objects.filter(
