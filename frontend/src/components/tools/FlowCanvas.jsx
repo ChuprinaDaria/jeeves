@@ -43,27 +43,39 @@ const calcPath = (x1, y1, x2, y2, dir1 = 1, dir2 = -1) => {
 const portPitch = (count, nodeH) =>
   count > 1 ? Math.min(PORT_GAP, (nodeH - 36) / (count - 1)) : 0;
 
+/* Vertical pitch between stacked tool nodes — real node heights run up to
+   ~150px (tagline + chips + status), so anything tighter overlaps */
+const NODE_V = 160;
+
 const buildInitialPositions = (canvasW, canvasH, groups) => {
   const pos = {};
   const cx = canvasW / 2;
-  const cy = canvasH / 2;
+  const hasLeadsLane = groups.leadsOnly.length > 0;
+  // Main lane (assistant ↔ manager) sits higher when the leads funnel
+  // occupies its own lane at the bottom
+  const laneCy = hasLeadsLane ? canvasH * 0.38 : canvasH / 2;
+  const leadsCy = hasLeadsLane ? canvasH * 0.80 : canvasH / 2;
 
-  pos['__assistant'] = { x: canvasW * 0.30 - CORE_W / 2, y: cy - CORE_H / 2 };
-  pos['__manager']   = { x: canvasW * 0.55 - CORE_W / 2, y: cy - CORE_H / 2 };
-  pos['__leads']     = { x: canvasW * 0.80 - CORE_W / 2, y: cy - CORE_H / 2 };
+  pos['__assistant'] = { x: canvasW * 0.34 - CORE_W / 2, y: laneCy - CORE_H / 2 };
+  pos['__manager']   = { x: canvasW * 0.62 - CORE_W / 2, y: laneCy - CORE_H / 2 };
+  pos['__leads']     = hasLeadsLane
+    ? { x: canvasW * 0.55 - CORE_W / 2, y: leadsCy - CORE_H / 2 }
+    : { x: canvasW * 0.88 - CORE_W / 2, y: laneCy - CORE_H / 2 };
 
-  const layoutColumn = (list, baseX) => {
+  const layoutColumn = (list, baseX, centerY) => {
     const total = list.length;
-    const spacing = total > 1 ? Math.min(100, (canvasH - CANVAS_PADDING * 2) / (total - 1)) : 0;
-    const yStart = total > 1 ? cy - (spacing * (total - 1)) / 2 : cy - TOOL_H / 2;
+    const spacing = total > 1 ? Math.min(NODE_V, (canvasH - CANVAS_PADDING * 2) / (total - 1)) : 0;
+    const yStart = total > 1 ? centerY - (spacing * (total - 1)) / 2 : centerY - TOOL_H / 2;
     list.forEach((tool, i) => {
       pos[tool.slug] = { x: baseX, y: yStart + i * spacing };
     });
   };
 
-  layoutColumn(groups.left, CANVAS_PADDING);
+  layoutColumn(groups.left, CANVAS_PADDING, laneCy);
   const rightMaxW = groups.right.length ? Math.max(...groups.right.map(t => getToolWidth(t.slug))) : TOOL_W;
-  layoutColumn(groups.right, canvasW - CANVAS_PADDING - rightMaxW);
+  layoutColumn(groups.right, canvasW - CANVAS_PADDING - rightMaxW, laneCy);
+  // Pure-leads tools live in the bottom lane, left of the Leads node
+  layoutColumn(groups.leadsOnly, CANVAS_PADDING + 40, leadsCy);
 
   const bothTotal = groups.both.length;
   groups.both.forEach((tool, i) => {
@@ -106,20 +118,23 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
   }, []);
 
   const groups = useMemo(() => {
-    const left = [], right = [], both = [], leadsTools = [];
+    const left = [], right = [], both = [], leadsTools = [], leadsOnly = [];
     connectedTools.forEach(tool => {
       const targets = getEffectiveTargets(tool);
       if (targets.includes('leads')) leadsTools.push(tool);
+      const onlyLeads = targets.length > 0 && targets.every(t => t === 'leads');
+      if (onlyLeads) { leadsOnly.push(tool); return; }
       if (targets.includes('assistant') && targets.includes('manager')) both.push(tool);
       else if (targets.includes('manager')) right.push(tool);
       else left.push(tool);
     });
-    return { left, right, both, leads: leadsTools };
+    return { left, right, both, leads: leadsTools, leadsOnly };
   }, [connectedTools, getEffectiveTargets]);
 
   /* ── Canvas dimensions ─────────────────── */
   const maxGroupSize = Math.max(groups.left.length, groups.right.length, 1);
-  const canvasH = Math.max(500, maxGroupSize * 100 + 200);
+  const canvasH = Math.max(640, maxGroupSize * NODE_V + 260)
+    + (groups.leadsOnly.length > 0 ? 280 : 0);
   const canvasW = 1200;
 
   /* ── Node positions: layout < backend (ToolConnection.position_x/y) < localStorage ── */
