@@ -92,7 +92,7 @@ const MCPServerEditPage = () => {
     setDiscoverError('');
     setDiscovered(null);
     try {
-      const { data } = await mcpServersAPI.discover(url);
+      const { data } = await mcpServersAPI.discover(url, form.api_key);
       setDiscovered(data);
       if (data.server_name && !form.name) {
         set('name', data.server_name);
@@ -167,23 +167,37 @@ const MCPServerEditPage = () => {
       {/* Discovery section — only for new */}
       {!isEdit && (
         <div className="space-y-3 p-4 border border-ink/10 rounded-sm">
+          <div>
+            <h3 className="text-sm font-medium text-ink">Connect a remote MCP server</h3>
+            <p className="text-xs text-ink/60 mt-0.5">
+              Paste the server&apos;s endpoint URL (SSE or streamable HTTP). We connect live and
+              read its tools — nothing is installed. This is the most reliable way to add a server.
+            </p>
+          </div>
           <Field label="MCP Server URL">
-            <div className="flex gap-2">
-              <input
-                className={inputClass}
-                placeholder="https://mcp-server.example.com/sse"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-              />
-              <button
-                className={secondaryClass}
-                onClick={handleDiscover}
-                disabled={discovering || !url}
-              >
-                {discovering ? 'Discovering...' : 'Discover'}
-              </button>
-            </div>
+            <input
+              className={inputClass}
+              placeholder="https://mcp-server.example.com/sse"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+            />
           </Field>
+          <Field label="API key (optional — if the server requires auth)">
+            <input
+              className={inputClass}
+              type="password"
+              placeholder="Sent as a Bearer token to the server"
+              value={form.api_key}
+              onChange={(e) => set('api_key', e.target.value)}
+            />
+          </Field>
+          <button
+            className={buttonClass}
+            onClick={handleDiscover}
+            disabled={discovering || !url}
+          >
+            {discovering ? 'Connecting…' : 'Discover tools'}
+          </button>
           {discoverError && (
             <p className="text-sm text-red-600">{discoverError}</p>
           )}
@@ -193,6 +207,12 @@ const MCPServerEditPage = () => {
       {/* Parsed catalog page — server info card */}
       {discovered?.type === 'parsed' && (
         <div className="space-y-3">
+          <div className="p-3 border border-amber/40 bg-amber/[0.06] rounded-sm text-xs text-ink/70">
+            <span className="font-medium">Advanced — self-hosted install.</span>{' '}
+            This URL isn&apos;t a live MCP endpoint, so the server would have to be installed and
+            run inside the platform. That&apos;s less reliable (build, env, version drift). If the
+            project offers a hosted endpoint URL, paste that above instead.
+          </div>
           <div className="p-4 border border-ink/10 rounded-sm bg-ink/[0.02] space-y-3">
             <h3 className="text-sm font-medium text-ink">
               {discovered.server_name || 'MCP Server'}

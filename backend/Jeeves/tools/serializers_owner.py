@@ -51,6 +51,7 @@ class ToolCardOwnerSerializer(serializers.ModelSerializer):
 
 class DiscoverRequestSerializer(serializers.Serializer):
     url = serializers.URLField()
+    api_key = serializers.CharField(required=False, allow_blank=True, default='')
 
 
 class FromUrlRequestSerializer(serializers.Serializer):

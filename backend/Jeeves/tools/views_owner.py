@@ -89,9 +89,10 @@ class ToolCardOwnerViewSet(viewsets.ModelViewSet):
         ser = DiscoverRequestSerializer(data=request.data)
         ser.is_valid(raise_exception=True)
         url = ser.validated_data['url']
+        api_key = ser.validated_data.get('api_key', '')
 
         try:
-            result = discover_or_parse(url)
+            result = discover_or_parse(url, api_key=api_key or None)
         except DiscoveryError as e:
             return Response(
                 {'error': str(e)},
@@ -127,9 +128,9 @@ class ToolCardOwnerViewSet(viewsets.ModelViewSet):
         ser.is_valid(raise_exception=True)
         data = ser.validated_data
 
-        # 1. Discover — try live connection first
+        # 1. Discover — connect live, authorizing with the API key if given
         try:
-            result = discover_or_parse(data['url'])
+            result = discover_or_parse(data['url'], api_key=data.get('api_key') or None)
         except DiscoveryError as e:
             return Response(
                 {'error': str(e)},
