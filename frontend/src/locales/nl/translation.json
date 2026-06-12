@@ -571,7 +571,23 @@
       "attachFailed": "Vaardigheid toevoegen mislukt",
       "scopeAssistant": "Beschikbaar voor Jeeves (jouw AI-assistent)",
       "scopeManager": "Beschikbaar voor Concierge (klantgerichte agent)",
-      "scopeLeads": "Gebruikt voor leadregistratie"
+      "scopeLeads": "Gebruikt voor leadregistratie",
+      "heatmapToggle": "Gebruiks-heatmap (7 dagen)",
+      "liveToggle": "Live activiteit"
+    },
+    "copilot": {
+      "title": "Jeeves",
+      "subtitle": "canvas-copiloot",
+      "open": "Bouwen met Jeeves",
+      "placeholder": "Vertel Jeeves wat hij moet verbinden…",
+      "empty": "Beschrijf in gewone taal wat je nodig hebt — Jeeves bedraadt het canvas voor je en je ziet de nodes live verschijnen.",
+      "working": "bezig…",
+      "editingCanvas": "canvas bijwerken…",
+      "error": "Er ging iets mis. Probeer het opnieuw.",
+      "send": "Versturen",
+      "suggestion1": "Verbind Instagram en stuur berichten naar de consultant",
+      "suggestion2": "Stel leadregistratie in voor alle kanalen",
+      "suggestion3": "Wat is er nu verbonden?"
     }
   }
 }

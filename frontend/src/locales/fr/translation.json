@@ -553,7 +553,23 @@
       "attachFailed": "Impossible d'ajouter la compétence",
       "scopeAssistant": "Disponible pour Jeeves (votre assistant IA)",
       "scopeManager": "Disponible pour Concierge (agent client)",
-      "scopeLeads": "Utilisé pour la capture de leads"
+      "scopeLeads": "Utilisé pour la capture de leads",
+      "heatmapToggle": "Heatmap d’utilisation (7 jours)",
+      "liveToggle": "Activité en direct"
+    },
+    "copilot": {
+      "title": "Jeeves",
+      "subtitle": "copilote du canevas",
+      "open": "Construire avec Jeeves",
+      "placeholder": "Dites à Jeeves quoi connecter…",
+      "empty": "Décrivez ce que vous voulez en langage simple — Jeeves câblera le canevas pour vous et les nœuds apparaîtront en direct.",
+      "working": "en cours…",
+      "editingCanvas": "mise à jour du canevas…",
+      "error": "Une erreur est survenue. Veuillez réessayer.",
+      "send": "Envoyer",
+      "suggestion1": "Connecte Instagram et envoie les messages au consultant",
+      "suggestion2": "Configure la capture de leads sur tous les canaux",
+      "suggestion3": "Qu’est-ce qui est connecté en ce moment ?"
     }
   }
 }

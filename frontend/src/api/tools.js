@@ -27,5 +27,9 @@ export const toolsAPI = {
   attachMiddleware: (connectionId, skillSlug) => api.post(`/tools/flow/edges/${connectionId}/middleware/`, { skill_slug: skillSlug }),
   detachMiddleware: (connectionId, middlewareId) => api.delete(`/tools/flow/edges/${connectionId}/middleware/${middlewareId}/`),
 
+  // Living canvas: recent tool calls + 7-day usage aggregates
+  getFlowActivity: (since) =>
+    api.get('/tools/flow/activity/', { params: since ? { since } : {} }),
+
   getWordCloud: () => api.get('/tools/word-cloud/'),
 };

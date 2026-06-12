@@ -28,5 +28,7 @@ urlpatterns = [
     path('flow/edges/<int:connection_id>/middleware/<int:pk>/',
          views.EdgeMiddlewareDetailView.as_view(), name='edge-middleware-detail'),
 
+    path('flow/activity/', views.FlowActivityView.as_view(), name='flow-activity'),
+
     path('word-cloud/', views.WordCloudView.as_view(), name='tool-word-cloud'),
 ]

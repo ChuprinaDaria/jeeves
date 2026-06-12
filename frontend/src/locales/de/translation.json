@@ -634,7 +634,23 @@
       "attachFailed": "Skill konnte nicht hinzugefügt werden",
       "scopeAssistant": "Verfügbar für Jeeves (Ihr KI-Assistent)",
       "scopeManager": "Verfügbar für Concierge (kundenseitiger Agent)",
-      "scopeLeads": "Für Lead-Erfassung verwendet"
+      "scopeLeads": "Für Lead-Erfassung verwendet",
+      "heatmapToggle": "Nutzungs-Heatmap (7 Tage)",
+      "liveToggle": "Live-Aktivität"
+    },
+    "copilot": {
+      "title": "Jeeves",
+      "subtitle": "canvas-copilot",
+      "open": "Mit Jeeves bauen",
+      "placeholder": "Sagen Sie Jeeves, was verbunden werden soll…",
+      "empty": "Beschreiben Sie einfach, was Sie brauchen — Jeeves verdrahtet die Leinwand für Sie, und die Nodes erscheinen live.",
+      "working": "arbeite…",
+      "editingCanvas": "aktualisiere Leinwand…",
+      "error": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
+      "send": "Senden",
+      "suggestion1": "Verbinde Instagram und leite Nachrichten an den Berater",
+      "suggestion2": "Richte Lead-Erfassung für alle Kanäle ein",
+      "suggestion3": "Was ist gerade verbunden?"
     }
   }
 }

@@ -31,6 +31,8 @@ const ConnectionsLayer = ({
   ghostEdge,
   dragOverEdgeId,
   isSkillDrag,
+  liveEdges,
+  heatCounts,
 }) => {
   // Concierge palette as SVG gradients — boosted opacities + glow so the
   // edges read as light against the dark canvas stage.
@@ -86,9 +88,18 @@ const ConnectionsLayer = ({
         const isSelected = selectedEdge === conn.id;
         const isDragOver = dragOverEdgeId === conn.id;
         const isSkillTarget = isSkillDrag && conn.target !== 'escalation';
-        const opacity = isSkillDrag
+        const isLive = liveEdges?.has(conn.id);
+        const heatCount = heatCounts ? (heatCounts[conn.id] || 0) : null;
+        // Heatmap: edge weight = real 7-day usage; unused edges fade out
+        const heatWidth = heatCount !== null
+          ? 1.5 + Math.min(6, Math.log2(1 + heatCount) * 1.4)
+          : null;
+        const baseOpacity = isSkillDrag
           ? (isDragOver ? 1 : 0.25)
           : (isHighlighted ? 1 : 0.08);
+        const opacity = heatCount !== null && heatCount === 0 && conn.target !== 'escalation'
+          ? Math.min(baseOpacity, 0.2)
+          : baseOpacity;
 
         return (
           <g
@@ -130,10 +141,40 @@ const ConnectionsLayer = ({
               d={conn.pathD}
               fill="none"
               stroke={`url(#${gradId})`}
-              strokeWidth={isDragOver && isSkillDrag ? 5 : isSelected ? 3 : isDragOver ? 4 : isSkillTarget ? 2.5 : 2}
+              strokeWidth={heatWidth ?? (isDragOver && isSkillDrag ? 5 : isSelected ? 3 : isDragOver ? 4 : isSkillTarget ? 2.5 : isLive ? 3.5 : 2)}
               className="flow-line-animated edge-glow"
-              style={{ '--edge-glow': `${dotColor}55` }}
+              style={{ '--edge-glow': isLive ? dotColor : `${dotColor}55` }}
             />
+
+            {/* Live pulse — the agent used this tool just now */}
+            {isLive && (
+              <path
+                d={conn.pathD}
+                fill="none"
+                stroke={dotColor}
+                strokeWidth="4"
+                strokeLinecap="round"
+                className="edge-live"
+                style={{ filter: `drop-shadow(0 0 8px ${dotColor})` }}
+              />
+            )}
+
+            {/* Heatmap count label */}
+            {heatCount !== null && heatCount > 0 && conn.target !== 'escalation' && (
+              <text
+                fill={dotColor}
+                fontSize="10"
+                fontFamily="'Ubuntu Mono', monospace"
+                fontWeight="700"
+                textAnchor="middle"
+                dy="14"
+                style={{ pointerEvents: 'none' }}
+              >
+                <textPath href={`#edge-path-${conn.id}`} startOffset="50%">
+                  {heatCount}×
+                </textPath>
+              </text>
+            )}
 
             {/* Selection indicator — iris dashed overlay */}
             {isSelected && (
@@ -182,8 +223,8 @@ const ConnectionsLayer = ({
                   style={{
                     offsetPath: `path("${conn.pathD}")`,
                     filter: `drop-shadow(0 0 4px ${dotColor})`,
-                    '--particle-duration': `${2 + Math.random() * 0.5}s`,
-                    '--particle-delay': `${p * 0.8}s`,
+                    '--particle-duration': isLive ? '0.8s' : `${2 + Math.random() * 0.5}s`,
+                    '--particle-delay': `${p * (isLive ? 0.25 : 0.8)}s`,
                   }}
                 />
               ) : (

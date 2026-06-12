@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowClockwise } from '@phosphor-icons/react';
+import { ArrowClockwise, Sparkle } from '@phosphor-icons/react';
+import CanvasCopilot from '../components/tools/CanvasCopilot';
 import { toolsAPI } from '../api/tools';
 import ToolCatalogStrip from '../components/tools/ToolCatalogStrip';
 import FlowCanvas from '../components/tools/FlowCanvas';
@@ -18,6 +19,7 @@ const ToolsPage = () => {
   const [error, setError] = useState('');
   const [highlightedTool, setHighlightedTool] = useState(null);
   const [popover, setPopover] = useState(null); // { tool, rect }
+  const [copilotOpen, setCopilotOpen] = useState(false);
   const { toast, showToast, hideToast } = useFlowToast();
 
   const loadTools = async () => {
@@ -229,15 +231,27 @@ const ToolsPage = () => {
             {t('tools.flow.headerHint')}
           </div>
         </div>
-        <div className="flex gap-5 font-mono text-[11px] uppercase tracking-wider text-fog">
-          <span className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-sage shadow-[0_0_4px_rgba(123,200,159,0.55)]" />
-            <span className="text-sage">{connectedCount}</span> {t('tools.flow.statsConnected')}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-fog" />
-            {availableCount} {t('tools.flow.statsAvailable')}
-          </span>
+        <div className="flex items-center gap-5">
+          <div className="flex gap-5 font-mono text-[11px] uppercase tracking-wider text-fog">
+            <span className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-sage shadow-[0_0_4px_rgba(123,200,159,0.55)]" />
+              <span className="text-sage">{connectedCount}</span> {t('tools.flow.statsConnected')}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-fog" />
+              {availableCount} {t('tools.flow.statsAvailable')}
+            </span>
+          </div>
+          <button
+            onClick={() => setCopilotOpen(o => !o)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border-[1.5px] text-[12px] font-medium
+                        transition-all ${copilotOpen
+                          ? 'border-iris bg-iris text-paper'
+                          : 'border-iris text-iris bg-transparent hover:bg-iris-soft/30'}`}
+          >
+            <Sparkle size={14} weight="light" />
+            {t('tools.copilot.open')}
+          </button>
         </div>
       </div>
 
@@ -285,6 +299,13 @@ const ToolsPage = () => {
           onClose={() => setPopover(null)}
         />
       )}
+
+      {/* Jeeves canvas copilot */}
+      <CanvasCopilot
+        open={copilotOpen}
+        onClose={() => setCopilotOpen(false)}
+        onCanvasChanged={loadTools}
+      />
 
       {/* Toast */}
       <FlowToast

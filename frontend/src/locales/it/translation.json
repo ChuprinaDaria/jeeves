@@ -571,7 +571,23 @@
       "attachFailed": "Impossibile aggiungere l'abilità",
       "scopeAssistant": "Disponibile per Jeeves (il tuo assistente IA)",
       "scopeManager": "Disponibile per Concierge (agente clienti)",
-      "scopeLeads": "Usato per la raccolta lead"
+      "scopeLeads": "Usato per la raccolta lead",
+      "heatmapToggle": "Heatmap di utilizzo (7 giorni)",
+      "liveToggle": "Attività dal vivo"
+    },
+    "copilot": {
+      "title": "Jeeves",
+      "subtitle": "copilota della tela",
+      "open": "Costruisci con Jeeves",
+      "placeholder": "Dì a Jeeves cosa collegare…",
+      "empty": "Descrivi ciò che ti serve in linguaggio naturale: Jeeves cablerà la tela per te e vedrai i nodi apparire dal vivo.",
+      "working": "al lavoro…",
+      "editingCanvas": "aggiorno la tela…",
+      "error": "Qualcosa è andato storto. Riprova.",
+      "send": "Invia",
+      "suggestion1": "Collega Instagram e instrada i messaggi al consulente",
+      "suggestion2": "Configura la raccolta lead da tutti i canali",
+      "suggestion3": "Cosa è collegato in questo momento?"
     }
   }
 }

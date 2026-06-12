@@ -1084,7 +1084,9 @@
       "attachFailed": "Failed to attach skill",
       "scopeAssistant": "Available to Jeeves (your AI assistant)",
       "scopeManager": "Available to Concierge (customer-facing agent)",
-      "scopeLeads": "Used for lead capture"
+      "scopeLeads": "Used for lead capture",
+      "heatmapToggle": "Show usage heatmap (7 days)",
+      "liveToggle": "Show live activity"
     },
     "matrix": {
       "howto_title": "How to connect",
@@ -1096,6 +1098,20 @@
       "bridge_meta": "Instagram or Facebook login",
       "field_homeserver_help": "e.g. https://matrix.example.com",
       "bridges_label": "Enabled bridges"
+    },
+    "copilot": {
+      "title": "Jeeves",
+      "subtitle": "canvas copilot",
+      "open": "Build with Jeeves",
+      "placeholder": "Tell Jeeves what to connect…",
+      "empty": "Describe what you want in plain language — Jeeves will wire up the canvas for you and you will see the nodes appear live.",
+      "working": "working…",
+      "editingCanvas": "updating canvas…",
+      "error": "Something went wrong. Please try again.",
+      "send": "Send",
+      "suggestion1": "Connect Instagram and route messages to the consultant",
+      "suggestion2": "Set up lead capture from all channels",
+      "suggestion3": "What is connected right now?"
     }
   }
 }

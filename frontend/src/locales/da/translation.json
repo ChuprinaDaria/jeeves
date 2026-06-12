@@ -571,7 +571,23 @@
       "attachFailed": "Kunne ikke tilføje færdighed",
       "scopeAssistant": "Tilgængelig for Jeeves (din AI-assistent)",
       "scopeManager": "Tilgængelig for Concierge (kundevendt agent)",
-      "scopeLeads": "Bruges til lead-indsamling"
+      "scopeLeads": "Bruges til lead-indsamling",
+      "heatmapToggle": "Brugs-heatmap (7 dage)",
+      "liveToggle": "Live aktivitet"
+    },
+    "copilot": {
+      "title": "Jeeves",
+      "subtitle": "canvas-copilot",
+      "open": "Byg med Jeeves",
+      "placeholder": "Fortæl Jeeves, hvad der skal forbindes…",
+      "empty": "Beskriv hvad du har brug for i almindeligt sprog — Jeeves bygger lærredet for dig, og du ser noderne dukke op live.",
+      "working": "arbejder…",
+      "editingCanvas": "opdaterer lærredet…",
+      "error": "Noget gik galt. Prøv igen.",
+      "send": "Send",
+      "suggestion1": "Forbind Instagram og send beskeder til konsulenten",
+      "suggestion2": "Opsæt lead-indsamling fra alle kanaler",
+      "suggestion3": "Hvad er forbundet lige nu?"
     }
   }
 }

@@ -571,7 +571,23 @@
       "attachFailed": "No se pudo añadir la habilidad",
       "scopeAssistant": "Disponible para Jeeves (tu asistente de IA)",
       "scopeManager": "Disponible para Concierge (agente de clientes)",
-      "scopeLeads": "Usado para captura de leads"
+      "scopeLeads": "Usado para captura de leads",
+      "heatmapToggle": "Mapa de calor de uso (7 días)",
+      "liveToggle": "Actividad en vivo"
+    },
+    "copilot": {
+      "title": "Jeeves",
+      "subtitle": "copiloto del lienzo",
+      "open": "Construir con Jeeves",
+      "placeholder": "Dile a Jeeves qué conectar…",
+      "empty": "Describe lo que necesitas en lenguaje natural: Jeeves montará el lienzo por ti y verás aparecer los nodos en vivo.",
+      "working": "trabajando…",
+      "editingCanvas": "actualizando lienzo…",
+      "error": "Algo salió mal. Inténtalo de nuevo.",
+      "send": "Enviar",
+      "suggestion1": "Conecta Instagram y envía los mensajes al consultor",
+      "suggestion2": "Configura la captura de leads en todos los canales",
+      "suggestion3": "¿Qué está conectado ahora mismo?"
     }
   }
 }

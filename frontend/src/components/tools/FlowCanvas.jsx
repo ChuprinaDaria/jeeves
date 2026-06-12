@@ -6,7 +6,10 @@ import {
   ArrowsOut as Maximize2,
   ArrowCounterClockwise as RotateCcw,
   Trash as Trash2,
+  Pulse,
+  Fire,
 } from '@phosphor-icons/react';
+import { toolsAPI } from '../../api/tools';
 import CoreNode from './CoreNode';
 import CanvasToolNode from './CanvasToolNode';
 import ConnectionsLayer from './ConnectionsLayer';
@@ -721,6 +724,46 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     return () => clearInterval(interval);
   }, [onRefresh]);
 
+  /* ── Living canvas: live pulses + usage heatmap ── */
+  const [viewMode, setViewMode] = useState('live'); // 'live' | 'heatmap'
+  const [liveEdges, setLiveEdges] = useState({});   // edgeId -> expiry ts
+  const [heatCounts, setHeatCounts] = useState({}); // edgeId -> 7d call count
+  const lastPollRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await toolsAPI.getFlowActivity(lastPollRef.current);
+        if (cancelled) return;
+        lastPollRef.current = res.data.now;
+        const heat = {};
+        (res.data.aggregates || []).forEach(a => { heat[`${a.slug}-${a.target}`] = a.count; });
+        setHeatCounts(heat);
+        if (res.data.events?.length) {
+          const expiry = Date.now() + 4000;
+          setLiveEdges(prev => {
+            const next = { ...prev };
+            res.data.events.forEach(ev => { next[`${ev.slug}-${ev.target}`] = expiry; });
+            return next;
+          });
+        }
+      } catch { /* canvas stays static if activity polling fails */ }
+    };
+    poll();
+    const interval = setInterval(poll, 5000);
+    const cleanup = setInterval(() => {
+      const nowTs = Date.now();
+      setLiveEdges(prev => {
+        const entries = Object.entries(prev).filter(([, exp]) => exp > nowTs);
+        return entries.length === Object.keys(prev).length ? prev : Object.fromEntries(entries);
+      });
+    }, 1000);
+    return () => { cancelled = true; clearInterval(interval); clearInterval(cleanup); };
+  }, []);
+
+  const liveEdgeSet = useMemo(() => new Set(Object.keys(liveEdges)), [liveEdges]);
+
   /* ── Drop zone for tool cards from strip ── */
   const [dragOver, setDragOver] = useState(false);
   const [dragOverEdgeId, setDragOverEdgeId] = useState(null);
@@ -934,6 +977,8 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
           ghostEdge={ghostEdge}
           dragOverEdgeId={dragOverEdgeId}
           isSkillDrag={isSkillDrag}
+          liveEdges={liveEdgeSet}
+          heatCounts={viewMode === 'heatmap' ? heatCounts : null}
         />
 
         {/* Core nodes */}
@@ -1108,6 +1153,16 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
           aria-label="Zoom in"
         >
           <ZoomIn size={16} weight="light" />
+        </button>
+        <div className="w-px h-4 bg-rule mx-0.5" />
+        <button
+          onClick={() => setViewMode(m => m === 'live' ? 'heatmap' : 'live')}
+          className={`p-1.5 rounded-sm transition-colors bg-transparent
+            ${viewMode === 'heatmap' ? 'text-amber bg-mist' : 'text-slate hover:bg-mist hover:text-ink'}`}
+          aria-label={t('tools.flow.heatmapToggle')}
+          title={viewMode === 'heatmap' ? t('tools.flow.liveToggle') : t('tools.flow.heatmapToggle')}
+        >
+          {viewMode === 'heatmap' ? <Pulse size={16} weight="light" /> : <Fire size={16} weight="light" />}
         </button>
         <div className="w-px h-4 bg-rule mx-0.5" />
         <button
