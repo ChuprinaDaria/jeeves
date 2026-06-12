@@ -22,7 +22,6 @@ import ContextPanel from './ContextPanel';
 /* ── Constants ─────────────────────────────────────── */
 const CORE_W = 200, CORE_H = 145;
 const TOOL_W = 160, TOOL_H = 104;
-const PORT_RADIUS = 6;
 const ZOOM_MIN = 0.3, ZOOM_MAX = 2, ZOOM_STEP = 0.1;
 const CANVAS_PADDING = 60;
 const PORT_GAP = 20;
@@ -33,10 +32,16 @@ const LS_VIEWPORT_KEY = 'flow-canvas-viewport';
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const getToolWidth = (slug) => hasRichCard(slug) ? 220 : TOOL_W;
 
-const calcPath = (x1, y1, x2, y2) => {
-  const dx = Math.abs(x2 - x1) * 0.55;
-  return `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
+/* dir = +1 when the edge leaves/enters through a node's RIGHT side, -1 for LEFT */
+const calcPath = (x1, y1, x2, y2, dir1 = 1, dir2 = -1) => {
+  const dx = Math.max(40, Math.abs(x2 - x1) * 0.55);
+  return `M${x1},${y1} C${x1 + dir1 * dx},${y1} ${x2 + dir2 * dx},${y2} ${x2},${y2}`;
 };
+
+/* Vertical distance between core-node ports, clamped so the column never
+   overflows the node */
+const portPitch = (count, nodeH) =>
+  count > 1 ? Math.min(PORT_GAP, (nodeH - 36) / (count - 1)) : 0;
 
 const buildInitialPositions = (canvasW, canvasH, groups) => {
   const pos = {};
@@ -185,119 +190,171 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     };
   }, [viewport]);
 
-  /* ── Per-port Y offset for core nodes ─── */
-  const getPortY = (nodePos, portIndex, portCount) => {
-    const totalH = (portCount - 1) * PORT_GAP;
-    const startY = nodePos.y + CORE_H / 2 - totalH / 2;
-    return startY + portIndex * PORT_GAP + PORT_RADIUS;
-  };
+  /* ── Measured node sizes (real DOM height/width) ───────────────
+     Edge endpoints must use the rendered size, not the design constants:
+     rich cards and long taglines make nodes taller than TOOL_H/CORE_H,
+     which used to detach the port circles from the edges. */
+  const [nodeSizes, setNodeSizes] = useState({});
 
-  /* ── Get port position in canvas coords ── */
+  useEffect(() => {
+    const el = innerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(entries => {
+      setNodeSizes(prev => {
+        let changed = false;
+        const next = { ...prev };
+        for (const entry of entries) {
+          const id = entry.target.dataset.nodeId;
+          if (!id) continue;
+          const w = entry.target.offsetWidth;
+          const h = entry.target.offsetHeight;
+          if (!prev[id] || prev[id].w !== w || prev[id].h !== h) {
+            next[id] = { w, h };
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    });
+    el.querySelectorAll('.flow-draggable[data-node-id]').forEach(box => observer.observe(box));
+    return () => observer.disconnect();
+  }, [connectedTools]);
+
+  const getNodeSize = useCallback((id) => (
+    nodeSizes[id] || (id.startsWith('__')
+      ? { w: CORE_W, h: CORE_H }
+      : { w: getToolWidth(id), h: TOOL_H })
+  ), [nodeSizes]);
+
+  /* ── Port layout: each edge attaches to the side FACING the other node.
+     Tools left of a core land on its left port column, tools to the right
+     on its right column; within a column ports are sorted by the tool's Y
+     so edges don't cross. ── */
+  const portLayout = useMemo(() => {
+    const layout = {};
+    ['assistant', 'manager', 'leads'].forEach(variant => {
+      const coreId = `__${variant}`;
+      const corePos = positions[coreId];
+      layout[coreId] = { left: [], right: [] };
+      if (!corePos) return;
+      const coreCx = corePos.x + getNodeSize(coreId).w / 2;
+      connectedTools
+        .filter(t => getEffectiveTargets(t).includes(variant))
+        .forEach(tool => {
+          const tPos = positions[tool.slug];
+          if (!tPos) return;
+          const toolCx = tPos.x + getNodeSize(tool.slug).w / 2;
+          layout[coreId][toolCx <= coreCx ? 'left' : 'right'].push(tool.slug);
+        });
+      ['left', 'right'].forEach(side =>
+        layout[coreId][side].sort((a, b) => (positions[a]?.y ?? 0) - (positions[b]?.y ?? 0)));
+    });
+    return layout;
+  }, [positions, connectedTools, getEffectiveTargets, getNodeSize]);
+
+  /* Core port position (canvas coords) for a given side + column index */
+  const getCorePortPos = useCallback((coreId, side, index) => {
+    const pos = positions[coreId];
+    if (!pos) return null;
+    const size = getNodeSize(coreId);
+    const count = Math.max(portLayout[coreId]?.[side]?.length || 0, 1);
+    const pitch = portPitch(count, size.h);
+    const cy = pos.y + size.h / 2;
+    return {
+      x: side === 'left' ? pos.x : pos.x + size.w,
+      y: cy + (index - (count - 1) / 2) * pitch,
+    };
+  }, [positions, portLayout, getNodeSize]);
+
+  /* Sides on which each tool node currently has edges */
+  const toolPortSides = useMemo(() => {
+    const map = {};
+    Object.values(portLayout).forEach(sides => {
+      sides.left.forEach(slug => { (map[slug] = map[slug] || new Set()).add('right'); });
+      sides.right.forEach(slug => { (map[slug] = map[slug] || new Set()).add('left'); });
+    });
+    return map;
+  }, [portLayout]);
+
+  /* ── Get port position in canvas coords (used for the ghost edge) ── */
   const getPortPosition = useCallback((nodeId, portIndex) => {
     const pos = positions[nodeId];
     if (!pos) return null;
 
     if (nodeId.startsWith('__')) {
-      // Core node — left side ports
-      const variant = nodeId.slice(2);
-      const toolsForNode = connectedTools.filter(t => getEffectiveTargets(t).includes(variant));
-      const portCount = Math.max(toolsForNode.length, 1);
-      return {
-        x: pos.x,
-        y: getPortY(pos, portIndex, portCount),
-      };
-    } else {
-      // Tool node — right side port
-      return {
-        x: pos.x + getToolWidth(nodeId),
-        y: pos.y + TOOL_H / 2,
-      };
+      const [side, idx] = String(portIndex).split(':');
+      return getCorePortPos(nodeId, side === 'right' ? 'right' : 'left', Number(idx) || 0);
     }
-  }, [positions, connectedTools]);
+    const size = getNodeSize(nodeId);
+    const side = portIndex === 'left' ? 'left' : 'right';
+    return {
+      x: side === 'left' ? pos.x : pos.x + size.w,
+      y: pos.y + size.h / 2,
+    };
+  }, [positions, getCorePortPos, getNodeSize]);
 
   /* ── Compute connections from positions ── */
   const connections = useMemo(() => {
     const aPos = positions['__assistant'];
     const mPos = positions['__manager'];
-    const lPos = positions['__leads'];
     if (!aPos || !mPos) return [];
 
     const conns = [];
 
-    // Escalation: Assistant → Manager
-    const aRightX = aPos.x + CORE_W, aRightY = aPos.y + CORE_H / 2;
-    const mLeftX  = mPos.x,          mLeftY  = mPos.y + CORE_H / 2;
+    // Escalation: Assistant → Manager, sides face each other
+    const aSize = getNodeSize('__assistant');
+    const mSize = getNodeSize('__manager');
+    const aFirst = aPos.x + aSize.w / 2 <= mPos.x + mSize.w / 2;
+    const escSrc = {
+      x: aFirst ? aPos.x + aSize.w : aPos.x,
+      y: aPos.y + aSize.h / 2,
+    };
+    const escTgt = {
+      x: aFirst ? mPos.x : mPos.x + mSize.w,
+      y: mPos.y + mSize.h / 2,
+    };
     conns.push({
       id: 'escalation',
-      pathD: calcPath(aRightX, aRightY, mLeftX, mLeftY),
+      pathD: calcPath(escSrc.x, escSrc.y, escTgt.x, escTgt.y, aFirst ? 1 : -1, aFirst ? -1 : 1),
       target: 'escalation',
       toolSlug: '__escalation',
       source: '__assistant',
       targetNode: '__manager',
     });
 
-    const assistantTools = connectedTools.filter(t => getEffectiveTargets(t).includes('assistant'));
-    const managerTools = connectedTools.filter(t => getEffectiveTargets(t).includes('manager'));
-    const leadsTools = connectedTools.filter(t => getEffectiveTargets(t).includes('leads'));
-
-    assistantTools.forEach((tool, portIdx) => {
-      const tPos = positions[tool.slug];
-      if (!tPos) return;
-      const srcX = tPos.x + getToolWidth(tool.slug), srcY = tPos.y + TOOL_H / 2;
-      const tgtX = aPos.x;
-      const tgtY = getPortY(aPos, portIdx, assistantTools.length);
-      conns.push({
-        id: `${tool.slug}-assistant`,
-        pathD: calcPath(srcX, srcY, tgtX, tgtY),
-        target: 'assistant',
-        toolSlug: tool.slug,
-        source: tool.slug,
-        targetNode: '__assistant',
-        sourcePort: 0,
-        targetPort: portIdx,
-      });
-    });
-
-    managerTools.forEach((tool, portIdx) => {
-      const tPos = positions[tool.slug];
-      if (!tPos) return;
-      const srcX = tPos.x + getToolWidth(tool.slug), srcY = tPos.y + TOOL_H / 2;
-      const tgtX = mPos.x;
-      const tgtY = getPortY(mPos, portIdx, managerTools.length);
-      conns.push({
-        id: `${tool.slug}-manager`,
-        pathD: calcPath(srcX, srcY, tgtX, tgtY),
-        target: 'manager',
-        toolSlug: tool.slug,
-        source: tool.slug,
-        targetNode: '__manager',
-        sourcePort: 0,
-        targetPort: portIdx,
-      });
-    });
-
-    if (lPos) {
-      leadsTools.forEach((tool, portIdx) => {
-        const tPos = positions[tool.slug];
-        if (!tPos) return;
-        const srcX = tPos.x + getToolWidth(tool.slug), srcY = tPos.y + TOOL_H / 2;
-        const tgtX = lPos.x;
-        const tgtY = getPortY(lPos, portIdx, leadsTools.length);
-        conns.push({
-          id: `${tool.slug}-leads`,
-          pathD: calcPath(srcX, srcY, tgtX, tgtY),
-          target: 'leads',
-          toolSlug: tool.slug,
-          source: tool.slug,
-          targetNode: '__leads',
-          sourcePort: 0,
-          targetPort: portIdx,
+    ['assistant', 'manager', 'leads'].forEach(variant => {
+      const coreId = `__${variant}`;
+      if (!positions[coreId]) return;
+      ['left', 'right'].forEach(side => {
+        (portLayout[coreId]?.[side] || []).forEach((slug, portIdx) => {
+          const tPos = positions[slug];
+          const corePt = getCorePortPos(coreId, side, portIdx);
+          if (!tPos || !corePt) return;
+          const tSize = getNodeSize(slug);
+          // The tool attaches on the side facing the core node
+          const toolSide = side === 'left' ? 'right' : 'left';
+          const srcX = toolSide === 'right' ? tPos.x + tSize.w : tPos.x;
+          const srcY = tPos.y + tSize.h / 2;
+          conns.push({
+            id: `${slug}-${variant}`,
+            pathD: calcPath(
+              srcX, srcY, corePt.x, corePt.y,
+              toolSide === 'right' ? 1 : -1,
+              side === 'left' ? -1 : 1,
+            ),
+            target: variant,
+            toolSlug: slug,
+            source: slug,
+            targetNode: coreId,
+            sourcePort: toolSide,
+            targetPort: `${side}:${portIdx}`,
+          });
         });
       });
-    }
+    });
 
     return conns;
-  }, [positions, connectedTools]);
+  }, [positions, portLayout, getCorePortPos, getNodeSize]);
 
   /* -- Middleware on edges -- */
   const middlewareByEdge = useMemo(() => {
@@ -329,26 +386,25 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
   const validDropPorts = useMemo(() => {
     if (!edgeDrag) return null;
     const ports = [];
-    // Tool ports (right side) can connect to core node ports (left side) and vice versa
     const sourceIsCore = edgeDrag.sourceNode.startsWith('__');
     if (sourceIsCore) {
-      // Dragging from core → valid targets are tool ports
+      // Dragging from core → valid targets are tool ports (either side)
       connectedTools.forEach(tool => {
-        ports.push(`${tool.slug}:0`);
+        ports.push(`${tool.slug}:left`, `${tool.slug}:right`);
       });
     } else {
-      // Dragging from tool → valid targets are core ports
+      // Dragging from tool → valid targets are core ports on both sides
       ['__assistant', '__manager', '__leads'].forEach(coreId => {
-        const variant = coreId.slice(2);
-        const toolsForNode = connectedTools.filter(t => getEffectiveTargets(t).includes(variant));
-        const portCount = Math.max(toolsForNode.length, 1);
-        for (let i = 0; i < portCount; i++) {
-          ports.push(`${coreId}:${i}`);
-        }
+        ['left', 'right'].forEach(side => {
+          const count = Math.max(portLayout[coreId]?.[side]?.length || 0, 1);
+          for (let i = 0; i < count; i++) {
+            ports.push(`${coreId}:${side}:${i}`);
+          }
+        });
       });
     }
     return ports;
-  }, [edgeDrag, connectedTools]);
+  }, [edgeDrag, connectedTools, portLayout]);
 
   /* ── Port event handlers ────────────────── */
   const handlePortPointerDown = useCallback((nodeId, portIndex, e) => {
@@ -673,8 +729,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     allIds.forEach(id => {
       const p = positions[id];
-      const w = id.startsWith('__') ? CORE_W : getToolWidth(id);
-      const h = id.startsWith('__') ? CORE_H : TOOL_H;
+      const { w, h } = getNodeSize(id);
       minX = Math.min(minX, p.x);
       minY = Math.min(minY, p.y);
       maxX = Math.max(maxX, p.x + w);
@@ -693,7 +748,7 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
       y: rect.height / 2 - cy * zoom,
       zoom,
     });
-  }, [positions]);
+  }, [positions, getNodeSize]);
 
   const resetView = () => setViewport({ x: 0, y: 0, zoom: 1 });
 
@@ -986,20 +1041,24 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
           const nodeId = `__${variant}`;
           const pos = positions[nodeId];
           if (!pos) return null;
-          const count = variant === 'assistant' ? groups.left.length + groups.both.length
-            : variant === 'manager' ? groups.right.length + groups.both.length
-            : groups.leads.length;
+          const size = getNodeSize(nodeId);
+          const makeSide = (side) => {
+            const len = portLayout[nodeId]?.[side]?.length || 0;
+            const count = Math.max(len, 1);
+            return { count, connected: len, pitch: portPitch(count, size.h) };
+          };
 
           return (
             <div
               key={nodeId}
+              data-node-id={nodeId}
               className={`flow-draggable absolute ${isDragging && dragRef.current?.nodeId === nodeId ? 'dragging' : ''}`}
               style={{ left: pos.x, top: pos.y }}
               onPointerDown={(e) => handleNodePointerDown(nodeId, e)}
             >
               <CoreNode
                 variant={variant}
-                connectedCount={count}
+                ports={{ left: makeSide('left'), right: makeSide('right') }}
                 onPortPointerDown={handlePortPointerDown}
                 onPortPointerUp={handlePortPointerUp}
                 edgeDragging={!!edgeDrag}
@@ -1024,9 +1083,11 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
           const pos = positions[tool.slug];
           if (!pos) return null;
           const isBeingDragged = isDragging && dragRef.current?.nodeId === tool.slug;
+          const sides = toolPortSides[tool.slug];
           return (
             <div
               key={tool.slug}
+              data-node-id={tool.slug}
               className={`flow-draggable absolute ${isBeingDragged ? 'dragging' : ''}`}
               style={{ left: pos.x, top: pos.y }}
               onPointerDown={(e) => handleNodePointerDown(tool.slug, e)}
@@ -1039,6 +1100,10 @@ const FlowCanvas = ({ tools, onToolClick, highlightedTool, onToolDrop, onDisconn
                 onPortPointerUp={handlePortPointerUp}
                 edgeDragging={!!edgeDrag}
                 validDropPorts={validDropPorts}
+                activeSides={{
+                  left: !!sides?.has('left'),
+                  right: !!sides?.has('right') || !sides,
+                }}
               />
             </div>
           );

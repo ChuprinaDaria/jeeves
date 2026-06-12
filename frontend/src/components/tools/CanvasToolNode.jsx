@@ -30,13 +30,44 @@ const CanvasToolNode = ({
   onPortPointerUp,
   edgeDragging,
   validDropPorts,
+  activeSides,
 }) => {
   const { t } = useTranslation();
   const cat = CAT_ACCENTS[tool.category] || CAT_ACCENTS.custom;
   const isConnected = tool.connection?.status === 'connected' && tool.connection?.enabled;
   const targets = tool.connection?.target ? [tool.connection.target] : getToolTargets(tool.slug);
-  const portId = `${tool.slug}:0`;
-  const isValidDrop = validDropPorts?.includes(portId);
+
+  /* The dot sits on the side(s) where this node's edges actually attach;
+     while dragging an edge, both sides appear as drop targets. */
+  const renderPort = (side) => {
+    const hasEdge = !!activeSides?.[side];
+    if (!hasEdge && !edgeDragging) return null;
+    const isValidDrop = validDropPorts?.includes(`${tool.slug}:${side}`);
+    return (
+      <div
+        data-node-id={tool.slug}
+        data-port-index={side}
+        className={`flow-port absolute top-1/2 -translate-y-1/2
+                    ${side === 'left' ? 'left-0 -translate-x-[6px]' : 'right-0 translate-x-[6px]'}
+                    w-3 h-3 rounded-full border-[2px] transition-all cursor-crosshair
+                    after:content-[''] after:absolute after:-inset-2.5 after:rounded-full
+                    ${isConnected && hasEdge
+                      ? 'border-sage bg-sage shadow-[0_0_8px_rgba(123,200,159,0.8)]'
+                      : 'border-fog bg-paper'
+                    }
+                    ${edgeDragging && isValidDrop ? 'scale-150 ring-2 ring-iris' : ''}
+                    ${edgeDragging && !isValidDrop ? 'opacity-40' : ''}`}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          onPortPointerDown?.(tool.slug, side, e);
+        }}
+        onPointerUp={(e) => {
+          e.stopPropagation();
+          onPortPointerUp?.(tool.slug, side, e);
+        }}
+      />
+    );
+  };
 
   return (
     <div
@@ -58,28 +89,9 @@ const CanvasToolNode = ({
         }
       }}
     >
-      {/* Right-side output port */}
-      <div
-        data-node-id={tool.slug}
-        data-port-index={0}
-        className={`flow-port absolute right-0 top-1/2 -translate-y-1/2 translate-x-[6px]
-                    w-3 h-3 rounded-full border-[2px] transition-all cursor-crosshair
-                    after:content-[''] after:absolute after:-inset-2.5 after:rounded-full
-                    ${isConnected
-                      ? 'border-sage bg-sage shadow-[0_0_8px_rgba(123,200,159,0.8)]'
-                      : 'border-fog bg-paper'
-                    }
-                    ${edgeDragging && isValidDrop ? 'scale-150 ring-2 ring-iris' : ''}
-                    ${edgeDragging && !isValidDrop ? 'opacity-40' : ''}`}
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          onPortPointerDown?.(tool.slug, 0, e);
-        }}
-        onPointerUp={(e) => {
-          e.stopPropagation();
-          onPortPointerUp?.(tool.slug, 0, e);
-        }}
-      />
+      {/* Ports — rendered on the side(s) facing the connected core nodes */}
+      {renderPort('left')}
+      {renderPort('right')}
 
       {/* Header: icon tile + name */}
       <div className="flex items-center gap-2 mb-1.5">

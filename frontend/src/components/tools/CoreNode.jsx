@@ -34,16 +34,51 @@ const VARIANTS = {
   },
 };
 
-const PORT_GAP = 20;
-
 const CoreNode = forwardRef(
-  ({ variant, connectedCount = 0, onPortPointerDown, onPortPointerUp, validDropPorts, edgeDragging }, ref) => {
+  ({ variant, ports, onPortPointerDown, onPortPointerUp, validDropPorts, edgeDragging }, ref) => {
     const { t } = useTranslation();
     const v = VARIANTS[variant];
     const { Icon } = v;
-    const portCount = Math.max(connectedCount, 1);
-    const totalPortsH = (portCount - 1) * PORT_GAP;
     const nodeId = `__${variant}`;
+
+    /* One port column per side; edges attach to the side facing the tool.
+       Port centers sit at 50% of the REAL node height ± i·pitch, matching
+       the SVG edge endpoints computed in FlowCanvas. */
+    const renderPorts = (side) => {
+      const cfg = ports?.[side] || { count: 1, connected: 0, pitch: 0 };
+      const count = Math.max(cfg.count, 1);
+      return Array.from({ length: count }).map((_, i) => {
+        const portIndex = `${side}:${i}`;
+        const isValid = validDropPorts?.includes(`${nodeId}:${portIndex}`);
+        const isActive = i < cfg.connected;
+        const offset = (i - (count - 1) / 2) * cfg.pitch;
+        return (
+          <div
+            key={portIndex}
+            data-port-index={portIndex}
+            data-node-id={nodeId}
+            className={`flow-port absolute w-3 h-3 rounded-full border-[2px] transition-all cursor-crosshair
+              after:content-[''] after:absolute after:-inset-2.5 after:rounded-full
+              ${side === 'left' ? 'left-0 -translate-x-[6px]' : 'right-0 translate-x-[6px]'}
+              ${isActive
+                ? 'border-sage bg-sage shadow-[0_0_8px_rgba(123,200,159,0.8)]'
+                : 'border-fog bg-paper'
+              }
+              ${edgeDragging && isValid ? 'scale-150 ring-2 ring-iris' : ''}
+              ${edgeDragging && !isValid ? 'opacity-40' : ''}`}
+            style={{ top: `calc(50% + ${offset}px - 6px)` }}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              onPortPointerDown?.(nodeId, portIndex, e);
+            }}
+            onPointerUp={(e) => {
+              e.stopPropagation();
+              onPortPointerUp?.(nodeId, portIndex, e);
+            }}
+          />
+        );
+      });
+    };
 
     return (
       <div
@@ -53,40 +88,8 @@ const CoreNode = forwardRef(
                     border-[2px] ${v.border} ${v.glow}`}
         title={t(v.tooltip)}
       >
-        {/* Left-side ports */}
-        <div
-          className="absolute left-0 top-1/2 flex flex-col items-center -translate-x-[6px]"
-          style={{ marginTop: -totalPortsH / 2, gap: `${PORT_GAP - 12}px` }}
-        >
-          {Array.from({ length: portCount }).map((_, i) => {
-            const portKey = `${nodeId}:${i}`;
-            const isValid = validDropPorts?.includes(portKey);
-            const isActive = i < connectedCount;
-            return (
-              <div
-                key={i}
-                data-port-index={i}
-                data-node-id={nodeId}
-                className={`flow-port relative w-3 h-3 rounded-full border-[2px] shrink-0 transition-all cursor-crosshair
-                  after:content-[''] after:absolute after:-inset-2.5 after:rounded-full
-                  ${isActive
-                    ? 'border-sage bg-sage shadow-[0_0_8px_rgba(123,200,159,0.8)]'
-                    : 'border-fog bg-paper'
-                  }
-                  ${edgeDragging && isValid ? 'scale-150 ring-2 ring-iris' : ''}
-                  ${edgeDragging && !isValid ? 'opacity-40' : ''}`}
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  onPortPointerDown?.(nodeId, i, e);
-                }}
-                onPointerUp={(e) => {
-                  e.stopPropagation();
-                  onPortPointerUp?.(nodeId, i, e);
-                }}
-              />
-            );
-          })}
-        </div>
+        {renderPorts('left')}
+        {renderPorts('right')}
 
         {/* Icon tile */}
         <div className={`w-12 h-12 rounded-[14px] mx-auto mb-3 flex items-center justify-center
