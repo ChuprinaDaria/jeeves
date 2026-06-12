@@ -162,3 +162,66 @@ class TestSkills:
         config.assistant_description = ''
         prompt = orch._build_system_prompt('sandbox')
         assert 'Be great at test-style' not in prompt
+
+
+@pytest.mark.django_db
+class TestCustomIntegration:
+    """Jeeves creates a per-client custom REST integration."""
+
+    @pytest.fixture
+    def client_obj(self):
+        from Jeeves.clients.models import Client
+        return Client.objects.create(
+            user='test', description='t', api_key='rag_test_key_ci', tag='ci-client')
+
+    def _endpoints(self):
+        return [{
+            'name': 'create_contact', 'description': 'Add a contact', 'method': 'POST',
+            'path': '/v1/contacts',
+            'params': [{'name': 'email', 'type': 'string', 'location': 'body', 'required': True}],
+        }]
+
+    def test_create_no_auth_connects(self, client_obj):
+        from mcp_servers.canvas.server import create_http_integration_sync
+        from Jeeves.tools.models import ToolCard, ToolConnection
+
+        res = create_http_integration_sync(
+            client_obj.pk, 'Acme CRM', 'https://api.acme.com', self._endpoints(),
+            targets=['assistant'])
+        assert res['status'] == 'connected'
+        card = ToolCard.objects.get(slug=res['integration'])
+        assert card.transport_type == 'http_rest'
+        assert card.owner_client_id == client_obj.pk  # private to this client
+        assert card.tools_schema[0]['request']['body'] == ['email']
+        conn = ToolConnection.objects.get(client=client_obj, tool_card=card, target='assistant')
+        assert conn.enabled and conn.status == 'connected'
+
+    def test_create_with_api_key_stores_encrypted(self, client_obj):
+        from mcp_servers.canvas.server import create_http_integration_sync
+        from Jeeves.tools.models import ToolConnection
+
+        res = create_http_integration_sync(
+            client_obj.pk, 'Acme', 'https://api.acme.com', self._endpoints(),
+            auth={'type': 'bearer', 'credential_key': 'token'},
+            api_key='secret-xyz', targets=['assistant'])
+        conn = ToolConnection.objects.get(tool_card__slug=res['integration'])
+        assert conn.credentials['token'] == 'secret-xyz'
+        assert conn.status == 'connected'
+
+    def test_rejects_non_https_base_url(self, client_obj):
+        from mcp_servers.canvas.server import create_http_integration_sync
+        res = create_http_integration_sync(
+            client_obj.pk, 'X', 'http://api.acme.com', self._endpoints())
+        assert 'error' in res
+
+    def test_rejects_private_base_url(self, client_obj):
+        from mcp_servers.canvas.server import create_http_integration_sync
+        res = create_http_integration_sync(
+            client_obj.pk, 'X', 'https://10.0.0.1', self._endpoints())
+        assert 'error' in res
+
+    def test_requires_endpoints(self, client_obj):
+        from mcp_servers.canvas.server import create_http_integration_sync
+        res = create_http_integration_sync(
+            client_obj.pk, 'X', 'https://api.acme.com', [])
+        assert 'error' in res
