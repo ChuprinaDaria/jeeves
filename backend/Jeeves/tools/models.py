@@ -214,3 +214,58 @@ def auto_connect_system_tools(sender, instance, created, **kwargs):
                 target=scope,
                 defaults={'status': 'connected', 'enabled': True, 'connected_at': now},
             )
+
+
+class Skill(models.Model):
+    """Reusable markdown skill — a prompt module appended to an agent's
+    system prompt when assigned (e.g. 'Marketing Pro' for the consultant
+    in Telegram, or a lead-qualification skill).
+
+    Created by admins (Django admin) and attached per client/target either
+    in the portal or by Jeeves via the canvas MCP server.
+    """
+
+    TARGET_CHOICES = [
+        ('assistant', 'AI Assistant (Jeeves)'),
+        ('manager', 'Consultant (customer-facing)'),
+        ('leads', 'Lead handling'),
+    ]
+
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(unique=True)
+    description = models.CharField(
+        max_length=300, blank=True,
+        help_text='One line shown in catalogs and to Jeeves')
+    content = models.TextField(
+        help_text='Markdown instructions appended to the agent system prompt')
+    allowed_targets = models.JSONField(
+        default=list, blank=True,
+        help_text='Subset of ["assistant","manager","leads"]; empty = any target')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
+class SkillAssignment(models.Model):
+    """A skill attached to one of a client's agents."""
+
+    client = models.ForeignKey(
+        'clients.Client', on_delete=models.CASCADE, related_name='skill_assignments')
+    skill = models.ForeignKey(
+        Skill, on_delete=models.CASCADE, related_name='assignments')
+    target = models.CharField(max_length=20, choices=Skill.TARGET_CHOICES)
+    enabled = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['client', 'skill', 'target']
+        indexes = [models.Index(fields=['client', 'target', 'enabled'])]
+
+    def __str__(self):
+        return f'{self.client} — {self.skill.name} ({self.target})'

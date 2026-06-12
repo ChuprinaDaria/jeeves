@@ -170,6 +170,76 @@ def remove_connection_sync(client_id, tool_slug, target):
     return {"tool": tool_slug, "target": target, "detached": True}
 
 
+def list_skills_sync(client_id):
+    from Jeeves.tools.models import Skill, SkillAssignment
+
+    client = _get_client(client_id)
+    if client is None:
+        return {"error": f"Client {client_id} not found"}
+
+    attached = {}
+    for sa in SkillAssignment.objects.filter(
+            client=client, enabled=True, skill__is_active=True).select_related('skill'):
+        attached.setdefault(sa.skill.slug, []).append(sa.target)
+
+    return {"skills": [
+        {
+            "skill": skill.slug,
+            "name": skill.name,
+            "description": skill.description,
+            "allowed_targets": skill.allowed_targets or list(VALID_TARGETS),
+            "attached_to": sorted(attached.get(skill.slug, [])),
+        }
+        for skill in Skill.objects.filter(is_active=True)
+    ]}
+
+
+def attach_skill_sync(client_id, skill_slug, target):
+    from Jeeves.tools.models import Skill, SkillAssignment
+
+    client = _get_client(client_id)
+    if client is None:
+        return {"error": f"Client {client_id} not found"}
+
+    target = (target or '').strip().lower()
+    if target not in VALID_TARGETS:
+        return {"error": f"target must be one of {list(VALID_TARGETS)}"}
+
+    try:
+        skill = Skill.objects.get(slug=skill_slug, is_active=True)
+    except Skill.DoesNotExist:
+        return {"error": f"Unknown skill '{skill_slug}'. Use skill_list first."}
+
+    allowed = skill.allowed_targets or list(VALID_TARGETS)
+    if target not in allowed:
+        return {"error": f"'{skill_slug}' can only be attached to: {allowed}"}
+
+    assignment, _created = SkillAssignment.objects.get_or_create(
+        client=client, skill=skill, target=target)
+    if not assignment.enabled:
+        assignment.enabled = True
+        assignment.save(update_fields=['enabled'])
+    return {
+        "skill": skill.slug, "target": target, "attached": True,
+        "note": "The skill is live: it now shapes that agent's behavior in every conversation.",
+    }
+
+
+def detach_skill_sync(client_id, skill_slug, target):
+    from Jeeves.tools.models import SkillAssignment
+
+    client = _get_client(client_id)
+    if client is None:
+        return {"error": f"Client {client_id} not found"}
+
+    target = (target or '').strip().lower()
+    deleted, _ = SkillAssignment.objects.filter(
+        client=client, skill__slug=skill_slug, target=target).delete()
+    if not deleted:
+        return {"error": f"'{skill_slug}' is not attached to '{target}'"}
+    return {"skill": skill_slug, "target": target, "detached": True}
+
+
 # ---------------------------------------------------------------------------
 # MCP tools
 # ---------------------------------------------------------------------------
@@ -219,6 +289,43 @@ async def canvas_remove_tool_connection(
     """Detach a tool from an agent target on the canvas. Credentials are
     kept, so reconnecting later does not require re-authorization."""
     result = await sync_to_async(remove_connection_sync)(client_id, tool_slug, target)
+    return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
+async def skill_list(client_id: int, session_id: str = "", user_id: str = "") -> str:
+    """List markdown skills (prompt modules like 'Marketing Pro' or 'Lead
+    Qualifier') with where each is currently attached. Skills change HOW an
+    agent communicates; tools change WHAT it can do."""
+    result = await sync_to_async(list_skills_sync)(client_id)
+    return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
+async def skill_attach(
+    client_id: int,
+    skill_slug: str,
+    target: str,
+    session_id: str = "",
+    user_id: str = "",
+) -> str:
+    """Attach a skill to an agent: 'manager' (customer-facing consultant —
+    e.g. marketing/sales style in Telegram and WhatsApp), 'assistant'
+    (Jeeves himself) or 'leads' (lead qualification discipline)."""
+    result = await sync_to_async(attach_skill_sync)(client_id, skill_slug, target)
+    return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
+async def skill_detach(
+    client_id: int,
+    skill_slug: str,
+    target: str,
+    session_id: str = "",
+    user_id: str = "",
+) -> str:
+    """Detach a skill from an agent target."""
+    result = await sync_to_async(detach_skill_sync)(client_id, skill_slug, target)
     return json.dumps(result, ensure_ascii=False)
 
 

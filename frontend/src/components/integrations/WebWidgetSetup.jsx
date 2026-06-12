@@ -55,8 +55,8 @@ const WebWidgetSetup = ({ onClose }) => {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6">
+      <div className="fixed inset-0 z-50 flex justify-end bg-ink/30 backdrop-blur-[2px]">
+        <div className="settings-drawer bg-white dark:bg-gray-800 h-full overflow-y-auto border-l-[1.5px] border-rule shadow-ink-lg p-6 w-[640px] max-w-[94vw]">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
       </div>
@@ -64,8 +64,8 @@ const WebWidgetSetup = ({ onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto p-2 sm:p-4 safe-top safe-bottom">
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 max-w-4xl w-full max-h-[calc(100vh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex justify-end bg-ink/30 backdrop-blur-[2px] safe-top safe-bottom">
+      <div className="settings-drawer bg-white dark:bg-gray-800 h-full overflow-y-auto border-l-[1.5px] border-rule shadow-ink-lg p-4 sm:p-6 w-[640px] max-w-[94vw]">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
             {t('integrations.setupWebWidget') || 'Web Widget Setup'}

@@ -87,7 +87,15 @@ DEFAULT_ASSISTANT_PROMPT = (
     "When the owner asks to connect or disconnect something, do it with these "
     "tools and confirm what changed. If a tool needs credentials, wire it and "
     "tell the owner to authorize it on the Tools page. "
-    "WhatsApp is connected via QR code on the Integrations page — not via canvas tools."
+    "WhatsApp is connected via QR code on the Integrations page — not via canvas tools.\n\n"
+    "## Skills\n"
+    "Skills are reusable prompt modules (e.g. 'Marketing Pro', 'Sales Pro', "
+    "'Lead Qualifier') that change HOW an agent communicates:\n"
+    "- skill_list: catalog + where each skill is attached\n"
+    "- skill_attach / skill_detach: attach to 'manager' (the customer-facing "
+    "consultant in Telegram/WhatsApp/web chat), 'assistant' (you) or 'leads'\n"
+    "When the owner says e.g. 'I want my consultant to sell better in Telegram', "
+    "attach the matching skill to 'manager' and confirm. The skill applies immediately."
 )
 
 DEFAULT_CONSULTANT_PROMPT = (
@@ -175,6 +183,7 @@ class AgentOrchestrator:
         # Scope filtering (set in process())
         self._scope = 'manager'  # default, set in process()
         self._deployment = None  # live topology snapshot, set in _build_scope_filter
+        self._skills = []  # assigned markdown skills, set in _build_scope_filter
         self._tool_to_connection = {}  # server_name -> ToolConnection
         self._connected_server_names = set()
         self._session = None  # set in process()
@@ -638,6 +647,10 @@ class AgentOrchestrator:
                     f"- Customer channels connected: {channels_str}."
                 )
 
+        for skill_name, skill_target, skill_content in self._skills:
+            suffix = " (lead handling)" if skill_target == 'leads' else ""
+            parts.append(f"\n\n## Skill: {skill_name}{suffix}\n{skill_content.strip()}")
+
         if is_owner_channel:
             # Assistant detects user language and responds in it
             parts.append(
@@ -746,6 +759,17 @@ class AgentOrchestrator:
             channels.append('WhatsApp')
         channels.append('Web chat')
         self._deployment = {'wiring': wiring, 'channels': channels}
+
+        # Assigned markdown skills (prompt modules) for the current scope.
+        # Lead-handling skills ride with the consultant, who captures leads.
+        from Jeeves.tools.models import SkillAssignment
+        skill_targets = ['assistant'] if self._scope == 'assistant' else ['manager', 'leads']
+        self._skills = []
+        async for assignment in SkillAssignment.objects.filter(
+            client=self.client, enabled=True, skill__is_active=True,
+            target__in=skill_targets,
+        ).select_related('skill').order_by('skill__name'):
+            self._skills.append((assignment.skill.name, assignment.target, assignment.skill.content))
 
     def _get_scope_tool_names(self) -> list[str]:
         """Tool names visible to current scope."""

@@ -517,6 +517,9 @@ MCP_TOOL_SCOPES = {
     'canvas_remove_tool_connection': ['assistant'],
     'canvas_list_connections': ['assistant'],
     'canvas_list_available_tools': ['assistant'],
+    'skill_list': ['assistant'],
+    'skill_attach': ['assistant'],
+    'skill_detach': ['assistant'],
     # Matrix (cross-platform DM via mautrix bridges)
     'matrix_list_rooms': ['assistant', 'manager'],
     'matrix_read_room_history': ['assistant', 'manager'],
