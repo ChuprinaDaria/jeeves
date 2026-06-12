@@ -5,6 +5,8 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from Jeeves.agents.channels import channel_scope
+from Jeeves.agents.mcp_pool import resolve_tool_server
 from Jeeves.concierge_platform.models import FeatureFlag
 from .models import ToolCard, ToolConnection, EdgeMiddleware
 from .serializers import (
@@ -415,48 +417,6 @@ class WordCloudView(APIView):
         return Response({'words': words})
 
 
-# Fallback tool_name → MCP server mapping, used when the shared MCP session
-# pool hasn't started in this worker yet (its live tool_to_server map is the
-# primary source).
-_TOOL_PREFIX_TO_SERVER = {
-    'matrix_': 'matrix',
-    'gcal_': 'google-workspace',
-    'sheets_': 'google-workspace',
-    'reviews_': 'google-workspace',
-    'cp_': 'content-planner',
-    'pc_': 'hardware',
-}
-_TOOL_NAME_TO_SERVER = {
-    'search': 'rag',
-    'send_email': 'email',
-    'send_email_with_attachment': 'email',
-    'read_emails': 'email',
-    'search_emails': 'email',
-    'analyze_emails': 'email',
-    'send_commercial_email': 'email',
-    'save_lead': 'leads',
-}
-
-
-def _resolve_tool_server(tool_name):
-    """tool_name → MCP server name ('' when unknown)."""
-    try:
-        from Jeeves.agents.mcp_pool import MCPSessionPool
-        pool = MCPSessionPool._instance
-        if pool is not None:
-            server = pool.tool_to_server.get(tool_name)
-            if server:
-                return server
-    except Exception:
-        pass
-    if tool_name in _TOOL_NAME_TO_SERVER:
-        return _TOOL_NAME_TO_SERVER[tool_name]
-    for prefix, server in _TOOL_PREFIX_TO_SERVER.items():
-        if tool_name.startswith(prefix):
-            return server
-    return ''
-
-
 def _server_to_slug(server, client_slugs):
     """MCP server name → the client's ToolCard slug (canvas node id)."""
     if not server:
@@ -469,14 +429,10 @@ def _server_to_slug(server, client_slugs):
     return server
 
 
-def _channel_to_target(channel):
-    return 'assistant' if channel == 'sandbox' else 'manager'
-
-
 def _build_activity_events(logs, client_slugs):
     events = []
     for log in logs:
-        slug = _server_to_slug(_resolve_tool_server(log.tool_name), client_slugs)
+        slug = _server_to_slug(resolve_tool_server(log.tool_name), client_slugs)
         if not slug:
             continue
         events.append({
@@ -485,7 +441,7 @@ def _build_activity_events(logs, client_slugs):
             'tool_name': log.tool_name,
             'status': log.status,
             'slug': slug,
-            'target': _channel_to_target(log.session.channel),
+            'target': channel_scope(log.session.channel),
         })
     return events
 
@@ -493,10 +449,10 @@ def _build_activity_events(logs, client_slugs):
 def _build_activity_aggregates(agg_rows, client_slugs):
     aggregates = defaultdict(lambda: {'count': 0, 'last_used': None})
     for row in agg_rows:
-        slug = _server_to_slug(_resolve_tool_server(row['tool_name']), client_slugs)
+        slug = _server_to_slug(resolve_tool_server(row['tool_name']), client_slugs)
         if not slug:
             continue
-        agg = aggregates[(slug, _channel_to_target(row['session__channel']))]
+        agg = aggregates[(slug, channel_scope(row['session__channel']))]
         agg['count'] += row['count']
         if agg['last_used'] is None or row['last_used'] > agg['last_used']:
             agg['last_used'] = row['last_used']
@@ -514,7 +470,6 @@ class FlowActivityView(APIView):
     def get(self, request):
         from datetime import timedelta
 
-        from django.db.models import Count, Max
         from django.utils.dateparse import parse_datetime
 
         from Jeeves.agents.models import AgentLog
@@ -545,22 +500,33 @@ class FlowActivityView(APIView):
         recent = base.filter(created_at__gt=since).select_related('session')[:50]
         events = _build_activity_events(recent, client_slugs)
 
-        agg_rows = (
-            base.filter(created_at__gt=now - timedelta(days=7))
-            .values('tool_name', 'session__channel')
-            .annotate(count=Count('id'), last_used=Max('created_at'))
-        )
-        aggregates = _build_activity_aggregates(agg_rows, client_slugs)
+        # The 7-day heatmap scan is the expensive part and changes slowly;
+        # cache it per client so a canvas polling every few seconds doesn't
+        # re-scan a week of logs each time. Live events stay uncached.
+        from django.core.cache import cache
+        cache_key = f'flow-activity-agg:{client.id}'
+        aggregates_out = cache.get(cache_key)
+        if aggregates_out is None:
+            from django.db.models import Count, Max
 
-        return Response({
-            'now': now.isoformat(),
-            'events': events,
-            'aggregates': [
+            agg_rows = (
+                base.filter(created_at__gt=now - timedelta(days=7))
+                .values('tool_name', 'session__channel')
+                .annotate(count=Count('id'), last_used=Max('created_at'))
+            )
+            aggregates = _build_activity_aggregates(agg_rows, client_slugs)
+            aggregates_out = [
                 {'slug': slug, 'target': target,
                  'count': agg['count'],
                  'last_used': agg['last_used'].isoformat() if agg['last_used'] else None}
                 for (slug, target), agg in aggregates.items()
-            ],
+            ]
+            cache.set(cache_key, aggregates_out, 60)
+
+        return Response({
+            'now': now.isoformat(),
+            'events': events,
+            'aggregates': aggregates_out,
         })
 
 
@@ -572,18 +538,13 @@ class FlowChannelsView(APIView):
     """
 
     def get(self, request):
+        from Jeeves.agents.channels import customer_channels
+
         client = getattr(request, 'client', None)
         if not client:
             return Response({'error': 'Client not found'},
                             status=status.HTTP_401_UNAUTHORIZED)
-        return Response({'channels': [
-            {'id': 'telegram', 'name': 'Telegram',
-             'active': bool(getattr(client, 'telegram_bot_token', ''))},
-            {'id': 'whatsapp', 'name': 'WhatsApp',
-             'active': bool(getattr(client, 'whatsapp_meta_enabled', False)
-                            or getattr(client, 'meta_phone_number_id', ''))},
-            {'id': 'webchat', 'name': 'Web chat', 'active': True},
-        ]})
+        return Response({'channels': customer_channels(client)})
 
 
 class SkillsView(APIView):

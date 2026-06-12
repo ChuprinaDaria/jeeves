@@ -1,8 +1,16 @@
 """Tests for the live canvas activity endpoint (FlowActivityView)."""
 import pytest
+from django.core.cache import cache
 from django.utils import timezone
 
 from Jeeves.agents.models import AgentConfig, AgentLog, AgentSession
+
+
+@pytest.fixture(autouse=True)
+def _clear_cache():
+    cache.clear()
+    yield
+    cache.clear()
 
 
 @pytest.fixture
@@ -64,6 +72,25 @@ class TestFlowActivity:
         _log_tool_call(other)
         res = self._get(client, client_obj)
         assert res.json()['events'] == []
+
+    def test_owner_telegram_maps_to_assistant(self, client, client_obj):
+        # owner_telegram is an OWNER channel → assistant scope (was wrongly
+        # 'manager' before channel routing was centralized).
+        _log_tool_call(client_obj, channel='owner_telegram')
+        res = self._get(client, client_obj)
+        assert res.json()['events'][0]['target'] == 'assistant'
+
+    def test_aggregates_cached_between_polls(self, client, client_obj):
+        from django.core.cache import cache as _cache
+        _log_tool_call(client_obj)
+        future = (timezone.now() + timezone.timedelta(minutes=1)).isoformat()
+        self._get(client, client_obj, since=future)
+        assert _cache.get(f'flow-activity-agg:{client_obj.id}') is not None
+        # A new log doesn't change the cached aggregate until TTL expires.
+        _log_tool_call(client_obj)
+        res = self._get(client, client_obj, since=future)
+        agg = {(a['slug'], a['target']): a['count'] for a in res.json()['aggregates']}
+        assert agg[('rag', 'manager')] == 1  # still cached, not 2
 
 
 @pytest.mark.django_db

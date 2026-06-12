@@ -276,3 +276,48 @@ class MCPSessionPool:
             cfg = self._configs.get(name) or getattr(settings, "MCP_SERVERS", {}).get(name)
             if cfg and cfg.get("enabled", True):
                 await self._connect_one(name, cfg)
+
+
+# Fallback tool_name → MCP server map, used when the shared pool hasn't
+# started in this worker yet (the live pool.tool_to_server is the primary
+# source). Single source of truth shared by FlowActivityView and any other
+# caller that must resolve a logged tool name to its server.
+_TOOL_NAME_TO_SERVER = {
+    'search': 'rag',
+    'send_email': 'email',
+    'send_email_with_attachment': 'email',
+    'read_emails': 'email',
+    'search_emails': 'email',
+    'analyze_emails': 'email',
+    'send_commercial_email': 'email',
+    'save_lead': 'leads',
+}
+_TOOL_PREFIX_TO_SERVER = {
+    'matrix_': 'matrix',
+    'gcal_': 'google-workspace',
+    'sheets_': 'google-workspace',
+    'reviews_': 'google-workspace',
+    'cp_': 'content-planner',
+    'pc_': 'hardware',
+    'canvas_': 'canvas',
+    'skill_': 'canvas',
+}
+
+
+def resolve_tool_server(tool_name: str) -> str:
+    """Resolve a tool name to its MCP server name ('' when unknown).
+
+    Prefers the live pool's discovered map; falls back to the static map
+    above so canvas activity resolves even before the pool boots.
+    """
+    pool = MCPSessionPool._instance
+    if pool is not None:
+        server = pool.tool_to_server.get(tool_name)
+        if server:
+            return server
+    if tool_name in _TOOL_NAME_TO_SERVER:
+        return _TOOL_NAME_TO_SERVER[tool_name]
+    for prefix, server in _TOOL_PREFIX_TO_SERVER.items():
+        if tool_name.startswith(prefix):
+            return server
+    return ''
