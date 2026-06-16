@@ -75,7 +75,7 @@ threadpoolctl==3.6.0
 tiktoken==0.8.0
 tqdm==4.67.1
 twilio==9.2.3
-types-PyYAML==6.0.12.20250915
+types-PyYAML==6.0.12.20260518
 types-requests==2.32.4.20250913
 typing-inspection==0.4.2
 typing_extensions==4.15.0
