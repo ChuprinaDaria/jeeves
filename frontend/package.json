@@ -15,7 +15,7 @@
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
     "@tailwindcss/typography": "^0.5.19",
-    "axios": "^1.13.1",
+    "axios": "^1.18.0",
     "d3-cloud": "^1.2.9",
     "i18next": "^26.2.0",
     "lucide-react": "^1.16.0",
